@@ -5145,7 +5145,7 @@ window.updateDropdownLatihanMapel = function() {
 
     let bank = window.adminBankLatihanData || {};
     let mapelSet = new Set();
-    Object.values(bank).forEach(function(item) { if(item.kelas === kelas) mapelSet.add(item.mapel); });
+    Object.values(bank).forEach(function(item) { if(item && item.kelas === kelas) mapelSet.add(item.mapel); });
 
     let html = '<option value="">-- Pilih Mata Pelajaran --</option>';
     Array.from(mapelSet).sort().forEach(function(m) { html += '<option value="' + m + '">' + m + '</option>'; });
@@ -5171,7 +5171,7 @@ window.updateDropdownLatihanBab = function() {
 
     Object.keys(bank).forEach(function(k) {
         let item = bank[k];
-        if(item.kelas === kelas && item.mapel === mapel && item.bab) {
+        if(item && item.kelas === kelas && item.mapel === mapel && item.bab) {
             babSet.add(item.bab);
         }
     });
@@ -5202,8 +5202,9 @@ window.updateDropdownLatihanKesulitan = function() {
 
     Object.keys(bank).forEach(function(k) {
         let item = bank[k];
-        if (item.kelas === kelas && item.mapel === mapel && item.bab === bab) {
-            ditemukan.push({ key: k, kesulitan: item.kesulitan, jml: (item.soal || []).length });
+        if (item && item.kelas === kelas && item.mapel === mapel && item.bab === bab) {
+            let arrSoal = Array.isArray(item.soal) ? item.soal : Object.values(item.soal || {});
+            ditemukan.push({ key: k, kesulitan: item.kesulitan, jml: arrSoal.length });
         }
     });
 
@@ -5217,7 +5218,6 @@ window.updateDropdownLatihanKesulitan = function() {
     });
     selKes.innerHTML = html;
 
-    // Jika hanya ada 1 tingkat kesulitan pada bab tersebut, pilih otomatis agar praktis
     if (ditemukan.length === 1) {
         selKes.value = ditemukan[0].key;
     }
@@ -5227,13 +5227,68 @@ window.sesiLatihanSiswa = null;
 
 window.mulaiLatihanSiswa = function() {
     let selKes = document.getElementById('latihan-select-kesulitan');
-    let key = selKes ? selKes.value : document.getElementById('latihan-select-bab').value;
+    let key = (selKes && selKes.value) ? selKes.value : document.getElementById('latihan-select-bab').value;
     if(!key) return alert("Pilih Bab dan Tingkat Kesulitan (C1 / C2 / HOTS) terlebih dahulu!");
 
-    let paketData = window.adminBankLatihanData[key];
-    if(!paketData || !paketData.soal || paketData.soal.length === 0) return alert("Soal tidak ditemukan di arsip!");
+    let paketData = window.adminBankLatihanData ? window.adminBankLatihanData[key] : null;
+    if (!paketData) return alert("Paket latihan tidak ditemukan di arsip!");
 
-    let shuffledSoal = [...paketData.soal].sort(function() { return Math.random() - 0.5; });
+    let rawSoal = Array.isArray(paketData.soal) ? paketData.soal : Object.values(paketData.soal || {});
+    if(rawSoal.length === 0) return alert("Belum ada butir soal di dalam topik ini!");
+
+    // Normalisasi struktur setiap soal agar 100% aman dari error Firebase
+    let normalizedSoal = rawSoal.filter(Boolean).map(function(q) {
+        let copyQ = Object.assign({}, q);
+        let opts = Array.isArray(copyQ.options) ? copyQ.options : Object.values(copyQ.options || {});
+        
+        // Jika opsi masih tertanam di dalam teks soal (karena baris baru/<br>), ekstrak otomatis
+        if (opts.length === 0 && copyQ.question && /<br\s*\/?>\s*[A-Ea-e][\.\)]/.test(copyQ.question)) {
+            let parts = copyQ.question.split(/<br\s*\/?>/i);
+            let qClean = [];
+            parts.forEach(function(p) {
+                let line = p.trim();
+                if (/^[A-Ea-e][\.\)]\s*/.test(line)) {
+                    let lbl = line.charAt(0).toUpperCase();
+                    let txt = line.substring(2).trim();
+                    opts.push({ label: lbl, text: txt });
+                } else {
+                    qClean.push(line);
+                }
+            });
+            copyQ.question = qClean.join('<br>');
+        }
+
+        copyQ.options = opts.map(function(o, idx) {
+            if (typeof o === 'string') return { label: String.fromCharCode(65 + idx), text: o };
+            return { label: o.label || String.fromCharCode(65 + idx), text: o.text || '' };
+        });
+
+        let rawCorrect = copyQ.correct || copyQ.correctAnswers || [];
+        if (typeof rawCorrect === 'string') rawCorrect = [rawCorrect];
+        else if (!Array.isArray(rawCorrect)) rawCorrect = Object.values(rawCorrect);
+
+        // Deteksi tipe otomatis jika opsi kosong (Isian Singkat)
+        if (copyQ.type === 'Essay') {
+            copyQ.type = 'Essay';
+        } else if (copyQ.options.length === 0 || copyQ.type === 'IS' || copyQ.type === 'short_answer') {
+            copyQ.type = 'IS';
+            // Pisahkan alternatif kunci jika dipisah tanda | atau koma
+            let splitKeys = [];
+            rawCorrect.forEach(function(k) {
+                String(k).split(/\||,/).forEach(function(sub) {
+                    if (sub.trim()) splitKeys.push(sub.trim());
+                });
+            });
+            rawCorrect = splitKeys;
+        } else if (copyQ.type !== 'PGK') {
+            copyQ.type = 'PG';
+        }
+
+        copyQ.correct = rawCorrect;
+        return copyQ;
+    });
+
+    let shuffledSoal = [...normalizedSoal].sort(function() { return Math.random() - 0.5; });
 
     window.sesiLatihanSiswa = {
         paketKey: key,
@@ -5257,18 +5312,46 @@ window.bukaRuangLatihan = function() {
     if(breadcrumb) breadcrumb.style.display = 'none';
 
     document.body.style.overflow = 'auto';
+    document.body.classList.remove('strict-mode-active');
 
     let room = document.getElementById('ujian-strict-room');
     if(room) { room.style.display = 'block'; room.scrollTo(0,0); }
 
     let judulUI = document.getElementById('ujian-judul-ui');
-    if(judulUI) judulUI.innerText = '🚀 Latihan: ' + window.sesiLatihanSiswa.bab + ' (Tingkat ' + window.sesiLatihanSiswa.kesulitan + ')';
+    if(judulUI) {
+        judulUI.style.color = '#2c3e50';
+        judulUI.innerText = '🚀 Latihan: ' + window.sesiLatihanSiswa.bab + ' (Tingkat ' + window.sesiLatihanSiswa.kesulitan + ')';
+    }
+
+    // Ganti tulisan "Mode Ketat" menjadi subjudul santai khusus Latihan
+    let subUI = document.getElementById('ujian-strict-subtitle');
+    if(subUI) {
+        subUI.innerText = 'Soal diacak. Hasil tidak disimpan permanen.';
+    }
 
     let timerEl = document.getElementById('ujian-timer-fixed');
     if(timerEl) timerEl.style.display = 'none';
 
     window.isStrictUjianActive = false;
     window.renderSoalLatihanSiswa();
+};
+
+window.keluarRuangLatihanSiswa = function() {
+    let room = document.getElementById('ujian-strict-room');
+    if(room) room.style.display = 'none';
+
+    let header = document.getElementById('header-wrap');
+    let nav = document.getElementById('main-nav');
+    let breadcrumb = document.querySelector('.bottom-breadcrumb-bar');
+    if(header) header.style.display = 'block';
+    if(nav) nav.style.display = 'flex';
+    if(breadcrumb) breadcrumb.style.display = 'flex';
+
+    // Kembalikan warna dan subjudul default untuk persiapan Ujian Kelas
+    let judulUI = document.getElementById('ujian-judul-ui');
+    if(judulUI) judulUI.style.color = '#c0392b';
+    let subUI = document.getElementById('ujian-strict-subtitle');
+    if(subUI) subUI.innerText = 'Mode Ketat: Dilarang Keluar atau Membuka Aplikasi Lain!';
 };
 
 // ---------------------------------------------------------
@@ -5278,49 +5361,57 @@ window.renderSoalLatihanSiswa = function() {
     let container = document.getElementById('ujian-strict-container');
     if(!container) return;
 
-    let soalArr = window.sesiLatihanSiswa.soal;
+    let soalArr = (window.sesiLatihanSiswa && window.sesiLatihanSiswa.soal) ? window.sesiLatihanSiswa.soal : [];
     window.sesiLatihanSiswa.statusJawab = new Array(soalArr.length).fill(false);
     window.sesiLatihanSiswa.skorTotal = 0;
 
-    let html = '';
+    let judulCetak = ('Latihan Mandiri - ' + (window.sesiLatihanSiswa.bab || '') + ' (' + (window.sesiLatihanSiswa.kesulitan || '') + ')').replace(/'/g, "\\'");
 
-    html += '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:25px; background:white; padding:15px; border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,0.05); border:1px solid #e1e8ed;">' +
-        '<div style="display:flex; gap:10px;">' +
-            '<button class="btn-action" style="background:#2c3e50; padding:8px 15px; font-size:12px; border-radius:30px; display:flex; align-items:center; gap:5px; width:auto;" onclick="window.cetakDokumenUniversal(\'pdf\', \'Latihan Mandiri: ' + window.sesiLatihanSiswa.bab + ' (' + window.sesiLatihanSiswa.kesulitan + ')\', window.sesiLatihanSiswa.soal)">🖨️ Print PDF</button>' +
-            '<button class="btn-action" style="background:#2c3e50; padding:8px 15px; font-size:12px; border-radius:30px; display:flex; align-items:center; gap:5px; width:auto;" onclick="window.cetakDokumenUniversal(\'word\', \'Latihan Mandiri: ' + window.sesiLatihanSiswa.bab + ' (' + window.sesiLatihanSiswa.kesulitan + ')\', window.sesiLatihanSiswa.soal)">📄 Export Word</button>' +
+    let html = '<div style="max-width:800px; margin:0 auto;">';
+
+    // Baris Tombol Atas: Print PDF, Export Word, dan Keluar Ruang
+    html += '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:25px; background:white; padding:12px 16px; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.06); border:1px solid #e1e8ed; flex-wrap:wrap; gap:10px;">' +
+        '<div style="display:flex; gap:10px; flex-wrap:wrap;">' +
+            '<button class="btn-action" style="background:#2c3e50; padding:8px 16px; font-size:12px; border-radius:30px; display:flex; align-items:center; gap:6px; width:auto;" onclick="window.cetakDokumenUniversal(\'pdf\', \'' + judulCetak + '\', window.sesiLatihanSiswa.soal)">🖨️ Print PDF</button>' +
+            '<button class="btn-action" style="background:#2c3e50; padding:8px 16px; font-size:12px; border-radius:30px; display:flex; align-items:center; gap:6px; width:auto;" onclick="window.cetakDokumenUniversal(\'word\', \'' + judulCetak + '\', window.sesiLatihanSiswa.soal)">📄 Export Word</button>' +
         '</div>' +
-        '<button class="btn-action" style="background:#e74c3c; padding:8px 15px; font-size:12px; border-radius:30px; display:flex; align-items:center; gap:5px; width:auto;" onclick="window.location.href=\'index.html?bab=home\'">✕ Keluar Ruang</button>' +
+        '<button class="btn-action" style="background:#e74c3c; padding:8px 18px; font-size:12px; border-radius:30px; display:flex; align-items:center; gap:6px; width:auto;" onclick="window.keluarRuangLatihanSiswa()">✕ Keluar Ruang</button>' +
     '</div>';
 
     soalArr.forEach(function(q, idx) {
-        html += '<div class="quiz-question-card" id="card-latihan-' + idx + '" style="margin-bottom:25px; box-shadow:0 4px 10px rgba(0,0,0,0.05); border-radius:8px; background:white; padding:20px; border:1px solid #e1e8ed;">';
-        html += '<div class="quiz-question-text" style="font-size:15px; color:#2c3e50; margin-bottom:15px; line-height:1.5;">' + (idx+1) + '. ' + q.question + '</div>';
+        let kunciArr = Array.isArray(q.correct) ? q.correct : [];
+        let opsiArr = Array.isArray(q.options) ? q.options : [];
 
-        if(q.type === 'IS' || q.type === 'Essay') {
-            html += '<input type="text" id="input-latihan-' + idx + '" class="input-box" placeholder="Ketik jawaban Anda... (tekan Enter atau klik di luar kotak untuk mengunci jawaban)" style="font-size:14px; padding:10px; border:1px solid #ccc; border-radius:6px; width:100%; box-sizing:border-box;" onchange="window.simpanJawabanLatihan(' + idx + ', this)">';
-        } else if (q.type === 'PG' || q.type === 'PGK') {
+        html += '<div class="quiz-question-card" id="card-latihan-' + idx + '" style="margin-bottom:25px; box-shadow:0 4px 12px rgba(0,0,0,0.05); border-radius:10px; background:white; padding:20px; border:1px solid #e1e8ed; border-left:4px solid #3498db;">';
+        html += '<div class="quiz-question-text" style="font-size:15px; color:#2c3e50; margin-bottom:15px; line-height:1.5; border-bottom:1px dashed #3498db; padding-bottom:8px;">' + (idx+1) + '. ' + (q.question || '') + '</div>';
+
+        if(q.type === 'IS' || q.type === 'Essay' || opsiArr.length === 0) {
+            html += '<input type="text" id="input-latihan-' + idx + '" class="input-box" placeholder="Ketik jawaban Anda lalu tekan Enter..." style="font-size:14px; padding:11px 14px; border:1px solid #cbd5e1; border-radius:8px; width:100%; box-sizing:border-box; margin-bottom:0;" onchange="window.simpanJawabanLatihan(' + idx + ', this)" onkeydown="if(event.key===\'Enter\'){this.blur();}">';
+        } else {
             html += '<div class="quiz-options" style="display:flex; flex-direction:column; gap:8px;">';
-            q.options.forEach(function(opt) {
-                if(q.type === 'PG') {
-                    html += '<button id="opsi-btn-' + idx + '-' + opt.label + '" class="quiz-option-btn opsi-latihan-' + idx + '" data-label="' + opt.label + '" style="text-align:left; background:white; border:1px solid #e1e8ed; padding:12px 15px; border-radius:6px; cursor:pointer; font-size:14px; color:#34495e; transition:0.2s;" onclick="window.pilihJawabanLatihanPG(' + idx + ', \'' + opt.label + '\', this)">' + opt.label + '. ' + opt.text + '</button>';
-                } else {
+            opsiArr.forEach(function(opt) {
+                if(q.type === 'PGK') {
                     html += '<label id="opsi-lbl-' + idx + '-' + opt.label + '" class="quiz-option-btn opsi-latihan-' + idx + '" data-label="' + opt.label + '" style="display:flex; align-items:center; gap:10px; background:white; border:1px solid #e1e8ed; padding:12px 15px; border-radius:6px; cursor:pointer; font-size:14px; color:#34495e;">' +
                                 '<input type="checkbox" id="chk-latihan-' + idx + '-' + opt.label + '" style="width:16px; height:16px; cursor:pointer; accent-color:#f39c12;" onchange="window.pilihJawabanLatihanPGK(' + idx + ', \'' + opt.label + '\', this.checked)">' +
                                 '<span>' + opt.label + '. ' + opt.text + '</span>' +
                              '</label>';
+                } else {
+                    html += '<button type="button" id="opsi-btn-' + idx + '-' + opt.label + '" class="quiz-option-btn opsi-latihan-' + idx + '" data-label="' + opt.label + '" style="text-align:left; background:white; border:1px solid #e1e8ed; padding:12px 15px; border-radius:6px; cursor:pointer; font-size:14px; color:#34495e; transition:0.2s;" onclick="window.pilihJawabanLatihanPG(' + idx + ', \'' + opt.label + '\', this)">' + opt.label + '. ' + opt.text + '</button>';
                 }
             });
             html += '</div>';
         }
 
-        html += '<div id="bahas-' + idx + '" style="display:none; margin-top:15px; padding:12px 15px; background:#ebf5fb; border-left:4px solid #2980b9; border-radius:4px; font-size:13px; color:#2c3e50;">' +
-                    '<strong style="color:#2980b9;">Kunci: ' + (q.correct || q.correctAnswers || []).join(', ') + '</strong><br>' +
+        html += '<div id="bahas-' + idx + '" style="display:none; margin-top:15px; padding:12px 15px; background:#ebf5fb; border-left:4px solid #2980b9; border-radius:6px; font-size:13px; color:#2c3e50;">' +
+                    '<strong style="color:#2980b9;">Kunci: ' + (kunciArr.join(', ') || '-') + '</strong><br>' +
                     '<div style="margin-top:5px; color:#34495e;"><strong>Pembahasan:</strong> ' + (q.explanation || 'Tidak ada pembahasan.') + '</div>' +
                  '</div>';
         html += '</div>';
     });
 
+    html += '</div>';
     container.innerHTML = html;
+
     let defaultCloseBtn = document.getElementById('btn-close-strict');
     if(defaultCloseBtn) defaultCloseBtn.style.display = 'none';
 };
@@ -5328,7 +5419,7 @@ window.renderSoalLatihanSiswa = function() {
 window.cekSelesaiLatihan = function() {
     let dijawab = window.sesiLatihanSiswa.statusJawab.filter(Boolean).length;
     let total = window.sesiLatihanSiswa.soal.length;
-    if (dijawab === total) {
+    if (total > 0 && dijawab === total) {
         let nilaiAkhir = Math.round((window.sesiLatihanSiswa.skorTotal / total) * 100);
         let modal = document.getElementById('modal-quiz-result');
         if(modal) {
@@ -5338,7 +5429,7 @@ window.cekSelesaiLatihan = function() {
             document.getElementById('quiz-result-total').innerText = total;
             let btnRem = document.getElementById('btn-remedial');
             if (btnRem) btnRem.style.display = 'none';
-            modal.style.display = 'flex';
+            window.bukaModal('modal-quiz-result');
         }
     }
 };
@@ -5347,17 +5438,18 @@ window.pilihJawabanLatihanPG = function(soalIdx, labelPilihan, btnEl) {
     if(window.sesiLatihanSiswa.statusJawab[soalIdx]) return;
 
     let q = window.sesiLatihanSiswa.soal[soalIdx];
+    let kunciArr = Array.isArray(q.correct) ? q.correct : [];
     window.sesiLatihanSiswa.statusJawab[soalIdx] = true;
     window.sesiLatihanSiswa.jawaban[soalIdx] = labelPilihan;
 
-    let isCorrect = q.correct.includes(labelPilihan);
+    let isCorrect = kunciArr.includes(labelPilihan);
     if(isCorrect) window.sesiLatihanSiswa.skorTotal += 1;
 
     document.querySelectorAll('.opsi-latihan-' + soalIdx).forEach(function(btn) {
         btn.style.cursor = 'not-allowed';
         btn.disabled = true;
         let lbl = btn.getAttribute('data-label');
-        if (q.correct.includes(lbl)) {
+        if (kunciArr.includes(lbl)) {
             btn.style.background = '#d5f5e3'; btn.style.borderColor = '#27ae60'; btn.style.color = '#1e8449'; btn.style.fontWeight = 'bold';
         } else if (lbl === labelPilihan && !isCorrect) {
             btn.style.background = '#fadbd8'; btn.style.borderColor = '#e74c3c'; btn.style.color = '#c0392b'; btn.style.fontWeight = 'bold';
@@ -5377,9 +5469,10 @@ window.pilihJawabanLatihanPGK = function(soalIdx, labelPilihan, isChecked) {
     }
     
     let q = window.sesiLatihanSiswa.soal[soalIdx];
+    let kunciArr = Array.isArray(q.correct) ? q.correct : [];
     let lblEl = document.getElementById('opsi-lbl-' + soalIdx + '-' + labelPilihan);
 
-    if (q.correct.includes(labelPilihan)) {
+    if (kunciArr.includes(labelPilihan)) {
         lblEl.style.background = '#d5f5e3'; lblEl.style.borderColor = '#27ae60';
     } else {
         lblEl.style.background = '#fadbd8'; lblEl.style.borderColor = '#e74c3c';
@@ -5390,12 +5483,12 @@ window.pilihJawabanLatihanPGK = function(soalIdx, labelPilihan, isChecked) {
     }
 
     let correctCount = 0;
-    q.correct.forEach(function(c) {
+    kunciArr.forEach(function(c) {
         let el = document.getElementById('chk-latihan-' + soalIdx + '-' + c);
         if(el && el.checked) correctCount++;
     });
 
-    if (correctCount === q.correct.length) {
+    if (kunciArr.length > 0 && correctCount === kunciArr.length) {
         window.sesiLatihanSiswa.statusJawab[soalIdx] = true;
         window.sesiLatihanSiswa.skorTotal += 1;
         document.getElementById('bahas-' + soalIdx).style.display = 'block';
@@ -5409,19 +5502,20 @@ window.simpanJawabanLatihan = function(soalIdx, inputEl) {
     if(!val) return;
 
     let q = window.sesiLatihanSiswa.soal[soalIdx];
+    let kunciArr = Array.isArray(q.correct) ? q.correct : [];
     window.sesiLatihanSiswa.statusJawab[soalIdx] = true;
     window.sesiLatihanSiswa.jawaban[soalIdx] = val;
 
     inputEl.disabled = true;
     inputEl.style.cursor = 'not-allowed';
 
-    if (q.type === 'IS') {
-        let keys = (q.correctAnswers || q.correct || []).map(function(k) { return k.toLowerCase().trim(); });
+    if (q.type === 'IS' || !q.options || q.options.length === 0) {
+        let keys = kunciArr.map(function(k) { return String(k).toLowerCase().trim(); });
         if (keys.includes(val.toLowerCase())) {
-            inputEl.style.background = '#d5f5e3'; inputEl.style.borderColor = '#27ae60'; inputEl.style.color = '#1e8449';
+            inputEl.style.background = '#d5f5e3'; inputEl.style.borderColor = '#27ae60'; inputEl.style.color = '#1e8449'; inputEl.style.fontWeight = 'bold';
             window.sesiLatihanSiswa.skorTotal += 1;
         } else {
-            inputEl.style.background = '#fadbd8'; inputEl.style.borderColor = '#e74c3c'; inputEl.style.color = '#c0392b';
+            inputEl.style.background = '#fadbd8'; inputEl.style.borderColor = '#e74c3c'; inputEl.style.color = '#c0392b'; inputEl.style.fontWeight = 'bold';
         }
     } else {
         inputEl.style.background = '#eef2f7'; inputEl.style.borderColor = '#94a3b8';
@@ -5454,9 +5548,10 @@ window.cetakDokumenUniversal = function(format, judul, dataSoal) {
 
     dataSoal.forEach(function(q, i) {
         html += '<div class="soal-item">';
-        let qText = q.question;
+        let qText = q.question || '';
+        let opsiArr = Array.isArray(q.options) ? q.options : [];
 
-        if (q.type === 'IS' || q.type === 'short_answer') {
+        if (q.type === 'IS' || q.type === 'short_answer' || (q.type !== 'Essay' && opsiArr.length === 0)) {
             qText += ' <span class="titik-isian">....................</span>'; 
         } else if (q.type === 'Essay') {
             qText += '<br><br><span class="titik-isian">....................................................................................................</span><br><span class="titik-isian">....................................................................................................</span><br><span class="titik-isian">....................................................................................................</span>';
@@ -5464,9 +5559,9 @@ window.cetakDokumenUniversal = function(format, judul, dataSoal) {
 
         html += '<div class="soal-teks">' + (i+1) + '. ' + qText + '</div>';
 
-        if (q.type === 'PG' || q.type === 'PGK' || q.type === 'mc') {
+        if (opsiArr.length > 0 && q.type !== 'IS' && q.type !== 'Essay') {
             html += '<ul class="opsi-list">';
-            (q.options || []).forEach(function(opt, optIdx) {
+            opsiArr.forEach(function(opt, optIdx) {
                 let label = opt.label || String.fromCharCode(65 + optIdx);
                 let text = opt.text || opt;
                 html += '<li class="opsi-item">' + label + '. ' + text + '</li>';
