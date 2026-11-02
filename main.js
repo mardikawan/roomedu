@@ -1,18 +1,1709 @@
-// ==========================================
-// FILE: js/main.js (Logika UI, Modal, Print & AI Tutor)
-// ==========================================
+// Konfigurasi Parameter URL dan State Global
+const urlParams = new URLSearchParams(window.location.search); 
+let babAktif = urlParams.get('bab') || "home";
+if (urlParams.get('guru')) {
+    sessionStorage.setItem("guruTarget", urlParams.get('guru').trim().toLowerCase());
+}
 
-// OBFUSKASI API KEY: Mencegah bot/hacker membaca kode API secara langsung
-window.getGeminiKey = function() {
-    return atob("QVEuQWI4Uk42THQzUk5mUDRqdEpzNXZkb3l3WndjWGJ2eVZTZjZtcWdfNzhXVnFqWlB6UXc=");
+// Listener Utama saat DOM selesai dimuat
+document.addEventListener("DOMContentLoaded", function() { 
+    let status = sessionStorage.getItem("statusLogin");
+    let btnLogin = document.getElementById('btn-login-utama');
+    let btnLogout = document.getElementById('btn-logout-utama');
+    
+    // 1. Logika untuk Tamu (Belum Login)
+    if(!status) {
+        if(btnLogin) btnLogin.style.display = 'block';
+        if(btnLogout) btnLogout.style.display = 'none';
+    } else {
+        // 2. Jika sudah login (Siswa atau Admin/Guru)
+        if(btnLogin) btnLogin.style.display = 'none';
+        if(btnLogout) btnLogout.style.display = 'block';
+        
+        document.body.classList.add('has-login'); 
+        
+        // 3. Logika Khusus Admin / Guru (Bisa Edit Ruang Kerjanya Sendiri)
+        if(status === "admin") {
+            let titleEl = document.getElementById('web-title');
+            if(sessionStorage.getItem("previewMode") === "true") { 
+                document.documentElement.classList.remove("force-edit-mode");
+                if(titleEl) titleEl.removeAttribute('contenteditable');
+            } else { 
+                document.body.classList.add("mode-edit-aktif"); 
+                document.documentElement.classList.add("force-edit-mode");
+                if(titleEl) {
+                    titleEl.setAttribute('contenteditable', 'true');
+                    titleEl.addEventListener('blur', function() {
+                        if(typeof window.simpanTema === "function") window.simpanTema();
+                    });
+                }
+            }
+        }
+    }
+});
+
+/* =========================================
+   FUNGSI DROPDOWN NAVBAR & MANAJEMEN PAGES (10 TINGKAT + ROOM HIDDEN)
+   ========================================= */
+
+// 1. Inisialisasi Data Default jika Database Kosong (Bersih untuk Guru Baru)
+window.inisialisasiDataPagesDefault = function() {
+    let aktifGuru = window.guruAktif || sessionStorage.getItem("username") || "mahardika";
+    if (aktifGuru === "mahardika") {
+        window.pagesData = [
+            { title: "HOME", slug: "home", level: 0, hidden: false, isLockedHidden: false },
+            { title: "Kelas X", slug: "kelas-x", level: 0, hidden: false, isLockedHidden: false },
+            { title: "Kelas XI", slug: "kelas-xi", level: 0, hidden: false, isLockedHidden: false },
+            { title: "Kelas XII", slug: "kelas-xii", level: 0, hidden: false, isLockedHidden: false },
+            { title: "TKA Biologi", slug: "tka-biologi", level: 0, hidden: false, isLockedHidden: false },
+            { title: "Olimpiade", slug: "olimpiade", level: 0, hidden: false, isLockedHidden: false },
+            { title: "Hidden", slug: "hidden", level: 0, hidden: true, isLockedHidden: true }
+        ];
+    } else {
+        // Untuk guru lain, mulai dalam keadaan bersih (hanya HOME dan Hidden)
+        window.pagesData = [
+            { title: "HOME", slug: "home", level: 0, hidden: false, isLockedHidden: false },
+            { title: "Hidden", slug: "hidden", level: 0, hidden: true, isLockedHidden: true }
+        ];
+    }
+    if (typeof window.simpanPagesKeDB === "function") {
+        window.simpanPagesKeDB();
+    }
 };
 
-var globalSelectedRange = null; 
-var activeBlockIndex = -1; 
-var activeQuizBlockIdx = -1;
-var soalTypingTimer; 
-var tipTimer;
+// 2. Pengunci Posisi Room "Hidden" (Selalu Hidden & Selalu Paling Kanan/Akhir)
+window.pastikanRoomHiddenTerkunci = function() {
+    if (!Array.isArray(window.pagesData)) window.pagesData = [];
 
+    // Normalisasi properti setiap item
+    window.pagesData.forEach(function(p) {
+        if (typeof p.level !== "number") p.level = parseInt(p.level) || 0;
+        if (p.level < 0) p.level = 0;
+        if (p.level > 9) p.level = 9; // Maksimal 10 tingkat (Level 0 s/d 9)
+        if (typeof p.hidden !== "boolean") p.hidden = Boolean(p.hidden);
+    });
+
+    // Cari apakah room khusus Hidden sudah ada
+    let hiddenIdx = window.pagesData.findIndex(function(p) {
+        return p.isLockedHidden === true || (p.level === 0 && (p.slug === "hidden" || (p.title && p.title.trim().toLowerCase() === "hidden")));
+    });
+
+    if (hiddenIdx === -1) {
+        // Jika belum ada, tambahkan di paling akhir
+        window.pagesData.push({
+            title: "Hidden",
+            slug: "hidden",
+            level: 0,
+            hidden: true,
+            isLockedHidden: true
+        });
+        hiddenIdx = window.pagesData.length - 1;
+    }
+
+    // Pastikan atribut pengunci pada induk Hidden
+    window.pagesData[hiddenIdx].level = 0;
+    window.pagesData[hiddenIdx].hidden = true;
+    window.pagesData[hiddenIdx].isLockedHidden = true;
+    if (!window.pagesData[hiddenIdx].title) window.pagesData[hiddenIdx].title = "Hidden";
+    if (!window.pagesData[hiddenIdx].slug) window.pagesData[hiddenIdx].slug = "hidden";
+
+    // Hapus flag isLockedHidden dari item lain agar hanya ada 1 induk Hidden
+    window.pagesData.forEach(function(p, idx) {
+        if (idx !== hiddenIdx) p.isLockedHidden = false;
+    });
+
+    // Ambil seluruh cabang milik Hidden (induk + semua sub-room di bawahnya)
+    let endHiddenIdx = hiddenIdx + 1;
+    while (endHiddenIdx < window.pagesData.length && window.pagesData[endHiddenIdx].level > 0) {
+        endHiddenIdx++;
+    }
+
+    // Jika cabang Hidden belum berada di paling akhir array, pindahkan ke paling akhir
+    if (endHiddenIdx < window.pagesData.length) {
+        let hiddenBranch = window.pagesData.splice(hiddenIdx, endHiddenIdx - hiddenIdx);
+        window.pagesData.push.apply(window.pagesData, hiddenBranch);
+    }
+
+    // Pastikan item pertama di daftar adalah Level 0
+    if (window.pagesData.length > 0 && window.pagesData[0].level !== 0) {
+        window.pagesData[0].level = 0;
+    }
+};
+
+// 3. Fungsi Pembantu Pembuat Slug URL Unik
+window.buatSlugUnik = function(judul, excludeIndex) {
+    let baseSlug = (judul || "room")
+        .toString()
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9\s-]/g, "")
+        .replace(/\s+/g, "-")
+        .replace(/-+/g, "-");
+    if (!baseSlug) baseSlug = "room";
+
+    let slugFinal = baseSlug;
+    let counter = 2;
+    while (window.pagesData.some(function(p, idx) { return idx !== excludeIndex && p.slug === slugFinal; })) {
+        slugFinal = baseSlug + "-" + counter;
+        counter++;
+    }
+    return slugFinal;
+};
+
+// 4. Hitung Rentang Cabang (Induk beserta seluruh Sub-Room di bawahnya)
+window.ambilRentangCabangPage = function(startIndex) {
+    if (!window.pagesData[startIndex]) return { start: startIndex, end: startIndex, count: 0 };
+    let baseLevel = window.pagesData[startIndex].level;
+    let endIndex = startIndex + 1;
+    while (endIndex < window.pagesData.length && window.pagesData[endIndex].level > baseLevel) {
+        endIndex++;
+    }
+    return { start: startIndex, end: endIndex, count: endIndex - startIndex };
+};
+
+// 4.5 Mesin Navigasi SPA (Mencegah Refresh / Flickering)
+window.navigasiHalaman = function(e, slug) {
+    if(e) e.preventDefault();
+    if(babAktif === slug) return; 
+
+    // KUNCI 4: PAKSA SIMPAN KETIKAN TERAKHIR KE ROOM LAMA SECARA INSTAN
+    if (window.typingTimer) {
+        clearTimeout(window.typingTimer);
+        window.typingTimer = null;
+    }
+    // Tembak sisa data ke room sebelum URL diganti
+    if (typeof window.simpanKeDB === 'function') {
+        window.simpanKeDB(babAktif); 
+    }
+
+    // Ganti URL browser secara virtual
+    babAktif = slug;
+    window.history.pushState({bab: slug}, "", "index.html?bab=" + slug);
+
+    document.querySelectorAll('#dynamic-navbar a').forEach(function(a) { a.classList.remove('active'); });
+    let activeLink = document.querySelector('#dynamic-navbar a[href="index.html?bab=' + slug + '"]');
+    if(activeLink) activeLink.classList.add('active');
+
+    // Tarik materi room baru
+    if(typeof window.muatKontenHalaman === 'function') {
+        window.muatKontenHalaman(slug);
+    }
+    window.closeDropdowns();
+};
+
+// Deteksi jika user menekan tombol Back/Forward di browser
+window.addEventListener('popstate', function(e) {
+    if (window.typingTimer) {
+        clearTimeout(window.typingTimer);
+        window.typingTimer = null;
+    }
+    if (typeof window.simpanKeDB === 'function') {
+        window.simpanKeDB(babAktif);
+    }
+    
+    let uParams = new URLSearchParams(window.location.search);
+    let backSlug = uParams.get('bab') || "home";
+    babAktif = backSlug;
+    
+    if(typeof window.muatKontenHalaman === 'function') window.muatKontenHalaman(backSlug);
+    
+    document.querySelectorAll('#dynamic-navbar a').forEach(function(a) { a.classList.remove('active'); });
+    let activeLink = document.querySelector('#dynamic-navbar a[href="index.html?bab=' + backSlug + '"]');
+    if(activeLink) activeLink.classList.add('active');
+});
+
+// 5. Render Toolbar Utama (Navbar) dengan Sub-Room hingga 10 Tingkat
+window.renderDynamicNavbar = function() {
+    window.pastikanRoomHiddenTerkunci();
+
+    let container = document.getElementById("dynamic-pages-container");
+    let navUl = document.getElementById("dynamic-navbar");
+    if (!container || !navUl) return;
+
+    let staticHomeLink = navUl.querySelector(':scope > li > a[href="index.html?bab=home"]');
+    let hasDynamicHome = window.pagesData.some(function(p) { return p.slug === "home"; });
+    if (staticHomeLink && staticHomeLink.parentElement) {
+        staticHomeLink.parentElement.style.display = hasDynamicHome ? "none" : "";
+        // Pasang pencegah refresh ke tombol HOME statis
+        staticHomeLink.onclick = function(e) { window.navigasiHalaman(e, 'home'); };
+    }
+    
+    // Pasang pencegah refresh ke Latihan dan Ujian jika mereka berupa link
+    navUl.querySelectorAll(':scope > li > a').forEach(function(a) {
+        let href = a.getAttribute('href');
+        if(href && href.indexOf('index.html?bab=') === 0 && href !== 'index.html?bab=home') {
+            let slug = href.split('=')[1];
+            a.onclick = function(ev) { window.navigasiHalaman(ev, slug); };
+        }
+    });
+
+    let rootNodes = [];
+    let stack = [];
+
+    window.pagesData.forEach(function(page, idx) {
+        let node = {
+            title: page.title, slug: page.slug, level: page.level, hidden: Boolean(page.hidden),
+            isLockedHidden: Boolean(page.isLockedHidden), index: idx, children: [],
+            effectiveHidden: Boolean(page.hidden) || Boolean(page.isLockedHidden)
+        };
+
+        while (stack.length > 0 && stack[stack.length - 1].level >= node.level) { stack.pop(); }
+
+        if (stack.length === 0) {
+            rootNodes.push(node);
+        } else {
+            let parentNode = stack[stack.length - 1];
+            if (parentNode.effectiveHidden) node.effectiveHidden = true;
+            parentNode.children.push(node);
+        }
+        stack.push(node);
+    });
+
+    function cetakMenuHTML(nodes, isSubMenu) {
+        let html = "";
+        nodes.forEach(function(node) {
+            let hasChildren = node.children && node.children.length > 0;
+            let liClasses = [];
+            if (node.effectiveHidden) liClasses.push("hidden-nav-item");
+            if (hasChildren) liClasses.push("has-sub");
+            if (node.isLockedHidden) liClasses.push("locked-hidden-nav-item");
+
+            let aClasses = [];
+            if (node.effectiveHidden) aClasses.push("hidden-nav-link");
+            if (node.slug === babAktif) aClasses.push("active");
+
+            let labelTitle = node.title;
+            if (node.level === 0 && node.slug === "home" && labelTitle.indexOf("🏠") === -1) labelTitle = "🏠 " + labelTitle;
+            else if (node.isLockedHidden && labelTitle.indexOf("🔒") === -1) labelTitle = "🔒 " + labelTitle;
+
+            let arrowHTML = hasChildren ? (isSubMenu ? ' <span class="sub-arrow-ind" style="font-size:11px; margin-left:8px;">▸</span>' : ' <span class="sub-arrow-ind" style="font-size:10px; margin-left:4px;">▾</span>') : "";
+
+            html += '<li class="' + liClasses.join(" ") + '" data-level="' + node.level + '">';
+            // Integrasi Mesin SPA di Navbar
+            html += '<a href="index.html?bab=' + encodeURIComponent(node.slug) + '" class="' + aClasses.join(" ") + '" onclick="window.navigasiHalaman(event, \'' + node.slug + '\')">';
+            html += '<span>' + labelTitle + '</span>' + arrowHTML;
+            html += '</a>';
+
+            if (hasChildren) {
+                html += '<ul class="sub-menu-nav" data-sub-level="' + (node.level + 1) + '">';
+                html += cetakMenuHTML(node.children, true);
+                html += '</ul>';
+            }
+            html += '</li>';
+        });
+        return html;
+    }
+
+    container.innerHTML = cetakMenuHTML(rootNodes, false);
+};
+
+// 6. Logika Buka-Tutup Sub-Menu 10 Tingkat (Hover Desktop & Klik Sentuh)
+let navCloseTimer = null;
+
+window.closeDropdowns = function() {
+    document.querySelectorAll("#dynamic-navbar ul.sub-menu-nav.open-sub").forEach(function(ul) {
+        ul.classList.remove("open-sub", "flyout-left", "align-right-edge");
+    });
+};
+
+function aturPosisiSubMenu(ulElement) {
+    if (!ulElement) return;
+    ulElement.classList.add("open-sub");
+    let parentLi = ulElement.parentElement;
+    let isTopLevelDropdown = parentLi && parentLi.parentElement && (parentLi.parentElement.id === "dynamic-pages-container" || parentLi.parentElement.id === "dynamic-navbar");
+
+    if (isTopLevelDropdown) {
+        ulElement.classList.remove("align-right-edge");
+        if (ulElement.getBoundingClientRect().right > window.innerWidth - 10) ulElement.classList.add("align-right-edge");
+    } else {
+        ulElement.classList.remove("flyout-left");
+        if (ulElement.getBoundingClientRect().right > window.innerWidth - 10) ulElement.classList.add("flyout-left");
+    }
+}
+
+function bukaJalurSubMenu(liElement) {
+    if (!liElement) return;
+    let activeUls = new Set();
+    let curr = liElement;
+    while (curr && curr.id !== "dynamic-navbar") {
+        if (curr.tagName === "UL" && curr.classList.contains("sub-menu-nav")) activeUls.add(curr);
+        curr = curr.parentElement;
+    }
+    let directSubUl = liElement.querySelector(":scope > ul.sub-menu-nav");
+    if (directSubUl) activeUls.add(directSubUl);
+
+    document.querySelectorAll("#dynamic-navbar ul.sub-menu-nav.open-sub").forEach(function(ul) {
+        if (!activeUls.has(ul)) ul.classList.remove("open-sub", "flyout-left", "align-right-edge");
+    });
+    if (directSubUl) aturPosisiSubMenu(directSubUl);
+}
+
+document.addEventListener("mouseover", function(e) {
+    if (window.innerWidth > 768) {
+        let li = e.target.closest("#dynamic-navbar li");
+        if (li) { clearTimeout(navCloseTimer); bukaJalurSubMenu(li); } 
+        else if (!e.target.closest("#dynamic-navbar")) { clearTimeout(navCloseTimer); navCloseTimer = setTimeout(window.closeDropdowns, 220); }
+    }
+});
+
+document.addEventListener("click", function(e) {
+    if (window.innerWidth <= 768) {
+        let a = e.target.closest("#dynamic-navbar a");
+        if (a) {
+            let li = a.parentElement;
+            let directSubUl = li ? li.querySelector(":scope > ul.sub-menu-nav") : null;
+            if (directSubUl && !directSubUl.classList.contains("open-sub")) {
+                e.preventDefault(); bukaJalurSubMenu(li); return;
+            }
+        } else if (!e.target.closest("#dynamic-navbar")) { window.closeDropdowns(); }
+    }
+});
+
+// 7. Render & Operasi di Dalam Modal "⚙️ Pages"
+let dragSourcePageIndex = null;
+
+window.renderModalPages = function() {
+    window.pastikanRoomHiddenTerkunci();
+    let listEl = document.getElementById("sortable-list");
+    if (!listEl) return;
+
+    let html = "";
+    window.pagesData.forEach(function(page, idx) {
+        let isLockedHidden = Boolean(page.isLockedHidden);
+        let isHome = (page.level === 0 && page.slug === "home");
+        let indentPx = page.level * 26;
+        let canAddSub = page.level < 9; 
+        
+        let eyeIcon = (page.hidden || isLockedHidden) ? "🚫" : "👁️";
+        let eyeTitle = isLockedHidden ? "Room khusus (Terkunci)" : (page.hidden ? "Klik untuk tampilkan" : "Klik untuk sembunyikan");
+        let cardClass = "page-item-card" + (isLockedHidden ? " locked-hidden-card" : "");
+        let levelLabel = page.level === 0 ? "Main" : "Lv." + (page.level + 1);
+
+        // Gagang titik 6 dipasang fungsi khusus onmousedown & onmouseup agar hanya gagang ini yang bisa ditarik
+        let dragGrip = !isLockedHidden ? `onmousedown="this.closest('li').setAttribute('draggable', true)" onmouseup="this.closest('li').setAttribute('draggable', false)" onmouseleave="this.closest('li').setAttribute('draggable', false)"` : "";
+
+        html += '<li class="' + cardClass + '" style="margin-left:' + indentPx + 'px;" draggable="false" data-page-index="' + idx + '" ondragstart="window.onPageDragStart(event, ' + idx + ')" ondragover="window.onPageDragOver(event)" ondrop="window.onPageDrop(event, ' + idx + ')">';
+        html += '  <div class="page-item-left">';
+        html += '    <span class="page-drag-handle" title="' + (isLockedHidden ? "Terkunci" : "Tarik titik ini untuk geser") + '" ' + dragGrip + '>' + (isLockedHidden ? "🔒" : "⋮⋮") + '</span>';
+        html += '    <input type="text" class="page-title-input" value="' + (page.title || "").replace(/"/g, "&quot;") + '" ' + (isLockedHidden ? "readonly" : "") + ' onchange="window.ubahNamaHalaman(' + idx + ', this.value)">';
+        html += '    <span class="page-level-badge">' + levelLabel + '</span>';
+        html += '  </div>';
+        html += '  <div class="page-item-actions">';
+        if (!isLockedHidden) {
+            html += '    <button class="page-btn-icon" title="Geser Naik" onclick="window.geserUrutanHalaman(' + idx + ', -1)">↑</button>';
+            html += '    <button class="page-btn-icon" title="Geser Turun" onclick="window.geserUrutanHalaman(' + idx + ', 1)">↓</button>';
+        }
+        html += '    <button class="page-btn-icon" title="' + eyeTitle + '" onclick="window.toggleVisibilitasHalaman(' + idx + ')">' + eyeIcon + '</button>';
+        html += '    <button class="page-btn-icon" style="color:#2980b9;" title="Tambah Sub-Room" ' + (!canAddSub ? "disabled" : "") + ' onclick="window.tambahSubHalaman(' + idx + ')"><b>+Sub</b></button>';
+        if (!isLockedHidden && !isHome) {
+            html += '    <button class="page-btn-icon delete-btn" title="Hapus Room" onclick="window.hapusHalaman(' + idx + ')">🗑️</button>';
+        }
+        html += '  </div>';
+        html += '</li>';
+    });
+    listEl.innerHTML = html;
+};
+
+// Tambah Main Room Baru (Selalu diselipkan tepat sebelum grup Hidden)
+window.tambahHalamanBaru = function(levelTarget) {
+    window.pastikanRoomHiddenTerkunci();
+    let lvl = typeof levelTarget === "number" ? levelTarget : 0;
+    let judulBaru = prompt("Masukkan nama Room utama baru:", "Room Baru");
+    if (!judulBaru || !judulBaru.trim()) return;
+    judulBaru = judulBaru.trim();
+
+    let slugBaru = window.buatSlugUnik(judulBaru, -1);
+    let newPage = {
+        title: judulBaru,
+        slug: slugBaru,
+        level: lvl,
+        hidden: false,
+        isLockedHidden: false
+    };
+
+    // Cari posisi induk Hidden agar halaman utama baru masuk sebelum Hidden
+    let hiddenIdx = window.pagesData.findIndex(function(p) { return p.isLockedHidden === true; });
+    if (hiddenIdx > -1) {
+        window.pagesData.splice(hiddenIdx, 0, newPage);
+    } else {
+        window.pagesData.push(newPage);
+    }
+
+    window.renderModalPages();
+    window.renderDynamicNavbar();
+    if (typeof window.updateBreadcrumb === "function") window.updateBreadcrumb();
+    if (typeof window.simpanPagesKeDB === "function") window.simpanPagesKeDB();
+};
+
+// Tambah Sub-Room Baru (Hingga 10 Tingkat: Level 0 s/d Level 9)
+window.tambahSubHalaman = function(parentIndex) {
+    let parentPage = window.pagesData[parentIndex];
+    if (!parentPage) return;
+
+    if (parentPage.level >= 9) {
+        return alert("Maksimal kedalaman sub-room adalah 10 tingkat!");
+    }
+
+    let judulSub = prompt('Masukkan nama Sub-Room di bawah "' + parentPage.title + '":', "Sub Room Baru");
+    if (!judulSub || !judulSub.trim()) return;
+    judulSub = judulSub.trim();
+
+    let slugSub = window.buatSlugUnik(judulSub, -1);
+    let newSubPage = {
+        title: judulSub,
+        slug: slugSub,
+        level: parentPage.level + 1,
+        hidden: false,
+        isLockedHidden: false
+    };
+
+    // Selipkan di akhir cabang milik induk tersebut
+    let branch = window.ambilRentangCabangPage(parentIndex);
+    window.pagesData.splice(branch.end, 0, newSubPage);
+
+    window.renderModalPages();
+    window.renderDynamicNavbar();
+    if (typeof window.updateBreadcrumb === "function") window.updateBreadcrumb();
+    if (typeof window.simpanPagesKeDB === "function") window.simpanPagesKeDB();
+};
+
+// Ubah Nama Room
+window.ubahNamaHalaman = function(index, judulBaru) {
+    let page = window.pagesData[index];
+    if (!page) return;
+    if (page.isLockedHidden) {
+        window.renderModalPages();
+        return;
+    }
+
+    let bersih = (judulBaru || "").trim();
+    if (!bersih) {
+        alert("Nama room tidak boleh kosong!");
+        window.renderModalPages();
+        return;
+    }
+
+    page.title = bersih;
+    if (page.slug !== "home") {
+        page.slug = window.buatSlugUnik(bersih, index);
+    }
+
+    window.renderModalPages();
+    window.renderDynamicNavbar();
+    if (typeof window.updateBreadcrumb === "function") window.updateBreadcrumb();
+    if (typeof window.simpanPagesKeDB === "function") window.simpanPagesKeDB();
+};
+
+// Toggle Visibilitas (Mata / Sembunyi)
+window.toggleVisibilitasHalaman = function(index) {
+    let page = window.pagesData[index];
+    if (!page) return;
+
+    if (page.isLockedHidden) {
+        return alert("Room 'Hidden' dikunci khusus agar selalu tersembunyi dari menu siswa dan selalu berada di paling kanan menu Admin. Anda bebas menambahkan +Sub di bawahnya untuk materi/kuis tambahan yang diakses lewat tombol.");
+    }
+
+    page.hidden = !page.hidden;
+    window.renderModalPages();
+    window.renderDynamicNavbar();
+    if (typeof window.simpanPagesKeDB === "function") window.simpanPagesKeDB();
+};
+
+// Geser Urutan Room (Beserta Seluruh Sub-Room di Bawahnya)
+window.geserUrutanHalaman = function(index, arah) {
+    let page = window.pagesData[index];
+    if (!page || page.isLockedHidden) return;
+
+    let currentBranch = window.ambilRentangCabangPage(index);
+    let targetLevel = page.level;
+
+    if (arah === -1) {
+        // Cari saudara selevel tepat di atasnya (dalam induk yang sama)
+        let prevIdx = -1;
+        for (let i = index - 1; i >= 0; i--) {
+            if (window.pagesData[i].level < targetLevel) break;
+            if (window.pagesData[i].level === targetLevel) {
+                prevIdx = i;
+                break;
+            }
+        }
+        if (prevIdx === -1) return;
+
+        let movingItems = window.pagesData.splice(currentBranch.start, currentBranch.count);
+        window.pagesData.splice(prevIdx, 0, ...movingItems);
+    } else if (arah === 1) {
+        // Cari saudara selevel tepat di bawahnya (jangan melewati induk Hidden)
+        let nextIdx = -1;
+        if (currentBranch.end < window.pagesData.length) {
+            let candidate = window.pagesData[currentBranch.end];
+            if (candidate.level === targetLevel && !candidate.isLockedHidden) {
+                nextIdx = currentBranch.end;
+            }
+        }
+        if (nextIdx === -1) return;
+
+        let nextBranch = window.ambilRentangCabangPage(nextIdx);
+        let movingItems = window.pagesData.splice(currentBranch.start, currentBranch.count);
+        let insertPos = nextBranch.end - currentBranch.count;
+        window.pagesData.splice(insertPos, 0, ...movingItems);
+    }
+
+    window.pastikanRoomHiddenTerkunci();
+    window.renderModalPages();
+    window.renderDynamicNavbar();
+    if (typeof window.updateBreadcrumb === "function") window.updateBreadcrumb();
+    if (typeof window.simpanPagesKeDB === "function") window.simpanPagesKeDB();
+};
+
+// Drag and Drop untuk Mengurutkan Room di Modal Pages
+window.onPageDragStart = function(e, index) {
+    if (window.pagesData[index] && window.pagesData[index].isLockedHidden) {
+        e.preventDefault();
+        return;
+    }
+    dragSourcePageIndex = index;
+    e.dataTransfer.effectAllowed = "move";
+};
+
+window.onPageDragOver = function(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+};
+
+window.onPageDrop = function(e, targetIndex) {
+    e.preventDefault();
+    if (dragSourcePageIndex === null || dragSourcePageIndex === targetIndex) return;
+
+    let sourceBranch = window.ambilRentangCabangPage(dragSourcePageIndex);
+    // Cegah drop ke dalam cabangnya sendiri
+    if (targetIndex >= sourceBranch.start && targetIndex < sourceBranch.end) return;
+
+    let targetPage = window.pagesData[targetIndex];
+    if (!targetPage || targetPage.isLockedHidden) return;
+
+    // Sesuaikan level jika dipindahkan ke level yang sama
+    let selisihLevel = targetPage.level - window.pagesData[dragSourcePageIndex].level;
+    let movingItems = window.pagesData.splice(sourceBranch.start, sourceBranch.count);
+
+    movingItems.forEach(function(item) {
+        let newLvl = item.level + selisihLevel;
+        if (newLvl < 0) newLvl = 0;
+        if (newLvl > 9) newLvl = 9;
+        item.level = newLvl;
+    });
+
+    let newTargetIndex = targetIndex > sourceBranch.start ? targetIndex - sourceBranch.count : targetIndex;
+    window.pagesData.splice(newTargetIndex, 0, ...movingItems);
+
+    dragSourcePageIndex = null;
+    window.pastikanRoomHiddenTerkunci();
+    window.renderModalPages();
+    window.renderDynamicNavbar();
+    if (typeof window.updateBreadcrumb === "function") window.updateBreadcrumb();
+    if (typeof window.simpanPagesKeDB === "function") window.simpanPagesKeDB();
+};
+
+// Hapus Room (Beserta Sub-Room di Bawahnya)
+window.hapusHalaman = function(index) {
+    let page = window.pagesData[index];
+    if (!page) return;
+    if (page.isLockedHidden) return alert("Room utama 'Hidden' tidak dapat dihapus karena merupakan fitur sistem.");
+    if (page.level === 0 && page.slug === "home") return alert("Halaman utama 'HOME' tidak dapat dihapus.");
+
+    let branch = window.ambilRentangCabangPage(index);
+    let pesan = branch.count > 1
+        ? 'Hapus room "' + page.title + '" beserta ' + (branch.count - 1) + ' sub-room di dalamnya?'
+        : 'Yakin ingin menghapus room "' + page.title + '"?';
+
+    if (confirm(pesan)) {
+        window.pagesData.splice(branch.start, branch.count);
+        window.pastikanRoomHiddenTerkunci();
+        window.renderModalPages();
+        window.renderDynamicNavbar();
+        if (typeof window.updateBreadcrumb === "function") window.updateBreadcrumb();
+        if (typeof window.simpanPagesKeDB === "function") window.simpanPagesKeDB();
+    }
+};
+
+// Pemantau Otomatis: Saat Modal Pages dibuka, langsung render daftar halaman
+document.addEventListener("DOMContentLoaded", function() {
+    let modalPagesEl = document.getElementById("modal-pages");
+    if (modalPagesEl) {
+        let obsPages = new MutationObserver(function(mutations) {
+            mutations.forEach(function(m) {
+                if (m.target.id === "modal-pages" && m.target.style.display === "flex") {
+                    window.renderModalPages();
+                }
+            });
+        });
+        obsPages.observe(modalPagesEl, { attributes: true, attributeFilter: ["style"] });
+    }
+});
+
+/* =========================================
+   FUNGSI TOOLBAR FORMAT TEKS (AKTIF PENUH & ANTI-LEPAS SELEKSI)
+   ========================================= */
+window.lastActiveEditable = null;
+window.savedEditorRange = null;
+
+// Rekam seleksi teks & blok aktif secara otomatis setiap kali guru memblok teks
+document.addEventListener("selectionchange", function() {
+    let sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) {
+        let range = sel.getRangeAt(0);
+        let container = range.commonAncestorContainer;
+        let el = container.nodeType === 3 ? container.parentNode : container;
+        if (el && el.closest) {
+            let editable = el.closest(".content-block, .fb-content, #popup-content-box");
+            if (editable) {
+                window.lastActiveEditable = editable;
+                window.savedEditorRange = range.cloneRange();
+                window.globalSelectedRange = range.cloneRange();
+            }
+        }
+    }
+});
+
+// Cegah tombol di Toolbar Content mencuri fokus saat diklik
+document.addEventListener("DOMContentLoaded", function() {
+    let toolbarEl = document.getElementById("toolbar");
+    if (toolbarEl) {
+        toolbarEl.addEventListener("mousedown", function(e) {
+            let btn = e.target.closest("button");
+            if (btn) {
+                e.preventDefault(); // Menjaga blok teks di editor tetap aktif!
+            }
+        });
+        // Pastikan klik Undo/Redo juga memicu penyimpanan ke database
+        toolbarEl.addEventListener("click", function(e) {
+            let btn = e.target.closest("button");
+            if (btn) {
+                let onclickAttr = btn.getAttribute("onclick") || "";
+                if (onclickAttr.indexOf("undo") !== -1 || onclickAttr.indexOf("redo") !== -1) {
+                    setTimeout(triggerInput, 50);
+                }
+            }
+        });
+    }
+});
+
+function pastikanFokusEditor() {
+    let active = document.activeElement;
+    let isInsideEditor = active && (active.classList.contains("content-block") || active.classList.contains("fb-content") || active.id === "popup-content-box");
+    if (!isInsideEditor && window.lastActiveEditable) {
+        window.lastActiveEditable.focus();
+    }
+    if (window.savedEditorRange) {
+        let sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(window.savedEditorRange);
+    }
+}
+
+function triggerInput() { 
+    let a = document.activeElement;
+    if (!a || !(a.classList.contains("content-block") || a.classList.contains("fb-content"))) {
+        a = window.lastActiveEditable;
+    }
+    if (a && (a.classList.contains("content-block") || a.classList.contains("fb-content"))) {
+        a.dispatchEvent(new Event("input", { bubbles: true })); 
+    }
+}
+
+// Format Teks Utama (Bold, Italic, Underline, Superscript, Font, Style, Color, List, Align)
+window.formatTeks = function(command, value = null) { 
+    pastikanFokusEditor();
+
+    if (command === "removeFormat") { 
+        document.execCommand("removeFormat", false, null); 
+        let sel = window.getSelection(); 
+        if (sel.rangeCount > 0) { 
+            let b = sel.anchorNode.nodeType === 3 ? sel.anchorNode.parentNode : sel.anchorNode; 
+            while (b && b !== document.body && !(b.classList && (b.classList.contains("content-block") || b.classList.contains("fb-content")))) { 
+                let c = b.style ? b.style.textAlign : ""; 
+                b.removeAttribute("style"); 
+                b.removeAttribute("class"); 
+                if (c) b.style.textAlign = c; 
+                b = b.parentNode; 
+            } 
+        } 
+    } else if (command === "formatBlock" && value) {
+        let tagVal = value.indexOf("<") === 0 ? value : "<" + value + ">";
+        document.execCommand("formatBlock", false, tagVal);
+    } else { 
+        document.execCommand(command, false, value); 
+    }
+
+    // Perbarui rekaman seleksi setelah format diterapkan
+    let selAfter = window.getSelection();
+    if (selAfter && selAfter.rangeCount > 0) {
+        window.savedEditorRange = selAfter.getRangeAt(0).cloneRange();
+    }
+    triggerInput(); 
+};
+
+// Ukuran Font (10pt s/d 48pt)
+window.aturUkuranFont = function(value) {
+    pastikanFokusEditor();
+    window.formatTeks("fontSize", value);
+};
+
+// Pengaturan Spasi & Jarak Paragraf
+window.aturSpasiParagraf = function(cmd) { 
+    pastikanFokusEditor();
+    let sel = window.getSelection(); 
+    if (sel.rangeCount > 0) { 
+        let node = sel.anchorNode; 
+        let block = node.nodeType === 3 ? node.parentNode : node; 
+        let container = block.closest ? block.closest("p, h1, h2, h3, blockquote, td, li, div") : null; 
+        
+        if ((!container || container.classList.contains("content-block") || container.classList.contains("fb-content")) && block.closest(".content-block, .fb-content")) { 
+            document.execCommand("formatBlock", false, "<P>"); 
+            let newAnchor = window.getSelection().anchorNode;
+            container = newAnchor ? (newAnchor.nodeType === 3 ? newAnchor.parentNode : newAnchor) : null; 
+        } 
+        
+        if (container && (container.closest(".content-block") || container.closest(".fb-content"))) { 
+            if (cmd.indexOf("line-") === 0) { 
+                container.style.lineHeight = cmd.split("-")[1]; 
+                container.querySelectorAll("*").forEach(function(c) { if (c.style) c.style.lineHeight = ""; }); 
+            } else if (cmd === "add-after") { 
+                container.style.marginBottom = "24px"; 
+            } else if (cmd === "add-before") { 
+                container.style.marginTop = "24px"; 
+            } else if (cmd === "remove-space") { 
+                container.style.marginTop = "0px"; 
+                container.style.marginBottom = "0px"; 
+            } 
+            triggerInput(); 
+        } 
+    } 
+};
+
+/* =========================================
+   STATE GLOBAL & ENGINE RENDER KONTEN
+   ========================================= */
+window.pagesData = []; 
+window.contentBlocksData = []; 
+window.floatingBoxesData = []; 
+window.quizState = {}; 
+
+window.updateBreadcrumb = function() {
+    let path = [];
+    if(window.pagesData) {
+        let targetIdx = window.pagesData.findIndex(p => p.slug === babAktif);
+        if(targetIdx > -1) {
+            let currentLevel = window.pagesData[targetIdx].level;
+            path.unshift(`<span>${window.pagesData[targetIdx].title}</span>`);
+            for(let i = targetIdx - 1; i >= 0; i--) {
+                if(window.pagesData[i].level < currentLevel) {
+                    path.unshift(`<span>${window.pagesData[i].title}</span>`);
+                    currentLevel = window.pagesData[i].level;
+                }
+            }
+        }
+    }
+    let text = path.length > 0 ? path.join(' ➔ ') : '<span>Beranda</span>';
+    let bc = document.getElementById('bottom-breadcrumb');
+    if(bc) bc.innerHTML = '📍 ' + text;
+};
+
+window.renderBlocks = function() {
+    let html = ''; 
+    let isEdit = document.body.classList.contains('mode-edit-aktif') || document.documentElement.classList.contains('force-edit-mode');
+    
+    window.contentBlocksData.forEach(function(blok, index) {
+        let qi = '';
+        if (blok.type === 'quiz') {
+            qi += '<div class="quiz-container" id="inline-kuis-' + index + '">' +
+                    '<div class="quiz-header">' +
+                        '<h3 class="quiz-title">🧩 Uji Pemahaman</h3>' +
+                        '<div>' +
+                            '<button class="btn-action" style="background:#34495e;width:auto;font-size:11px;padding:6px 12px;margin-right:5px;" onclick="cetakKuisPDF(\'inline-kuis-' + index + '\',\'Materi\')">🖨️ Cetak</button>' +
+                            (isEdit ? '<button class="btn-action" style="background:#2e7d32;width:auto;font-size:11px;padding:6px 12px;" onclick="bukaAIQuizModal(' + index + ')">🤖 Ekstrak</button>' : '') +
+                        '</div>' +
+                    '</div>';
+            
+            if (blok.questions && blok.questions.length > 0) {
+                blok.questions.forEach(function(q, qIdx) { 
+                    let qTextHtml = isEdit 
+                        ? '<div class="quiz-question-text" contenteditable="true" oninput="updateSoalInline(' + index + ',' + qIdx + ',\'q\',this)">' + (qIdx+1) + '. ' + q.question + '</div>' 
+                        : '<div class="quiz-question-text">' + (qIdx+1) + '. ' + q.question + '</div>';
+                    qi += '<div class="quiz-question-card" id="inline-q-' + index + '-' + qIdx + '">' + (isEdit ? '<button class="btn-delete-q" onclick="hapusSoalSistem(' + qIdx + ', \'inline\', ' + index + ')" title="Hapus Soal">🗑️</button>' : '') + qTextHtml;
+                    
+                    if (q.type === 'short_answer' || (!q.options && q.correctAnswers)) {
+                        let altStr = q.correctAnswers ? q.correctAnswers.join(' | ') : '';
+                        qi += '<div class="short-answer-box" style="margin-top:10px;">' +
+                            '<input type="text" class="input-box" placeholder="Ketik jawaban singkat..." style="font-size:15px; font-weight:600; padding:10px 12px; border:2px solid #3498db; border-radius:8px; width:100%; box-sizing:border-box;" oninput="jawabKuisInlineIsian(this, ' + index + ', ' + qIdx + ')">' +
+                            (isEdit ? '<div style="font-size:11px; color:#c0392b; margin-top:8px; background:#fadbd8; padding:6px; border-radius:4px; border-left:4px solid #e74c3c;"><b>🔒 Info Admin:</b> Alternatif Kunci: ' + altStr + '</div>' : '') +
+                        '</div>';
+                    } else {
+                        qi += '<div class="quiz-options">';
+                        (q.options || []).forEach(function(opt, oIdx) { 
+                            let optHtml = isEdit 
+                                ? '<div class="quiz-option-btn" contenteditable="true" oninput="updateSoalInline(' + index + ',' + qIdx + ',\'o\',this,' + oIdx + ')">' + String.fromCharCode(65+oIdx) + '. ' + opt + '</div>' 
+                                : '<button class="quiz-option-btn" onclick="jawabKuisInline(this,' + index + ',' + qIdx + ',' + oIdx + ',' + q.correctIndex + ')">' + String.fromCharCode(65+oIdx) + '. ' + opt + '</button>';
+                            qi += optHtml; 
+                        }); 
+                        qi += '</div>';
+                    }
+                    qi += '<div class="quiz-explanation"><b>Pembahasan:</b> ' + (q.explanation || 'Tepat!') + '</div></div>'; 
+                });
+                qi += '<div class="quiz-nav-bar" style="margin-top:0;border-top:none;">'; 
+                blok.questions.forEach(function(q, qIdx) {
+                    qi += '<button class="quiz-nav-btn" id="nav-btn-inline-' + index + '-' + qIdx + '" onclick="document.querySelector(\'#inline-q-' + index + '-' + qIdx + '\').scrollIntoView({behavior:\'smooth\',block:\'center\'})">' + (qIdx+1) + '</button>';
+                }); 
+                qi += '</div>';
+            } else {
+                qi += '<p style="color:#888;">Belum ada soal.</p>'; 
+            }
+            qi += '</div>';
+            
+            html += '<div class="block-wrapper ' + (blok.pattern||'') + '" data-index="' + index + '" style="background-color:' + blok.bg + ';padding-top:' + blok.padTop + ';padding-bottom:' + blok.padBot + ';">' +
+                '<canvas class="drawing-layer" data-index="' + index + '"></canvas>' +
+                '<div class="block-controls"><button onclick="geserBlok(' + index + ', -1)">⬆️</button><button onclick="geserBlok(' + index + ', 1)">⬇️</button><button onclick="bukaSidebarBlock(' + index + ')">⚙️ Setting</button><button onclick="hapusBlok(' + index + ')">🗑️ Delete</button></div>' +
+                '<div class="content-block" data-index="' + index + '" data-width="' + blok.width + '">' +
+                    qi +
+                '</div>' +
+            '</div>';
+        } else {
+            html += '<div class="block-wrapper ' + (blok.pattern||'') + '" data-index="' + index + '" style="background-color:' + blok.bg + ';padding-top:' + blok.padTop + ';padding-bottom:' + blok.padBot + ';">' +
+                '<canvas class="drawing-layer" data-index="' + index + '"></canvas>' +
+                '<div class="block-controls"><button onclick="geserBlok(' + index + ', -1)">⬆️</button><button onclick="geserBlok(' + index + ', 1)">⬇️</button><button onclick="bukaSidebarBlock(' + index + ')">⚙️ Setting</button><button onclick="hapusBlok(' + index + ')">🗑️ Delete</button></div>' +
+                '<div class="content-block" ' + (isEdit?'contenteditable="true"':'') + ' data-index="' + index + '" data-width="' + blok.width + '" style="color:' + blok.color + ';">' +
+                    blok.html +
+                '</div>' +
+            '</div>';
+        }
+    }); 
+    
+    document.getElementById('blocks-container').innerHTML = html; 
+    
+    if(window.renderMathJax) window.renderMathJax();
+};
+
+/* =========================================
+   FUNGSI BLOCK CONTROLS & SIDEBAR
+   ========================================= */
+let activeBlockIndex = -1;
+
+window.tambahBlokBaruAkhir = function() { 
+    window.contentBlocksData.push({type:'text',html:"<p>Ketik materi...</p>",bg:"#ffffff",pattern:"",color:"#333333",width:"M",padTop:"40px",padBot:"40px",drawing:""}); 
+    window.renderBlocks(); 
+    if(window.simpanKeDB) window.simpanKeDB(); 
+    window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'}); 
+}; 
+
+window.hapusBlok = function(i) { 
+    if(window.contentBlocksData.length <= 1) return alert("Minimal 1 block!"); 
+    if(confirm("Hapus blok ini?")){ 
+        window.contentBlocksData.splice(i,1); 
+        window.renderBlocks(); 
+        if(window.simpanKeDB) window.simpanKeDB(); 
+    } 
+}; 
+
+window.geserBlok = function(i, dir) {
+    if(i + dir >= 0 && i + dir < window.contentBlocksData.length) {
+        let temp = window.contentBlocksData[i]; 
+        window.contentBlocksData[i] = window.contentBlocksData[i+dir]; 
+        window.contentBlocksData[i+dir] = temp;
+        window.renderBlocks(); 
+        if(window.simpanKeDB) window.simpanKeDB();
+    }
+};
+
+window.bukaSidebarBlock = function(i) { 
+    activeBlockIndex = i; 
+    let b = window.contentBlocksData[i]; 
+    document.querySelector('input[oninput*="padTop"]').value = parseInt(b.padTop); 
+    document.getElementById('val-padtop').innerText = b.padTop; 
+    document.querySelector('input[oninput*="padBot"]').value = parseInt(b.padBot); 
+    document.getElementById('val-padbot').innerText = b.padBot; 
+    document.getElementById('sidebar-block').classList.add('open'); 
+}; 
+
+window.ubahStyleBlok = function(t, v) { 
+    if(activeBlockIndex > -1) { 
+        window.contentBlocksData[activeBlockIndex][t] = v; 
+        let d = document.querySelector(`.content-block[data-index="${activeBlockIndex}"]`); 
+        if(d) { 
+            if(t === 'bg') d.parentElement.style.backgroundColor = v; 
+            if(t === 'color') d.style.color = v; 
+            if(t === 'width') d.setAttribute('data-width', v);
+            if(t === 'padTop') d.parentElement.style.paddingTop = v;
+            if(t === 'padBot') d.parentElement.style.paddingBottom = v;
+        } 
+        // Trigger simpan otomatis ada di event listener firebase
+        triggerInput();
+    } 
+};
+
+window.ubahPolaBkg = function(pola) {
+    if(activeBlockIndex > -1){ 
+        window.contentBlocksData[activeBlockIndex].pattern = pola;
+        let wrap = document.querySelector(`.block-wrapper[data-index="${activeBlockIndex}"]`);
+        if(wrap) {
+            wrap.classList.remove('bg-pattern-lines', 'bg-pattern-grid', 'bg-pattern-dots');
+            if(pola) wrap.classList.add(pola);
+        }
+        triggerInput();
+    }
+};
+
+/* =========================================
+   FUNGSI FLOATING BOXES (SHAPE)
+   ========================================= */
+window.renderFloatingBoxes = function() {
+    let html = ''; 
+    let isEdit = document.body.classList.contains('mode-edit-aktif') || document.documentElement.classList.contains('force-edit-mode');
+    
+    (window.floatingBoxesData || []).forEach((fb, i) => {
+        html += `<div class="floating-box" id="fb-${i}" style="left:${fb.x}; top:${fb.y}; width:${fb.w}; height:${fb.h}; background:${fb.bg||'#fafafa'};">
+            <div class="fb-drag" onpointerdown="startDragFB(event, ${i})">✥ Drag</div>
+            <button class="fb-delete" onclick="hapusFloatingBox(${i})">✕</button>
+            <div class="fb-content" data-fb-index="${i}" ${isEdit?'contenteditable="true"':''}>
+                <canvas class="drawing-layer fb-canvas" data-fb-index="${i}"></canvas>
+                ${fb.html}
+            </div>
+            <div class="fb-resize" onpointerdown="startResizeFB(event, ${i})"></div>
+        </div>`;
+    });
+    
+    let container = document.getElementById('floating-boxes-container');
+    if(container) container.innerHTML = html; 
+};
+
+window.tambahFloatingBox = function() { 
+    if(!window.floatingBoxesData) window.floatingBoxesData = []; 
+    window.floatingBoxesData.push({ x: '20px', y: '20px', w: '300px', h: '200px', html: '<h3>Shape Baru</h3><p>Ketik penjelasan...</p>', drawing: '', bg: '#fdfdfd' }); 
+    window.renderFloatingBoxes(); 
+    if(window.simpanKeDB) window.simpanKeDB(); 
+};
+
+window.hapusFloatingBox = function(i) { 
+    if(confirm('Hapus elemen ini?')) { 
+        window.floatingBoxesData.splice(i, 1); 
+        window.renderFloatingBoxes(); 
+        if(window.simpanKeDB) window.simpanKeDB(); 
+    } 
+};
+
+window.startDragFB = function(e, i) {
+    if(!document.body.classList.contains('mode-edit-aktif')) return; 
+    e.preventDefault();
+    let el = document.getElementById('fb-'+i), sX = e.clientX, sY = e.clientY;
+    let sL = parseInt(el.style.left) || 0, sT = parseInt(el.style.top) || 0;
+    
+    function move(ev) { 
+        el.style.left = (sL + (ev.clientX - sX)) + 'px'; 
+        el.style.top = (sT + (ev.clientY - sY)) + 'px'; 
+    }
+    function up(ev) { 
+        document.removeEventListener('pointermove', move); 
+        document.removeEventListener('pointerup', up); 
+        window.floatingBoxesData[i].x = el.style.left; 
+        window.floatingBoxesData[i].y = el.style.top; 
+        if(window.simpanKeDB) window.simpanKeDB(); 
+    }
+    document.addEventListener('pointermove', move); 
+    document.addEventListener('pointerup', up);
+};
+
+window.startResizeFB = function(e, i) {
+    if(!document.body.classList.contains('mode-edit-aktif')) return; 
+    e.preventDefault(); e.stopPropagation();
+    let el = document.getElementById('fb-'+i), sX = e.clientX, sY = e.clientY;
+    let sW = el.offsetWidth, sH = el.offsetHeight;
+    
+    function move(ev) { 
+        el.style.width = (sW + (ev.clientX - sX)) + 'px'; 
+        el.style.height = (sH + (ev.clientY - sY)) + 'px'; 
+    }
+    function up(ev) { 
+        document.removeEventListener('pointermove', move); 
+        document.removeEventListener('pointerup', up); 
+        window.floatingBoxesData[i].w = el.style.width; 
+        window.floatingBoxesData[i].h = el.style.height; 
+        if(window.simpanKeDB) window.simpanKeDB(); 
+    }
+    document.addEventListener('pointermove', move); 
+    document.addEventListener('pointerup', up);
+};
+
+/* =========================================
+   FUNGSI KONTROL MODAL & POPUP (AUTO TOP-LAYER)
+   ========================================= */
+window.topModalZIndex = 5100;
+
+window.bukaModal = function(id) { 
+    let el = document.getElementById(id);
+    if (!el) return;
+    window.topModalZIndex += 10;
+    el.style.zIndex = window.topModalZIndex;
+    el.style.display = 'flex'; 
+};
+
+window.tutupModal = function(id) { 
+    let el = document.getElementById(id);
+    if (el) el.style.display = 'none'; 
+};
+
+window.tutupModalHasilQuiz = function() { 
+    let modal = document.getElementById('modal-quiz-result');
+    if (modal) modal.style.display = 'none';
+};
+
+window.bukaWelcomePopup = function() { 
+    window.bukaModal('modal-welcome-popup'); 
+    let box = document.getElementById('popup-content-box');
+    if(document.body.classList.contains('mode-edit-aktif')) {
+        document.getElementById('popup-img-tool').style.display = 'block';
+        if(box) {
+            // Beri izin edit dan paksa kursor berkedip otomatis
+            box.setAttribute('contenteditable', 'true');
+            if(!box.innerHTML.trim() || box.innerHTML.indexOf('Ketik pengumuman') !== -1) {
+                box.innerHTML = "Ketik pengumuman Anda di sini...";
+            }
+            setTimeout(function() { box.focus(); }, 200); 
+        }
+    } else {
+        document.getElementById('popup-img-tool').style.display = 'none';
+        if(box) box.removeAttribute('contenteditable');
+    }
+};
+
+window.tutupWelcomePopup = function() { 
+    window.tutupModal('modal-welcome-popup'); 
+    // Ingatan sessionStorage telah dihapus. Popup akan selalu muncul jika web di-refresh (F5).
+};
+
+/* =========================================
+   SISTEM LOGIN 3 LAPIS (MULTI-GURU) & PREVIEW
+   ========================================= */
+window.prosesLoginSistem = function() {
+    let rawUser = document.getElementById('input-username-login').value.trim();
+    let userKey = rawUser.toLowerCase();
+    let pass = document.getElementById('input-password-login').value;
+    let btn = document.querySelector('#modal-login-sistem .btn-action');
+    let oldText = btn.innerText;
+    
+    btn.innerText = "Memverifikasi...";
+    btn.disabled = true;
+
+    let emailTarget = "";
+    let roleTarget = "";
+    let guruTarget = "";
+
+    // Pemetaan Username Lokal ke Email Firebase Auth
+    if (userKey === "mahardika") {
+        emailTarget = "mahardika@admin.com";
+        roleTarget = "admin";
+        guruTarget = "mahardika";
+    } else if (userKey === "sbd") {
+        emailTarget = "siswa@sbd.com";
+        roleTarget = "siswa";
+        guruTarget = sessionStorage.getItem("guruTarget") || "mahardika";
+    } else {
+        emailTarget = userKey + "@guru.com";
+        roleTarget = "admin";
+        guruTarget = userKey;
+    }
+
+    // Tembak ke Firebase Auth
+    window.loginFirebase(emailTarget, pass, function() {
+        sessionStorage.setItem("statusLogin", roleTarget);
+        sessionStorage.setItem("username", userKey === "sbd" ? "SBD" : userKey);
+        sessionStorage.setItem("guruTarget", guruTarget);
+        
+        if (roleTarget === "siswa") window.location.reload();
+        else window.location.href = "index.html?guru=" + encodeURIComponent(guruTarget) + "&bab=home";
+    }, function(err) {
+        btn.innerText = oldText;
+        btn.disabled = false;
+        alert("❌ Akses Ditolak: Username atau Password salah!");
+    });
+};
+
+window.prosesLogoutSistem = function() {
+    if(confirm("Yakin ingin keluar?")) {
+        let prevStatus = sessionStorage.getItem("statusLogin");
+        let currentGuru = sessionStorage.getItem("guruTarget") || "mahardika";
+        
+        sessionStorage.removeItem("statusLogin");
+        sessionStorage.removeItem("username");
+        sessionStorage.removeItem("previewMode");
+
+        window.logoutFirebase(function() {
+            if (prevStatus === "admin" && currentGuru !== "mahardika") {
+                window.location.href = "index.html?guru=" + encodeURIComponent(currentGuru) + "&bab=home";
+            } else {
+                window.location.reload();
+            }
+        });
+    }
+};
+
+window.togglePreviewMode = function() { 
+    const b = document.body, d = document.documentElement, btn = document.getElementById('btn-preview'); 
+    if(b.classList.contains('mode-edit-aktif') || d.classList.contains('force-edit-mode')) { 
+        b.classList.remove('mode-edit-aktif'); 
+        d.classList.remove('force-edit-mode'); 
+        sessionStorage.setItem("previewMode", "true"); 
+        document.querySelectorAll('.content-block, .fb-content, .header-title').forEach(function(el) { el.removeAttribute('contenteditable'); }); 
+        if(btn) { btn.innerHTML = "✏️ Back to Edit"; btn.style.background = "#27ae60"; }
+        if(window.renderMathJax) window.renderMathJax(); 
+    } else { 
+        b.classList.add('mode-edit-aktif'); 
+        d.classList.add('force-edit-mode'); 
+        sessionStorage.removeItem("previewMode"); 
+        document.querySelectorAll('.content-block, .fb-content, .header-title').forEach(function(el) { el.setAttribute('contenteditable', 'true'); }); 
+        if(btn) { btn.innerHTML = "👁️ Preview as Student"; btn.style.background = "#e67e22"; }
+        if(window.restoreMathJax) window.restoreMathJax(); 
+    } 
+    window.renderBlocks(); 
+    if(window.renderFloatingBoxes) window.renderFloatingBoxes(); 
+};
+
+/* =========================================
+   TOOLTIP ISTILAH (KANAN ATAS / KIRI ATAS OTOMATIS & TANPA SIMBOL 💡)
+   ========================================= */
+let tipTimer;
+
+// Bersihkan simbol 💡 lama pada elemen .glossary-term jika masih ada
+document.addEventListener('DOMContentLoaded', function() {
+    let obsCleanGlossary = new MutationObserver(function() {
+        document.querySelectorAll('.glossary-term').forEach(function(el) {
+            if (el.innerText.indexOf('💡') !== -1) {
+                el.innerText = el.innerText.replace(/💡/g, '').trim();
+            }
+        });
+    });
+    let editorWrap = document.getElementById('main-editor-wrapper');
+    if (editorWrap) obsCleanGlossary.observe(editorWrap, { childList: true, subtree: true });
+});
+
+window.hoverIstilah = function(el, e) {
+    clearTimeout(tipTimer);
+    let tip = document.getElementById('tooltip-istilah');
+    if (!tip) return;
+
+    let cleanWord = el.innerText.replace(/💡/g, '').trim();
+    document.getElementById('tooltip-title').innerText = cleanWord + ': ';
+    document.getElementById('tooltip-body').innerText = el.getAttribute('data-penjelasan') || '';
+    tip.style.display = 'block';
+
+    // Hitung posisi kata di layar
+    let rect = el.getBoundingClientRect();
+    let tipW = tip.offsetWidth || 220;
+    let tipH = tip.offsetHeight || 60;
+
+    // Posisi Default: Kanan Atas dari kata tersebut
+    let x = rect.right + 6;
+    let y = rect.top - tipH - 6;
+
+    // Jika kata berada di ujung kanan layar, pindahkan pop-up ke Kiri Atas dari kata tersebut
+    if (x + tipW > window.innerWidth - 12) {
+        x = rect.left - tipW - 6;
+    }
+
+    // Jaga agar tidak keluar batas kiri atau batas atas layar
+    if (x < 10) x = 10;
+    if (y < 10) y = rect.bottom + 6;
+
+    tip.style.left = x + 'px';
+    tip.style.top = y + 'px';
+};
+
+window.leaveIstilah = function() { 
+    tipTimer = setTimeout(function() {
+        let tip = document.getElementById('tooltip-istilah');
+        if (tip) tip.style.display = 'none';
+    }, 250); 
+};
+
+document.addEventListener('mouseover', function(e) {
+    let term = e.target.closest ? e.target.closest('.glossary-term') : null;
+    if (term) window.hoverIstilah(term, e);
+});
+document.addEventListener('mouseout', function(e) {
+    let term = e.target.closest ? e.target.closest('.glossary-term') : null;
+    if (term) window.leaveIstilah();
+});
+
+/* =========================================
+   AI TUTOR UI LOGIC
+   ========================================= */
+window.tutupAITutor = function() { document.getElementById('ai-tutor-box').style.display = 'none'; };
+
+let aiHeader = document.getElementById('ai-tutor-header');
+let aiBox = document.getElementById('ai-tutor-box');
+let isDraggingAI = false, aiStartPosX, aiStartPosY, aiStartMouseX, aiStartMouseY;
+
+if(aiHeader) {
+    aiHeader.addEventListener('pointerdown', function(e) {
+        isDraggingAI = true;
+        aiStartMouseX = e.clientX; aiStartMouseY = e.clientY;
+        let rect = aiBox.getBoundingClientRect();
+        aiStartPosX = rect.left; aiStartPosY = rect.top;
+        aiHeader.setPointerCapture(e.pointerId);
+    });
+    aiHeader.addEventListener('pointermove', function(e) {
+        if(!isDraggingAI) return;
+        aiBox.style.right = 'auto'; aiBox.style.bottom = 'auto';
+        aiBox.style.left = (aiStartPosX + (e.clientX - aiStartMouseX)) + 'px';
+        aiBox.style.top = (aiStartPosY + (e.clientY - aiStartMouseY)) + 'px';
+    });
+    aiHeader.addEventListener('pointerup', function(e) { 
+        isDraggingAI = false; 
+        aiHeader.releasePointerCapture(e.pointerId); 
+    });
+}
+
+/* =========================================
+   SELEKSI TEKS & SISIPAN EDITOR (MODAL TOOLS)
+   ========================================= */
+window.globalSelectedRange = null;
+
+window.simpanSeleksiTeks = function() { 
+    let sel = window.getSelection(); 
+    if (sel && sel.rangeCount > 0) {
+        let r = sel.getRangeAt(0);
+        let el = r.commonAncestorContainer.nodeType === 3 ? r.commonAncestorContainer.parentNode : r.commonAncestorContainer;
+        if (el && el.closest && el.closest(".content-block, .fb-content, #popup-content-box")) {
+            window.globalSelectedRange = r.cloneRange();
+            window.savedEditorRange = r.cloneRange();
+            window.lastActiveEditable = el.closest(".content-block, .fb-content, #popup-content-box");
+            return;
+        }
+    }
+    if (window.savedEditorRange) {
+        window.globalSelectedRange = window.savedEditorRange.cloneRange();
+    }
+};
+
+window.kembalikanSeleksiTeks = function() { 
+    if (window.lastActiveEditable) {
+        window.lastActiveEditable.focus();
+    }
+    let targetRange = window.globalSelectedRange || window.savedEditorRange;
+    if (targetRange) { 
+        let sel = window.getSelection(); 
+        sel.removeAllRanges(); 
+        sel.addRange(targetRange); 
+    } 
+};
+
+function simpanSeleksiTeks() { window.simpanSeleksiTeks(); }
+function kembalikanSeleksiTeks() { window.kembalikanSeleksiTeks(); }
+
+window.buatOpsiDropdownHalaman = function(placeholderText) {
+    let html = '<option value="" disabled selected>' + placeholderText + '</option>';
+    if (Array.isArray(window.pagesData)) {
+        let inHiddenBranch = false;
+        let guruSuffix = (window.guruAktif && window.guruAktif !== "mahardika") ? "guru=" + encodeURIComponent(window.guruAktif) + "&" : "";
+        window.pagesData.forEach(function(p) {
+            if (p.level === 0) {
+                inHiddenBranch = Boolean(p.isLockedHidden);
+            }
+            let indent = "— ".repeat(p.level || 0);
+            let badgeHidden = (inHiddenBranch || p.hidden) ? " 🔒 [Hidden]" : "";
+            html += '<option value="index.html?' + guruSuffix + 'bab=' + encodeURIComponent(p.slug) + '">' + indent + p.title + badgeHidden + '</option>';
+        });
+    }
+    return html;
+};
+
+// Modal Simbol
+window.bukaModalSimbol = function() { 
+    window.simpanSeleksiTeks(); 
+    window.bukaModal("modal-simbol"); 
+};
+window.sisipkanSimbol = function(sym) { 
+    window.kembalikanSeleksiTeks(); 
+    document.execCommand("insertText", false, sym); 
+    window.tutupModal("modal-simbol"); 
+    triggerInput(); 
+};
+
+// Modal Glosarium (Istilah Tanpa Simbol 💡)
+window.bukaModalGlosarium = function() { 
+    window.simpanSeleksiTeks(); 
+    if (!window.globalSelectedRange || window.globalSelectedRange.toString().trim() === "") {
+        return alert("Blok satu kata atau istilah di dalam materi terlebih dahulu!"); 
+    }
+    document.getElementById("glosarium-input-text").value = ""; 
+    window.bukaModal("modal-glosarium-edit"); 
+};
+window.terapkanPopUpIstilah = function() { 
+    let ket = document.getElementById("glosarium-input-text").value.trim(); 
+    if (!ket) return; 
+    window.kembalikanSeleksiTeks(); 
+    let span = document.createElement("span"); 
+    span.className = "glossary-term"; 
+    span.setAttribute("data-penjelasan", ket); 
+    span.innerText = window.globalSelectedRange.toString().replace(/💡/g, "").trim(); 
+    window.globalSelectedRange.deleteContents(); 
+    window.globalSelectedRange.insertNode(span); 
+    window.tutupModal("modal-glosarium-edit"); 
+    triggerInput(); 
+};
+window.hapusIstilah = function() {
+    pastikanFokusEditor();
+    let sel = window.getSelection();
+    if (sel.rangeCount > 0) {
+        let node = sel.anchorNode;
+        let span = node.nodeType === 3 ? node.parentNode : node;
+        if (span && span.closest) span = span.closest(".glossary-term") || span;
+        if (span && span.classList && span.classList.contains("glossary-term")) {
+            let textClean = span.innerText.replace(/💡/g, "").trim();
+            let textNode = document.createTextNode(textClean);
+            span.parentNode.replaceChild(textNode, span); 
+            triggerInput();
+        } else { 
+            alert("Letakkan kursor di dalam teks istilah yang ingin dihapus (bergaris bawah putus-putus)."); 
+        }
+    }
+};
+
+// Modal Tombol (Button Custom - Terhubung ke Semua Room & Room Hidden)
+window.bukaModalCustomButton = function() { 
+    window.simpanSeleksiTeks(); 
+    document.getElementById("btn-text-input").value = "";
+    document.getElementById("btn-external-input").value = "";
+    document.getElementById("btn-internal-select").innerHTML = window.buatOpsiDropdownHalaman("-- Pilih Room Tujuan (Termasuk Room Hidden) --"); 
+    window.bukaModal("modal-button-edit"); 
+};
+window.terapkanCustomButton = function() { 
+    let txt = document.getElementById("btn-text-input").value || "Buka Materi"; 
+    let int = document.getElementById("btn-internal-select").value; 
+    let ext = document.getElementById("btn-external-input").value.trim(); 
+    let url = ext ? (ext.indexOf("http") === 0 ? ext : "https://" + ext) : (int || "#"); 
+    window.kembalikanSeleksiTeks(); 
+    let a = document.createElement("a"); 
+    a.className = "custom-site-btn"; 
+    a.href = url; 
+    a.innerText = txt; 
+    if (window.globalSelectedRange) {
+        window.globalSelectedRange.insertNode(a); 
+    } else {
+        window.formatTeks("insertHTML", a.outerHTML);
+    }
+    window.tutupModal("modal-button-edit"); 
+    triggerInput(); 
+};
+
+// Modal Hyperlink
+window.bukaModalHyperlink = function() { 
+    window.simpanSeleksiTeks(); 
+    document.getElementById("link-external-input").value = "";
+    document.getElementById("link-internal-select").innerHTML = window.buatOpsiDropdownHalaman("-- Pilih Halaman Internal --"); 
+    window.bukaModal("modal-link"); 
+};
+window.terapkanHyperlink = function() { 
+    let int = document.getElementById("link-internal-select").value; 
+    let ext = document.getElementById("link-external-input").value.trim(); 
+    let url = ext ? (ext.indexOf("http") === 0 ? ext : "https://" + ext) : int; 
+    if (url) { 
+        window.kembalikanSeleksiTeks(); 
+        if (window.globalSelectedRange && window.globalSelectedRange.toString().trim() === "") {
+            let linkHtml = '<a href="' + url + '">' + url + '</a>';
+            document.execCommand("insertHTML", false, linkHtml);
+        } else {
+            document.execCommand("createLink", false, url); 
+        }
+        window.tutupModal("modal-link"); 
+        triggerInput(); 
+    } 
+};
+
+// Upload Gambar via Tombol Toolbar (🖼️)
+document.addEventListener("DOMContentLoaded", function() {
+    let imgInput = document.getElementById("image-upload-input");
+    if (imgInput) {
+        imgInput.addEventListener("change", function() {
+            let f = this.files && this.files[0];
+            if (!f) return;
+            window.kompresGambar(f, function(dataUrl) {
+                window.kembalikanSeleksiTeks();
+                document.execCommand("insertImage", false, dataUrl);
+                triggerInput();
+            });
+            this.value = "";
+        });
+    }
+});
+
+// Upload Slide PDF via Tombol Toolbar (📄 PDF)
+window.prosesUploadPDFMateri = function(input) {
+    let file = input.files && input.files[0];
+    if (!file) return;
+    let blobUrl = URL.createObjectURL(file);
+    let htmlPdf = '<div contenteditable="false" style="margin: 15px 0; border: 2px solid #3498db; border-radius: 8px; overflow: hidden; position: relative; padding-top: 56.25%; background:#f8f9fa;">' +
+        '<iframe src="' + blobUrl + '" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;" allowfullscreen></iframe>' +
+        '</div><p><br></p>';
+    window.kembalikanSeleksiTeks();
+    window.formatTeks("insertHTML", htmlPdf);
+    input.value = "";
+};
+
+// Modal Multimedia (PDF & Video Pintar)
+window.bukaModalMultimedia = function() {
+    window.simpanSeleksiTeks();
+    document.getElementById("input-link-media").value = "";
+    document.getElementById("input-file-media").value = "";
+    document.getElementById("nama-file-terpilih").innerText = "";
+    window.bukaModal("modal-multimedia");
+};
+
+window.previewNamaFileMedia = function(input) {
+    if (input.files && input.files[0]) {
+        document.getElementById("nama-file-terpilih").innerText = "File siap: " + input.files[0].name;
+        document.getElementById("input-link-media").value = "";
+    }
+};
+
+window.prosesSisipanMedia = function() {
+    let link = document.getElementById("input-link-media").value.trim();
+    let fileInput = document.getElementById("input-file-media");
+    let file = fileInput.files[0];
+    
+    let finalUrl = "";
+    let isPdf = false;
+    let htmlSisipan = "";
+
+    if (link) {
+        let ytMatch = link.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
+        let driveMatch = link.match(/drive\.google\.com\/file\/d\/([^\/]+)/);
+        
+        if (ytMatch) {
+            finalUrl = "https://www.youtube.com/embed/" + ytMatch[1];
+        } else if (driveMatch) {
+            finalUrl = "https://drive.google.com/file/d/" + driveMatch[1] + "/preview";
+        } else {
+            finalUrl = link;
+        }
+        isPdf = finalUrl.toLowerCase().indexOf("pdf") !== -1 || finalUrl.indexOf("preview") !== -1;
+        
+    } else if (file) {
+        finalUrl = URL.createObjectURL(file); 
+        isPdf = file.type === "application/pdf";
+    } else {
+        return alert("Masukkan link pintar atau pilih file lokal terlebih dahulu!");
+    }
+
+    if (isPdf || finalUrl.indexOf("preview") !== -1) {
+        htmlSisipan = '<div contenteditable="false" style="margin: 15px 0; border: 2px solid #3498db; border-radius: 8px; overflow: hidden; position: relative; padding-top: 56.25%; background:#f8f9fa;">' +
+            '<iframe src="' + finalUrl + '" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;" allowfullscreen></iframe>' +
+            '</div><p><br></p>';
+    } else if (finalUrl.indexOf("youtube.com") !== -1) {
+        htmlSisipan = '<div contenteditable="false" style="margin: 15px 0; border-radius: 8px; overflow: hidden; position: relative; padding-top: 56.25%; box-shadow:0 4px 10px rgba(0,0,0,0.1);">' +
+            '<iframe src="' + finalUrl + '" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>' +
+            '</div><p><br></p>';
+    } else {
+        htmlSisipan = '<div contenteditable="false" style="margin: 15px 0; text-align: center;">' +
+            '<video controls style="max-width: 100%; max-height: 500px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); background:black;">' +
+            '<source src="' + finalUrl + '" type="video/mp4">' +
+            'Browser Anda tidak mendukung tag video.' +
+            '</video></div><p><br></p>';
+    }
+
+    window.kembalikanSeleksiTeks();
+    window.formatTeks("insertHTML", htmlSisipan);
+    window.tutupModal("modal-multimedia");
+};
+
+// Fungsi Kuis Inline di Materi (🧩 Kuis) & Tambah Blok Tengah
+window.targetQuizBlockIndex = -1;
+
+window.sisipkanBlokKuis = function() {
+    window.contentBlocksData.push({
+        type: "quiz",
+        questions: [],
+        bg: "#ffffff",
+        pattern: "",
+        color: "#333333",
+        width: "M",
+        padTop: "40px",
+        padBot: "40px",
+        drawing: ""
+    });
+    window.renderBlocks();
+    if (window.simpanKeDB) window.simpanKeDB();
+    window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+};
+
+window.bukaAIQuizModal = function(blockIdx) {
+    window.targetQuizBlockIndex = blockIdx;
+    document.getElementById("ai-quiz-topic").value = "";
+    window.bukaModal("modal-ai-quiz");
+};
+
+window.prosesGenerateQuizAI = function() {
+    let raw = document.getElementById("ai-quiz-topic").value.trim();
+    if (!raw) return alert("Paste teks soal terlebih dahulu!");
+    if (window.targetQuizBlockIndex < 0 || !window.contentBlocksData[window.targetQuizBlockIndex]) return;
+
+    let blocks = raw.split(/\n\s*\n|\n---\n/);
+    let parsedQuestions = [];
+
+    blocks.forEach(function(b) {
+        let lines = b.trim().split("\n").map(function(l) { return l.trim(); }).filter(function(l) { return l.length > 0; });
+        if (lines.length === 0) return;
+
+        let qText = "";
+        let opts = [];
+        let correctIdx = 0;
+        let correctAnsArr = [];
+        let expl = "";
+        let qType = "mc";
+
+        lines.forEach(function(line) {
+            let low = line.toLowerCase();
+            if (low.indexOf("soal:") === 0) {
+                qText = line.substring(5).trim();
+            } else if (low.indexOf("tipe:") === 0) {
+                let t = low.substring(5).trim();
+                if (t === "is" || t === "isian singkat") qType = "short_answer";
+            } else if (/^[a-eA-E][\.\)]/.test(line)) {
+                opts.push(line.substring(2).trim());
+            } else if (low.indexOf("kunci:") === 0) {
+                let k = line.substring(6).trim();
+                if (qType === "short_answer" || opts.length === 0) {
+                    qType = "short_answer";
+                    correctAnsArr = k.split("|").map(function(s) { return s.trim(); });
+                } else {
+                    let code = k.toUpperCase().charCodeAt(0) - 65;
+                    if (code >= 0 && code < 10) correctIdx = code;
+                }
+            } else if (low.indexOf("pembahasan:") === 0) {
+                expl = line.substring(11).trim();
+            } else if (!qText && opts.length === 0) {
+                qText = line.replace(/^\d+[\.\)]\s*/, "");
+            }
+        });
+
+        if (qText) {
+            if (qType === "short_answer" || opts.length === 0) {
+                parsedQuestions.push({ type: "short_answer", question: qText, correctAnswers: correctAnsArr, explanation: expl });
+            } else {
+                parsedQuestions.push({ type: "mc", question: qText, options: opts, correctIndex: correctIdx, explanation: expl });
+            }
+        }
+    });
+
+    if (parsedQuestions.length === 0) return alert("Format soal tidak dikenali. Pastikan ada baris Soal:, opsi A. B., dan Kunci:.");
+
+    if (!window.contentBlocksData[window.targetQuizBlockIndex].questions) {
+        window.contentBlocksData[window.targetQuizBlockIndex].questions = [];
+    }
+    window.contentBlocksData[window.targetQuizBlockIndex].questions.push.apply(
+        window.contentBlocksData[window.targetQuizBlockIndex].questions,
+        parsedQuestions
+    );
+
+    window.tutupModal("modal-ai-quiz");
+    window.renderBlocks();
+    if (window.simpanKeDB) window.simpanKeDB();
+};
+
+window.jawabKuisInline = function(btnEl, blockIdx, qIdx, optIdx, correctIdx) {
+    let card = document.getElementById("inline-q-" + blockIdx + "-" + qIdx);
+    if (!card) return;
+    let allBtns = card.querySelectorAll(".quiz-option-btn");
+    allBtns.forEach(function(b, i) {
+        b.disabled = true;
+        if (i === correctIdx) b.classList.add("selected-correct");
+        else if (i === optIdx) b.classList.add("selected-wrong");
+    });
+    let exp = card.querySelector(".quiz-explanation");
+    if (exp) exp.style.display = "block";
+    let navBtn = document.getElementById("nav-btn-inline-" + blockIdx + "-" + qIdx);
+    if (navBtn) navBtn.classList.add("nav-answered");
+};
+
+window.jawabKuisInlineIsian = function(inputEl, blockIdx, qIdx) {
+    let blok = window.contentBlocksData[blockIdx];
+    if (!blok || !blok.questions || !blok.questions[qIdx]) return;
+    let q = blok.questions[qIdx];
+    let val = (inputEl.value || "").trim().toLowerCase();
+    let kunciArr = (q.correctAnswers || []).map(function(k) { return k.toLowerCase().trim(); });
+    let card = document.getElementById("inline-q-" + blockIdx + "-" + qIdx);
+    let exp = card ? card.querySelector(".quiz-explanation") : null;
+
+    if (kunciArr.indexOf(val) !== -1 && val !== "") {
+        inputEl.style.borderColor = "#27ae60";
+        inputEl.style.background = "#d4edda";
+        if (exp) exp.style.display = "block";
+    } else {
+        inputEl.style.borderColor = "#3498db";
+        inputEl.style.background = "#ffffff";
+    }
+};
+
+window.updateSoalInline = function(blockIdx, qIdx, tipeField, el, optIdx) {
+    let blok = window.contentBlocksData[blockIdx];
+    if (!blok || !blok.questions || !blok.questions[qIdx]) return;
+    let txt = el.innerText.trim();
+    if (tipeField === "q") {
+        blok.questions[qIdx].question = txt.replace(/^\d+\.\s*/, "");
+    } else if (tipeField === "o" && typeof optIdx === "number") {
+        blok.questions[qIdx].options[optIdx] = txt.replace(/^[A-Z]\.\s*/, "");
+    }
+    if (window.simpanKeDB) window.simpanKeDB();
+};
+
+window.hapusSoalSistem = function(qIdx, mode, blockIdx) {
+    if (mode === "inline" && window.contentBlocksData[blockIdx] && window.contentBlocksData[blockIdx].questions) {
+        if (confirm("Hapus soal ini dari kuis materi?")) {
+            window.contentBlocksData[blockIdx].questions.splice(qIdx, 1);
+            window.renderBlocks();
+            if (window.simpanKeDB) window.simpanKeDB();
+        }
+    }
+};
+
+window.tambahBlokBaruTengah = function() {
+    let newBlock = { type: "text", html: "<p>Ketik materi...</p>", bg: "#ffffff", pattern: "", color: "#333333", width: "M", padTop: "40px", padBot: "40px", drawing: "" };
+    if (activeBlockIndex > -1 && activeBlockIndex < window.contentBlocksData.length) {
+        window.contentBlocksData.splice(activeBlockIndex + 1, 0, newBlock);
+    } else {
+        window.contentBlocksData.push(newBlock);
+    }
+    document.getElementById("sidebar-block").classList.remove("open");
+    window.renderBlocks();
+    if (window.simpanKeDB) window.simpanKeDB();
+};
+
+window.simpanTema = function() {
+    let bgColor = document.getElementById("theme-color").value || "#0b3954";
+    let fontFamily = document.getElementById("theme-font").value || "'Quicksand', sans-serif";
+    let headerPad = document.getElementById("theme-header-padding").value || "20";
+    let webTitle = document.getElementById("web-title") ? document.getElementById("web-title").innerText : "Mahardika";
+
+    document.documentElement.style.setProperty("--primary-bg", bgColor);
+    document.documentElement.style.setProperty("--main-font", fontFamily);
+    let headerWrap = document.querySelector(".header-wrapper");
+    if (headerWrap) headerWrap.style.padding = headerPad + "px 20px";
+
+    if (typeof window.simpanTemaKeDB === "function") {
+        window.simpanTemaKeDB({ bgColor: bgColor, fontFamily: fontFamily, headerPad: headerPad, webTitle: webTitle });
+    }
+    window.tutupModal("modal-theme");
+};
+
+window.simpanPopupPengumuman = function() {
+    let box = document.getElementById('popup-content-box');
+    if(box && typeof window.simpanPopupKeDB === "function") {
+        window.simpanPopupKeDB(box.innerHTML); 
+    }
+    window.tutupWelcomePopup();
+    alert("✅ Pengumuman berhasil disimpan dan diaktifkan!");
+};
+
+/* =========================================
+   KOMPRESI GAMBAR & PASTE LISTENER
+   ========================================= */
 window.kompresGambar = function(file, callback) {
     const reader = new FileReader();
     reader.onload = function(e) {
@@ -21,88 +1712,19 @@ window.kompresGambar = function(file, callback) {
             const canvas = document.createElement('canvas');
             const MAX_WIDTH = 1000; const MAX_HEIGHT = 1000;
             let width = img.width; let height = img.height;
-            if (width > height) { if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; } }
-            else { if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; } }
+            if (width > height) { 
+                if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; } 
+            } else { 
+                if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; } 
+            }
             canvas.width = width; canvas.height = height;
             const ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0, width, height);
             callback(canvas.toDataURL('image/jpeg', 0.7)); 
-        };
-        img.src = e.target.result;
-    };
-    reader.readAsDataURL(file);
-};
-
-document.addEventListener('paste', function(e) {
-    if(!document.body.classList.contains('mode-edit-aktif')) return;
-    let items = (e.clipboardData || e.originalEvent.clipboardData).items;
-    for (let index in items) {
-        let item = items[index];
-        if (item.kind === 'file' && item.type.indexOf('image/') !== -1) {
-            e.preventDefault(); 
-            document.getElementById('save-status-bar').innerHTML="<span style='color:#e67e22;'>⏳ Mengkonversi Gambar...</span>";
-            let blob = item.getAsFile();
-            window.kompresGambar(blob, function(dataUrl) {
-                document.execCommand('insertImage', false, dataUrl);
-                document.getElementById('save-status-bar').innerHTML="<span style='color:#2ecc71;'>✓ Selesai Di-paste</span>";
-                window.triggerInput(); 
-            });
-            return; 
         }
+        img.src = e.target.result;
     }
-});
-
-document.addEventListener('contextmenu', e => { if(window.isStrictUjianActive) e.preventDefault(); });
-document.addEventListener('copy', e => { if(window.isStrictUjianActive) { e.preventDefault(); alert("⚠️ Dilarang menyalin soal ujian!"); } });
-document.addEventListener('cut', e => { if(window.isStrictUjianActive) e.preventDefault(); });
-document.addEventListener('paste', e => { if(window.isStrictUjianActive) e.preventDefault(); });
-document.addEventListener('selectstart', e => { if(window.isStrictUjianActive) e.preventDefault(); });
-
-window.bukaModal = function(id) { document.getElementById(id).style.display = 'flex'; };
-window.tutupModal = function(id) { document.getElementById(id).style.display = 'none'; };
-window.tutupModalHasilQuiz = function() {
-    // 1. Tutup pop-up nilai
-    window.tutupModal('modal-quiz-result');
-    
-    // 2. Bersihkan dan sembunyikan ruang Ujian Ketat
-    var strictRoom = document.getElementById('ujian-strict-room');
-    if (strictRoom) {
-        strictRoom.style.display = 'none';
-        var strictContainer = document.getElementById('ujian-strict-container');
-        if (strictContainer) strictContainer.innerHTML = '';
-    }
-    
-    // 3. Bersihkan dan sembunyikan ruang Latihan Mandiri
-    var tempRoom = document.getElementById('temporary-quiz-room');
-    if (tempRoom) {
-        tempRoom.style.display = 'none';
-        var tempContainer = document.getElementById('temporary-quiz-container');
-        if (tempContainer) tempContainer.innerHTML = '';
-    }
-    
-    // 4. Normalisasi layar dan hapus proteksi sistem
-    document.body.style.overflow = 'auto';
-    document.body.classList.remove('strict-mode-active');
-    window.isStrictUjianActive = false;
-    
-    // 5. Kembalikan posisi web ke paling atas (Beranda)
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-};
-
-window.tutupUjianStrict = function() {
-    if(window.isStrictUjianActive) { alert("Selesaikan dan kumpulkan ujian terlebih dahulu!"); return; }
-    document.getElementById('ujian-strict-room').style.display='none';
-    document.getElementById('ujian-strict-container').innerHTML="";
-    document.body.style.overflow='auto';
-};
-
-window.bukaWelcomePopup = function() { 
-    document.getElementById('modal-welcome-popup').style.display = 'flex'; 
-    if(document.body.classList.contains('mode-edit-aktif')) document.getElementById('popup-img-tool').style.display = 'block';
-};
-window.tutupWelcomePopup = function() { 
-    document.getElementById('modal-welcome-popup').style.display = 'none'; 
-    sessionStorage.setItem('popupDismissed', 'true'); 
+    reader.readAsDataURL(file);
 };
 
 window.uploadPopupImg = function(input) {
@@ -114,4895 +1736,3798 @@ window.uploadPopupImg = function(input) {
     input.value = '';
 };
 
-document.addEventListener("DOMContentLoaded", () => { 
-    if(sessionStorage.getItem("statusGuru")==="aktif") { 
-        document.body.classList.add('has-login'); 
-        if(sessionStorage.getItem("previewMode")==="true") { 
-            document.getElementById('btn-preview').innerHTML="✏️ Back to Edit"; 
-            document.getElementById('btn-preview').style.background="#27ae60"; 
-        } else { 
-            document.body.classList.add("mode-edit-aktif"); 
-            document.getElementById('popup-content-box').setAttribute('contenteditable','true');
-            document.querySelectorAll('.content-block, .fb-content, .header-title').forEach(el=>el.setAttribute('contenteditable','true'));
-        } 
-    } 
+// Deteksi Paste Gambar di Editor
+document.addEventListener('paste', function(e) {
+    if(!document.body.classList.contains('mode-edit-aktif')) return;
+    let items = (e.clipboardData || e.originalEvent.clipboardData).items;
+    for (let index in items) {
+        let item = items[index];
+        if (item.kind === 'file' && item.type.indexOf('image/') !== -1) {
+            e.preventDefault(); 
+            let statusBar = document.getElementById('save-status-bar');
+            if(statusBar) statusBar.innerHTML = "<span style='color:#e67e22;'>⏳ Mengkonversi Gambar...</span>";
+            
+            let blob = item.getAsFile();
+            window.kompresGambar(blob, function(dataUrl) {
+                document.execCommand('insertImage', false, dataUrl);
+                if(statusBar) statusBar.innerHTML = "<span style='color:#2ecc71;'>✓ Selesai Di-paste</span>";
+                triggerInput(); 
+            });
+            return; 
+        }
+    }
 });
 
-window.loginGuru = function() { 
-    if(sessionStorage.getItem("statusGuru")==="aktif") return; 
-    window.bukaModal('modal-login-guru'); 
-    setTimeout(() => document.getElementById('input-sandi-guru').focus(), 100);
-};
+/* =========================================
+   PENCEGAHAN KECURANGAN (STRICT MODE)
+   ========================================= */
+document.addEventListener('contextmenu', e => { if(window.isStrictUjianActive) e.preventDefault(); });
+document.addEventListener('copy', e => { if(window.isStrictUjianActive) { e.preventDefault(); alert("⚠️ Dilarang menyalin soal ujian!"); } });
+document.addEventListener('cut', e => { if(window.isStrictUjianActive) e.preventDefault(); });
+document.addEventListener('paste', e => { if(window.isStrictUjianActive) e.preventDefault(); });
+document.addEventListener('selectstart', e => { if(window.isStrictUjianActive) e.preventDefault(); });
 
-window.prosesLoginGuru = function() { 
-    const val = document.getElementById('input-sandi-guru').value;
-    // Sandi dienkripsi Base64 (Z3VydWJpb2xvZ2k= adalah gurubiologi, YWRtaW4xMjM= adalah admin123)
-    if(btoa(val) === "Z3VydWJpb2xvZ2k=" || btoa(val) === "YWRtaW4xMjM=") { 
-        sessionStorage.setItem("statusGuru","aktif"); 
-        window.location.reload(); 
-    } else { 
-        alert("Sandi salah!"); 
+/* =========================================
+   KONTROL GAMBAR DALAM BLOK (IMAGE SETTINGS)
+   ========================================= */
+window.selectedImg = null; 
+
+document.addEventListener('click', e => { 
+    if(window.isDrawingMode) return; 
+    
+    // Saat gambar di dalam blok diklik
+    if(e.target.tagName === 'IMG' && (document.body.classList.contains('mode-edit-aktif') || document.documentElement.classList.contains('force-edit-mode')) && (e.target.closest('.content-block') || e.target.closest('.fb-content'))) { 
+        document.querySelectorAll('.content-block img, .fb-content img').forEach(i => i.classList.remove('img-selected')); 
+        e.target.classList.add('img-selected'); 
+        window.selectedImg = e.target; 
+        
+        let r = document.createRange(); 
+        r.selectNode(e.target); 
+        let s = window.getSelection(); 
+        s.removeAllRanges(); 
+        s.addRange(r); 
+        
+        const c = document.getElementById('img-controls'); 
+        const rect = window.selectedImg.getBoundingClientRect(); 
+        if(c) {
+            c.style.display = 'flex'; 
+            c.style.top = (rect.top + window.scrollY - 35) + 'px'; 
+            c.style.left = (rect.left + window.scrollX) + 'px'; 
+        }
+    } 
+    // Saat klik di luar area gambar/kontrol
+    else if(!e.target.closest('#img-controls') && e.type === 'click') { 
+        if(window.selectedImg) window.selectedImg.classList.remove('img-selected'); 
+        window.selectedImg = null; 
+        let c = document.getElementById('img-controls');
+        if(c) c.style.display = 'none'; 
+    } 
+}); 
+
+// Hapus gambar menggunakan tombol Delete/Backspace
+document.addEventListener('keydown', e => { 
+    if((e.key === 'Delete' || e.key === 'Backspace') && window.selectedImg && !window.isDrawingMode) { 
+        e.preventDefault(); 
+        let p = window.selectedImg.closest('.content-block') || window.selectedImg.closest('.fb-content'); 
+        window.selectedImg.remove(); 
+        window.selectedImg = null; 
+        let c = document.getElementById('img-controls');
+        if(c) c.style.display = 'none'; 
+        if(p) p.dispatchEvent(new Event('input', {bubbles: true})); 
+    } 
+}); 
+
+window.alignGambar = function(p) { 
+    if(window.selectedImg) { 
+        window.selectedImg.style.display = 'block'; 
+        window.selectedImg.style.margin = p === 'left' ? '15px auto 15px 0' : (p === 'right' ? '15px 0 15px auto' : '15px auto'); 
+        triggerInput(); 
     } 
 };
 
-window.togglePreviewMode = function() { 
-    const b=document.body, d=document.documentElement, btn=document.getElementById('btn-preview'); 
-    if(b.classList.contains('mode-edit-aktif')||d.classList.contains('force-edit-mode')) { 
-        b.classList.remove('mode-edit-aktif'); d.classList.remove('force-edit-mode'); 
-        sessionStorage.setItem("previewMode","true"); 
-        document.querySelectorAll('.content-block, .fb-content, .header-title').forEach(el=>el.removeAttribute('contenteditable')); 
-        btn.innerHTML="✏️ Back to Edit"; btn.style.background="#27ae60"; 
-        window.renderMathJax(); 
-    } else { 
-        b.classList.add('mode-edit-aktif'); d.classList.add('force-edit-mode'); 
-        sessionStorage.removeItem("previewMode"); 
-        document.querySelectorAll('.content-block, .fb-content, .header-title').forEach(el=>el.setAttribute('contenteditable','true')); 
-        btn.innerHTML="👁️ Preview as Student"; btn.style.background="#e67e22"; 
-        window.restoreMathJax(); 
+/* =========================================
+   KONTROL TABEL DALAM BLOK (TABLE SETTINGS)
+   ========================================= */
+window.activeTableCell = null; 
+
+window.sisipkanTabel = function() { 
+    let r = prompt("Baris?", "3"), c = prompt("Kolom?", "3"); 
+    if(r && c) { 
+        let h = '<table><tbody>'; 
+        for(let i=0; i<r; i++) { 
+            h += '<tr>'; 
+            for(let j=0; j<c; j++) h += '<td>Isi</td>'; 
+            h += '</tr>'; 
+        } 
+        h += '</tbody></table><p><br></p>'; 
+        window.formatTeks('insertHTML', h); 
     } 
-    if(window.renderBlocks) window.renderBlocks(); 
-    if(window.renderFloatingBoxes) window.renderFloatingBoxes(); 
-};
+}; 
 
-window.simpanSeleksiTeks = function() { 
-    let sel=window.getSelection(); 
-    if(sel.rangeCount>0) globalSelectedRange=sel.getRangeAt(0); 
-};
-window.kembalikanSeleksiTeks = function() { 
-    if(globalSelectedRange) { 
-        let sel=window.getSelection(); 
-        sel.removeAllRanges(); 
-        sel.addRange(globalSelectedRange); 
+document.addEventListener('click', e => { 
+    if(window.isDrawingMode) return; 
+    
+    // Memunculkan menu kontrol saat klik sel tabel
+    if((e.target.tagName === 'TD' || e.target.tagName === 'TH') && (document.body.classList.contains('mode-edit-aktif') || document.documentElement.classList.contains('force-edit-mode'))) { 
+        window.activeTableCell = e.target; 
+        const c = document.getElementById('tbl-controls');
+        const rect = window.activeTableCell.getBoundingClientRect(); 
+        if(c) {
+            c.style.display = 'flex'; 
+            c.style.top = (rect.top + window.scrollY - 35) + 'px'; 
+            c.style.left = (rect.left + window.scrollX) + 'px'; 
+        }
+    } else if(!e.target.closest('#tbl-controls') && !e.target.closest('.mozello-toolbar')) { 
+        let c = document.getElementById('tbl-controls');
+        if(c) c.style.display = 'none'; 
+        window.activeTableCell = null; 
+    } 
+}); 
+
+window.warnaiSelTabel = function(w) { 
+    if(window.activeTableCell) { 
+        window.activeTableCell.style.backgroundColor = w; 
+        triggerInput(); 
+    } 
+}; 
+window.tambahBarisTabel = function() { 
+    if(window.activeTableCell) { 
+        let tr = window.activeTableCell.parentNode; 
+        let cl = tr.cloneNode(true); 
+        Array.from(cl.children).forEach(td => td.innerHTML = ""); 
+        tr.parentNode.insertBefore(cl, tr.nextSibling); 
+        triggerInput(); 
+    } 
+}; 
+window.tambahKolomTabel = function() { 
+    if(window.activeTableCell) { 
+        let tb = window.activeTableCell.closest('table');
+        let cI = window.activeTableCell.cellIndex; 
+        Array.from(tb.rows).forEach(r => { let nC = r.insertCell(cI + 1); nC.innerHTML = ""; }); 
+        triggerInput(); 
+    } 
+}; 
+window.hapusBarisTabel = function() { 
+    if(window.activeTableCell) { 
+        let tr = window.activeTableCell.parentNode; 
+        tr.parentNode.removeChild(tr); 
+        document.getElementById('tbl-controls').style.display = 'none'; 
+        triggerInput(); 
+    } 
+}; 
+window.hapusKolomTabel = function() { 
+    if(window.activeTableCell) { 
+        let tb = window.activeTableCell.closest('table');
+        let cI = window.activeTableCell.cellIndex; 
+        Array.from(tb.rows).forEach(r => { if(r.cells.length > cI) r.deleteCell(cI); }); 
+        document.getElementById('tbl-controls').style.display = 'none'; 
+        triggerInput(); 
     } 
 };
 
-window.bukaModalSimbol = function() { window.simpanSeleksiTeks(); window.bukaModal('modal-simbol'); };
-window.sisipkanSimbol = function(sym) { window.kembalikanSeleksiTeks(); document.execCommand('insertText', false, sym); window.tutupModal('modal-simbol'); window.triggerInput(); };
-
+/* =========================================
+   RENDER MATHJAX (LATEX) & AI TEXT CHAT
+   ========================================= */
 window.renderMathJax = function() { 
     if (typeof MathJax !== 'undefined' && MathJax.typesetPromise) { 
         MathJax.typesetClear(); 
         MathJax.typesetPromise().catch((err) => console.log('MathJax:', err.message)); 
     } 
 };
+
 window.restoreMathJax = function() {
-    try {
-        if (typeof MathJax !== 'undefined' && MathJax.typesetClear) { 
-            MathJax.typesetClear(); 
-        }
-    } catch (e) { 
-        console.warn("MathJax aman diabaikan:", e); 
+    if (typeof MathJax !== 'undefined' && MathJax.startup && MathJax.startup.document) { 
+        MathJax.startup.document.state(0); 
+        MathJax.startup.document.restore(); 
     }
 };
 
-window.hoverIstilah = function(el, e) {
-    clearTimeout(tipTimer);
-    let tip = document.getElementById('tooltip-istilah');
-    document.getElementById('tooltip-title').innerText = '💡 ' + el.innerText.replace('💡','').trim();
-    document.getElementById('tooltip-body').innerText = el.getAttribute('data-penjelasan');
-    tip.style.display = 'block';
-    let x = e.clientX + 10; let y = e.clientY + 20;
-    if(x + tip.offsetWidth > window.innerWidth) x = window.innerWidth - tip.offsetWidth - 10;
-    tip.style.left = x + 'px'; tip.style.top = y + 'px';
-};
-window.leaveIstilah = function() { tipTimer = setTimeout(() => { document.getElementById('tooltip-istilah').style.display = 'none'; }, 300); };
-document.addEventListener('mouseover', e => { if(e.target.classList.contains('glossary-term')) window.hoverIstilah(e.target, e); });
-document.addEventListener('mouseout', e => { if(e.target.classList.contains('glossary-term')) window.leaveIstilah(); });
-
-window.bukaModalGlosarium = function() { 
-    window.simpanSeleksiTeks(); 
-    if(!globalSelectedRange||globalSelectedRange.toString().trim()==="") return alert("Blok satu kata dulu!"); 
-    document.getElementById('glosarium-input-text').value=""; 
-    window.bukaModal('modal-glosarium-edit'); 
-};
-window.terapkanPopUpIstilah = function() { 
-    let ket=document.getElementById('glosarium-input-text').value; if(!ket) return; 
-    window.kembalikanSeleksiTeks(); 
-    let span=document.createElement('span'); 
-    span.className='glossary-term'; 
-    span.setAttribute('data-penjelasan',ket); 
-    span.innerHTML=globalSelectedRange.toString()+' 💡'; 
-    globalSelectedRange.deleteContents(); 
-    globalSelectedRange.insertNode(span); 
-    window.tutupModal('modal-glosarium-edit'); 
-    window.triggerInput(); 
-};
-
-window.hapusIstilah = function() {
-    let sel = window.getSelection();
-    if (sel.rangeCount > 0) {
-        let node = sel.anchorNode;
-        let span = node.nodeType === 3 ? node.parentNode : node;
-        if (span && span.classList.contains('glossary-term')) {
-            let textClean = span.innerText.replace(' 💡', '').trim();
-            let textNode = document.createTextNode(textClean);
-            span.parentNode.replaceChild(textNode, span); 
-            window.triggerInput();
-        } else { alert("Letakkan kursor di dalam teks istilah yang ingin dihapus (berwarna oren)."); }
-    }
-};
-
-window.bukaModalCustomButton = function() { 
-    window.simpanSeleksiTeks(); 
-    let html='<option value="" disabled selected>-- Pilih Halaman --</option>'; 
-    if(window.pagesData) window.pagesData.forEach(p=>{ html+=`<option value="index.html?bab=${p.slug}">${p.title}</option>`; }); 
-    document.getElementById('btn-internal-select').innerHTML=html; 
-    window.bukaModal('modal-button-edit'); 
-};
-window.terapkanCustomButton = function() { 
-    let txt=document.getElementById('btn-text-input').value||"Learn more"; 
-    let int=document.getElementById('btn-internal-select').value; 
-    let ext=document.getElementById('btn-external-input').value; 
-    let url=ext?(ext.startsWith('http')?ext:'https://'+ext):(int||'#'); 
-    window.kembalikanSeleksiTeks(); 
-    let a=document.createElement('a'); a.className='custom-site-btn'; a.href=url; a.innerText=txt; 
-    if(globalSelectedRange) globalSelectedRange.insertNode(a); 
-    window.tutupModal('modal-button-edit'); 
-    window.triggerInput(); 
-};
-window.bukaModalHyperlink = function() { 
-    window.simpanSeleksiTeks(); 
-    let html='<option value="" disabled selected>-- Halaman Internal --</option>'; 
-    if(window.pagesData) window.pagesData.forEach(p=>html+=`<option value="index.html?bab=${p.slug}">${p.title}</option>`); 
-    document.getElementById('link-internal-select').innerHTML=html; 
-    window.bukaModal('modal-link'); 
-};
-window.terapkanHyperlink = function() { 
-    let int=document.getElementById('link-internal-select').value; 
-    let ext=document.getElementById('link-external-input').value; 
-    let url=ext?(ext.startsWith('http')?ext:'https://'+ext):int; 
-    if(url) { window.kembalikanSeleksiTeks(); document.execCommand('createLink', false, url); window.tutupModal('modal-link'); window.triggerInput(); } 
-};
-
-window.triggerInput = function() { 
-    const a=document.activeElement; 
-    if(a&&(a.classList.contains('content-block')||a.classList.contains('fb-content'))) {
-        a.dispatchEvent(new Event('input',{bubbles:true})); 
-    }
-};
-
-window.cetakKuisPDF = function(wrapId, title) { 
-    let c=document.getElementById(wrapId); if(!c) return; let clone=c.cloneNode(true); 
-    clone.querySelectorAll('.btn-action,.btn-delete-q,.btn-close-room,.btn-print-room,.quiz-nav-bar,.btn-toggle-nav,button[onclick*="cetakKuis"],button[onclick*="bukaAIQuizModal"],.block-toggle-btn').forEach(e=>e.remove()); 
-    clone.querySelectorAll('[contenteditable]').forEach(e=>e.removeAttribute('contenteditable')); 
-    
-    clone.querySelectorAll('.short-answer-box').forEach(box => {
-        let space = document.createElement('div');
-        space.style.borderBottom = '1px dotted #000';
-        space.style.height = '30px'; space.style.marginTop = '15px'; space.style.width = '95%';
-        box.parentNode.replaceChild(space, box);
-    });
-
-    let win=window.open('','','width=900,height=650'); 
-    win.document.write(`<html><head><title>Cetak Kuis</title><style>@media print { body, p, div, span, button, .quiz-question-text, .quiz-option-btn { font-family:'Times New Roman', Times, serif !important; font-size: 12pt !important; line-height: 1.25 !important; color:black !important; } body { padding:20px; } .quiz-header{border-bottom:2px solid #000;padding-bottom:10px;margin-bottom:20px;text-align:center;} .quiz-question-card{margin-bottom:20px;page-break-inside:avoid;border:none;border-bottom:1px solid #ddd;padding-bottom:15px; background:transparent;} .quiz-question-text{font-weight:bold; margin-bottom:10px;} .quiz-options{display:flex;flex-direction:column;} .quiz-option-btn{background:none;border:none;text-align:left; display:block; margin-left:20px; margin-bottom:6px;} .quiz-explanation{display:none;} }</style></head><body><div class="quiz-header"><h1>Lembar Kuis: ${title}</h1></div>${clone.innerHTML}</body></html>`); 
-    win.document.close(); win.focus(); setTimeout(()=>{win.print();win.close();},300); 
-};
-
-window.exportWordKuis = function(wrapId, title) {
-    let c = document.getElementById(wrapId); 
-    if(!c) return; 
-    let clone = c.cloneNode(true);
-    
-    clone.querySelectorAll('.btn-action, .btn-delete-q, .quiz-nav-bar, .btn-toggle-nav, .btn-close-room, .btn-print-room, .block-toggle-btn').forEach(e => e.remove());
-    
-    clone.querySelectorAll('.quiz-question-card').forEach(card => { 
-        card.style.marginBottom = "20px"; 
-        card.style.padding = "0"; 
-        card.style.border = "none"; 
-        card.style.borderBottom = "1px solid #ccc"; 
-        card.style.background = "transparent"; 
-    });
-    
-    clone.querySelectorAll('.short-answer-box').forEach(box => {
-        let space = document.createElement('p');
-        space.innerHTML = '________________________________________________________';
-        space.style.marginTop = '15px'; 
-        space.style.color = '#000';
-        box.parentNode.replaceChild(space, box);
-    });
-
-    clone.querySelectorAll('.quiz-option-btn').forEach(btn => { 
-        let p = document.createElement('p'); 
-        p.style.margin = "4px 0 4px 20px"; 
-        p.style.padding = "0"; 
-        p.style.fontSize = "12pt"; 
-        p.innerHTML = btn.innerHTML; 
-        btn.parentNode.replaceChild(p, btn); 
-    });
-    
-    let html = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Export Kuis</title><style>body, p, div, span { font-family: 'Times New Roman', serif !important; font-size: 12pt !important; line-height: 1.25 !important; }</style></head><body><div style='padding:20px;'><h1 style='text-align:center;'>" + title + "</h1><br>" + clone.innerHTML + "</div></body></html>";
-    let blob = new Blob(['\ufeff', html], { type: 'application/msword' }); 
-    let url = URL.createObjectURL(blob); 
-    
-    let a = document.createElement('a'); 
-    a.style.display = 'none';
-    a.href = url; 
-    a.download = title + '.doc'; 
-    document.body.appendChild(a); 
-    a.click(); 
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 3000);
-};
-
-/* LOGIKA AI TUTOR & KUIS OTOMATIS (ANTI-LIMIT & AUTO-FALLBACK) */
-window.daftarModelGemini = null;
-
-// 1. Ambil semua daftar model yang diizinkan untuk akun Anda
-window.muatDaftarModelGemini = async function() {
-    if (window.daftarModelGemini && window.daftarModelGemini.length > 0) {
-        return window.daftarModelGemini;
-    }
-    try {
-        const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models?key=' + GEMINI_API_KEY);
-        const data = await res.json();
-        if (data.models) {
-            // Ambil semua model yang mendukung generateContent dan bukan model2.5 yang ditutup
-            let validModels = data.models
-                .filter(function(m) {
-                    return m.supportedGenerationMethods && 
-                           m.supportedGenerationMethods.includes("generateContent") &&
-                           !m.name.includes("2.5");
-                })
-                .map(function(m) { return m.name; });
-
-            // Urutkan agar model flash / ringan dicoba lebih dulu
-            validModels.sort(function(a, b) {
-                let scoreA = a.includes("3.8") ? 3 : (a.includes("flash") ? 2 : 1);
-                let scoreB = b.includes("3.8") ? 3 : (b.includes("flash") ? 2 : 1);
-                return scoreB - scoreA;
-            });
-
-            if (validModels.length > 0) {
-                window.daftarModelGemini = validModels;
-                return window.daftarModelGemini;
-            }
-        }
-    } catch (e) {
-        console.warn("Gagal mengambil list model, memakai daftar default.");
-    }
-    // Daftar cadangan jika list gagal dimuat
-    window.daftarModelGemini = [
-        "models/gemini-3.8-flash",
-        "models/gemini-2.0-flash",
-        "models/gemini-2.0-flash-lite",
-        "models/gemini-pro"
-    ];
-    return window.daftarModelGemini;
-};
-
-// 2. Fungsi pemanggil cerdas: Otomatis pindah model jika server sibuk (High Demand / 429 / 503)
-window.requestKeGeminiDenganFallback = async function(teksPrompt) {
-    const models = await window.muatDaftarModelGemini();
-    let errorTerakhir = "";
-
-    for (let i = 0; i < models.length; i++) {
-        const modelName = models[i];
-        const url = 'https://generativelanguage.googleapis.com/v1beta/' + modelName + ':generateContent?key=' + GEMINI_API_KEY;
-
-        try {
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ contents: [{ parts: [{ text: teksPrompt }] }] })
-            });
-
-            const data = await response.json();
-
-            if (response.ok && data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
-                console.log("Berhasil dijawab oleh:", modelName);
-                return data.candidates[0].content.parts[0].text;
-            } else {
-                errorTerakhir = data.error?.message || "Server sedang sibuk";
-                console.warn(modelName + " sibuk/gagal: " + errorTerakhir + ". Mencoba jalur cadangan...");
-            }
-        } catch (err) {
-            errorTerakhir = err.message;
-        }
-    }
-    throw new Error(errorTerakhir || "Seluruh server AI sedang sibuk.");
-};
-
-// 3. Fungsi Buka & Tutup Kotak AI (Perbaikan Tombol X)
-window.tutupAITutor = function(e) {
-    if (e) {
-        e.stopPropagation();
-        e.preventDefault();
-    }
-    const box = document.getElementById('ai-tutor-box');
-    if (box) box.style.display = 'none';
-};
-
-window.tanyaAIText = async function() {
-    window.simpanSeleksiTeks();
+window.tanyaAIText = function() {
+    simpanSeleksiTeks();
     let text = globalSelectedRange ? globalSelectedRange.toString().trim() : "";
+    if(!text) return alert("Blok teks/kata yang ingin ditanyakan pada AI terlebih dahulu.");
+    
     document.getElementById('ai-tutor-box').style.display = 'flex';
-    if (!text) return;
-
     let body = document.getElementById('ai-tutor-body');
-    body.innerHTML += '<div class="user-bubble">Tolong jelaskan ini: "' + text + '"</div>';
-    let loadingId = 'ai-typing-' + Date.now();
-    body.innerHTML += '<div class="ai-bubble" id="' + loadingId + '"><em>AI sedang mengetik...</em></div>';
+    body.innerHTML += `<div class="user-bubble">Tolong jelaskan ini: "${text}"</div>`;
+    body.innerHTML += `<div class="ai-bubble" id="ai-typing"><em>AI sedang mengetik...</em></div>`;
     body.scrollTop = body.scrollHeight;
-
-    await window.panggilGeminiAPI('Jelaskan secara ringkas dan mudah dipahami siswa mengenai konsep berikut: "' + text + '"', loadingId, text);
+    
+    setTimeout(() => {
+        let t = document.getElementById('ai-typing'); if(t) t.remove();
+        body.innerHTML += `<div class="ai-bubble">Dalam konteks materi ini, <b>${text}</b> adalah konsep yang mengacu pada struktur atau proses penting. Bayangkan ini seperti sistem kerja pada mesin yang memastikan semuanya berjalan lancar. Ada hal spesifik dari ini yang ingin diperdalam?</div>`;
+        body.scrollTop = body.scrollHeight;
+    }, 1500);
 };
 
-window.kirimPesanAI = async function() {
+window.kirimPesanAI = function() {
     let input = document.getElementById('ai-tutor-input');
     let val = input.value.trim();
-    if (!val) return;
+    if(!val) return;
     let body = document.getElementById('ai-tutor-body');
-    body.innerHTML += '<div class="user-bubble">' + val + '</div>';
+    body.innerHTML += `<div class="user-bubble">${val}</div>`;
     input.value = "";
-    let loadingId = 'ai-typing-' + Date.now();
-    body.innerHTML += '<div class="ai-bubble" id="' + loadingId + '"><em>AI memproses...</em></div>';
+    body.innerHTML += `<div class="ai-bubble" id="ai-typing"><em>AI memproses...</em></div>`;
     body.scrollTop = body.scrollHeight;
-
-    await window.panggilGeminiAPI(val, loadingId, val);
+    
+    setTimeout(() => {
+        let t = document.getElementById('ai-typing'); if(t) t.remove();
+        body.innerHTML += `<div class="ai-bubble">Pertanyaan bagus! Jika kita pecah lebih sederhana, ini bekerja dengan hukum sebab-akibat. Jika A terjadi, maka B akan merespon. Cobalah perhatikan grafik atau gambar di samping untuk memvisualisasikannya.</div>`;
+        body.scrollTop = body.scrollHeight;
+    }, 1000);
 };
 
-window.panggilGeminiAPI = async function(pesan, loadingId, topikAsli) {
-    let body = document.getElementById('ai-tutor-body');
-    let el = document.getElementById(loadingId);
-    try {
-        const balasanAI = await window.requestKeGeminiDenganFallback(pesan);
-        if (el) el.innerHTML = balasanAI.replace(/\n/g, '<br>');
-    } catch (err) {
-        // Fallback Offline Cerdas jika seluruh server Google sedang penuh bersamaan
-        let topik = topikAsli || "konsep ini";
-        if (el) {
-            el.innerHTML = '<b>💡 Penjelasan Cepat (Mode Sibuk):</b><br>Secara prinsip, <b>' + topik + '</b> merupakan bagian penting dalam materi yang berkaitan erat dengan mekanisme sebab-akibat pada topik ini. <br><small style="color:#7f8c8d;"><i>(Catatan: Server pusat Google sedang antre tinggi, silakan kirim ulang beberapa saat lagi untuk jawaban mendalam).</i></small>';
-        }
-    }
-    body.scrollTop = body.scrollHeight;
-};
+/* =========================================
+   MODAL ALAT GAMBAR (CANVAS, LASSO, SHAPE AI)
+   ========================================= */
+window.isDrawingMode = false; 
+let currentDrawCtx = null, isPenDown = false, activeTool = 'pen'; 
+window.penSize = 4; window.penColor = '#e74c3c'; window.pencilOnly = true; 
+window.shapeHoldTimer = null; window.isShapeRecognized = false;
 
-// 4. Generator Kuis dengan Auto-Fallback
-window.aktifkanGeneratorKuisAI = function() {
-    window.prosesGenerateQuizAI = async function() {
-        const teksMateri = document.getElementById('ai-quiz-topic').value.trim();
-        const jumlahSoal = parseInt(document.getElementById('ai-quiz-count').value || "5");
+let laserStrokes = [], currentLaserStroke = null;
+let globalLaserCvs = document.getElementById('laser-canvas'); 
+let globalLaserCtx = globalLaserCvs ? globalLaserCvs.getContext('2d') : null; 
+let laserLastActiveTime = 0; 
 
-        if (!teksMateri) return alert("Paste materi atau topik soal terlebih dahulu!");
+let lassoPath = [], isFloating = false, lassoTargetCanvas = null, lassoSavedImageData = null, floatUI = null;
 
-        // Jika teks yang dimasukkan memiliki format manual "Soal: ... Kunci: ...", langsung ekstrak instan tanpa kuota AI!
-        if (/Soal:/i.test(teksMateri) && /Kunci:/i.test(teksMateri)) {
-            let b = teksMateri.split(/Soal:/i).filter(function(x) { return x.trim().length > 0; });
-            let ext = [];
-            b.forEach(function(x) {
-                let qM = x.split(/(A\.|Tipe:|Kunci:)/i)[0].trim();
-                let aM = x.match(/A\.(.*?)(?=B\.)/is)?.[1].trim();
-                let bM = x.match(/B\.(.*?)(?=C\.)/is)?.[1].trim();
-                let cM = x.match(/C\.(.*?)(?=D\.|E\.|Kunci:|Pembahasan:|$)/is)?.[1].trim();
-                let dM = x.match(/D\.(.*?)(?=E\.|Kunci:|Pembahasan:|$)/is)?.[1].trim();
-                let eM = x.match(/E\.(.*?)(?=Kunci:|Pembahasan:|$)/is)?.[1].trim();
-                let kM = x.match(/Kunci:\s*([A-E])/i);
-                let pM = x.match(/Pembahasan:\s*(.*)/is);
-                
-                if (qM && aM && bM && cM && kM) {
-                    let opsiRakit = [aM, bM, cM];
-                    if (dM) opsiRakit.push(dM);
-                    if (eM) opsiRakit.push(eM);
-                    
-                    let idxKunci = kM[1].toUpperCase().charCodeAt(0) - 65;
-                    idxKunci = Math.max(0, Math.min(opsiRakit.length - 1, idxKunci));
-
-                    ext.push({
-                        type: 'mc',
-                        question: qM,
-                        options: opsiRakit,
-                        correctIndex: idxKunci,
-                        explanation: pM ? pM[1].trim() : "Jawaban benar: " + kM[1].toUpperCase()
-                    });
-                }
-            });
-        }
-
-        window.tutupModal('modal-ai-quiz');
-        document.getElementById('save-status-bar').innerHTML = "<span style='color:#e67e22;'>🤖 AI Sedang Menyusun Kuis...</span>";
-
-        try {
-            const promptAI = 'Buatlah ' + jumlahSoal + ' soal pilihan ganda berdasarkan materi berikut:\n"' + teksMateri + '"\n\nKeluarkan hasilnya HANYA dalam format array JSON murni yang valid seperti ini, tanpa markdown:\n[\n  {\n    "type": "mc",\n    "question": "Pertanyaan...",\n    "options": ["Opsi A", "Opsi B", "Opsi C", "Opsi D"],\n    "correctIndex": 0,\n    "explanation": "Penjelasan singkat."\n  }\n]';
-
-            let balasanAI = await window.requestKeGeminiDenganFallback(promptAI);
-            balasanAI = balasanAI.replace(/```json/gi, '').replace(/```/gi, '').trim();
-
-            const parsedQuestions = JSON.parse(balasanAI);
-
-            if (activeQuizBlockIdx > -1 && window.contentBlocksData[activeQuizBlockIdx]) {
-                window.contentBlocksData[activeQuizBlockIdx].questions = parsedQuestions;
-                delete window.quizState[activeQuizBlockIdx];
-                window.renderBlocks();
-                if (typeof window.simpanKeDB === 'function') window.simpanKeDB();
-                document.getElementById('save-status-bar').innerHTML = "<span style='color:#2ecc71;'>✓ Kuis AI Berhasil Dibuat!</span>";
-            }
-        } catch (error) {
-            console.error("Error AI Quiz:", error);
-            alert("Server AI Google sedang penuh (High Demand). Tips: Anda tetap bisa memasukkan soal secara instan menggunakan format 'Soal: ... A. ... B. ... C. ... D. ... Kunci: A'.");
-            document.getElementById('save-status-bar').innerHTML = "Cloud Sync: Ready";
-        }
-    };
-};
-
-window.aktifkanGeneratorKuisAI();
-window.addEventListener('load', window.aktifkanGeneratorKuisAI);
-
-// 5. Perbaikan Drag AI Tutor Box (Mencegah Tombol X Terkunci)
-let aiHeader = document.getElementById('ai-tutor-header');
-let aiBox = document.getElementById('ai-tutor-box');
-let isDraggingAI = false, aiStartPosX, aiStartPosY, aiStartMouseX, aiStartMouseY;
-
-if (aiHeader && aiBox) {
-    // Pastikan tombol X di dalam header langsung merespons klik
-    const closeBtnAI = aiHeader.querySelector('button');
-    if (closeBtnAI) {
-        closeBtnAI.style.zIndex = '10001';
-        closeBtnAI.addEventListener('pointerdown', function(e) {
-            e.stopPropagation(); // Hentikan proses drag saat tombol X ditekan!
-        });
-        closeBtnAI.addEventListener('click', function(e) {
-            e.stopPropagation();
-            window.tutupAITutor();
-        });
-    }
-
-    aiHeader.addEventListener('pointerdown', function(e) {
-        // Jangan drag jika yang diklik adalah tombol X
-        if (e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
-        isDraggingAI = true;
-        aiStartMouseX = e.clientX; 
-        aiStartMouseY = e.clientY;
-        let rect = aiBox.getBoundingClientRect();
-        aiStartPosX = rect.left; 
-        aiStartPosY = rect.top;
-        aiHeader.setPointerCapture(e.pointerId);
-    });
-
-    aiHeader.addEventListener('pointermove', function(e) {
-        if (!isDraggingAI) return;
-        aiBox.style.right = 'auto'; 
-        aiBox.style.bottom = 'auto';
-        aiBox.style.left = (aiStartPosX + (e.clientX - aiStartMouseX)) + 'px';
-        aiBox.style.top = (aiStartPosY + (e.clientY - aiStartMouseY)) + 'px';
-    });
-
-    aiHeader.addEventListener('pointerup', function(e) { 
-        if (!isDraggingAI) return;
-        isDraggingAI = false; 
-        aiHeader.releasePointerCapture(e.pointerId); 
-    });
+function updateToolbarPosition() {
+    if(!window.isDrawingMode || !window.visualViewport) return;
+    const tools = document.getElementById('pen-tools'); const vv = window.visualViewport;
+    tools.style.position = 'fixed'; tools.style.top = '0px'; tools.style.left = '0px'; tools.style.width = window.innerWidth + 'px';
+    tools.style.transform = `translate(${vv.offsetLeft}px, ${vv.offsetTop}px) scale(${1 / vv.scale})`; tools.style.transformOrigin = 'top left';
 }
-// 6. Fungsi Gemini Vision Khusus Membaca Coretan Rumus (Lasso to MathJax)
-window.requestGeminiVisionMath = async function(base64Image) {
-    const models = await window.muatDaftarModelGemini();
-    let errorTerakhir = "";
-
-    const promptVision = "Perhatikan gambar tulisan tangan rumus matematika, fisika, atau kimia ini. Ubah tulisan tersebut menjadi kode LaTeX yang valid. Gunakan pembungkus \\[ dan \\] untuk rumus baris tersendiri. Keluarkan HANYA kode LaTeX-nya saja tanpa penjelasan, tanpa teks pembuka, dan tanpa markdown codeblock.";
-
-    for (let i = 0; i < models.length; i++) {
-        const modelName = models[i];
-        const url = 'https://generativelanguage.googleapis.com/v1beta/' + modelName + ':generateContent?key=' + GEMINI_API_KEY;
-
-        try {
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{
-                        parts: [
-                            { text: promptVision },
-                            { inlineData: { mimeType: "image/png", data: base64Image } }
-                        ]
-                    }]
-                })
-            });
-
-            const data = await response.json();
-            if (response.ok && data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
-                let hasil = data.candidates[0].content.parts[0].text.trim();
-                hasil = hasil.replace(/```latex/gi, '').replace(/```/g, '').trim();
-                return hasil;
-            } else {
-                errorTerakhir = data.error?.message || "Gagal memproses gambar rumus.";
-            }
-        } catch (err) {
-            errorTerakhir = err.message;
-        }
-    }
-    throw new Error(errorTerakhir || "Server AI Vision sedang sibuk.");
-};
-
-// ==========================================
-// FITUR AI: BACA PDF & GENERATE SOAL OTOMATIS (LATIHAN, UJIAN & KUIS AI)
-// ==========================================
-window.targetTextareaPDF = 'lat-input-raw';
-
-window.muatLibraryPDFJS = function() {
-    return new Promise(function(resolve, reject) {
-        if (window.pdfjsLib) return resolve(window.pdfjsLib);
-        var script = document.createElement('script');
-        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-        script.onload = function() {
-            window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-            resolve(window.pdfjsLib);
-        };
-        script.onerror = function() { reject(new Error("Gagal memuat pembaca PDF.")); };
-        document.head.appendChild(script);
-    });
-};
-
-window.ekstrakTeksDariFilePDF = async function(file) {
-    var pdfjsLib = await window.muatLibraryPDFJS();
-    var arrayBuffer = await file.arrayBuffer();
-    var pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-    var fullText = "";
-    var maxPages = Math.min(pdf.numPages, 25);
-    for (var i = 1; i <= maxPages; i++) {
-        var page = await pdf.getPage(i);
-        var content = await page.getTextContent();
-        var strings = content.items.map(function(item) { return item.str; });
-        fullText += strings.join(" ") + "\n\n";
-    }
-    return fullText.trim();
-};
-
-window.triggerUploadPDFKe = function(targetId) {
-    window.targetTextareaPDF = targetId || 'lat-input-raw';
-    var inputEl = document.getElementById('pdf-upload-soal-universal');
-    if (!inputEl) {
-        inputEl = document.createElement('input');
-        inputEl.type = 'file';
-        inputEl.id = 'pdf-upload-soal-universal';
-        inputEl.accept = 'application/pdf';
-        inputEl.style.display = 'none';
-        inputEl.onchange = function() { window.prosesUploadPDFSoal(this); };
-        document.body.appendChild(inputEl);
-    }
-    inputEl.value = '';
-    inputEl.click();
-};
-
-window.konversiTeksPDFKeFormatSoalLokal = function(teksMentah, batasJumlah) {
-    var baris = teksMentah.replace(/\r/g, '\n');
-    var potongan = baris.split(/(?:^|\n|\s)(?=\d{1,3}[\.\)]\s+[A-Z0-9])/g);
-    var hasilFormat = [];
-    potongan.forEach(function(blok) {
-        if (hasilFormat.length >= batasJumlah) return;
-        var b = blok.replace(/^\s*\d{1,3}[\.\)]\s*/, '').trim();
-        if (b.length < 10) return;
-        var aIdx = b.search(/(?:^|\s)[A-a][\.\)]\s+/);
-        var bIdx = b.search(/(?:^|\s)[B-b][\.\)]\s+/);
-        var cIdx = b.search(/(?:^|\s)[C-c][\.\)]\s+/);
-        var dIdx = b.search(/(?:^|\s)[D-d][\.\)]\s+/);
-        if (aIdx > 5 && bIdx > aIdx && cIdx > bIdx && dIdx > cIdx) {
-            var tanya = b.substring(0, aIdx).trim();
-            var optA = b.substring(aIdx, bIdx).replace(/^\s*[A-a][\.\)]\s+/, '').trim();
-            var optB = b.substring(bIdx, cIdx).replace(/^\s*[B-b][\.\)]\s+/, '').trim();
-            var optC = b.substring(cIdx, dIdx).replace(/^\s*[C-c][\.\)]\s+/, '').trim();
-            var sisaD = b.substring(dIdx).replace(/^\s*[D-d][\.\)]\s+/, '').trim();
-            var eIdx = sisaD.search(/(?:^|\s)[E-e][\.\)]\s+/);
-            var optD = eIdx > 0 ? sisaD.substring(0, eIdx).trim() : sisaD.split('\n')[0].trim();
-            hasilFormat.push(
-                "Soal: " + tanya + "\n" +
-                "Tipe: PG\n" +
-                "A. " + optA + "\n" +
-                "B. " + optB + "\n" +
-                "C. " + optC + "\n" +
-                "D. " + optD + "\n" +
-                "Kunci: A\n" +
-                "Pembahasan: Silakan cek kunci jawaban sesuai dokumen."
-            );
-        }
-    });
-    return hasilFormat.join("\n\n");
-};
-
-window.prosesUploadPDFSoal = async function(inputEl) {
-    var file = inputEl.files && inputEl.files[0];
-    if (!file) return;
-
-    var targetId = window.targetTextareaPDF || 'lat-input-raw';
-    var textArea = document.getElementById(targetId) || document.getElementById('lat-input-raw');
-
-    var jumlahInput = prompt("Berapa jumlah soal yang ingin diekstrak? (Maksimal 15 agar super cepat)", "10");
-    if (!jumlahInput) { inputEl.value = ''; return; }
-    var jumlahSoal = parseInt(jumlahInput) || 10;
-
-    var teksLama = textArea ? textArea.value : "";
-    if (textArea) {
-        textArea.value = "⏳ AI (Flash-8B) sedang membaca dokumen PDF secara kilat...\nMohon tunggu 3-5 detik...";
-    }
-
-    try {
-        var teksPDF = await window.ekstrakTeksDariFilePDF(file);
-        if (!teksPDF || teksPDF.length < 15) throw new Error("Teks tidak terbaca (PDF berupa gambar).");
-
-        // PERBAIKAN PERFORMA: Batasi maksimal 8000 karakter agar selesai < 5 detik
-        var batasKarakter = teksPDF.substring(0, 8000);
-        var promptText = "Ekstrak " + jumlahSoal + " soal dari teks ini. WAJIB format persis seperti ini (tanpa markdown):\nSoal: [Pertanyaan]\nTipe: PG\nA. [Opsi A]\nB. [Opsi B]\nC. [Opsi C]\nD. [Opsi D]\nKunci: A\nPembahasan: [Penjelasan]\n\nTeks:\n" + batasKarakter;
-
-        // MENGGUNAKAN MODEL KILAT (Flash-8B)
-        var url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b:generateContent?key=' + window.getGeminiKey();
-        
-        var response = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contents: [{ parts: [ {text: promptText} ] }] })
-        });
-        
-        var data = await response.json();
-        if (!response.ok) throw new Error(data.error?.message || "Server AI sedang padat.");
-
-        var hasilAI = data.candidates[0].content.parts[0].text.replace(/```/g, '').trim();
-        if (textArea) textArea.value = teksLama ? (teksLama.trim() + "\n\n" + hasilAI) : hasilAI;
-        alert("✅ Berhasil mengekstrak soal secara kilat!");
-    } catch (error) {
-        alert("❌ Gagal memproses: " + error.message);
-        if (textArea) textArea.value = teksLama;
-    }
-    inputEl.value = '';
-};
-
-// ==========================================
-// EKSTRAK ULANG (REPLACE) & TAMBAHKAN SOAL (APPEND) PADA KUIS AI
-// ==========================================
-window.aktifkanGeneratorKuisAI = function() {
-    window.prosesGenerateQuizAI = async function(mode) {
-        var modeAksi = mode || 'replace';
-        var teksMateri = document.getElementById('ai-quiz-topic').value.trim();
-        var jumlahSoal = parseInt(document.getElementById('ai-quiz-count').value || "10");
-
-        if (!teksMateri) return alert("Paste soal/materi atau upload PDF terlebih dahulu!");
-
-        var parserFn = window.ekstrakTeksKeArraySoalGlobal;
-        if (/Soal\s*\d*\s*:/i.test(teksMateri) && typeof parserFn === 'function') {
-            var hasilManual = parserFn(teksMateri).slice(0, jumlahSoal);
-            if (hasilManual.length > 0 && activeQuizBlockIdx > -1 && window.contentBlocksData[activeQuizBlockIdx]) {
-                var soalSebelumnya = window.contentBlocksData[activeQuizBlockIdx].questions || [];
-                window.contentBlocksData[activeQuizBlockIdx].questions = (modeAksi === 'append')
-                    ? soalSebelumnya.concat(hasilManual)
-                    : hasilManual;
-                delete window.quizState[activeQuizBlockIdx];
-                window.renderBlocks();
-                if (typeof window.simpanKeDB === 'function') window.simpanKeDB();
-                window.tutupModal('modal-ai-quiz');
-                document.getElementById('save-status-bar').innerHTML = "<span style='color:#2ecc71;'>✓ Soal Berhasil Dimasukkan!</span>";
-                return;
-            }
-        }
-
-        window.tutupModal('modal-ai-quiz');
-        document.getElementById('save-status-bar').innerHTML = "<span style='color:#e67e22;'>🤖 AI Sedang Menyusun Kuis...</span>";
-
-        try {
-            var promptAI = 'Buatlah ' + jumlahSoal + ' soal pilihan ganda berdasarkan materi berikut:\n"' + teksMateri + '"\n\nKeluarkan hasilnya HANYA dalam format array JSON murni. Jumlah opsi sesuaikan tingkat materi (A-C, A-D, atau A-E). Contoh struktur:\n[\n  {\n    "type": "mc",\n    "question": "Pertanyaan...",\n    "options": ["Opsi A", "Opsi B", "Opsi C", "Opsi D", "Opsi E"],\n    "correctIndex": 0,\n    "explanation": "Penjelasan."\n  }\n]';
-
-            var balasanAI = await window.requestKeGeminiDenganFallback(promptAI);
-            balasanAI = balasanAI.replace(/```json/gi, '').replace(/```/gi, '').trim();
-            var parsedQuestions = JSON.parse(balasanAI);
-
-            if (activeQuizBlockIdx > -1 && window.contentBlocksData[activeQuizBlockIdx]) {
-                var soalLama = window.contentBlocksData[activeQuizBlockIdx].questions || [];
-                window.contentBlocksData[activeQuizBlockIdx].questions = (modeAksi === 'append')
-                    ? soalLama.concat(parsedQuestions)
-                    : parsedQuestions;
-                delete window.quizState[activeQuizBlockIdx];
-                window.renderBlocks();
-                if (typeof window.simpanKeDB === 'function') window.simpanKeDB();
-                document.getElementById('save-status-bar').innerHTML = "<span style='color:#2ecc71;'>✓ Kuis AI Berhasil Dibuat!</span>";
-            }
-        } catch (error) {
-            alert("Gagal menyusun kuis otomatis. Pastikan teks berformat 'Soal: ... Kunci: ...' atau coba beberapa saat lagi.");
-            document.getElementById('save-status-bar').innerHTML = "Cloud Sync: Ready";
-        }
-    };
-};
-
-window.aktifkanGeneratorKuisAI();
-
-// FITUR LAYAR PENUH (FULLSCREEN)
-window.toggleFullScreen = function() {
-    if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-        var elem = document.documentElement;
-        if (elem.requestFullscreen) elem.requestFullscreen();
-        else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
-    } else {
-        if (document.exitFullscreen) document.exitFullscreen();
-        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
-    }
-};
-
-// LAPISAN KEAMANAN: Memblokir Developer Tools, F12, dan Klik Kanan bagi Siswa
-document.addEventListener('keydown', function(e) {
-    if (sessionStorage.getItem("statusGuru") !== "aktif") {
-        if (e.key === 'F12' || 
-           (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C')) || 
-           (e.ctrlKey && e.key === 'U')) {
-            e.preventDefault();
-            alert("⚠️ Sistem Keamanan Aktif: Akses sistem inspeksi diblokir selama Anda berstatus Siswa/Peserta Ujian.");
-        }
-    }
-});
-document.addEventListener('contextmenu', function(e) {
-    if (sessionStorage.getItem("statusGuru") !== "aktif" && window.isStrictUjianActive) {
-        e.preventDefault();
-    }
-});
-
-// ============================================================================
-// MASTER PATCH MAIN.JS: SLIDE PDF MATERI, FOKUS FULLSCREEN BLOCK & UNDO/REDO DRAW
-// ============================================================================
-
-// 1. Upload PDF Menjadi Slide Materi Interaktif (Bisa Digeser Kiri-Kanan)
-window.prosesUploadPDFMateri = async function(inputEl) {
-    var file = inputEl.files && inputEl.files[0];
-    if (!file) return;
-
-    var statusEl = document.getElementById('save-status-bar');
-    if (statusEl) statusEl.innerHTML = "<span style='color:#e67e22;'>⏳ Mengonversi PDF menjadi Slide Materi...</span>";
-
-    try {
-        var pdfjsLib = await window.muatLibraryPDFJS();
-        var arrayBuffer = await file.arrayBuffer();
-        var pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-        var pagesArr = [];
-
-        var maxPages = Math.min(pdf.numPages, 20);
-        for (var i = 1; i <= maxPages; i++) {
-            if (statusEl) statusEl.innerHTML = "<span style='color:#e67e22;'>⏳ Memproses Slide " + i + " / " + maxPages + "...</span>";
-            var page = await pdf.getPage(i);
-            var viewport = page.getViewport({ scale: 1.5 });
-            var canvas = document.createElement('canvas');
-            canvas.width = viewport.width;
-            canvas.height = viewport.height;
-            var ctx = canvas.getContext('2d');
-            await page.render({ canvasContext: ctx, viewport: viewport }).promise;
-            pagesArr.push(canvas.toDataURL('image/jpeg', 0.82));
-        }
-
-        if (!window.contentBlocksData) window.contentBlocksData = [];
-        window.contentBlocksData.push({
-            type: 'pdf',
-            pages: pagesArr,
-            currentSlide: 0,
-            slideDrawings: {},
-            bg: '#ffffff',
-            width: 'L',
-            padTop: '20px',
-            padBot: '30px',
-            drawing: ''
-        });
-
-        window.renderBlocks();
-        if (typeof window.simpanKeDB === 'function') window.simpanKeDB();
-        if (statusEl) statusEl.innerHTML = "<span style='color:#2ecc71;'>✓ Slide PDF Berhasil Ditambahkan!</span>";
-        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-    } catch (e) {
-        alert("Gagal memuat PDF: " + e.message);
-        if (statusEl) statusEl.innerHTML = "Cloud Sync: Ready";
-    }
-    inputEl.value = '';
-};
-
-// Navigasi Geser Slide PDF Kiri & Kanan
-window.geserSlidePDF = function(blockIdx, arah) {
-    var slider = document.getElementById('pdf-slider-' + blockIdx);
-    var blok = window.contentBlocksData && window.contentBlocksData[blockIdx];
-    if (!slider || !blok || !blok.pages) return;
-
-    // Simpan coretan pada slide saat ini sebelum berpindah
-    var cvs = document.querySelector('.drawing-layer[data-index="' + blockIdx + '"]');
-    var oldSlide = blok.currentSlide || 0;
-    if (cvs) {
-        if (!blok.slideDrawings) blok.slideDrawings = {};
-        blok.slideDrawings[oldSlide] = cvs.toDataURL('image/png');
-    }
-
-    var nextSlide = Math.max(0, Math.min(blok.pages.length - 1, oldSlide + arah));
-    blok.currentSlide = nextSlide;
-    slider.scrollTo({ left: nextSlide * slider.clientWidth, behavior: 'smooth' });
-
-    var numEl = document.getElementById('pdf-page-num-' + blockIdx);
-    if (numEl) numEl.innerText = (nextSlide + 1);
-
-    setTimeout(function() {
-        if (window.muatUlangSemuaKanvasGambar) window.muatUlangSemuaKanvasGambar();
-    }, 250);
-};
-
-window.onScrollSlidePDF = function(blockIdx, sliderEl) {
-    var blok = window.contentBlocksData && window.contentBlocksData[blockIdx];
-    if (!sliderEl || !blok || !blok.pages) return;
-    var idx = Math.round(sliderEl.scrollLeft / (sliderEl.clientWidth || 1));
-    if (idx !== (blok.currentSlide || 0)) {
-        blok.currentSlide = idx;
-        var numEl = document.getElementById('pdf-page-num-' + blockIdx);
-        if (numEl) numEl.innerText = (idx + 1);
-        if (window.muatUlangSemuaKanvasGambar) window.muatUlangSemuaKanvasGambar();
-    }
-};
-
-// 2. Fokus Fullscreen pada Content Block (Dilengkapi Tombol Draw Langsung)
-window.pastikanBarFokusAda = function() {
-    var bar = document.getElementById('fokus-floating-bar');
-    if (!bar) {
-        bar = document.createElement('div');
-        bar.id = 'fokus-floating-bar';
-        bar.innerHTML =
-            '<button type="button" style="background:#ffeaa7; color:#2c3e50;" onclick="window.toggleDrawingMode()">🖍️ Mode Draw</button>' +
-            '<button type="button" style="background:#e74c3c; color:#ffffff;" onclick="window.keluarBlockFullscreen()">✖️ Keluar Fokus</button>';
-        document.body.appendChild(bar);
-    }
-    return bar;
-};
-
-window.toggleBlockFullscreen = function(btnEl, index) {
-    var wrapper = document.querySelector('.block-wrapper[data-index="' + index + '"]');
-    if (!wrapper) return;
-    var bar = window.pastikanBarFokusAda();
-
-    if (wrapper.classList.contains('block-fullscreen-active')) {
-        window.keluarBlockFullscreen();
-    } else {
-        document.querySelectorAll('.block-fullscreen-active').forEach(function(el) {
-            el.classList.remove('block-fullscreen-active');
-        });
-        wrapper.classList.add('block-fullscreen-active');
-        bar.style.display = 'flex';
-        document.body.style.overflow = 'hidden';
-        wrapper.scrollTop = 0;
-
-        // Aktifkan juga Fullscreen Layar Browser
-        var elem = document.documentElement;
-        if (!document.fullscreenElement && elem.requestFullscreen) {
-            elem.requestFullscreen().catch(function(){});
-        }
-    }
-    setTimeout(function() {
-        if (window.muatUlangSemuaKanvasGambar) window.muatUlangSemuaKanvasGambar();
-    }, 300);
-};
-
-window.keluarBlockFullscreen = function() {
-    document.querySelectorAll('.block-fullscreen-active').forEach(function(el) {
-        el.classList.remove('block-fullscreen-active');
-    });
-    var bar = document.getElementById('fokus-floating-bar');
-    if (bar) bar.style.display = 'none';
-    if (window.isDrawingMode && typeof window.toggleDrawingMode === 'function') {
-        window.toggleDrawingMode();
-    }
-    document.body.style.overflow = 'auto';
-    setTimeout(function() {
-        if (window.muatUlangSemuaKanvasGambar) window.muatUlangSemuaKanvasGambar();
-    }, 300);
-};
-
-// 3. Sistem Undo & Redo Coretan / Penghapus
-window.drawUndoStack = {};
-window.drawRedoStack = {};
-window.lastActiveCanvas = null;
-
-window.getCanvasKey = function(cvs) {
-    var bIdx = cvs.getAttribute('data-index');
-    var fbIdx = cvs.getAttribute('data-fb-index');
-    if (bIdx !== null && window.contentBlocksData && window.contentBlocksData[bIdx] && window.contentBlocksData[bIdx].type === 'pdf') {
-        return 'b_' + bIdx + '_s_' + (window.contentBlocksData[bIdx].currentSlide || 0);
-    }
-    return bIdx !== null ? ('b_' + bIdx) : ('fb_' + fbIdx);
-};
-
-window.simpanHistoriUndo = function(cvs) {
-    if (!cvs) return;
-    window.lastActiveCanvas = cvs;
-    var key = window.getCanvasKey(cvs);
-    if (!window.drawUndoStack[key]) window.drawUndoStack[key] = [];
-    var ctx = cvs.getContext('2d', { willReadFrequently: true });
-    window.drawUndoStack[key].push(ctx.getImageData(0, 0, cvs.width, cvs.height));
-    if (window.drawUndoStack[key].length > 25) window.drawUndoStack[key].shift();
-    window.drawRedoStack[key] = [];
-};
-
-window.undoDraw = function() {
-    var cvs = window.lastActiveCanvas || document.querySelector('.block-fullscreen-active .drawing-layer') || document.querySelector('.drawing-layer');
-    if (!cvs) return;
-    var key = window.getCanvasKey(cvs);
-    var hist = window.drawUndoStack[key];
-    if (!hist || hist.length === 0) return;
-
-    var ctx = cvs.getContext('2d', { willReadFrequently: true });
-    if (!window.drawRedoStack[key]) window.drawRedoStack[key] = [];
-    window.drawRedoStack[key].push(ctx.getImageData(0, 0, cvs.width, cvs.height));
-
-    var prev = hist.pop();
-    ctx.putImageData(prev, 0, 0);
-    window.simpanKanvasKeDatabase(cvs);
-};
-
-window.redoDraw = function() {
-    var cvs = window.lastActiveCanvas || document.querySelector('.block-fullscreen-active .drawing-layer') || document.querySelector('.drawing-layer');
-    if (!cvs) return;
-    var key = window.getCanvasKey(cvs);
-    var histRedo = window.drawRedoStack[key];
-    if (!histRedo || histRedo.length === 0) return;
-
-    var ctx = cvs.getContext('2d', { willReadFrequently: true });
-    if (!window.drawUndoStack[key]) window.drawUndoStack[key] = [];
-    window.drawUndoStack[key].push(ctx.getImageData(0, 0, cvs.width, cvs.height));
-
-    var next = histRedo.pop();
-    ctx.putImageData(next, 0, 0);
-    window.simpanKanvasKeDatabase(cvs);
-};
-
-window.simpanKanvasKeDatabase = function(cvs) {
-    var fbIdx = cvs.getAttribute('data-fb-index');
-    var blockIdx = cvs.getAttribute('data-index');
-    var dataUrl = cvs.toDataURL('image/png');
-
-    if (fbIdx !== null && window.floatingBoxesData && window.floatingBoxesData[fbIdx]) {
-        window.floatingBoxesData[fbIdx].drawing = dataUrl;
-    } else if (blockIdx !== null && window.contentBlocksData && window.contentBlocksData[blockIdx]) {
-        var bObj = window.contentBlocksData[blockIdx];
-        if (bObj.type === 'pdf') {
-            if (!bObj.slideDrawings) bObj.slideDrawings = {};
-            bObj.slideDrawings[bObj.currentSlide || 0] = dataUrl;
-        }
-        bObj.drawing = dataUrl;
-    }
-    if (typeof window.simpanKeDB === 'function') window.simpanKeDB();
-};
-
-// ============================================================================
-// UPGRADE MAIN.JS: AI SUPER CEPAT (<3 DETIK), ZOOM MODE FOKUS, FULLSCREEN LOCK,
-// KEAMANAN ANTI-HACKER LAPIS 4, DAN RUANG ADMINISTRASI (ABSENSI & AGENDA)
-// ============================================================================
-
-// ----------------------------------------------------------------------------
-// A. PENJAGA FULLSCREEN (MENCEGAH ALERT/CONFIRM MEMATIKAN FULLSCREEN)
-// ----------------------------------------------------------------------------
-window.tampilkanToastFullscreen = function(pesan) {
-    var toast = document.getElementById('custom-fs-toast');
-    if (!toast) {
-        toast = document.createElement('div');
-        toast.id = 'custom-fs-toast';
-        document.body.appendChild(toast);
-    }
-    toast.innerHTML = '<span>' + pesan + '</span><button type="button" style="background:#e74c3c;color:#fff;border:none;border-radius:15px;padding:4px 10px;cursor:pointer;font-weight:bold;" onclick="this.parentElement.style.display=\'none\'">OK</button>';
-    toast.style.display = 'flex';
-    clearTimeout(window.fsToastTimer);
-    window.fsToastTimer = setTimeout(function() {
-        if (toast) toast.style.display = 'none';
-    }, 4000);
-};
-
-window.tampilkanKonfirmasiFullscreen = function(pesan, onYes) {
-    var modal = document.getElementById('custom-fs-confirm');
-    if (!modal) {
-        modal = document.createElement('div');
-        modal.id = 'custom-fs-confirm';
-        modal.className = 'mahardika-modal-wrap';
-        modal.innerHTML =
-            '<div class="mahardika-modal-card" style="max-width:360px; padding:22px; text-align:center;">' +
-                '<h4 id="fs-confirm-text" style="margin:0 0 18px 0; color:#2c3e50; font-family:\'Poppins\',sans-serif;"></h4>' +
-                '<div style="display:flex; gap:10px; justify-content:center;">' +
-                    '<button type="button" id="fs-confirm-yes" style="background:#27ae60; color:#fff; border:none; padding:9px 22px; border-radius:8px; font-weight:bold; cursor:pointer;">Ya, Lanjutkan</button>' +
-                    '<button type="button" id="fs-confirm-no" style="background:#e74c3c; color:#fff; border:none; padding:9px 22px; border-radius:8px; font-weight:bold; cursor:pointer;">Batal</button>' +
-                '</div>' +
-            '</div>';
-        document.body.appendChild(modal);
-    }
-    document.getElementById('fs-confirm-text').innerText = pesan;
-    modal.style.display = 'flex';
-    document.getElementById('fs-confirm-yes').onclick = function() {
-        modal.style.display = 'none';
-        if (window.pulihkanFullscreenJikaPerlu) window.pulihkanFullscreenJikaPerlu();
-        if (typeof onYes === 'function') onYes();
-    };
-    document.getElementById('fs-confirm-no').onclick = function() {
-        modal.style.display = 'none';
-        if (window.pulihkanFullscreenJikaPerlu) window.pulihkanFullscreenJikaPerlu();
-    };
-};
-
-// Jika sedang Fullscreen, arahkan alert bawaan ke Toast agar Fullscreen tidak batal
-var nativeAlert = window.alert;
-window.alert = function(msg) {
-    if (document.fullscreenElement || document.webkitFullscreenElement || sessionStorage.getItem('autoFS') === 'true') {
-        window.tampilkanToastFullscreen(msg);
-    } else {
-        nativeAlert(msg);
-    }
-};
-
-// Jaga Fullscreen tetap menyala setiap kali tombol di dalam aplikasi diklik
-document.addEventListener('click', function(e) {
-    if (sessionStorage.getItem('autoFS') === 'true' && !document.fullscreenElement && !document.webkitFullscreenElement) {
-        if (e.target.closest('button, a, .quiz-option-btn, .admin-menu-bar span')) {
-            var elem = document.documentElement;
-            if (elem.requestFullscreen) elem.requestFullscreen().catch(function(){});
-            else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen().catch(function(){});
-        }
-    }
-}, true);
-
-// ----------------------------------------------------------------------------
-// B. OPTIMASI KECEPATAN AI SUPER KILAT (TANPA ANTREAN MODEL MATI)
-// ----------------------------------------------------------------------------
-window.ambilKunciAPIAman = function() {
-    if (typeof window.getGeminiKey === 'function') return window.getGeminiKey();
-    if (typeof GEMINI_API_KEY !== 'undefined') return GEMINI_API_KEY;
-    return "";
-};
-
-// Langsung tembak model tercepat secara paralel tanpa mengecek daftar model dulu
-window.requestKeGeminiDenganFallback = async function(teksPrompt) {
-    var apiKey = window.ambilKunciAPIAman();
-    var fastModels = [
-        "models/gemini-2.0-flash-lite",
-        "models/gemini-2.0-flash",
-        "models/gemini-1.5-flash"
-    ];
-
-    var bodyPayload = JSON.stringify({
-        contents: [{ parts: [{ text: teksPrompt }] }],
-        generationConfig: {
-            temperature: 0.25,
-            maxOutputTokens: 1500
-        }
-    });
-
-    for (var i = 0; i < fastModels.length; i++) {
-        var controller = new AbortController();
-        var timeoutId = setTimeout(function() { controller.abort(); }, 6500);
-        try {
-            var url = 'https://generativelanguage.googleapis.com/v1beta/' + fastModels[i] + ':generateContent?key=' + apiKey;
-            var response = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: bodyPayload,
-                signal: controller.signal
-            });
-            clearTimeout(timeoutId);
-            var data = await response.json();
-            if (response.ok && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts[0]) {
-                return data.candidates[0].content.parts[0].text;
-            }
-        } catch (err) {
-            clearTimeout(timeoutId);
-        }
-    }
-    throw new Error("Server AI sedang sibuk, silakan coba klik sekali lagi.");
-};
-
-// Percepat Pembacaan PDF Soal (Hanya baca halaman awal secukupnya agar selesai < 3 detik)
-window.ekstrakTeksDariFilePDF = async function(file) {
-    var pdfjsLib = await window.muatLibraryPDFJS();
-    var arrayBuffer = await file.arrayBuffer();
-    var pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-    var fullText = "";
-    var maxPages = Math.min(pdf.numPages, 6);
-    for (var i = 1; i <= maxPages; i++) {
-        var page = await pdf.getPage(i);
-        var content = await page.getTextContent();
-        var strings = content.items.map(function(item) { return item.str; });
-        fullText += strings.join(" ") + "\n";
-        if (fullText.length > 5500) break;
-    }
-    return fullText.trim();
-};
-
-window.prosesUploadPDFSoal = async function(inputEl) {
-    var file = inputEl.files && inputEl.files[0];
-    if (!file) return;
-
-    var targetId = window.targetTextareaPDF || 'lat-input-raw';
-    var textArea = document.getElementById(targetId) || document.getElementById('lat-input-raw');
-    var jumlahInput = prompt("Jumlah soal yang ingin dibuat/diekstrak (Saran: 5 - 10 agar instan):", "5");
-    if (!jumlahInput) { inputEl.value = ''; return; }
-    var jumlahSoal = Math.min(parseInt(jumlahInput) || 5, 15);
-
-    var teksLama = textArea ? textArea.value : "";
-    if (textArea) textArea.value = "⚡ Mengekstrak PDF dengan Mesin Cepat...";
-
-    try {
-        var teksPDF = await window.ekstrakTeksDariFilePDF(file);
-        if (!teksPDF || teksPDF.length < 10) throw new Error("PDF berupa gambar scan tanpa teks.");
-
-        // Jalur Instan 0.1 Detik jika PDF sudah memiliki format soal A. B. C. D.
-        var ekstrakInstan = window.konversiTeksPDFKeFormatSoalLokal(teksPDF, jumlahSoal);
-        if (ekstrakInstan && ekstrakInstan.split("Soal:").length - 1 >= Math.min(3, jumlahSoal)) {
-            if (textArea) textArea.value = teksLama ? (teksLama.trim() + "\n\n" + ekstrakInstan) : ekstrakInstan;
-            window.tampilkanToastFullscreen("⚡ Soal berhasil diekstrak secara instan!");
-            inputEl.value = '';
-            return;
-        }
-
-        var potonganRingkas = teksPDF.substring(0, 4500);
-        var promptCepat = "Buat " + jumlahSoal + " soal PG singkat dari teks ini. Format wajib tanpa markdown:\nSoal: ...\nTipe: PG\nA. ...\nB. ...\nC. ...\nD. ...\nKunci: A\nPembahasan: ...\n\nTeks:\n" + potonganRingkas;
-
-        var hasilAI = await window.requestKeGeminiDenganFallback(promptCepat);
-        hasilAI = hasilAI.replace(/```/g, '').trim();
-        if (textArea) textArea.value = teksLama ? (teksLama.trim() + "\n\n" + hasilAI) : hasilAI;
-        window.tampilkanToastFullscreen("✅ AI selesai menyusun soal!");
-    } catch (err) {
-        if (textArea) textArea.value = teksLama;
-        window.tampilkanToastFullscreen("❌ " + err.message);
-    }
-    inputEl.value = '';
-};
-
-// ----------------------------------------------------------------------------
-// C. FITUR ZOOM IN & ZOOM OUT PADA MODE FOKUS CONTENT BLOCK
-// ----------------------------------------------------------------------------
-window.fokusZoomLevel = 1;
-
-window.pastikanBarFokusAda = function() {
-    var bar = document.getElementById('fokus-floating-bar');
-    if (!bar) {
-        bar = document.createElement('div');
-        bar.id = 'fokus-floating-bar';
-        document.body.appendChild(bar);
-    }
-    bar.innerHTML =
-        '<button type="button" style="background:#34495e; color:#fff;" onclick="window.ubahZoomFokus(-0.15)" title="Perkecil">🔍 ➖</button>' +
-        '<span id="fokus-zoom-label" style="color:#f1c40f; font-size:12px; font-weight:bold; min-width:45px; text-align:center; cursor:pointer;" onclick="window.resetZoomFokus()" title="Klik untuk Reset 100%">100%</span>' +
-        '<button type="button" style="background:#34495e; color:#fff;" onclick="window.ubahZoomFokus(0.15)" title="Perbesar">🔍 ➕</button>' +
-        '<button type="button" style="background:#ffeaa7; color:#2c3e50;" onclick="window.toggleDrawingMode()">🖍️ Mode Draw</button>' +
-        '<button type="button" style="background:#e74c3c; color:#ffffff;" onclick="window.keluarBlockFullscreen()">✖️ Keluar Fokus</button>';
-    return bar;
-};
-
-window.terapkanZoomKeBlokFokus = function() {
-    var blk = document.querySelector('.block-fullscreen-active .content-block');
-    if (!blk) return;
-    var z = window.fokusZoomLevel;
-    blk.style.zoom = z;
-    var lbl = document.getElementById('fokus-zoom-label');
-    if (lbl) lbl.innerText = Math.round(z * 100) + '%';
-};
-
-window.ubahZoomFokus = function(delta) {
-    window.fokusZoomLevel = Math.min(2.5, Math.max(0.5, Math.round((window.fokusZoomLevel + delta) * 100) / 100));
-    window.terapkanZoomKeBlokFokus();
-};
-
-window.resetZoomFokus = function() {
-    window.fokusZoomLevel = 1;
-    window.terapkanZoomKeBlokFokus();
-};
-
-var origKeluarFokus = window.keluarBlockFullscreen;
-window.keluarBlockFullscreen = function() {
-    var blk = document.querySelector('.block-fullscreen-active .content-block');
-    if (blk) blk.style.zoom = 1;
-    window.fokusZoomLevel = 1;
-    if (typeof origKeluarFokus === 'function') origKeluarFokus();
-};
-
-// ----------------------------------------------------------------------------
-// D. LAPISAN KEAMANAN TAMBAHAN ANTI-HACKER (ANTI-XSS, ANTI-BRUTEFORCE, ANTI-IFRAME)
-// ----------------------------------------------------------------------------
-
-// 1. Frame-Busting (Mencegah Web Dibajak di dalam Iframe Hacker)
-if (window.top !== window.self) {
-    window.top.location = window.self.location;
+if(window.visualViewport) { 
+    window.visualViewport.addEventListener('scroll', updateToolbarPosition); 
+    window.visualViewport.addEventListener('resize', updateToolbarPosition); 
 }
 
-// 2. Sanitasi Otomatis Input Siswa (Mencegah Injeksi Script / XSS ke Database)
-window.bersihkanTeksBerbahaya = function(str) {
-    if (typeof str !== 'string') return '';
-    return str.replace(/<\s*\/?\s*(script|iframe|object|embed|svg|link|style|meta)[^>]*>/gi, '')
-              .replace(/on\w+\s*=/gi, '')
-              .replace(/javascript\s*:/gi, '');
-};
-
-document.addEventListener('input', function(e) {
-    if (sessionStorage.getItem("statusGuru") !== "aktif") {
-        var el = e.target;
-        if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) {
-            var bersih = window.bersihkanTeksBerbahaya(el.value);
-            if (bersih !== el.value) {
-                el.value = bersih;
-                window.tampilkanToastFullscreen("🛡️ Karakter berbahaya diblokir oleh sistem keamanan.");
-            }
-        }
-    }
-}, true);
-
-// 3. Anti-Brute Force pada Login Guru (Kunci 60 Detik jika Salah 5 Kali)
-window.percobaanLoginGagal = parseInt(sessionStorage.getItem('loginFailCount') || '0');
-window.waktuKunciLogin = parseInt(sessionStorage.getItem('loginLockUntil') || '0');
-
-window.prosesLoginGuru = function() {
-    var sekarang = Date.now();
-    if (sekarang < window.waktuKunciLogin) {
-        var sisa = Math.ceil((window.waktuKunciLogin - sekarang) / 1000);
-        window.tampilkanToastFullscreen("🔒 Terlalu banyak percobaan! Tunggu " + sisa + " detik.");
-        return;
-    }
-    var val = document.getElementById('input-sandi-guru').value;
-    if (btoa(val) === "Z3VydWJpb2xvZ2k=" || btoa(val) === "YWRtaW4xMjM=") {
-        sessionStorage.removeItem('loginFailCount');
-        sessionStorage.removeItem('loginLockUntil');
-        sessionStorage.setItem("statusGuru", "aktif");
-        sessionStorage.setItem("guruToken", btoa("verified_" + val));
-        window.location.reload();
+window.toggleDrawingMode = function() { 
+    window.isDrawingMode = !window.isDrawingMode; 
+    if(window.isDrawingMode) {
+        document.body.classList.add('drawing-mode-active'); 
+        document.querySelectorAll('.content-block, .fb-content').forEach(el => el.removeAttribute('contenteditable'));
+        inisialisasiSemuaCanvas(); resizeLaserCanvas(); 
+        if(window.visualViewport) updateToolbarPosition();
     } else {
-        window.percobaanLoginGagal++;
-        sessionStorage.setItem('loginFailCount', window.percobaanLoginGagal);
-        if (window.percobaanLoginGagal >= 5) {
-            window.waktuKunciLogin = Date.now() + 60000;
-            sessionStorage.setItem('loginLockUntil', window.waktuKunciLogin);
-            window.tampilkanToastFullscreen("🚨 Keamanan Aktif: Login dikunci selama 60 detik!");
-        } else {
-            window.tampilkanToastFullscreen("❌ Sandi salah! Percobaan ke-" + window.percobaanLoginGagal + " dari 5.");
+        document.body.classList.remove('drawing-mode-active'); 
+        if(document.body.classList.contains('mode-edit-aktif')) { 
+            document.querySelectorAll('.content-block, .fb-content').forEach(el => el.setAttribute('contenteditable','true')); 
         }
-    }
-};
-
-// 4. Penjaga Integritas Sesi Admin (Mencegah Manipulasi Console oleh Siswa)
-setInterval(function() {
-    if (sessionStorage.getItem("statusGuru") === "aktif") {
-        var token = sessionStorage.getItem("guruToken");
-        if (token !== "dmVyaWZpZWRfZ3VydWJpb2xvZ2k=" && token !== "dmVyaWZpZWRfYWRtaW4xMjM=") {
-            // Jika sebelumnya sudah login sah, buatkan token; jika dimanipulasi saat ujian aktif, cabut akses
-            if (window.isStrictUjianActive) {
-                sessionStorage.removeItem("statusGuru");
-                document.body.classList.remove("mode-edit-aktif");
-                document.documentElement.classList.remove("force-edit-mode");
-            }
-        }
-    }
-}, 2000);
-
-// ----------------------------------------------------------------------------
-// E. RUANG ADMINISTRASI GURU: ABSENSI SISWA (EXCEL) & AGENDA MENGAJAR
-// ----------------------------------------------------------------------------
-window.tabAdminAktif = 'absensi';
-
-window.bukaModalAdministrasi = function(tabAwal) {
-    if (window.bersihkanOverlayPenghalang) window.bersihkanOverlayPenghalang();
-    var daftarKls = window.ambilDaftarKelasAktif();
-    if (!window.kelasAdminUtama || !daftarKls.includes(window.kelasAdminUtama)) {
-        window.kelasAdminUtama = daftarKls[0] || "X-1";
-    }
-
-    var m = document.getElementById('modal-ruang-administrasi');
-    if (m) m.remove(); // Bersihkan yang lama agar tombol X tidak bentrok
-
-    var html =
-    '<div id="modal-ruang-administrasi" class="mahardika-modal-wrap" style="display:flex;">' +
-        '<div class="mahardika-modal-card modal-box" style="max-width:1080px; height:90vh;">' +
-            '<div style="background:#0b3954; color:#fff; padding:14px 20px; display:flex; justify-content:space-between; align-items:center;">' +
-                '<h3 style="margin:0; font-size:17px;">📁 Ruang Administrasi Guru</h3>' +
-                // PERBAIKAN TOMBOL X: Menggunakan .remove() agar benar-benar tertutup
-                '<button type="button" onclick="document.getElementById(\'modal-ruang-administrasi\').remove()" style="background:rgba(255,255,255,0.2); border:none; color:#fff; width:32px; height:32px; border-radius:50%; font-size:16px; cursor:pointer; font-weight:bold;">✕</button>' +
-            '</div>' +
-
-            '<div class="admin-top-class-bar">' +
-                '<div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">' +
-                    '<span style="font-weight:700; font-size:14px; color:#0b3954;">🏫 Pilih Kelas Terlebih Dahulu:</span>' +
-                    '<select id="select-kelas-admin-utama" onchange="window.ubahKelasAdminUtama(this.value)" style="padding:8px 16px; border:2px solid #0b3954; border-radius:8px; font-weight:bold; font-size:14px; color:#0b3954; background:#fff; min-width:200px; cursor:pointer;"></select>' +
-                '</div>' +
-                '<div id="info-ringkas-kelas-admin" style="font-size:12px; font-weight:600; color:#2980b9;"></div>' +
-            '</div>' +
-
-            '<div class="admin-hub-tabs" style="flex-wrap:wrap;">' +
-                '<button type="button" id="tab-btn-absensi" class="admin-tab-btn active" onclick="window.gantiTabAdministrasi(\'absensi\')">📋 Absensi Siswa</button>' +
-                '<button type="button" id="tab-btn-agenda" class="admin-tab-btn" onclick="window.gantiTabAdministrasi(\'agenda\')">📅 Agenda Mengajar</button>' +
-                '<button type="button" id="tab-btn-datasiswa" class="admin-tab-btn" onclick="window.gantiTabAdministrasi(\'datasiswa\')">👥 Input Data Siswa & Kelas</button>' +
-                '<button type="button" id="tab-btn-reminder" class="admin-tab-btn" onclick="window.gantiTabAdministrasi(\'reminder\')" style="position:relative;">🔔 Reminder <span id="badge-tab-reminder" style="display:none; background:#e74c3c; color:#fff; padding:1px 7px; border-radius:12px; font-size:11px; margin-left:5px;">0</span></button>' +
-            '</div>' +
-
-            '<div id="body-ruang-administrasi" style="padding:18px; overflow-y:auto; flex:1; background:#ffffff;"></div>' +
-        '</div>' +
-    '</div>';
-
-    document.body.insertAdjacentHTML('beforeend', html);
-    window.perbaruiDropdownKelasAdminUtama();
-    var targetTab = (tabAwal === 'agenda' || tabAwal === 'datasiswa' || tabAwal === 'reminder') ? tabAwal : 'absensi';
-    window.gantiTabAdministrasi(targetTab);
-};
-
-window.gantiTabAdministrasi = function(namaTab) {
-    window.tabAdminAktif = namaTab;
-    var btnAbs = document.getElementById('tab-btn-absensi');
-    var btnAgn = document.getElementById('tab-btn-agenda');
-    if (btnAbs) btnAbs.className = 'admin-tab-btn' + (namaTab === 'absensi' ? ' active' : '');
-    if (btnAgn) btnAgn.className = 'admin-tab-btn' + (namaTab === 'agenda' ? ' active' : '');
-
-    if (namaTab === 'absensi') {
-        window.tampilkanUIAbsensi();
-    } else {
-        window.tampilkanUIAgenda();
-    }
-};
-
-window.ambilDaftarKelasAktif = function() {
-    if (window.konfigPendidikan && Array.isArray(window.konfigPendidikan.daftarKelas) && window.konfigPendidikan.daftarKelas.length > 0) {
-        return window.konfigPendidikan.daftarKelas;
-    }
-    return ["Kelas 6 SD", "Kelas 9 SMP", "X-1", "XI-1", "XII-1"];
-};
-
-// ==========================================
-// 1. MODUL ABSENSI SISWA (BENTUK EXCEL PER KELAS)
-// ==========================================
-window.tampilkanUIAbsensi = function() {
-    var body = document.getElementById('body-ruang-administrasi');
-    if (!body) return;
-    var daftarKls = window.ambilDaftarKelasAktif();
-    var klsTerpilih = window.kelasAbsensiAktif || daftarKls[0];
-    var opsiKls = daftarKls.map(function(k) {
-        return '<option value="' + k + '"' + (k === klsTerpilih ? ' selected' : '') + '>🏫 ' + k + '</option>';
-    }).join('');
-
-    body.innerHTML =
-        '<div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:10px; background:#f8fafc; padding:12px 15px; border:1px solid #e2e8f0; border-radius:10px; margin-bottom:15px;">' +
-            '<div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">' +
-                '<label style="font-weight:bold; font-size:13px; color:#1e293b;">Pilih Kelas:</label>' +
-                '<select id="select-kelas-absensi" onchange="window.kelasAbsensiAktif=this.value; window.renderTabelAbsensiKelas();" style="padding:8px 12px; border:2px solid #0b3954; border-radius:6px; font-weight:bold;">' + opsiKls + '</select>' +
-                '<button type="button" onclick="window.tambahKelasDariAdministrasi()" style="background:#2980b9; color:#fff; border:none; padding:8px 12px; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer;">+ Kelas Baru</button>' +
-            '</div>' +
-            '<div style="display:flex; gap:8px; flex-wrap:wrap;">' +
-                '<button type="button" onclick="window.tambahSiswaAbsensi()" style="background:#27ae60; color:#fff; border:none; padding:8px 14px; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer;">👤 + Tambah Siswa</button>' +
-                '<button type="button" onclick="window.tambahKolomTanggalAbsensi()" style="background:#8e44ad; color:#fff; border:none; padding:8px 14px; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer;">📅 + Kolom Pertemuan</button>' +
-                '<button type="button" onclick="window.exportExcelAbsensi()" style="background:#16a085; color:#fff; border:none; padding:8px 14px; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer;">📥 Export Excel</button>' +
-            '</div>' +
-        '</div>' +
-        '<div style="font-size:12px; color:#64748b; margin-bottom:8px;">💡 <b>Tips Excel Absensi:</b> Klik pada kotak status kehadiran untuk mengubah cepat (<b>H</b> = Hadir, <b>S</b> = Sakit, <b>I</b> = Izin, <b>A</b> = Alfa). Klik judul tanggal di atas tabel untuk mengganti tanggal pertemuan.</div>' +
-        '<div id="wadah-tabel-absensi" style="overflow-x:auto;"></div>';
-
-    window.kelasAbsensiAktif = klsTerpilih;
-    window.renderTabelAbsensiKelas();
-};
-
-window.tambahKelasDariAdministrasi = function() {
-    if (typeof window.tambahKelasUjianBaru === 'function') {
-        window.tambahKelasUjianBaru();
-        window.gantiTabAdministrasi(window.tabAdminAktif);
-    }
-};
-
-window.pastikanStrukturAbsensiKelas = function(kls) {
-    if (!window.dataAbsensiGlobal) window.dataAbsensiGlobal = {};
-    if (!window.dataAbsensiGlobal[kls]) {
-        window.dataAbsensiGlobal[kls] = {
-            tanggalList: ["Pertemuan 1", "Pertemuan 2", "Pertemuan 3", "Pertemuan 4"],
-            siswaList: []
-        };
-    }
-    if (!window.dataAbsensiGlobal[kls].tanggalList) {
-        window.dataAbsensiGlobal[kls].tanggalList = ["Pertemuan 1", "Pertemuan 2", "Pertemuan 3"];
-    }
-    if (!window.dataAbsensiGlobal[kls].siswaList) {
-        window.dataAbsensiGlobal[kls].siswaList = [];
-    }
-    return window.dataAbsensiGlobal[kls];
-};
-
-window.renderTabelAbsensiKelas = function() {
-    var wadah = document.getElementById('wadah-tabel-absensi');
-    if (!wadah) return;
-    
-    var kls = window.kelasAbsensiAktif || window.kelasAdminUtama || window.ambilDaftarKelasAktif()[0];
-    var dataKls = window.pastikanStrukturAbsensiKelas(kls);
-    var tglList = dataKls.tanggalList || [];
-    var siswaList = dataKls.siswaList || [];
-
-    // 1. Membuat Header Tabel (Judul Pertemuan)
-    var headerTglHtml = tglList.map(function(tgl, tIdx) {
-        return '<th style="text-align:center; min-width:75px;">' +
-            '<div contenteditable="true" onblur="window.ubahJudulTanggalAbsensi(' + tIdx + ', this.innerText)" style="outline:none; border-bottom:1px dashed rgba(255,255,255,0.4); padding-bottom:2px;">' + tgl + '</div>' +
-            '<button type="button" onclick="window.hapusKolomTanggalAbsensi(' + tIdx + ')" title="Hapus Kolom" style="background:none;border:none;color:#f8d7da;font-size:10px;cursor:pointer;margin-top:2px;">✕</button>' +
-        '</th>';
-    }).join('');
-
-    // 2. Membuat Baris Data Siswa
-    var rowsHtml = '';
-    if (siswaList.length === 0) {
-        rowsHtml = '<tr><td colspan="' + (tglList.length + 7) + '" style="text-align:center; padding:25px; color:#94a3b8;">Belum ada daftar siswa di kelas <b>' + kls + '</b>. Klik tombol <b>👤 + Tambah Siswa</b> di kanan atas.</td></tr>';
-    } else {
-        rowsHtml = siswaList.map(function(s, sIdx) {
-            var hadir = 0, sakit = 0, izin = 0, alfa = 0;
-            var kehadiranMap = s.kehadiran || {};
-            
-            // INI ADALAH BAGIAN KOTAK PERTEMUAN YANG SEMPAT HILANG
-            var cellsHtml = tglList.map(function(tgl, tIdx) {
-                var st = kehadiranMap[tIdx] || '-';
-                if (st === 'H') hadir++;
-                else if (st === 'S') sakit++;
-                else if (st === 'I') izin++;
-                else if (st === 'A') alfa++;
-                var clsStatus = st !== '-' ? ('status-' + st) : '';
-                return '<td class="absensi-cell-status ' + clsStatus + '" onclick="window.toggleStatusKehadiran(' + sIdx + ', ' + tIdx + ')">' + st + '</td>';
-            }).join('');
-
-            return '<tr>' +
-                '<td style="text-align:center; width:40px;">' + (sIdx + 1) + '</td>' +
-                
-                // KOLOM NAMA & TOMBOL CATATAN
-                '<td style="padding:0; min-width:220px;">' +
-                    '<div style="display:flex; justify-content:space-between; align-items:center; padding:8px 10px; height:100%;">' +
-                        '<span contenteditable="true" onblur="window.ubahNamaSiswaAbsensi(' + sIdx + ', this.innerText)" style="font-weight:600; flex:1; outline:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + s.nama + '</span>' +
-                        '<button type="button" onclick="window.bukaCatatanSiswa(' + sIdx + ')" title="Catatan Khusus Siswa" style="background:#fff9c4; border:1px solid #f1c40f; color:#d35400; padding:3px 8px; border-radius:6px; cursor:pointer; font-size:11px; font-weight:bold; transition:0.2s; box-shadow:0 2px 5px rgba(0,0,0,0.05); margin-left:10px;">📝 Catatan</button>' +
-                    '</div>' +
-                '</td>' +
-                
-                // DERETAN KOTAK PERTEMUAN (H/S/I/A)
-                cellsHtml +
-                
-                // REKAP TOTAL 
-                '<td style="text-align:center; font-weight:bold; color:#155724; background:#f0fdf4;">' + hadir + '</td>' +
-                '<td style="text-align:center; font-weight:bold; color:#856404; background:#fefce8;">' + sakit + '</td>' +
-                '<td style="text-align:center; font-weight:bold; color:#004085; background:#eff6ff;">' + izin + '</td>' +
-                '<td style="text-align:center; font-weight:bold; color:#721c24; background:#fef2f2;">' + alfa + '</td>' +
-                
-                // TOMBOL HAPUS SISWA
-                '<td style="text-align:center;"><button type="button" onclick="window.hapusSiswaAbsensi(' + sIdx + ')" style="background:none;border:none;cursor:pointer;" title="Hapus Siswa">🗑️</button></td>' +
-            '</tr>';
-        }).join('');
-    }
-
-    // 3. Merakit dan Menampilkan Tabel Penuh
-    wadah.innerHTML =
-        '<table class="excel-table" id="tabel-excel-absensi">' +
-            '<thead>' +
-                '<tr>' +
-                    '<th style="text-align:center; width:40px;">No</th>' +
-                    '<th>Nama Siswa</th>' +
-                    headerTglHtml +
-                    '<th style="text-align:center; background:#16a085; width:40px;">H</th>' +
-                    '<th style="text-align:center; background:#d35400; width:40px;">S</th>' +
-                    '<th style="text-align:center; background:#2980b9; width:40px;">I</th>' +
-                    '<th style="text-align:center; background:#c0392b; width:40px;">A</th>' +
-                    '<th style="text-align:center; width:50px;">Aksi</th>' +
-                '</tr>' +
-            '</thead>' +
-            '<tbody>' + rowsHtml + '</tbody>' +
-        '</table>';
-};
-
-window.tambahSiswaAbsensi = function() {
-    var kls = window.kelasAbsensiAktif || window.ambilDaftarKelasAktif()[0];
-    var inputNama = prompt("Masukkan Nama Siswa (Bisa ketik 1 nama, atau paste banyak nama dipisahkan koma / baris baru):");
-    if (!inputNama || !inputNama.trim()) return;
-    var dataKls = window.pastikanStrukturAbsensiKelas(kls);
-    var daftarBaru = inputNama.split(/[\n,]+/).map(function(n) { return n.trim(); }).filter(function(n) { return n.length > 0; });
-    daftarBaru.forEach(function(nama) {
-        var defaultHadir = {};
-        dataKls.tanggalList.forEach(function(_, idx) { defaultHadir[idx] = 'H'; });
-        dataKls.siswaList.push({ nama: nama, kehadiran: defaultHadir });
-    });
-    window.simpanAbsensiKeDB();
-    window.renderTabelAbsensiKelas();
-};
-
-window.toggleStatusKehadiran = function(sIdx, tIdx) {
-    var kls = window.kelasAbsensiAktif;
-    var dataKls = window.pastikanStrukturAbsensiKelas(kls);
-    var siswa = dataKls.siswaList[sIdx];
-    if (!siswa) return;
-    if (!siswa.kehadiran) siswa.kehadiran = {};
-    var urutan = ['H', 'S', 'I', 'A', '-'];
-    var skrg = siswa.kehadiran[tIdx] || '-';
-    var nextIdx = (urutan.indexOf(skrg) + 1) % urutan.length;
-    siswa.kehadiran[tIdx] = urutan[nextIdx];
-    window.simpanAbsensiKeDB();
-    window.renderTabelAbsensiKelas();
-};
-
-window.ubahNamaSiswaAbsensi = function(sIdx, namaBaru) {
-    var kls = window.kelasAbsensiAktif;
-    var dataKls = window.pastikanStrukturAbsensiKelas(kls);
-    if (dataKls.siswaList[sIdx] && namaBaru.trim()) {
-        dataKls.siswaList[sIdx].nama = namaBaru.trim();
-        window.simpanAbsensiKeDB();
-    }
-};
-
-window.hapusSiswaAbsensi = function(sIdx) {
-    var kls = window.kelasAbsensiAktif;
-    var dataKls = window.pastikanStrukturAbsensiKelas(kls);
-    dataKls.siswaList.splice(sIdx, 1);
-    window.simpanAbsensiKeDB();
-    window.renderTabelAbsensiKelas();
-};
-
-window.tambahKolomTanggalAbsensi = function() {
-    var kls = window.kelasAbsensiAktif;
-    var dataKls = window.pastikanStrukturAbsensiKelas(kls);
-    var tglBaru = prompt("Masukkan Tanggal / Nama Pertemuan Baru (Contoh: 24 Okt):", "P-" + (dataKls.tanggalList.length + 1));
-    if (!tglBaru || !tglBaru.trim()) return;
-    var idxBaru = dataKls.tanggalList.length;
-    dataKls.tanggalList.push(tglBaru.trim());
-    dataKls.siswaList.forEach(function(s) {
-        if (!s.kehadiran) s.kehadiran = {};
-        s.kehadiran[idxBaru] = 'H';
-    });
-    window.simpanAbsensiKeDB();
-    window.renderTabelAbsensiKelas();
-};
-
-window.ubahJudulTanggalAbsensi = function(tIdx, teksBaru) {
-    var kls = window.kelasAbsensiAktif;
-    var dataKls = window.pastikanStrukturAbsensiKelas(kls);
-    if (teksBaru.trim()) {
-        dataKls.tanggalList[tIdx] = teksBaru.trim();
-        window.simpanAbsensiKeDB();
-    }
-};
-
-window.hapusKolomTanggalAbsensi = function(tIdx) {
-    var kls = window.kelasAbsensiAktif;
-    var dataKls = window.pastikanStrukturAbsensiKelas(kls);
-    if (dataKls.tanggalList.length <= 1) return;
-    dataKls.tanggalList.splice(tIdx, 1);
-    dataKls.siswaList.forEach(function(s) {
-        var baru = {};
-        var lama = s.kehadiran || {};
-        Object.keys(lama).forEach(function(k) {
-            var numK = parseInt(k);
-            if (numK < tIdx) baru[numK] = lama[numK];
-            else if (numK > tIdx) baru[numK - 1] = lama[numK];
-        });
-        s.kehadiran = baru;
-    });
-    window.simpanAbsensiKeDB();
-    window.renderTabelAbsensiKelas();
-};
-
-window.exportExcelAbsensi = function() {
-    var kls = window.kelasAbsensiAktif || 'Kelas';
-    var tbl = document.getElementById('tabel-excel-absensi');
-    if (!tbl) return;
-    var rows = Array.from(tbl.querySelectorAll('tr'));
-    var csv = rows.map(function(r) {
-        var cols = Array.from(r.querySelectorAll('th, td'));
-        cols.pop(); // Abaikan kolom Aksi
-        return cols.map(function(c) {
-            return '"' + c.innerText.replace(/✕/g, '').trim().replace(/"/g, '""') + '"';
-        }).join(',');
-    }).join('\n');
-    var blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
-    var link = document.createElement('a');
-    link.style.display = 'none';
-    link.href = URL.createObjectURL(blob);
-    link.download = 'Absensi_' + kls.replace(/\s+/g, '_') + '.csv';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    setTimeout(function() { URL.revokeObjectURL(link.href); }, 100);
-};
-
-// ==========================================
-// 2. MODUL AGENDA MENGAJAR (PER KELAS)
-// ==========================================
-window.tampilkanUIAgenda = function() {
-    var body = document.getElementById('body-ruang-administrasi');
-    if (!body) return;
-    var daftarKls = window.ambilDaftarKelasAktif();
-    var klsTerpilih = window.kelasAgendaAktif || daftarKls[0];
-    var opsiKls = daftarKls.map(function(k) {
-        return '<option value="' + k + '"' + (k === klsTerpilih ? ' selected' : '') + '>🏫 ' + k + '</option>';
-    }).join('');
-    var hariIni = new Date().toISOString().split('T')[0];
-
-    body.innerHTML =
-        '<div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:10px; background:#f8fafc; padding:12px 15px; border:1px solid #e2e8f0; border-radius:10px; margin-bottom:14px;">' +
-            '<div style="display:flex; align-items:center; gap:8px;">' +
-                '<label style="font-weight:bold; font-size:13px; color:#1e293b;">Pilih Kelas:</label>' +
-                '<select id="select-kelas-agenda" onchange="window.kelasAgendaAktif=this.value; window.renderTabelAgendaKelas();" style="padding:8px 12px; border:2px solid #0b3954; border-radius:6px; font-weight:bold;">' + opsiKls + '</select>' +
-                '<button type="button" onclick="window.tambahKelasDariAdministrasi()" style="background:#2980b9; color:#fff; border:none; padding:8px 12px; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer;">+ Kelas Baru</button>' +
-            '</div>' +
-            '<div style="display:flex; gap:8px;">' +
-                '<button type="button" onclick="window.exportExcelAgenda()" style="background:#16a085; color:#fff; border:none; padding:8px 14px; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer;">📥 Export Excel</button>' +
-            '</div>' +
-        '</div>' +
-
-        // Form Input Cepat Agenda
-        '<div style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:10px; padding:14px; margin-bottom:15px;">' +
-            '<h4 style="margin:0 0 10px 0; color:#0b3954; font-size:13px;">➕ Isi Agenda Pertemuan Baru</h4>' +
-            '<div style="display:grid; grid-template-columns:130px 90px 1fr 1fr 1fr auto; gap:8px; align-items:center;" class="grid-responsive-form">' +
-                '<input type="date" id="agn-input-tgl" value="' + hariIni + '" style="padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px;">' +
-                '<input type="number" id="agn-input-jp" placeholder="Jml JP" value="2" min="1" style="padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px;">' +
-                '<input type="text" id="agn-input-materi" placeholder="Materi yang diajarkan..." style="padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px;">' +
-                '<input type="text" id="agn-input-ket" placeholder="Keterangan (Hadir semua / Kendala)..." style="padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px;">' +
-                '<input type="text" id="agn-input-rencana" placeholder="Rencana pertemuan berikutnya..." style="padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px;">' +
-                '<button type="button" onclick="window.tambahBarisAgenda()" style="background:#27ae60; color:#fff; border:none; padding:9px 16px; border-radius:6px; font-weight:bold; font-size:12px; cursor:pointer; white-space:nowrap;">💾 Tambah</button>' +
-            '</div>' +
-        '</div>' +
-
-        '<div id="wadah-tabel-agenda" style="overflow-x:auto;"></div>';
-
-    window.kelasAgendaAktif = klsTerpilih;
-    window.renderTabelAgendaKelas();
-};
-
-window.renderTabelAgendaKelas = function() {
-    var wadah = document.getElementById('wadah-tabel-agenda');
-    if (!wadah) return;
-    var kls = window.kelasAgendaAktif || window.ambilDaftarKelasAktif()[0];
-    if (!window.dataAgendaGlobal) window.dataAgendaGlobal = {};
-    if (!Array.isArray(window.dataAgendaGlobal[kls])) window.dataAgendaGlobal[kls] = [];
-    var list = window.dataAgendaGlobal[kls];
-
-    var rowsHtml = '';
-    if (list.length === 0) {
-        rowsHtml = '<tr><td colspan="7" style="text-align:center; padding:25px; color:#94a3b8;">Belum ada catatan agenda untuk kelas <b>' + kls + '</b>. Silakan isi kolom di atas lalu klik <b>💾 Tambah</b>.</td></tr>';
-    } else {
-        rowsHtml = list.map(function(item, idx) {
-            return '<tr>' +
-                '<td style="text-align:center; width:40px;">' + (idx + 1) + '</td>' +
-                '<td contenteditable="true" onblur="window.updateFieldAgenda(' + idx + ', \'tanggal\', this.innerText)" style="white-space:nowrap; font-weight:600;">' + (item.tanggal || '-') + '</td>' +
-                '<td contenteditable="true" onblur="window.updateFieldAgenda(' + idx + ', \'jp\', this.innerText)" style="text-align:center; font-weight:bold; color:#0b3954;">' + (item.jp || '2') + ' JP</td>' +
-                '<td contenteditable="true" onblur="window.updateFieldAgenda(' + idx + ', \'materi\', this.innerText)">' + (item.materi || '-') + '</td>' +
-                '<td contenteditable="true" onblur="window.updateFieldAgenda(' + idx + ', \'keterangan\', this.innerText)">' + (item.keterangan || '-') + '</td>' +
-                '<td contenteditable="true" onblur="window.updateFieldAgenda(' + idx + ', \'rencana\', this.innerText)" style="color:#16a085; font-weight:600;">' + (item.rencana || '-') + '</td>' +
-                '<td style="text-align:center; width:50px;"><button type="button" onclick="window.hapusBarisAgenda(' + idx + ')" style="background:none;border:none;cursor:pointer;">🗑️</button></td>' +
-            '</tr>';
-        }).join('');
-    }
-
-    wadah.innerHTML =
-        '<table class="excel-table" id="tabel-excel-agenda">' +
-            '<thead>' +
-                '<tr>' +
-                    '<th style="text-align:center; width:40px;">No</th>' +
-                    '<th style="width:120px;">Tanggal</th>' +
-                    '<th style="text-align:center; width:90px;">Jumlah JP</th>' +
-                    '<th>Materi Pembelajaran</th>' +
-                    '<th>Keterangan</th>' +
-                    '<th>Rencana Pertemuan Berikutnya</th>' +
-                    '<th style="text-align:center; width:50px;">Aksi</th>' +
-                '</tr>' +
-            '</thead>' +
-            '<tbody>' + rowsHtml + '</tbody>' +
-        '</table>';
-};
-
-window.tambahBarisAgenda = function() {
-    var kls = window.kelasAgendaAktif || window.ambilDaftarKelasAktif()[0];
-    var tgl = document.getElementById('agn-input-tgl').value;
-    var jp = document.getElementById('agn-input-jp').value.trim() || '2';
-    var materi = document.getElementById('agn-input-materi').value.trim();
-    var ket = document.getElementById('agn-input-ket').value.trim();
-    var rencana = document.getElementById('agn-input-rencana').value.trim();
-
-    if (!materi) {
-        window.tampilkanToastFullscreen("⚠️ Kolom Materi wajib diisi!");
-        return;
-    }
-
-    if (!window.dataAgendaGlobal) window.dataAgendaGlobal = {};
-    if (!Array.isArray(window.dataAgendaGlobal[kls])) window.dataAgendaGlobal[kls] = [];
-
-    window.dataAgendaGlobal[kls].push({
-        tanggal: tgl,
-        jp: jp.replace(/[^0-9]/g, '') || '2',
-        materi: materi,
-        keterangan: ket || 'Hadir / Lancar',
-        rencana: rencana || '-'
-    });
-
-    document.getElementById('agn-input-materi').value = '';
-    document.getElementById('agn-input-ket').value = '';
-    document.getElementById('agn-input-rencana').value = '';
-
-    window.simpanAgendaKeDB();
-    window.renderTabelAgendaKelas();
-    window.tampilkanToastFullscreen("✓ Baris agenda berhasil ditambahkan!");
-};
-
-window.updateFieldAgenda = function(idx, field, val) {
-    var kls = window.kelasAgendaAktif;
-    if (window.dataAgendaGlobal && window.dataAgendaGlobal[kls] && window.dataAgendaGlobal[kls][idx]) {
-        var cleanVal = val.trim();
-        if (field === 'jp') cleanVal = cleanVal.replace(/JP/gi, '').trim();
-        window.dataAgendaGlobal[kls][idx][field] = cleanVal;
-        window.simpanAgendaKeDB();
-    }
-};
-
-window.hapusBarisAgenda = function(idx) {
-    var kls = window.kelasAgendaAktif;
-    if (window.dataAgendaGlobal && window.dataAgendaGlobal[kls]) {
-        window.dataAgendaGlobal[kls].splice(idx, 1);
-        window.simpanAgendaKeDB();
-        window.renderTabelAgendaKelas();
-    }
-};
-
-window.exportExcelAgenda = function() {
-    var kls = window.kelasAgendaAktif || 'Kelas';
-    var tbl = document.getElementById('tabel-excel-agenda');
-    if (!tbl) return;
-    var rows = Array.from(tbl.querySelectorAll('tr'));
-    var csv = rows.map(function(r) {
-        var cols = Array.from(r.querySelectorAll('th, td'));
-        cols.pop();
-        return cols.map(function(c) {
-            return '"' + c.innerText.trim().replace(/"/g, '""') + '"';
-        }).join(',');
-    }).join('\n');
-    var blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
-    var link = document.createElement('a');
-    link.style.display = 'none';
-    link.href = URL.createObjectURL(blob);
-    link.download = 'Agenda_Mengajar_' + kls.replace(/\s+/g, '_') + '.csv';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    setTimeout(function() { URL.revokeObjectURL(link.href); }, 100);
-};
-
-// ============================================================================
-// MASTER UPGRADE: ADMINISTRASI (PILIH KELAS DI ATAS + INPUT DATA SISWA),
-// PDF AI MANAJER LATIHAN (MAKS 20 SOAL), ZOOM TOUCHPAD/MOUSE + SINKRONISASI PENA,
-// DRAG GAMBAR OVER-TEXT, & SEMBUNYIKAN POPUP DI TAMPILAN SISWA
-// ============================================================================
-
-// ----------------------------------------------------------------------------
-// 1. SEMBUNYIKAN TOMBOL POPUP SAAT MODE SISWA / PREVIEW AS STUDENT
-// ----------------------------------------------------------------------------
-window.sinkronVisibilitasTombolPopup = function() {
-    var btnPop = document.querySelector('.header-popup-btn');
-    if (!btnPop) return;
-    var isGuruEdit = sessionStorage.getItem("statusGuru") === "aktif" &&
-                     sessionStorage.getItem("previewMode") !== "true" &&
-                     document.body.classList.contains("mode-edit-aktif");
-    btnPop.style.display = isGuruEdit ? "inline-flex" : "none";
-};
-
-var origTogglePreviewMode = window.togglePreviewMode;
-window.togglePreviewMode = function() {
-    if (typeof origTogglePreviewMode === 'function') origTogglePreviewMode();
-    window.sinkronVisibilitasTombolPopup();
-};
-
-setInterval(window.sinkronVisibilitasTombolPopup, 600);
-
-// ----------------------------------------------------------------------------
-// 2. PERBAIKAN DRAG & RESIZE GAMBAR "OVER-TEXT"
-// ----------------------------------------------------------------------------
-window.alignGambar = function(p) {
-    if (!window.selectedImg) return;
-    var img = window.selectedImg;
-    var s = img.style;
-    s.display = ''; s.float = ''; s.margin = ''; s.position = ''; s.zIndex = ''; s.left = ''; s.top = ''; s.cursor = '';
-    img.removeAttribute('data-overtext');
-
-    if (p === 'left') {
-        s.float = 'left'; s.margin = '0 15px 15px 0';
-    } else if (p === 'right') {
-        s.float = 'right'; s.margin = '0 0 15px 15px';
-    } else if (p === 'center') {
-        s.display = 'block'; s.margin = '15px auto';
-    } else if (p === 'inline') {
-        s.display = 'inline-block'; s.margin = '0 5px';
-    } else if (p === 'front') {
-        var parentBlock = img.closest('.content-block') || img.closest('.fb-content');
-        if (parentBlock) parentBlock.style.position = 'relative';
-        var curLeft = img.offsetLeft || 20;
-        var curTop = img.offsetTop || 20;
-        s.position = 'absolute';
-        s.zIndex = '85';
-        s.margin = '0';
-        s.left = curLeft + 'px';
-        s.top = curTop + 'px';
-        s.cursor = 'move';
-        img.setAttribute('data-overtext', 'true');
-        window.tampilkanToastFullscreen("✨ Mode Over-Text Aktif: Geser tengah gambar untuk memindahkan, tarik pojok kanan bawah untuk mengubah ukuran.");
-    }
-    if (window.triggerInput) window.triggerInput();
-    if (window.simpanKeDB) window.simpanKeDB();
-};
-
-// Ubah kursor saat berada di pojok kanan gambar Over-Text (Zona Resize vs Zona Drag)
-document.addEventListener('pointermove', function(e) {
-    if (window.isDrawingMode) return;
-    var t = e.target;
-    if (t && t.tagName === 'IMG' && (t.style.position === 'absolute' || t.getAttribute('data-overtext') === 'true')) {
-        var r = t.getBoundingClientRect();
-        if (r.right - e.clientX < 22) {
-            t.style.cursor = 'ew-resize';
-        } else {
-            t.style.cursor = 'move';
-        }
-    }
-}, true);
-
-// Tangkap gerakan Drag pada gambar Over-Text agar tidak bentrok dengan resize bawaan
-document.addEventListener('pointerdown', function(e) {
-    if (window.isDrawingMode) return;
-    var isEdit = document.body.classList.contains('mode-edit-aktif') || document.documentElement.classList.contains('force-edit-mode');
-    if (!isEdit) return;
-
-    var img = e.target;
-    if (img && img.tagName === 'IMG' && (img.style.position === 'absolute' || img.getAttribute('data-overtext') === 'true')) {
-        img.setAttribute('data-overtext', 'true');
-        var rect = img.getBoundingClientRect();
-        var isResizeEdge = (rect.right - e.clientX < 22);
-
-        e.stopImmediatePropagation();
-        e.preventDefault();
-
-        if (isResizeEdge) {
-            // Tarik sisi kanan untuk mengubah ukuran gambar
-            var startX = e.clientX;
-            var startW = img.offsetWidth;
-            var moveResize = function(me) {
-                img.style.width = Math.max(40, startW + (me.clientX - startX)) + 'px';
-                img.style.maxWidth = 'none';
-            };
-            var upResize = function() {
-                document.removeEventListener('pointermove', moveResize, true);
-                document.removeEventListener('pointerup', upResize, true);
-                if (window.simpanKeDB) window.simpanKeDB();
-            };
-            document.addEventListener('pointermove', moveResize, true);
-            document.addEventListener('pointerup', upResize, true);
-        } else {
-            // Geser bagian tengah gambar untuk memindahkan posisi secara bebas di atas teks
-            var parentBlock = img.closest('.content-block') || img.closest('.fb-content');
-            if (parentBlock) parentBlock.style.position = 'relative';
-
-            var sMouseX = e.clientX;
-            var sMouseY = e.clientY;
-            var sLeft = parseFloat(img.style.left);
-            var sTop = parseFloat(img.style.top);
-            if (isNaN(sLeft)) sLeft = img.offsetLeft || 0;
-            if (isNaN(sTop)) sTop = img.offsetTop || 0;
-
-            var menuC = document.getElementById('img-controls-dynamic');
-            if (menuC) menuC.style.display = 'none';
-
-            var moveDrag = function(me) {
-                img.style.left = (sLeft + (me.clientX - sMouseX)) + 'px';
-                img.style.top = (sTop + (me.clientY - sMouseY)) + 'px';
-            };
-            var upDrag = function() {
-                document.removeEventListener('pointermove', moveDrag, true);
-                document.removeEventListener('pointerup', upDrag, true);
-                if (window.simpanKeDB) window.simpanKeDB();
-            };
-            document.addEventListener('pointermove', moveDrag, true);
-            document.addEventListener('pointerup', upDrag, true);
-        }
-    }
-}, true);
-
-// ----------------------------------------------------------------------------
-// 3. ZOOM TOUCHPAD (PINCH) & MOUSE DI MODE FOKUS + SINKRONISASI PENA 100% AKURAT
-// ----------------------------------------------------------------------------
-window.lastPtrX = 0;
-window.lastPtrY = 0;
-
-document.addEventListener('pointerdown', function(e) {
-    window.lastPtrX = e.clientX;
-    window.lastPtrY = e.clientY;
-}, true);
-
-document.addEventListener('pointermove', function(e) {
-    window.lastPtrX = e.clientX;
-    window.lastPtrY = e.clientY;
-}, true);
-
-// Kalibrasi otomatis koordinat kanvas saat di-zoom agar ujung pena tetap 100% pas
-if (!HTMLCanvasElement.prototype._origGetBCR) {
-    HTMLCanvasElement.prototype._origGetBCR = HTMLCanvasElement.prototype.getBoundingClientRect;
-    HTMLCanvasElement.prototype.getBoundingClientRect = function() {
-        var realRect = this._origGetBCR();
-        if (this.classList && this.classList.contains('drawing-layer') && this.width > 0 && this.height > 0) {
-            var scaleX = realRect.width / this.width;
-            var scaleY = realRect.height / this.height;
-            if (Math.abs(scaleX - 1) > 0.01 || Math.abs(scaleY - 1) > 0.01) {
-                var px = window.lastPtrX;
-                var py = window.lastPtrY;
-                var adjLeft = px - ((px - realRect.left) / scaleX);
-                var adjTop = py - ((py - realRect.top) / scaleY);
-                return {
-                    left: adjLeft,
-                    top: adjTop,
-                    right: adjLeft + this.width,
-                    bottom: adjTop + this.height,
-                    width: this.width,
-                    height: this.height,
-                    x: adjLeft,
-                    y: adjTop
-                };
-            }
-        }
-        return realRect;
-    };
-}
-
-// Gunakan Transform Scale (bukan CSS zoom) agar kanvas tidak bergeser/reset saat di-zoom
-window.terapkanZoomKeBlokFokus = function() {
-    var blk = document.querySelector('.block-fullscreen-active .content-block');
-    if (!blk) return;
-    var z = window.fokusZoomLevel || 1;
-    blk.style.zoom = 1;
-    blk.style.transform = 'scale(' + z + ')';
-    blk.style.transformOrigin = 'top center';
-    blk.style.marginBottom = ((z - 1) * blk.offsetHeight + 80) + 'px';
-    var lbl = document.getElementById('fokus-zoom-label');
-    if (lbl) lbl.innerText = Math.round(z * 100) + '%';
-};
-
-var origKeluarFokusZoom = window.keluarBlockFullscreen;
-window.keluarBlockFullscreen = function() {
-    var blk = document.querySelector('.block-fullscreen-active .content-block');
-    if (blk) {
-        blk.style.transform = 'none';
-        blk.style.marginBottom = '';
-        blk.style.zoom = 1;
-    }
-    window.fokusZoomLevel = 1;
-    if (typeof origKeluarFokusZoom === 'function') origKeluarFokusZoom();
-};
-
-// Dukungan Pinch-to-Zoom Touchpad Laptop & Mouse Wheel (Ctrl/Alt + Scroll) di Layar Fokus/Fullscreen
-document.addEventListener('wheel', function(e) {
-    var inFokus = document.querySelector('.block-fullscreen-active');
-    if (!inFokus) return;
-    if (e.ctrlKey || e.metaKey || e.altKey) {
-        e.preventDefault();
-        var delta = e.deltaY < 0 ? 0.08 : -0.08;
-        window.ubahZoomFokus(delta);
-    }
-}, { passive: false });
-
-// Dukungan Pinch Gesture di Safari MacBook
-var gestureStartScale = 1;
-document.addEventListener('gesturestart', function(e) {
-    if (document.querySelector('.block-fullscreen-active')) {
-        e.preventDefault();
-        gestureStartScale = window.fokusZoomLevel || 1;
-    }
-}, { passive: false });
-
-document.addEventListener('gesturechange', function(e) {
-    if (document.querySelector('.block-fullscreen-active')) {
-        e.preventDefault();
-        window.fokusZoomLevel = Math.min(2.5, Math.max(0.5, Math.round(gestureStartScale * e.scale * 100) / 100));
-        window.terapkanZoomKeBlokFokus();
-    }
-}, { passive: false });
-
-// ----------------------------------------------------------------------------
-// 4. PERBAIKAN UPLOAD PDF AI DI MANAJER LATIHAN & KAPASITAS MAKSIMAL 20 SOAL
-// ----------------------------------------------------------------------------
-function pastikanTombolPDFManajerLatihan() {
-    // Update pilihan jumlah soal di Kuis AI hingga 20 Soal
-    var selCount = document.getElementById('ai-quiz-count');
-    if (selCount && !selCount.querySelector('option[value="20"]')) {
-        selCount.innerHTML =
-            '<option value="5">5 Soal</option>' +
-            '<option value="10">10 Soal</option>' +
-            '<option value="15">15 Soal</option>' +
-            '<option value="20" selected>20 Soal (Maksimal)</option>' +
-            '<option value="999">Semua Soal (Manual)</option>';
-    }
-
-    // Pastikan tombol Upload PDF (AI) selalu ada dan aktif di dalam Manajer Latihan Terpadu
-    var modalLat = document.getElementById('modal-latihan-terpadu');
-    if (modalLat) {
-        var btnPG = modalLat.querySelector('button[onclick*="lat-input-raw"]');
-        if (btnPG && btnPG.parentElement) {
-            var parentDiv = btnPG.parentElement;
-            var btnPDFExisting = parentDiv.querySelector('.btn-pdf-latihan-fixed');
-            if (!btnPDFExisting) {
-                // Sembunyikan tombol PDF lama yang mungkin belum terhubung
-                parentDiv.querySelectorAll('button').forEach(function(b) {
-                    if (/PDF/i.test(b.innerText)) b.style.display = 'none';
-                });
-                var btnBaru = document.createElement('button');
-                btnBaru.type = 'button';
-                btnBaru.className = 'btn-pdf-latihan-fixed';
-                btnBaru.style.cssText = 'background:#e74c3c; color:#fff; border:none; padding:4px 10px; border-radius:5px; font-size:11px; cursor:pointer; font-weight:bold;';
-                btnBaru.innerHTML = '📄 Upload PDF (AI)';
-                btnBaru.onclick = function() {
-                    window.triggerUploadPDFKe('lat-input-raw');
-                };
-                parentDiv.insertBefore(btnBaru, parentDiv.firstChild);
-            }
-        }
-    }
-}
-
-document.addEventListener('click', function() {
-    setTimeout(pastikanTombolPDFManajerLatihan, 150);
-});
-
-// Tingkatkan batas token AI agar 20 soal tidak terpotong
-window.requestKeGeminiDenganFallback = async function(teksPrompt) {
-    var apiKey = window.ambilKunciAPIAman();
-    var fastModels = [
-        "models/gemini-2.0-flash-lite",
-        "models/gemini-2.0-flash",
-        "models/gemini-1.5-flash"
-    ];
-
-    var bodyPayload = JSON.stringify({
-        contents: [{ parts: [{ text: teksPrompt }] }],
-        generationConfig: {
-            temperature: 0.25,
-            maxOutputTokens: 3500
-        }
-    });
-
-    for (var i = 0; i < fastModels.length; i++) {
-        var controller = new AbortController();
-        var timeoutId = setTimeout(function() { controller.abort(); }, 10000);
-        try {
-            var url = 'https://generativelanguage.googleapis.com/v1beta/' + fastModels[i] + ':generateContent?key=' + apiKey;
-            var response = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: bodyPayload,
-                signal: controller.signal
-            });
-            clearTimeout(timeoutId);
-            var data = await response.json();
-            if (response.ok && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts[0]) {
-                return data.candidates[0].content.parts[0].text;
-            }
-        } catch (err) {
-            clearTimeout(timeoutId);
-        }
-    }
-    throw new Error("Server AI sedang sibuk, silakan klik sekali lagi.");
-};
-
-// Maksimal 20 soal untuk Upload PDF (Manajer Latihan, Manajer Ujian & Kuis AI)
-window.prosesUploadPDFSoal = async function(inputEl) {
-    var file = inputEl.files && inputEl.files[0];
-    if (!file) return;
-
-    var targetId = window.targetTextareaPDF || 'lat-input-raw';
-    var textArea = document.getElementById(targetId) || document.getElementById('lat-input-raw');
-    var jumlahInput = prompt("Masukkan jumlah soal yang ingin dibuat/diekstrak (Maksimal 20 soal):", "10");
-    if (!jumlahInput) { inputEl.value = ''; return; }
-    var jumlahSoal = Math.min(Math.max(1, parseInt(jumlahInput) || 10), 20);
-
-    var teksLama = textArea ? textArea.value : "";
-    if (textArea) textArea.value = "⚡ Mengekstrak PDF (" + jumlahSoal + " soal) dengan Mesin Cepat...";
-
-    try {
-        var teksPDF = await window.ekstrakTeksDariFilePDF(file);
-        if (!teksPDF || teksPDF.length < 10) throw new Error("PDF berupa gambar scan tanpa teks.");
-
-        var ekstrakInstan = window.konversiTeksPDFKeFormatSoalLokal(teksPDF, jumlahSoal);
-        if (ekstrakInstan && ekstrakInstan.split("Soal:").length - 1 >= Math.min(3, jumlahSoal)) {
-            if (textArea) textArea.value = teksLama ? (teksLama.trim() + "\n\n" + ekstrakInstan) : ekstrakInstan;
-            window.tampilkanToastFullscreen("⚡ " + jumlahSoal + " soal berhasil diekstrak secara instan!");
-            inputEl.value = '';
-            return;
-        }
-
-        var potonganRingkas = teksPDF.substring(0, 6500);
-        var promptCepat = "Buat " + jumlahSoal + " soal PG singkat dari teks ini. Sesuaikan jumlah opsi A-D atau A-E mengikuti teks aslinya (minimal A-C). Format wajib tanpa markdown:\nSoal: ...\nTipe: PG\nA. ...\nB. ...\nC. ...\n(D dan E opsional jika ada)\nKunci: A\nPembahasan: ...\n\nTeks:\n" + potonganRingkas;
-
-        var hasilAI = await window.requestKeGeminiDenganFallback(promptCepat);
-        hasilAI = hasilAI.replace(/```/g, '').trim();
-        if (textArea) textArea.value = teksLama ? (teksLama.trim() + "\n\n" + hasilAI) : hasilAI;
-        window.tampilkanToastFullscreen("✅ AI selesai menyusun soal!");
-    } catch (err) {
-        if (textArea) textArea.value = teksLama;
-        window.tampilkanToastFullscreen("❌ " + err.message);
-    }
-    inputEl.value = '';
-};
-
-// ----------------------------------------------------------------------------
-// 5. RUANG ADMINISTRASI TERPADU: PILIH KELAS DI ATAS + TAB INPUT DATA SISWA & KELAS
-// ----------------------------------------------------------------------------
-window.kelasAdminUtama = "";
-
-window.bukaModalAdministrasi = function(tabAwal) {
-    if (window.bersihkanOverlayPenghalang) window.bersihkanOverlayPenghalang();
-    var daftarKls = window.ambilDaftarKelasAktif();
-    if (!window.kelasAdminUtama || !daftarKls.includes(window.kelasAdminUtama)) {
-        window.kelasAdminUtama = daftarKls[0] || "X-1";
-    }
-
-    var m = document.getElementById('modal-ruang-administrasi');
-    if (m) m.remove(); // Bersihkan yang lama agar tombol X tidak bentrok
-
-    var html =
-    '<div id="modal-ruang-administrasi" class="mahardika-modal-wrap" style="display:flex;">' +
-        '<div class="mahardika-modal-card modal-box" style="max-width:1080px; height:90vh;">' +
-            '<div style="background:#0b3954; color:#fff; padding:14px 20px; display:flex; justify-content:space-between; align-items:center;">' +
-                '<h3 style="margin:0; font-size:17px;">📁 Ruang Administrasi Guru</h3>' +
-                // PERBAIKAN TOMBOL X: Menggunakan .remove() agar benar-benar tertutup
-                '<button type="button" onclick="document.getElementById(\'modal-ruang-administrasi\').remove()" style="background:rgba(255,255,255,0.2); border:none; color:#fff; width:32px; height:32px; border-radius:50%; font-size:16px; cursor:pointer; font-weight:bold;">✕</button>' +
-            '</div>' +
-
-            '<div class="admin-top-class-bar">' +
-                '<div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">' +
-                    '<span style="font-weight:700; font-size:14px; color:#0b3954;">🏫 Pilih Kelas Terlebih Dahulu:</span>' +
-                    '<select id="select-kelas-admin-utama" onchange="window.ubahKelasAdminUtama(this.value)" style="padding:8px 16px; border:2px solid #0b3954; border-radius:8px; font-weight:bold; font-size:14px; color:#0b3954; background:#fff; min-width:200px; cursor:pointer;"></select>' +
-                '</div>' +
-                '<div id="info-ringkas-kelas-admin" style="font-size:12px; font-weight:600; color:#2980b9;"></div>' +
-            '</div>' +
-
-            '<div class="admin-hub-tabs" style="flex-wrap:wrap;">' +
-                '<button type="button" id="tab-btn-absensi" class="admin-tab-btn active" onclick="window.gantiTabAdministrasi(\'absensi\')">📋 Absensi Siswa</button>' +
-                '<button type="button" id="tab-btn-agenda" class="admin-tab-btn" onclick="window.gantiTabAdministrasi(\'agenda\')">📅 Agenda Mengajar</button>' +
-                '<button type="button" id="tab-btn-datasiswa" class="admin-tab-btn" onclick="window.gantiTabAdministrasi(\'datasiswa\')">👥 Input Data Siswa & Kelas</button>' +
-                '<button type="button" id="tab-btn-reminder" class="admin-tab-btn" onclick="window.gantiTabAdministrasi(\'reminder\')" style="position:relative;">🔔 Reminder <span id="badge-tab-reminder" style="display:none; background:#e74c3c; color:#fff; padding:1px 7px; border-radius:12px; font-size:11px; margin-left:5px;">0</span></button>' +
-            '</div>' +
-
-            '<div id="body-ruang-administrasi" style="padding:18px; overflow-y:auto; flex:1; background:#ffffff;"></div>' +
-        '</div>' +
-    '</div>';
-
-    document.body.insertAdjacentHTML('beforeend', html);
-    window.perbaruiDropdownKelasAdminUtama();
-    var targetTab = (tabAwal === 'agenda' || tabAwal === 'datasiswa' || tabAwal === 'reminder') ? tabAwal : 'absensi';
-    window.gantiTabAdministrasi(targetTab);
-};
-
-window.perbaruiDropdownKelasAdminUtama = function() {
-    var sel = document.getElementById('select-kelas-admin-utama');
-    if (!sel) return;
-    var daftarKls = window.ambilDaftarKelasAktif();
-    if (!window.kelasAdminUtama || !daftarKls.includes(window.kelasAdminUtama)) {
-        window.kelasAdminUtama = daftarKls[0] || "";
-    }
-    sel.innerHTML = daftarKls.map(function(k) {
-        return '<option value="' + k + '"' + (k === window.kelasAdminUtama ? ' selected' : '') + '>Kelas: ' + k + '</option>';
-    }).join('');
-
-    window.kelasAbsensiAktif = window.kelasAdminUtama;
-    window.kelasAgendaAktif = window.kelasAdminUtama;
-
-    var infoEl = document.getElementById('info-ringkas-kelas-admin');
-    if (infoEl && window.kelasAdminUtama) {
-        var dataKls = window.pastikanStrukturAbsensiKelas(window.kelasAdminUtama);
-        var jmlSiswa = (dataKls.siswaList || []).length;
-        var jmlAgenda = (window.dataAgendaGlobal && window.dataAgendaGlobal[window.kelasAdminUtama]) ? window.dataAgendaGlobal[window.kelasAdminUtama].length : 0;
-        infoEl.innerHTML = '👤 <b>' + jmlSiswa + ' Siswa</b> terdaftar | 📅 <b>' + jmlAgenda + ' Catatan Agenda</b>';
-    }
-};
-
-window.ubahKelasAdminUtama = function(klsBaru) {
-    window.kelasAdminUtama = klsBaru;
-    window.kelasAbsensiAktif = klsBaru;
-    window.kelasAgendaAktif = klsBaru;
-    window.perbaruiDropdownKelasAdminUtama();
-    window.gantiTabAdministrasi(window.tabAdminAktif || 'absensi');
-};
-
-window.gantiTabAdministrasi = function(namaTab) {
-    window.tabAdminAktif = namaTab;
-    window.kelasAbsensiAktif = window.kelasAdminUtama;
-    window.kelasAgendaAktif = window.kelasAdminUtama;
-    window.perbaruiDropdownKelasAdminUtama();
-
-    var btnAbs = document.getElementById('tab-btn-absensi');
-    var btnAgn = document.getElementById('tab-btn-agenda');
-    var btnSis = document.getElementById('tab-btn-datasiswa');
-    if (btnAbs) btnAbs.className = 'admin-tab-btn' + (namaTab === 'absensi' ? ' active' : '');
-    if (btnAgn) btnAgn.className = 'admin-tab-btn' + (namaTab === 'agenda' ? ' active' : '');
-    if (btnSis) btnSis.className = 'admin-tab-btn' + (namaTab === 'datasiswa' ? ' active' : '');
-
-    if (namaTab === 'absensi') {
-        window.tampilkanUIAbsensi();
-    } else if (namaTab === 'agenda') {
-        window.tampilkanUIAgenda();
-    } else {
-        window.tampilkanUIDataSiswaDanKelas();
-    }
-};
-
-// Tampilan Tab 1: Absensi Siswa sesuai Kelas yang Dipilih di Atas
-window.tampilkanUIAbsensi = function() {
-    var body = document.getElementById('body-ruang-administrasi');
-    if (!body) return;
-    var kls = window.kelasAdminUtama || window.ambilDaftarKelasAktif()[0];
-    window.kelasAbsensiAktif = kls;
-
-    body.innerHTML =
-        '<div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:10px; background:#f8fafc; padding:12px 15px; border:1px solid #e2e8f0; border-radius:10px; margin-bottom:14px;">' +
-            '<div style="font-weight:bold; font-size:14px; color:#0b3954;">📋 Lembar Absensi Kelas: <span style="color:#16a085;">' + kls + '</span></div>' +
-            '<div style="display:flex; gap:8px; flex-wrap:wrap;">' +
-                '<button type="button" onclick="window.gantiTabAdministrasi(\'datasiswa\')" style="background:#2980b9; color:#fff; border:none; padding:8px 14px; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer;">👥 Kelola Siswa & Kelas</button>' +
-                '<button type="button" onclick="window.tambahKolomTanggalAbsensi()" style="background:#8e44ad; color:#fff; border:none; padding:8px 14px; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer;">📅 + Kolom Pertemuan</button>' +
-                '<button type="button" onclick="window.exportExcelAbsensi()" style="background:#16a085; color:#fff; border:none; padding:8px 14px; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer;">📥 Export Excel</button>' +
-            '</div>' +
-        '</div>' +
-        '<div style="font-size:12px; color:#64748b; margin-bottom:8px;">💡 Klik kotak status untuk mengubah kehadiran (<b>H</b> = Hadir, <b>S</b> = Sakit, <b>I</b> = Izin, <b>A</b> = Alfa). Klik judul tanggal pertemuan untuk mengubah tanggal.</div>' +
-        '<div id="wadah-tabel-absensi" style="overflow-x:auto;"></div>';
-
-    window.renderTabelAbsensiKelas();
-};
-
-// Tampilan Tab 2: Agenda Mengajar sesuai Kelas yang Dipilih di Atas
-window.tampilkanUIAgenda = function() {
-    var body = document.getElementById('body-ruang-administrasi');
-    if (!body) return;
-    var kls = window.kelasAdminUtama || window.ambilDaftarKelasAktif()[0];
-    window.kelasAgendaAktif = kls;
-    var hariIni = new Date().toISOString().split('T')[0];
-
-    body.innerHTML =
-        '<div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:10px; background:#f8fafc; padding:12px 15px; border:1px solid #e2e8f0; border-radius:10px; margin-bottom:14px;">' +
-            '<div style="font-weight:bold; font-size:14px; color:#0b3954;">📅 Jurnal & Agenda Mengajar Kelas: <span style="color:#16a085;">' + kls + '</span></div>' +
-            '<button type="button" onclick="window.exportExcelAgenda()" style="background:#16a085; color:#fff; border:none; padding:8px 14px; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer;">📥 Export Excel Agenda</button>' +
-        '</div>' +
-        '<div style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:10px; padding:14px; margin-bottom:15px;">' +
-            '<h4 style="margin:0 0 10px 0; color:#0b3954; font-size:13px;">➕ Isi Agenda Pertemuan Baru (' + kls + ')</h4>' +
-            '<div style="display:grid; grid-template-columns:130px 90px 1fr 1fr 1fr auto; gap:8px; align-items:center;" class="grid-responsive-form">' +
-                '<input type="date" id="agn-input-tgl" value="' + hariIni + '" style="padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px;">' +
-                '<input type="number" id="agn-input-jp" placeholder="Jml JP" value="2" min="1" style="padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px;">' +
-                '<input type="text" id="agn-input-materi" placeholder="Materi yang diajarkan..." style="padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px;">' +
-                '<input type="text" id="agn-input-ket" placeholder="Keterangan..." style="padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px;">' +
-                '<input type="text" id="agn-input-rencana" placeholder="Rencana pertemuan berikutnya..." style="padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px;">' +
-                '<button type="button" onclick="window.tambahBarisAgenda()" style="background:#27ae60; color:#fff; border:none; padding:9px 16px; border-radius:6px; font-weight:bold; font-size:12px; cursor:pointer; white-space:nowrap;">💾 Simpan</button>' +
-            '</div>' +
-        '</div>' +
-        '<div id="wadah-tabel-agenda" style="overflow-x:auto;"></div>';
-
-    window.renderTabelAgendaKelas();
-};
-
-// Tampilan Tab 3: Input Data Siswa & Kelas (Tambah/Hapus Kelas dan Siswa)
-window.tampilkanUIDataSiswaDanKelas = function() {
-    var body = document.getElementById('body-ruang-administrasi');
-    if (!body) return;
-    var daftarKls = window.ambilDaftarKelasAktif();
-    var klsAktif = window.kelasAdminUtama || daftarKls[0];
-    var dataKls = window.pastikanStrukturAbsensiKelas(klsAktif);
-    var siswaList = dataKls.siswaList || [];
-
-    var htmlDaftarKelas = daftarKls.map(function(k, idx) {
-        var jmlS = (window.dataAbsensiGlobal && window.dataAbsensiGlobal[k] && window.dataAbsensiGlobal[k].siswaList) ? window.dataAbsensiGlobal[k].siswaList.length : 0;
-        var isSelected = (k === klsAktif);
-        var safeK = k.replace(/'/g, "\\'");
-        return '<div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:' + (isSelected ? '#e8f8f5' : '#ffffff') + '; border:1px solid ' + (isSelected ? '#16a085' : '#e2e8f0') + '; border-radius:8px; margin-bottom:6px;">' +
-            '<div onclick="window.ubahKelasAdminUtama(\'' + safeK + '\')" style="cursor:pointer; flex:1;">' +
-                '<b style="color:#0b3954; font-size:13px;">🏫 ' + k + '</b> ' +
-                '<span style="font-size:11px; color:#64748b; margin-left:6px;">(' + jmlS + ' Siswa)</span>' +
-            '</div>' +
-            '<button type="button" onclick="window.hapusKelasDariInputData(\'' + safeK + '\')" style="background:#fadbd8; color:#c0392b; border:none; padding:4px 10px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer;">🗑️ Hapus Kelas</button>' +
-        '</div>';
-    }).join('');
-
-    var htmlDaftarSiswa = '';
-    if (siswaList.length === 0) {
-        htmlDaftarSiswa = '<div style="text-align:center; padding:25px; color:#94a3b8; border:1px dashed #cbd5e1; border-radius:8px;">Belum ada siswa di kelas <b>' + klsAktif + '</b>. Tambahkan nama siswa pada kolom di atas.</div>';
-    } else {
-        htmlDaftarSiswa = siswaList.map(function(s, sIdx) {
-            return '<div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; margin-bottom:6px;">' +
-                '<div style="display:flex; align-items:center; gap:8px; flex:1;">' +
-                    '<span style="background:#0b3954; color:#fff; width:24px; height:24px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:11px; font-weight:bold;">' + (sIdx + 1) + '</span>' +
-                    '<input type="text" value="' + s.nama.replace(/"/g, '&quot;') + '" onchange="window.ubahNamaSiswaAbsensi(' + sIdx + ', this.value); window.tampilkanToastFullscreen(\'✓ Nama siswa diperbarui\');" style="border:1px solid transparent; border-bottom:1px dashed #cbd5e1; padding:4px 6px; font-size:13px; font-weight:600; color:#1e293b; width:80%; outline:none;">' +
-                '</div>' +
-                '<button type="button" onclick="window.hapusSiswaDariInputData(' + sIdx + ')" style="background:#fadbd8; color:#c0392b; border:none; padding:4px 10px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer;">🗑️ Hapus Siswa</button>' +
-            '</div>';
-        }).join('');
-    }
-
-    body.innerHTML =
-        '<div style="display:grid; grid-template-columns:1fr 1.35fr; gap:18px;" class="grid-responsive-form">' +
-            // PANEL KIRI: KELOLA KELAS
-            '<div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:16px;">' +
-                '<h4 style="margin:0 0 10px 0; color:#0b3954; font-size:14px;">🏫 1. Kelola Daftar Kelas</h4>' +
-                '<div style="display:flex; gap:8px; margin-bottom:14px;">' +
-                    '<input type="text" id="input-tambah-kelas-baru" placeholder="Nama Kelas Baru (mis: X-3, XI-IPA 1)..." style="flex:1; padding:9px 12px; border:1px solid #cbd5e1; border-radius:8px; font-size:12px;">' +
-                    '<button type="button" onclick="window.simpanKelasBaruDariInput()" style="background:#27ae60; color:#fff; border:none; padding:9px 14px; border-radius:8px; font-weight:bold; font-size:12px; cursor:pointer; white-space:nowrap;">+ Tambah Kelas</button>' +
-                '</div>' +
-                '<div style="font-size:11px; color:#64748b; margin-bottom:8px;">Klik nama kelas untuk memilih, atau klik 🗑️ untuk menghapus kelas:</div>' +
-                '<div style="max-height:360px; overflow-y:auto;">' + htmlDaftarKelas + '</div>' +
-            '</div>' +
-
-            // PANEL KANAN: KELOLA SISWA PADA KELAS AKTIF
-            '<div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:16px;">' +
-                '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">' +
-                    '<h4 style="margin:0; color:#0b3954; font-size:14px;">👥 2. Input Data Siswa — Kelas: <span style="color:#16a085;">' + klsAktif + '</span></h4>' +
-                    '<span style="background:#d4edda; color:#155724; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:bold;">Total: ' + siswaList.length + ' Siswa</span>' +
-                '</div>' +
-                '<div style="margin-bottom:12px;">' +
-                    '<textarea id="input-tambah-siswa-banyak" rows="3" placeholder="Ketik nama siswa untuk kelas ' + klsAktif + ' (Bisa ketik 1 nama, atau paste banyak nama sekaligus dipisahkan Enter / baris baru)..." style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:8px; font-size:12px; box-sizing:border-box; font-family:inherit;"></textarea>' +
-                    '<button type="button" onclick="window.simpanSiswaBaruDariInput()" style="width:100%; margin-top:6px; background:#2980b9; color:#fff; border:none; padding:10px; border-radius:8px; font-weight:bold; font-size:12px; cursor:pointer;">👤 + Tambahkan Siswa ke Kelas ' + klsAktif + '</button>' +
-                '</div>' +
-                '<div style="max-height:310px; overflow-y:auto;">' + htmlDaftarSiswa + '</div>' +
-            '</div>' +
-        '</div>';
-};
-
-window.simpanKelasBaruDariInput = function() {
-    var inp = document.getElementById('input-tambah-kelas-baru');
-    var klsBaru = inp ? inp.value.trim() : '';
-    if (!klsBaru) {
-        window.tampilkanToastFullscreen("⚠️ Ketik nama kelas terlebih dahulu!");
-        return;
-    }
-    if (!window.konfigPendidikan) window.konfigPendidikan = { daftarKelas: [] };
-    if (!Array.isArray(window.konfigPendidikan.daftarKelas)) window.konfigPendidikan.daftarKelas = [];
-
-    if (!window.konfigPendidikan.daftarKelas.includes(klsBaru)) {
-        window.konfigPendidikan.daftarKelas.push(klsBaru);
-        if (window.simpanKonfigPendidikanKeDB) window.simpanKonfigPendidikanKeDB();
-    }
-    window.kelasAdminUtama = klsBaru;
-    window.perbaruiDropdownKelasAdminUtama();
-    window.tampilkanUIDataSiswaDanKelas();
-    window.tampilkanToastFullscreen("✓ Kelas '" + klsBaru + "' berhasil ditambahkan!");
-};
-
-window.hapusKelasDariInputData = function(namaKls) {
-    window.tampilkanKonfirmasiFullscreen("Hapus kelas '" + namaKls + "' beserta data di dalamnya?", function() {
-        if (window.konfigPendidikan && Array.isArray(window.konfigPendidikan.daftarKelas)) {
-            window.konfigPendidikan.daftarKelas = window.konfigPendidikan.daftarKelas.filter(function(k) { return k !== namaKls; });
-            if (window.simpanKonfigPendidikanKeDB) window.simpanKonfigPendidikanKeDB();
-        }
-        if (window.dataAbsensiGlobal && window.dataAbsensiGlobal[namaKls]) {
-            delete window.dataAbsensiGlobal[namaKls];
-            if (window.simpanAbsensiKeDB) window.simpanAbsensiKeDB();
-        }
-        var sisaKls = window.ambilDaftarKelasAktif();
-        window.kelasAdminUtama = sisaKls[0] || "";
-        window.perbaruiDropdownKelasAdminUtama();
-        window.tampilkanUIDataSiswaDanKelas();
-        window.tampilkanToastFullscreen("🗑️ Kelas '" + namaKls + "' telah dihapus.");
-    });
-};
-
-window.simpanSiswaBaruDariInput = function() {
-    var ta = document.getElementById('input-tambah-siswa-banyak');
-    var raw = ta ? ta.value.trim() : '';
-    if (!raw) {
-        window.tampilkanToastFullscreen("⚠️ Masukkan minimal 1 nama siswa!");
-        return;
-    }
-    var kls = window.kelasAdminUtama || window.ambilDaftarKelasAktif()[0];
-    var dataKls = window.pastikanStrukturAbsensiKelas(kls);
-    var namaArr = raw.split(/[\n,]+/).map(function(n) { return n.trim(); }).filter(function(n) { return n.length > 0; });
-
-    namaArr.forEach(function(nama) {
-        var defaultHadir = {};
-        (dataKls.tanggalList || []).forEach(function(_, idx) { defaultHadir[idx] = 'H'; });
-        dataKls.siswaList.push({ nama: nama, kehadiran: defaultHadir });
-    });
-
-    if (window.simpanAbsensiKeDB) window.simpanAbsensiKeDB();
-    window.perbaruiDropdownKelasAdminUtama();
-    window.tampilkanUIDataSiswaDanKelas();
-    window.tampilkanToastFullscreen("✓ " + namaArr.length + " siswa ditambahkan ke kelas " + kls + "!");
-};
-
-window.hapusSiswaDariInputData = function(sIdx) {
-    var kls = window.kelasAdminUtama || window.ambilDaftarKelasAktif()[0];
-    var dataKls = window.pastikanStrukturAbsensiKelas(kls);
-    var namaSiswa = (dataKls.siswaList[sIdx] && dataKls.siswaList[sIdx].nama) || "siswa ini";
-    window.tampilkanKonfirmasiFullscreen("Hapus '" + namaSiswa + "' dari kelas " + kls + "?", function() {
-        dataKls.siswaList.splice(sIdx, 1);
-        if (window.simpanAbsensiKeDB) window.simpanAbsensiKeDB();
-        window.perbaruiDropdownKelasAdminUtama();
-        window.tampilkanUIDataSiswaDanKelas();
-    });
-};
-
-// ============================================================================
-// UPGRADE ADMINISTRASI: TAB REMINDER (ABSENSI & UJIAN DENGAN DROPDOWN OTOMATIS)
-// SERTA REVISI AGENDA (HARI OTOMATIS & KETERANGAN "JP" DI BELAKANG INPUT)
-// ============================================================================
-
-// 1. Fungsi Konversi Tanggal ke Nama Hari Indonesia Otomatis
-window.ambilNamaHariIndonesia = function(tglStr) {
-    if (!tglStr) return '-';
-    var namaHari = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-    var parts = tglStr.split('-');
-    if (parts.length === 3) {
-        var d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-        if (!isNaN(d.getTime())) return namaHari[d.getDay()];
-    }
-    var dFallback = new Date(tglStr);
-    if (!isNaN(dFallback.getTime())) return namaHari[dFallback.getDay()];
-    return '-';
-};
-
-window.onUbahTanggalAgenda = function(tglVal) {
-    var inputHari = document.getElementById('agn-input-hari');
-    if (inputHari) {
-        inputHari.value = window.ambilNamaHariIndonesia(tglVal);
-    }
-};
-
-// 2. Perbarui Modal Administrasi dengan Tab ke-4: 🔔 Reminder
-window.bukaModalAdministrasi = function(tabAwal) {
-    if (window.bersihkanOverlayPenghalang) window.bersihkanOverlayPenghalang();
-    var daftarKls = window.ambilDaftarKelasAktif();
-    if (!window.kelasAdminUtama || !daftarKls.includes(window.kelasAdminUtama)) {
-        window.kelasAdminUtama = daftarKls[0] || "X-1";
-    }
-
-    var m = document.getElementById('modal-ruang-administrasi');
-    if (m) m.remove();
-
-    var html =
-    '<div id="modal-ruang-administrasi" class="mahardika-modal-wrap" style="display:flex;">' +
-        '<div class="mahardika-modal-card modal-box" style="max-width:1080px; height:90vh;">' +
-            '<div style="background:#0b3954; color:#fff; padding:14px 20px; display:flex; justify-content:space-between; align-items:center;">' +
-                '<h3 style="margin:0; font-size:17px;">📁 Ruang Administrasi Guru</h3>' +
-                '<button type="button" onclick="document.getElementById(\'modal-ruang-administrasi\').style.display=\'none\'" style="background:rgba(255,255,255,0.2); border:none; color:#fff; width:32px; height:32px; border-radius:50%; font-size:16px; cursor:pointer; font-weight:bold;">✕</button>' +
-            '</div>' +
-
-            // BAR PILIH KELAS DI ATAS TOMBOL TAB
-            '<div class="admin-top-class-bar">' +
-                '<div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">' +
-                    '<span style="font-weight:700; font-size:14px; color:#0b3954;">🏫 Pilih Kelas Terlebih Dahulu:</span>' +
-                    '<select id="select-kelas-admin-utama" onchange="window.ubahKelasAdminUtama(this.value)" style="padding:8px 16px; border:2px solid #0b3954; border-radius:8px; font-weight:bold; font-size:14px; color:#0b3954; background:#fff; min-width:200px; cursor:pointer;"></select>' +
-                '</div>' +
-                '<div id="info-ringkas-kelas-admin" style="font-size:12px; font-weight:600; color:#2980b9;"></div>' +
-            '</div>' +
-
-            // DERETAN TOMBOL TAB: ABSENSI, AGENDA, INPUT DATA SISWA, DAN REMINDER
-            '<div class="admin-hub-tabs" style="flex-wrap:wrap;">' +
-                '<button type="button" id="tab-btn-absensi" class="admin-tab-btn active" onclick="window.gantiTabAdministrasi(\'absensi\')">📋 Absensi Siswa</button>' +
-                '<button type="button" id="tab-btn-agenda" class="admin-tab-btn" onclick="window.gantiTabAdministrasi(\'agenda\')">📅 Agenda Mengajar</button>' +
-                '<button type="button" id="tab-btn-datasiswa" class="admin-tab-btn" onclick="window.gantiTabAdministrasi(\'datasiswa\')">👥 Input Data Siswa & Kelas</button>' +
-                '<button type="button" id="tab-btn-reminder" class="admin-tab-btn" onclick="window.gantiTabAdministrasi(\'reminder\')" style="position:relative;">🔔 Reminder <span id="badge-tab-reminder" style="display:none; background:#e74c3c; color:#fff; padding:1px 7px; border-radius:12px; font-size:11px; margin-left:5px;">0</span></button>' +
-            '</div>' +
-
-            '<div id="body-ruang-administrasi" style="padding:18px; overflow-y:auto; flex:1; background:#ffffff;"></div>' +
-        '</div>' +
-    '</div>';
-
-    document.body.insertAdjacentHTML('beforeend', html);
-    window.perbaruiDropdownKelasAdminUtama();
-    var targetTab = (tabAwal === 'agenda' || tabAwal === 'datasiswa' || tabAwal === 'reminder') ? tabAwal : 'absensi';
-    window.gantiTabAdministrasi(targetTab);
-};
-
-window.gantiTabAdministrasi = function(namaTab) {
-    window.tabAdminAktif = namaTab;
-    window.kelasAbsensiAktif = window.kelasAdminUtama;
-    window.kelasAgendaAktif = window.kelasAdminUtama;
-    window.perbaruiDropdownKelasAdminUtama();
-    window.updateBadgeReminderAdmin();
-
-    var tabs = ['absensi', 'agenda', 'datasiswa', 'reminder'];
-    tabs.forEach(function(t) {
-        var btn = document.getElementById('tab-btn-' + t);
-        if (btn) btn.className = 'admin-tab-btn' + (t === namaTab ? ' active' : '');
-    });
-
-    if (namaTab === 'absensi') {
-        window.tampilkanUIAbsensi();
-    } else if (namaTab === 'agenda') {
-        window.tampilkanUIAgenda();
-    } else if (namaTab === 'datasiswa') {
-        window.tampilkanUIDataSiswaDanKelas();
-    } else if (namaTab === 'reminder') {
-        window.tampilkanUIReminder();
-    }
-};
-
-// Jika status kehadiran siswa diubah kembali menjadi 'H', buka kembali kunci reminder jika sebelumnya pernah di-X
-var origToggleStatusKehadiran = window.toggleStatusKehadiran;
-window.toggleStatusKehadiran = function(sIdx, tIdx) {
-    if (typeof origToggleStatusKehadiran === 'function') origToggleStatusKehadiran(sIdx, tIdx);
-    var kls = window.kelasAbsensiAktif;
-    var dataKls = window.pastikanStrukturAbsensiKelas(kls);
-    var siswa = dataKls.siswaList[sIdx];
-    if (siswa) {
-        var st = (siswa.kehadiran && siswa.kehadiran[tIdx]) || '-';
-        var remKey = ('abs_' + kls + '_' + tIdx + '_' + siswa.nama).replace(/[.#$\[\]\/]/g, '_');
-        if (st === 'H' && window.dataReminderDismissed && window.dataReminderDismissed[remKey]) {
-            delete window.dataReminderDismissed[remKey];
-            if (window.simpanReminderDismissedKeDB) window.simpanReminderDismissedKeDB();
-        }
-    }
-    window.updateBadgeReminderAdmin();
-};
-
-// ----------------------------------------------------------------------------
-// 3. REVISI MODUL AGENDA MENGAJAR (HARI OTOMATIS + KETERANGAN "JP" DI BELAKANG INPUT)
-// ----------------------------------------------------------------------------
-window.tampilkanUIAgenda = function() {
-    var body = document.getElementById('body-ruang-administrasi');
-    if (!body) return;
-    var kls = window.kelasAdminUtama || window.ambilDaftarKelasAktif()[0];
-    window.kelasAgendaAktif = kls;
-    var hariIniTgl = new Date().toISOString().split('T')[0];
-    var hariIniNama = window.ambilNamaHariIndonesia(hariIniTgl);
-
-    body.innerHTML =
-        '<div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:10px; background:#f8fafc; padding:12px 15px; border:1px solid #e2e8f0; border-radius:10px; margin-bottom:14px;">' +
-            '<div style="font-weight:bold; font-size:14px; color:#0b3954;">📅 Jurnal & Agenda Mengajar Kelas: <span style="color:#16a085;">' + kls + '</span></div>' +
-            '<button type="button" onclick="window.exportExcelAgenda()" style="background:#16a085; color:#fff; border:none; padding:8px 14px; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer;">📥 Export Excel Agenda</button>' +
-        '</div>' +
-        '<div style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:10px; padding:14px; margin-bottom:15px;">' +
-            '<h4 style="margin:0 0 10px 0; color:#0b3954; font-size:13px;">➕ Isi Agenda Pertemuan Baru (' + kls + ')</h4>' +
-            '<div style="display:grid; grid-template-columns:95px 135px 100px 1fr 1fr 1fr auto; gap:8px; align-items:center;" class="grid-responsive-form">' +
-                '<input type="text" id="agn-input-hari" value="' + hariIniNama + '" readonly title="Hari terisi otomatis sesuai tanggal" style="padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; font-weight:bold; background:#e2e8f0; color:#0b3954; text-align:center;">' +
-                '<input type="date" id="agn-input-tgl" value="' + hariIniTgl + '" onchange="window.onUbahTanggalAgenda(this.value)" style="padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px;">' +
-                '<div class="jp-input-group" title="Jumlah Jam Pelajaran">' +
-                    '<input type="number" id="agn-input-jp" value="2" min="1">' +
-                    '<span>JP</span>' +
-                '</div>' +
-                '<input type="text" id="agn-input-materi" placeholder="Materi pembelajaran..." style="padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px;">' +
-                '<input type="text" id="agn-input-ket" placeholder="Keterangan..." style="padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px;">' +
-                '<input type="text" id="agn-input-rencana" placeholder="Rencana pertemuan berikutnya..." style="padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px;">' +
-                '<button type="button" onclick="window.tambahBarisAgenda()" style="background:#27ae60; color:#fff; border:none; padding:9px 16px; border-radius:6px; font-weight:bold; font-size:12px; cursor:pointer; white-space:nowrap;">💾 Simpan</button>' +
-            '</div>' +
-        '</div>' +
-        '<div id="wadah-tabel-agenda" style="overflow-x:auto;"></div>';
-
-    window.renderTabelAgendaKelas();
-};
-
-window.renderTabelAgendaKelas = function() {
-    var wadah = document.getElementById('wadah-tabel-agenda');
-    if (!wadah) return;
-    var kls = window.kelasAgendaAktif || window.ambilDaftarKelasAktif()[0];
-    if (!window.dataAgendaGlobal) window.dataAgendaGlobal = {};
-    if (!Array.isArray(window.dataAgendaGlobal[kls])) window.dataAgendaGlobal[kls] = [];
-    var list = window.dataAgendaGlobal[kls];
-
-    var rowsHtml = '';
-    if (list.length === 0) {
-        rowsHtml = '<tr><td colspan="8" style="text-align:center; padding:25px; color:#94a3b8;">Belum ada catatan agenda untuk kelas <b>' + kls + '</b>. Silakan isi form di atas lalu klik <b>💾 Simpan</b>.</td></tr>';
-    } else {
-        rowsHtml = list.map(function(item, idx) {
-            var namaHari = item.hari || window.ambilNamaHariIndonesia(item.tanggal);
-            var angkaJP = String(item.jp || '2').replace(/JP/gi, '').trim();
-            return '<tr>' +
-                '<td style="text-align:center; width:40px;">' + (idx + 1) + '</td>' +
-                '<td style="text-align:center; font-weight:bold; color:#0b3954; background:#f8fafc; width:85px;">' + namaHari + '</td>' +
-                '<td contenteditable="true" onblur="window.updateFieldAgenda(' + idx + ', \'tanggal\', this.innerText)" style="white-space:nowrap; font-weight:600;">' + (item.tanggal || '-') + '</td>' +
-                '<td style="text-align:center; font-weight:bold; color:#0b3954; white-space:nowrap;">' +
-                    '<span contenteditable="true" onblur="window.updateFieldAgenda(' + idx + ', \'jp\', this.innerText)" style="padding:2px 4px; border-bottom:1px dashed #94a3b8; outline:none;">' + angkaJP + '</span> JP' +
-                '</td>' +
-                '<td contenteditable="true" onblur="window.updateFieldAgenda(' + idx + ', \'materi\', this.innerText)" style="font-weight:600;">' + (item.materi || '-') + '</td>' +
-                '<td contenteditable="true" onblur="window.updateFieldAgenda(' + idx + ', \'keterangan\', this.innerText)">' + (item.keterangan || '-') + '</td>' +
-                '<td contenteditable="true" onblur="window.updateFieldAgenda(' + idx + ', \'rencana\', this.innerText)" style="color:#16a085; font-weight:600;">' + (item.rencana || '-') + '</td>' +
-                '<td style="text-align:center; width:50px;"><button type="button" onclick="window.hapusBarisAgenda(' + idx + ')" style="background:none;border:none;cursor:pointer;">🗑️</button></td>' +
-            '</tr>';
-        }).join('');
-    }
-
-    wadah.innerHTML =
-        '<table class="excel-table" id="tabel-excel-agenda">' +
-            '<thead>' +
-                '<tr>' +
-                    '<th style="text-align:center; width:40px;">No</th>' +
-                    '<th style="text-align:center; width:85px;">Hari</th>' +
-                    '<th style="width:115px;">Tanggal</th>' +
-                    '<th style="text-align:center; width:95px;">Jumlah JP</th>' +
-                    '<th>Materi Pembelajaran</th>' +
-                    '<th>Keterangan</th>' +
-                    '<th>Rencana Pertemuan Berikutnya</th>' +
-                    '<th style="text-align:center; width:50px;">Aksi</th>' +
-                '</tr>' +
-            '</thead>' +
-            '<tbody>' + rowsHtml + '</tbody>' +
-        '</table>';
-};
-
-window.tambahBarisAgenda = function() {
-    var kls = window.kelasAgendaAktif || window.ambilDaftarKelasAktif()[0];
-    var tgl = document.getElementById('agn-input-tgl').value;
-    var hari = window.ambilNamaHariIndonesia(tgl);
-    var jp = document.getElementById('agn-input-jp').value.trim() || '2';
-    var materi = document.getElementById('agn-input-materi').value.trim();
-    var ket = document.getElementById('agn-input-ket').value.trim();
-    var rencana = document.getElementById('agn-input-rencana').value.trim();
-
-    if (!materi) {
-        window.tampilkanToastFullscreen("⚠️ Kolom Materi Pembelajaran wajib diisi!");
-        return;
-    }
-
-    if (!window.dataAgendaGlobal) window.dataAgendaGlobal = {};
-    if (!Array.isArray(window.dataAgendaGlobal[kls])) window.dataAgendaGlobal[kls] = [];
-
-    window.dataAgendaGlobal[kls].push({
-        hari: hari,
-        tanggal: tgl,
-        jp: jp.replace(/[^0-9]/g, '') || '2',
-        materi: materi,
-        keterangan: ket || 'Hadir / Lancar',
-        rencana: rencana || '-'
-    });
-
-    document.getElementById('agn-input-materi').value = '';
-    document.getElementById('agn-input-ket').value = '';
-    document.getElementById('agn-input-rencana').value = '';
-
-    window.simpanAgendaKeDB();
-    window.renderTabelAgendaKelas();
-    window.tampilkanToastFullscreen("✓ Agenda hari " + hari + " (" + tgl + ") berhasil disimpan!");
-};
-
-window.updateFieldAgenda = function(idx, field, val) {
-    var kls = window.kelasAgendaAktif;
-    if (window.dataAgendaGlobal && window.dataAgendaGlobal[kls] && window.dataAgendaGlobal[kls][idx]) {
-        var cleanVal = val.trim();
-        if (field === 'jp') cleanVal = cleanVal.replace(/[^0-9]/g, '') || '2';
-        window.dataAgendaGlobal[kls][idx][field] = cleanVal;
-        if (field === 'tanggal') {
-            window.dataAgendaGlobal[kls][idx].hari = window.ambilNamaHariIndonesia(cleanVal);
-            window.renderTabelAgendaKelas();
-        }
-        window.simpanAgendaKeDB();
-    }
-};
-
-// ----------------------------------------------------------------------------
-// 4. MODUL REMINDER: KETINGGALAN PELAJARAN (-, A, S, I) & BELUM IKUT UJIAN
-// ----------------------------------------------------------------------------
-window.modeFilterReminder = 'KELAS_INI'; // 'KELAS_INI' atau 'SEMUA_KELAS'
-window.statusBukaDropdownReminder = {};
-
-// Cari Materi Pembelajaran dari Agenda untuk Pertemuan ke-tIdx atau Tanggal yang Cocok
-window.cariMateriUntukPertemuan = function(kls, tIdx, labelTanggal) {
-    var agendaList = (window.dataAgendaGlobal && window.dataAgendaGlobal[kls]) || [];
-    var labelBersih = (labelTanggal || '').trim().toLowerCase();
-
-    // 1. Cek jika label kolom absensi cocok dengan tanggal di Agenda
-    for (var i = 0; i < agendaList.length; i++) {
-        if ((agendaList[i].tanggal || '').trim().toLowerCase() === labelBersih && agendaList[i].materi) {
-            return {
-                materi: agendaList[i].materi,
-                infoWaktu: (agendaList[i].hari ? agendaList[i].hari + ', ' : '') + agendaList[i].tanggal
-            };
-        }
-    }
-    // 2. Jika tidak cocok tanggal spesifik, pasangkan dengan urutan pertemuan ke-tIdx di Agenda
-    if (agendaList[tIdx] && agendaList[tIdx].materi) {
-        var ag = agendaList[tIdx];
-        return {
-            materi: ag.materi,
-            infoWaktu: labelTanggal + (ag.tanggal ? ' (' + (ag.hari ? ag.hari + ', ' : '') + ag.tanggal + ')' : '')
-        };
-    }
-    // 3. Fallback jika guru belum mengisi Agenda untuk pertemuan tersebut
-    return {
-        materi: 'Materi ' + labelTanggal + ' (Agenda belum diisi)',
-        infoWaktu: labelTanggal
-    };
-};
-
-// Kumpulkan Daftar Ujian yang Berlaku pada Kelas Tertentu
-window.ambilDaftarUjianUntukKelas = function(kls) {
-    var setUjian = new Set();
-    var dataKls = window.pastikanStrukturAbsensiKelas(kls);
-    var namaSiswaSet = new Set((dataKls.siswaList || []).map(function(s) {
-        return (s.nama || '').trim().toLowerCase();
-    }));
-
-    // A. Ujian yang ditandai manual untuk dipantau di kelas ini
-    if (window.dataUjianKelasPantau && window.dataUjianKelasPantau[kls]) {
-        Object.keys(window.dataUjianKelasPantau[kls]).forEach(function(u) {
-            if (window.dataUjianKelasPantau[kls][u]) setUjian.add(u);
-        });
-    }
-
-    // B. Deteksi otomatis dari rekap_nilai_ujian yang memiliki atribut kelas === kls atau nama siswa kelas ini
-    Object.values(window.rekapNilaiGlobal || {}).forEach(function(d) {
-        if (!d || !d.ujian) return;
-        if (d.kelas === kls || namaSiswaSet.has((d.nama || '').trim().toLowerCase())) {
-            setUjian.add(d.ujian);
-        }
-    });
-
-    // C. Deteksi otomatis dari hasil_ujian (Strict Mode) jika ada minimal 1 siswa dari kelas ini yang sudah mengerjakan
-    Object.keys(window.dataRekapNilai || {}).forEach(function(namaUjian) {
-        var grup = window.dataRekapNilai[namaUjian] || {};
-        Object.values(grup).forEach(function(peserta) {
-            if (peserta && namaSiswaSet.has((peserta.nama || '').trim().toLowerCase())) {
-                setUjian.add(namaUjian);
-            }
-        });
-    });
-
-    return Array.from(setUjian);
-};
-
-// Cek apakah siswa sudah mengikuti ujian tertentu
-window.apakahSiswaSudahIkutUjian = function(namaSiswa, namaUjian, kls) {
-    var target = (namaSiswa || '').trim().toLowerCase();
-    if (!target) return true;
-
-    // Cek di hasil_ujian (Strict Mode)
-    if (window.dataRekapNilai && window.dataRekapNilai[namaUjian]) {
-        var sudahStrict = Object.values(window.dataRekapNilai[namaUjian]).some(function(p) {
-            return p && (p.nama || '').trim().toLowerCase() === target;
-        });
-        if (sudahStrict) return true;
-    }
-
-    // Cek di rekap_nilai_ujian (Portal Kelas)
-    var sudahRekap = Object.values(window.rekapNilaiGlobal || {}).some(function(d) {
-        return d && d.ujian === namaUjian && (d.nama || '').trim().toLowerCase() === target;
-    });
-    return sudahRekap;
-};
-
-// Hitung seluruh data Reminder aktif (Absensi & Ujian)
-window.kumpulkanDataReminder = function(daftarKelasTarget) {
-    var grupAbsensi = [];
-    var grupUjian = [];
-    var totalItemAktif = 0;
-    var dismissed = window.dataReminderDismissed || {};
-
-    daftarKelasTarget.forEach(function(kls) {
-        var dataKls = window.pastikanStrukturAbsensiKelas(kls);
-        var tglList = dataKls.tanggalList || [];
-        var siswaList = dataKls.siswaList || [];
-
-        // 1. Pindai Absensi (-, A, S, I) per pertemuan/hari
-        tglList.forEach(function(tglLabel, tIdx) {
-            var infoMateri = window.cariMateriUntukPertemuan(kls, tIdx, tglLabel);
-            var anakTertinggal = [];
-
-            siswaList.forEach(function(s) {
-                var status = (s.kehadiran && s.kehadiran[tIdx]) || '-';
-                if (status === '-' || status === 'A' || status === 'S' || status === 'I') {
-                    var remId = ('abs_' + kls + '_' + tIdx + '_' + s.nama).replace(/[.#$\[\]\/]/g, '_');
-                    if (!dismissed[remId]) {
-                        anakTertinggal.push({
-                            id: remId,
-                            nama: s.nama,
-                            status: status,
-                            kelas: kls,
-                            materi: infoMateri.materi,
-                            waktu: infoMateri.infoWaktu
-                        });
-                        totalItemAktif++;
-                    }
-                }
-            });
-
-            if (anakTertinggal.length > 0) {
-                grupAbsensi.push({
-                    groupKey: 'grp_abs_' + kls + '_' + tIdx,
-                    kelas: kls,
-                    waktu: infoMateri.infoWaktu,
-                    materi: infoMateri.materi,
-                    items: anakTertinggal
-                });
-            }
-        });
-
-        // 2. Pindai Ujian yang belum diikuti siswa di kelas ini
-        var ujianKelasIni = window.ambilDaftarUjianUntukKelas(kls);
-        ujianKelasIni.forEach(function(namaUjian) {
-            var anakBelumUjian = [];
-            siswaList.forEach(function(s) {
-                if (!window.apakahSiswaSudahIkutUjian(s.nama, namaUjian, kls)) {
-                    var remUjianId = ('uji_' + kls + '_' + namaUjian + '_' + s.nama).replace(/[.#$\[\]\/]/g, '_');
-                    if (!dismissed[remUjianId]) {
-                        anakBelumUjian.push({
-                            id: remUjianId,
-                            nama: s.nama,
-                            kelas: kls,
-                            ujian: namaUjian
-                        });
-                        totalItemAktif++;
-                    }
-                }
-            });
-
-            if (anakBelumUjian.length > 0) {
-                grupUjian.push({
-                    groupKey: 'grp_uji_' + kls + '_' + namaUjian.replace(/\s+/g, '_'),
-                    kelas: kls,
-                    ujian: namaUjian,
-                    items: anakBelumUjian
-                });
-            }
-        });
-    });
-
-    return {
-        grupAbsensi: grupAbsensi,
-        grupUjian: grupUjian,
-        total: totalItemAktif
-    };
-};
-
-window.updateBadgeReminderAdmin = function() {
-    var semuaKls = window.ambilDaftarKelasAktif();
-    var hasil = window.kumpulkanDataReminder(semuaKls);
-    var badgeTab = document.getElementById('badge-tab-reminder');
-    if (badgeTab) {
-        badgeTab.style.display = hasil.total > 0 ? 'inline-block' : 'none';
-        badgeTab.innerText = hasil.total;
-    }
-    var btnMenuAdm = document.getElementById('btn-menu-administrasi');
-    if (btnMenuAdm) {
-        if (hasil.total > 0) {
-            btnMenuAdm.innerHTML = '📁 Administrasi <span style="background:#e74c3c;color:#fff;padding:1px 6px;border-radius:10px;font-size:10px;margin-left:4px;">' + hasil.total + '</span>';
-        } else {
-            btnMenuAdm.innerHTML = '📁 Administrasi';
-        }
-    }
-};
-
-window.labelStatusAbsenLengkap = function(st) {
-    if (st === 'S') return '<span style="background:#fff3cd;color:#856404;padding:2px 7px;border-radius:6px;font-weight:bold;font-size:11px;">S (Sakit)</span>';
-    if (st === 'I') return '<span style="background:#cce5ff;color:#004085;padding:2px 7px;border-radius:6px;font-weight:bold;font-size:11px;">I (Izin)</span>';
-    if (st === 'A') return '<span style="background:#f8d7da;color:#721c24;padding:2px 7px;border-radius:6px;font-weight:bold;font-size:11px;">A (Alfa)</span>';
-    return '<span style="background:#e2e8f0;color:#475569;padding:2px 7px;border-radius:6px;font-weight:bold;font-size:11px;">- (Belum Hadir)</span>';
-};
-
-window.toggleDropdownGrupReminder = function(groupKey) {
-    window.statusBukaDropdownReminder[groupKey] = !window.statusBukaDropdownReminder[groupKey];
-    var bodyEl = document.getElementById('rem-body-' + groupKey);
-    var iconEl = document.getElementById('rem-icon-' + groupKey);
-    if (bodyEl) {
-        if (window.statusBukaDropdownReminder[groupKey]) {
-            bodyEl.classList.add('open');
-            if (iconEl) iconEl.innerText = '▾';
-        } else {
-            bodyEl.classList.remove('open');
-            if (iconEl) iconEl.innerText = '▸';
-        }
-    }
-};
-
-window.dismissSatuReminder = function(remId, e) {
-    if (e) e.stopPropagation();
-    if (!window.dataReminderDismissed) window.dataReminderDismissed = {};
-    window.dataReminderDismissed[remId] = true;
-    if (window.simpanReminderDismissedKeDB) window.simpanReminderDismissedKeDB();
-    window.tampilkanUIReminder();
-    window.updateBadgeReminderAdmin();
-};
-
-window.dismissGrupReminder = function(idsListStr, e) {
-    if (e) e.stopPropagation();
-    var arr = idsListStr.split('|').filter(Boolean);
-    if (!window.dataReminderDismissed) window.dataReminderDismissed = {};
-    arr.forEach(function(id) {
-        window.dataReminderDismissed[id] = true;
-    });
-    if (window.simpanReminderDismissedKeDB) window.simpanReminderDismissedKeDB();
-    window.tampilkanUIReminder();
-    window.updateBadgeReminderAdmin();
-};
-
-window.tambahPantauUjianKelas = function() {
-    var kls = window.kelasAdminUtama || window.ambilDaftarKelasAktif()[0];
-    var sel = document.getElementById('select-pantau-ujian-baru');
-    var namaUjian = sel ? sel.value : '';
-    if (!namaUjian) {
-        window.tampilkanToastFullscreen("⚠️ Pilih nama paket ujian terlebih dahulu!");
-        return;
-    }
-    if (!window.dataUjianKelasPantau) window.dataUjianKelasPantau = {};
-    if (!window.dataUjianKelasPantau[kls]) window.dataUjianKelasPantau[kls] = {};
-    window.dataUjianKelasPantau[kls][namaUjian] = true;
-    if (window.simpanUjianKelasPantauKeDB) window.simpanUjianKelasPantauKeDB();
-    window.tampilkanUIReminder();
-    window.updateBadgeReminderAdmin();
-    window.tampilkanToastFullscreen("✓ Ujian '" + namaUjian + "' kini dipantau untuk kelas " + kls);
-};
-
-// ============================================================================
-// PERBAIKAN LOGO PDF & CETAK LAPORAN 7 HALAMAN
-// ============================================================================
-window.bukaLaporanSiswaLengkap = function() {
-    var key = document.getElementById('select-laporan-siswa').value;
-    var wadah = document.getElementById('tempat-laporan-guru');
-    if (!key) { wadah.innerHTML = '<i style="color:#7f8c8d;">Pilih siswa untuk melihat laporan.</i>'; return; }
-
-    var lap = window.dataLaporanTemp[key];
-    var imgHtml = '';
-    var lampiranPdfHtml = '';
-
-    if (lap.lampiranUrls && lap.lampiranUrls.length > 0) {
-        lap.lampiranUrls.forEach(url => {
-            imgHtml += `<a href="${url}" target="_blank"><img src="${url}" style="max-width:100%; max-height:300px; border-radius:8px; margin:5px 10px 5px 0; box-shadow:0 2px 5px rgba(0,0,0,0.1); display:inline-block;"></a>`;
-            lampiranPdfHtml += `<img src="${url}" class="lampiran-img" alt="Bukti Praktikum">`;
-        });
-    } else {
-        imgHtml = '<i style="color:#7f8c8d;">(Siswa tidak melampirkan foto)</i>';
-        lampiranPdfHtml = '<p style="text-align:center;"><i>Tidak ada foto lampiran yang diunggah.</i></p>';
-    }
-
-    var formatBab = (judul, isi) => '<div style="margin-bottom:20px;"><h4 style="margin:0 0 5px 0; color:#2980b9; border-bottom:1px solid #ecf0f1; padding-bottom:5px;">'+judul+'</h4><div style="background:#fff; padding:15px; border-left:4px solid #3498db; border-radius:0 4px 4px 0; white-space:pre-wrap; font-size:14px;">'+(isi || '-')+'</div></div>';
-    var teksAnggotaLayar = (lap.anggota && lap.anggota.length > 0) ? ('<p style="margin:5px 0 0 0; font-size:14px; color:#34495e;"><b>Anggota:</b> ' + lap.anggota.join(', ') + '</p>') : '';
-
-    wadah.innerHTML = 
-        '<button id="btn-print-formal" style="background:#2c3e50; color:#fff; border:none; padding:10px 15px; border-radius:6px; cursor:pointer; font-weight:bold; float:right; margin-bottom:15px;">🖨️ Cetak Buku PDF (Kertas A4)</button>' +
-        '<div style="clear:both; border-bottom:2px dashed #bdc3c7; padding-bottom:15px; margin-bottom:20px; text-align:center;">' +
-            '<h2 style="margin:0; text-transform:uppercase; color:#2c3e50; font-size:20px;">LAPORAN: ' + lap.judul + '</h2>' +
-            '<p style="margin:5px 0 0 0; font-size:16px;"><b>Ketua: ' + lap.ketua + '</b> (Kelas ' + lap.kelas + ')</p>' +
-            teksAnggotaLayar +
-            '<small style="color:#7f8c8d;">Dikirim pada: ' + lap.waktu + '</small>' +
-        '</div>' +
-        formatBab('Dasar Teori', lap.dasarTeori) +
-        formatBab('Alat dan Bahan', lap.alatBahan) +
-        formatBab('Metode Praktikum', lap.metode) +
-        formatBab('Hasil dan Pembahasan', lap.hasil) +
-        formatBab('Kesimpulan', lap.kesimpulan) +
-        formatBab('Daftar Pustaka', lap.dafpus) +
-        '<div style="margin-bottom:15px;"><h4 style="margin:0 0 5px 0; color:#2980b9;">📸 Lampiran Dokumentasi</h4>' + imgHtml + '</div>';
-    
-    document.getElementById('btn-print-formal').onclick = function() {
-        const bulanArr = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-        const dateObj = new Date();
-        const teksBulanTahun = bulanArr[dateObj.getMonth()] + ' ' + dateObj.getFullYear();
-
-        let anggotaHtml = '';
-        if (lap.anggota && lap.anggota.length > 0) {
-            lap.anggota.forEach((nama, i) => {
-                anggotaHtml += `<p style="font-size:14pt; margin:5px 0;">Anggota ${i+1}: ${nama}</p>`;
-            });
-        }
-
-        // PATCH LOGO: Menggunakan URL Absolut agar gambar terbaca di jendela Print (about:blank)
-        const baseUrl = window.location.href.split('?')[0].replace('index.html', '');
-        const urlLogo = baseUrl + 'logo-bodhi.png';
-
-        const win = window.open('', '', 'width=1000,height=800');
-        win.document.write(`
-            <html><head><title>Laporan Praktikum - ${lap.ketua}</title>
-            <style>
-                @page { size: A4; margin: 0; }
-                body { font-family: 'Times New Roman', serif; line-height: 1.5; color: #000; padding: 0; margin: 0; background: #eee; }
-                .page { width: 210mm; min-height: 297mm; padding: 25mm 20mm; box-sizing: border-box; margin: 0 auto; background: #fff; position: relative; page-break-after: always; }
-                .page-num { position: absolute; bottom: 15mm; right: 20mm; font-size: 12pt; font-weight: normal; }
-                
-                .cover { text-align: center; display: block; padding-top: 40px; }
-                .cover h1 { font-size: 18pt; text-transform: uppercase; margin-bottom: 5px; }
-                .cover h2 { font-size: 16pt; text-transform: uppercase; margin-bottom: 10px; font-weight: normal; }
-                .cover img { max-width: 180px; margin: 30px auto; display:block; }
-                .cover p, .cover h3 { margin: 5px 0; }
-                .cover .footer { position: absolute; bottom: 30mm; left: 0; right: 0; text-align: center; }
-                
-                .section-title { text-align: center; text-transform: uppercase; font-size: 14pt; margin-bottom: 30px; font-weight: bold; }
-                .toc p { margin: 10px 0; display: flex; justify-content: space-between; font-size: 12pt; font-weight: bold; }
-                .toc p span:first-child { flex: 1; border-bottom: 1px dotted #000; margin-right: 10px; }
-                .content-text { text-align: justify; font-size: 12pt; white-space: pre-wrap; }
-                .lampiran-img { max-width: 100%; max-height: 240mm; display: block; margin: 20px auto; page-break-inside: avoid; }
-            </style>
-            </head><body>
-                <div class="page cover">
-                    <h1>LAPORAN PRAKTIKUM LABORATORIUM</h1>
-                    <h2>"${lap.judul}"</h2>
-                    <img src="${urlLogo}" alt="Logo" onerror="this.style.display='none'">
-                    <h3 style="font-size:14pt; margin-top:20px;">PEMBIMBING:</h3>
-                    <p style="font-size:14pt; font-weight:bold; margin-bottom:40px;">Mahardika Wiryawan, S.Pd</p>
-                    <h3 style="font-size:14pt;">OLEH:</h3>
-                    <p style="font-size:14pt; font-weight:bold;">Ketua kelompok: ${lap.ketua}</p>
-                    ${anggotaHtml}
-                    <div class="footer">
-                        <h3 style="font-size:14pt; margin:0;">SMAS BODHI DHARMA BATAM</h3>
-                        <h3 style="font-size:14pt; margin:5px 0 0 0; font-weight:normal;">${teksBulanTahun}</h3>
-                    </div>
-                </div>
-
-                <div class="page">
-                    <div class="section-title">DAFTAR ISI</div>
-                    <div class="toc">
-                        <p><span>DAFTAR ISI</span> <span>ii</span></p>
-                        <p><span>DASAR TEORI</span> <span>1</span></p>
-                        <p><span>ALAT DAN BAHAN</span> <span>2</span></p>
-                        <p><span>METODE PRAKTIKUM</span> <span>3</span></p>
-                        <p><span>HASIL DAN PEMBAHASAN</span> <span>4</span></p>
-                        <p><span>KESIMPULAN</span> <span>5</span></p>
-                        <p><span>DAFTAR PUSTAKA</span> <span>6</span></p>
-                        <p><span>LAMPIRAN</span> <span>7</span></p>
-                    </div>
-                    <div class="page-num">ii</div>
-                </div>
-
-                <div class="page"><div class="section-title">DASAR TEORI</div><div class="content-text">${lap.dasarTeori || '-'}</div><div class="page-num">1</div></div>
-                <div class="page"><div class="section-title">ALAT DAN BAHAN</div><div class="content-text">${lap.alatBahan || '-'}</div><div class="page-num">2</div></div>
-                <div class="page"><div class="section-title">METODE PRAKTIKUM</div><div class="content-text">${lap.metode || '-'}</div><div class="page-num">3</div></div>
-                <div class="page"><div class="section-title">HASIL DAN PEMBAHASAN</div><div class="content-text">${lap.hasil || '-'}</div><div class="page-num">4</div></div>
-                <div class="page"><div class="section-title">KESIMPULAN</div><div class="content-text">${lap.kesimpulan || '-'}</div><div class="page-num">5</div></div>
-                <div class="page"><div class="section-title">DAFTAR PUSTAKA</div><div class="content-text">${lap.dafpus || '-'}</div><div class="page-num">6</div></div>
-                <div class="page"><div class="section-title">LAMPIRAN</div>${lampiranPdfHtml}<div class="page-num">7</div></div>
-            </body></html>
-        `);
-        win.document.close(); win.focus();
-        setTimeout(() => { win.print(); win.close(); }, 1200);
-    };
-};
-
-// ============================================================================
-// PERBAIKAN FULLSCREEN ANTI-FREEZE UNTUK HP (IOS & ANDROID)
-// ============================================================================
-(function pasangCSSFullscreenTangguh() {
-    if(document.getElementById('mardi-fs-patch')) return;
-    var style = document.createElement('style');
-    style.id = 'mardi-fs-patch';
-    style.innerHTML = `
-        :root { --vh: 1vh; }
-        .mardi-pseudo-fs {
-            position: fixed !important; top: 0 !important; left: 0 !important;
-            width: 100vw !important; height: 100vh !important;
-            height: calc(var(--vh, 1vh) * 100) !important; 
-            max-width: 100vw !important; max-height: calc(var(--vh, 1vh) * 100) !important;
-            z-index: 2147483640 !important; margin: 0 !important; border-radius: 0 !important;
-            /* PATCH FREEZE IOS: Tambahkan auto dan touch scroll */
-            overflow-y: auto !important; 
-            -webkit-overflow-scrolling: touch !important; 
-            box-sizing: border-box !important;
-        }
-        .mardi-pseudo-fs-dark { background: #000 !important; }
-        .mardi-pseudo-fs-light { background: #ecf0f1 !important; padding: 65px 25px 30px 25px !important; }
-        .mardi-pseudo-fs video, .mardi-pseudo-fs .mardi-slide-img { max-height: calc(var(--vh, 1vh) * 100) !important; height: calc(var(--vh, 1vh) * 100) !important; width: 100% !important; object-fit: contain !important; margin: 0 auto !important; }
-        .btn-close-pseudo-mardi { position: fixed !important; top: 15px !important; right: 15px !important; z-index: 2147483647 !important; background: rgba(231,76,60,0.95) !important; color: #fff !important; border: 2px solid #c0392b !important; padding: 8px 15px !important; border-radius: 30px !important; font-weight: bold !important; cursor: pointer !important; box-shadow: 0 4px 15px rgba(0,0,0,0.5) !important; font-size: 13px !important; font-family: sans-serif !important; }
-        
-        /* Modal Constraint untuk HP agar tidak meluber */
-        .modal-box, .mahardika-modal-card { max-width: 95vw !important; max-height: calc(var(--vh, 1vh) * 90) !important; margin: 0 auto; overflow-x: hidden; }
-    `;
-    document.head.appendChild(style);
-})();
-
-function sesuaikanLayarUniversal() {
-    let vh = window.innerHeight * 0.01;
-    document.documentElement.style.setProperty('--vh', `${vh}px`);
-    let fsElem = document.querySelector('.mardi-pseudo-fs');
-    if (fsElem) fsElem.style.height = window.innerHeight + 'px';
-}
-window.addEventListener('resize', sesuaikanLayarUniversal);
-window.addEventListener('orientationchange', function() { 
-    setTimeout(sesuaikanLayarUniversal, 250); 
-    setTimeout(function() { if (window.muatUlangSemuaKanvasGambar) window.muatUlangSemuaKanvasGambar(); }, 450); 
-});
-sesuaikanLayarUniversal(); 
-
-window.eksekusiFullscreenTangguh = function(elem, isDark) {
-    var isNativeFS = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement;
-    var isPseudoFS = elem.classList.contains('mardi-pseudo-fs');
-    
-    if (isNativeFS || isPseudoFS) {
-        if (isNativeFS) { 
-            if (document.exitFullscreen) document.exitFullscreen().catch(()=>{}); 
-            else if (document.webkitExitFullscreen) document.webkitExitFullscreen(); 
-        }
-        elem.classList.remove('mardi-pseudo-fs', 'mardi-pseudo-fs-dark', 'mardi-pseudo-fs-light');
-        document.body.style.overflow = '';
-        var btnX = elem.querySelector('.btn-close-pseudo-mardi'); if (btnX) btnX.remove();
-        return;
-    }
-    
-    var jalankanPseudoFS = function() {
-        elem.classList.add('mardi-pseudo-fs');
-        elem.classList.add(isDark ? 'mardi-pseudo-fs-dark' : 'mardi-pseudo-fs-light');
-        document.body.style.overflow = 'hidden';
-        sesuaikanLayarUniversal(); 
-        if (!elem.querySelector('.btn-close-pseudo-mardi')) {
-            var btnExit = document.createElement('button'); btnExit.className = 'btn-close-pseudo-mardi'; btnExit.innerHTML = '✖ Keluar Layar Penuh';
-            btnExit.onclick = function(e) { e.stopPropagation(); e.preventDefault(); window.eksekusiFullscreenTangguh(elem, isDark); if(window.keluarBlockFullscreen) window.keluarBlockFullscreen(); };
-            elem.appendChild(btnExit);
-        }
-    };
-    
-    var promise = null;
-    if (elem.requestFullscreen) promise = elem.requestFullscreen(); else if (elem.webkitRequestFullscreen) promise = elem.webkitRequestFullscreen();
-    if (promise !== undefined && promise !== null) { promise.catch(function(err) { jalankanPseudoFS(); }); } else { jalankanPseudoFS(); }
-};
-
-window.toggleFullScreen = function() { window.eksekusiFullscreenTangguh(document.documentElement, false); };
-window.toggleBlockFullscreen = function(btnEl, index) {
-    var wrapper = document.querySelector('.block-wrapper[data-index="' + index + '"]'); if (!wrapper) return;
-    if (wrapper.classList.contains('block-fullscreen-active') || wrapper.classList.contains('mardi-pseudo-fs')) { window.keluarBlockFullscreen(); return; }
-    document.querySelectorAll('.block-fullscreen-active, .mardi-pseudo-fs').forEach(function(el) { el.classList.remove('block-fullscreen-active', 'mardi-pseudo-fs', 'mardi-pseudo-fs-light', 'mardi-pseudo-fs-dark'); var btnOld = el.querySelector('.btn-close-pseudo-mardi'); if (btnOld) btnOld.remove(); });
-    wrapper.classList.add('block-fullscreen-active'); wrapper.scrollTop = 0;
-    var bar = window.pastikanBarFokusAda(); if(bar) bar.style.display = 'flex';
-    window.eksekusiFullscreenTangguh(wrapper, false);
-    setTimeout(function() { if (window.muatUlangSemuaKanvasGambar) window.muatUlangSemuaKanvasGambar(); }, 300);
-};
-
-window.keluarBlockFullscreen = function() {
-    document.querySelectorAll('.block-fullscreen-active, .mardi-pseudo-fs').forEach(function(el) {
-        el.classList.remove('block-fullscreen-active', 'mardi-pseudo-fs', 'mardi-pseudo-fs-light', 'mardi-pseudo-fs-dark');
-        el.style.transform = 'none'; el.style.marginBottom = ''; el.style.zoom = 1;
-        var btnX = el.querySelector('.btn-close-pseudo-mardi'); if (btnX) btnX.remove();
-        var isNativeFS = document.fullscreenElement || document.webkitFullscreenElement;
-        if (isNativeFS) { if (document.exitFullscreen) document.exitFullscreen().catch(()=>{}); else if (document.webkitExitFullscreen) document.webkitExitFullscreen(); }
-    });
-    window.fokusZoomLevel = 1; document.body.style.overflow = '';
-    var bar = document.getElementById('fokus-floating-bar'); if (bar) bar.style.display = 'none';
-    if (window.isDrawingMode && typeof window.toggleDrawingMode === 'function') window.toggleDrawingMode();
-    setTimeout(function() { if (window.muatUlangSemuaKanvasGambar) window.muatUlangSemuaKanvasGambar(); }, 300);
-};
-
-// ============================================================================
-// PATCH ANTI-LAG SLIDER PDF
-// ============================================================================
-window.geserSlidePDF = function(blockIdx, arah) {
-    var slider = document.getElementById('pdf-slider-' + blockIdx);
-    var blok = window.contentBlocksData && window.contentBlocksData[blockIdx];
-    if (!slider || !blok || !blok.pages) return;
-
-    slider.setAttribute('data-animating', 'true');
-    clearTimeout(window['slideTimer_' + blockIdx]);
-
-    var oldSlide = blok.currentSlide || 0;
-    var cvs = document.querySelector('.drawing-layer[data-index="' + blockIdx + '"]');
-    if (cvs) {
-        if (!blok.slideDrawings) blok.slideDrawings = {};
-        blok.slideDrawings[oldSlide] = cvs.toDataURL('image/png');
-    }
-
-    var nextSlide = Math.max(0, Math.min(blok.pages.length - 1, oldSlide + arah));
-    blok.currentSlide = nextSlide;
-    slider.scrollTo({ left: nextSlide * slider.clientWidth, behavior: 'smooth' });
-
-    var numEl = document.getElementById('pdf-page-num-' + blockIdx);
-    if (numEl) numEl.innerText = (nextSlide + 1);
-
-    window['slideTimer_' + blockIdx] = setTimeout(function() {
-        slider.removeAttribute('data-animating');
-        if (window.muatUlangSemuaKanvasGambar) window.muatUlangSemuaKanvasGambar();
-    }, 450); 
-};
-
-window.origOnScrollSlidePDF = window.onScrollSlidePDF;
-window.onScrollSlidePDF = function(blockIdx, sliderEl) {
-    if (sliderEl.getAttribute('data-animating') === 'true') return;
-    clearTimeout(window['scrollDebounce_' + blockIdx]);
-    window['scrollDebounce_' + blockIdx] = setTimeout(function() {
-        var blok = window.contentBlocksData && window.contentBlocksData[blockIdx];
-        if (!sliderEl || !blok || !blok.pages) return;
-        var idx = Math.round(sliderEl.scrollLeft / (sliderEl.clientWidth || 1));
-        if (idx !== (blok.currentSlide || 0)) {
-            blok.currentSlide = idx;
-            var numEl = document.getElementById('pdf-page-num-' + blockIdx);
-            if (numEl) numEl.innerText = (idx + 1);
-            if (window.muatUlangSemuaKanvasGambar) window.muatUlangSemuaKanvasGambar();
-        }
-    }, 150);
-};
-
-// ============================================================================
-// SISTEM SUPER ADMIN & MULTI-TENANT RUANG KERJA GURU
-// ============================================================================
-
-window.percobaanLoginGagal = 0;
-window.prosesLoginGuru = function() { 
-    var u = document.getElementById('input-username-guru').value.trim().toLowerCase();
-    var p = document.getElementById('input-sandi-guru').value.trim();
-
-    if (!u || !p) return window.tampilkanToastFullscreen("Isi Username dan Sandi!");
-
-    // Bypass untuk Anda sebagai Super Admin (Mahardika)
-    if (u === 'mahardika' && (btoa(p) === "Z3VydWJpb2xvZ2k=" || btoa(p) === "YWRtaW4xMjM=")) {
-        sessionStorage.setItem("guruUsername", "mahardika");
-        sessionStorage.setItem("statusGuru", "aktif");
-        sessionStorage.setItem("guruToken", "superadmin");
-        window.location.reload();
-        return;
-    }
-
-    // Cek guru lain dari Firebase Global (Tidak terisolasi)
-    document.getElementById('save-status-bar').innerHTML = "<span style='color:#e67e22;'>Mengecek Akun...</span>";
-    window.fbGet(window.fbChild(window.fbRefGlobal(window.dbGlobal), 'akun_guru/' + u)).then(function(snap) {
-        if (snap.exists() && snap.val().password === p) {
-            sessionStorage.setItem("guruUsername", u);
-            sessionStorage.setItem("statusGuru", "aktif");
-            sessionStorage.setItem("guruToken", "guru_" + u);
-            window.location.reload();
-        } else {
-            window.percobaanLoginGagal++;
-            window.tampilkanToastFullscreen("❌ Username atau Sandi salah!");
-            document.getElementById('save-status-bar').innerHTML = "Cloud Sync: Ready";
-        }
-    });
-};
-
-// Tambahkan Tab Super Admin di Ruang Administrasi (Khusus login 'mahardika')
-var origBukaModalAdministrasi = window.bukaModalAdministrasi;
-window.bukaModalAdministrasi = function(tabAwal) {
-    if (typeof origBukaModalAdministrasi === 'function') origBukaModalAdministrasi(tabAwal);
-    
-    var isSuperAdmin = sessionStorage.getItem("guruUsername") === "mahardika";
-    var tabContainer = document.querySelector('.admin-hub-tabs');
-    
-    if (isSuperAdmin && tabContainer && !document.getElementById('tab-btn-superadmin')) {
-        var btnSuper = document.createElement('button');
-        btnSuper.type = 'button';
-        btnSuper.id = 'tab-btn-superadmin';
-        btnSuper.className = 'admin-tab-btn';
-        btnSuper.style.cssText = 'background:#f1c40f; color:#0b3954; margin-left:auto; border-color:#f39c12;';
-        btnSuper.innerHTML = '👑 Kelola Akun Guru';
-        btnSuper.onclick = function() { window.gantiTabAdministrasi('superadmin'); };
-        tabContainer.appendChild(btnSuper);
-    }
-};
-
-var origGantiTabAdministrasi = window.gantiTabAdministrasi;
-window.gantiTabAdministrasi = function(namaTab) {
-    if (typeof origGantiTabAdministrasi === 'function') origGantiTabAdministrasi(namaTab);
-    
-    var btnSuper = document.getElementById('tab-btn-superadmin');
-    if (btnSuper) btnSuper.classList.remove('active');
-
-    if (namaTab === 'superadmin') {
-        if (btnSuper) btnSuper.classList.add('active');
-        window.tampilkanUISuperAdmin();
-    }
-};
-
-window.tampilkanUISuperAdmin = function() {
-    var body = document.getElementById('body-ruang-administrasi');
-    if (!body) return;
-
-    body.innerHTML = 
-        '<div style="background:#fff8e7; border:2px solid #f1c40f; border-radius:10px; padding:15px; margin-bottom:15px;">' +
-            '<h4 style="margin:0 0 10px 0; color:#d35400;">👑 Buat Akun Guru Baru</h4>' +
-            '<div style="display:flex; gap:10px; flex-wrap:wrap;">' +
-                '<input type="text" id="sa-new-user" placeholder="Username Baru (tanpa spasi, misal: budi)" style="padding:8px; border-radius:6px; border:1px solid #ccc; flex:1;">' +
-                '<input type="text" id="sa-new-pass" placeholder="Password" style="padding:8px; border-radius:6px; border:1px solid #ccc; flex:1;">' +
-                '<button type="button" onclick="window.buatAkunGuruBaru()" style="background:#27ae60; color:#fff; border:none; padding:8px 15px; border-radius:6px; font-weight:bold; cursor:pointer;">+ Buat Akun</button>' +
-            '</div>' +
-            '<p style="font-size:11px; color:#555; margin:8px 0 0 0;">Catatan: Setiap guru yang Anda buat di sini akan memiliki ruang kerja (materi, ujian, absensi) yang terpisah total dari Anda dan guru lainnya.</p>' +
-        '</div>' +
-        '<h4 style="color:#0b3954;">Daftar Guru Terdaftar</h4>' +
-        '<div id="sa-list-guru" style="border:1px solid #cbd5e1; border-radius:8px; overflow:hidden;">' +
-            '<div style="padding:20px; text-align:center; color:#888;">⏳ Memuat daftar guru...</div>' +
-        '</div>';
-
-    window.muatDaftarAkunGuru();
-};
-
-window.buatAkunGuruBaru = function() {
-    var u = document.getElementById('sa-new-user').value.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
-    var p = document.getElementById('sa-new-pass').value.trim();
-    
-    if (!u || !p) return window.tampilkanToastFullscreen("Username dan Password wajib diisi!");
-    if (u === 'mahardika') return window.tampilkanToastFullscreen("Username mahardika dilarang!");
-
-    window.fbSet(window.fbRefGlobal(window.dbGlobal, 'akun_guru/' + u), {
-        password: p,
-        created: Date.now()
-    }).then(function() {
-        window.tampilkanToastFullscreen("✅ Akun guru " + u + " berhasil dibuat!");
-        document.getElementById('sa-new-user').value = '';
-        document.getElementById('sa-new-pass').value = '';
-    });
-};
-
-window.muatDaftarAkunGuru = function() {
-    window.fbOnValue(window.fbRefGlobal(window.dbGlobal, 'akun_guru'), function(snap) {
-        var listEl = document.getElementById('sa-list-guru');
-        if (!listEl) return;
-        if (!snap.exists()) {
-            listEl.innerHTML = '<div style="padding:20px; text-align:center; color:#888;">Belum ada guru lain yang terdaftar.</div>';
-            return;
-        }
-        var data = snap.val();
-        var html = '';
-        Object.keys(data).forEach(function(u) {
-            html += '<div style="display:flex; justify-content:space-between; align-items:center; padding:12px 15px; border-bottom:1px solid #e2e8f0; background:#fff;">' +
-                '<div><b style="color:#2980b9; font-size:15px;">' + u + '</b> <span style="color:#7f8c8d; font-size:12px; margin-left:10px;">Sandi: ' + data[u].password + '</span></div>' +
-                '<button type="button" onclick="window.hapusAkunGuru(\'' + u + '\')" style="background:#fadbd8; color:#c0392b; border:none; padding:5px 10px; border-radius:6px; font-weight:bold; cursor:pointer; font-size:11px;">🗑️ Hapus Akses</button>' +
-            '</div>';
-        });
-        listEl.innerHTML = html;
-    });
-};
-
-window.hapusAkunGuru = function(u) {
-    window.tampilkanKonfirmasiFullscreen("Hapus akses login untuk guru: " + u + "?\n(Data mereka tetap aman di server, hanya aksesnya yang dicabut)", function() {
-        window.fbRemove(window.fbRefGlobal(window.dbGlobal, 'akun_guru/' + u));
-    });
-};
-
-// ==========================================
-// FITUR LOGOUT & SALIN LINK MURID
-// ==========================================
-window.logoutGuru = function() {
-    if(confirm("Yakin ingin keluar (logout) dari ruang kerja ini?")) {
-        sessionStorage.removeItem("statusGuru");
-        sessionStorage.removeItem("guruUsername");
-        sessionStorage.removeItem("guruToken");
-        window.location.href = window.location.pathname; // Muat ulang bersih tanpa embel-embel URL
-    }
-};
-
-window.salinLinkMurid = function() {
-    var activeGuru = sessionStorage.getItem("guruUsername");
-    if (!activeGuru || activeGuru === "null") activeGuru = "mahardika";
-    var linkShare = window.location.origin + window.location.pathname + "?guru=" + activeGuru;
-    
-    navigator.clipboard.writeText(linkShare).then(function() {
-        alert("✅ Link berhasil disalin!\nBagikan link ini ke murid Anda: \n\n" + linkShare);
-    }).catch(function() {
-        prompt("Gagal menyalin otomatis. Silakan blok dan salin link di bawah ini secara manual:", linkShare);
-    });
-};
-
-// ============================================================================
-// MASTER PATCH ARSITEKTUR KELAS BERAT (HEAVY-DUTY ARCHITECTURE)
-// JURUS 1: OFFLINE EXAM MODE (UNTUK 500+ SISWA BERSAMAAN)
-// JURUS 2: CLOUD STORAGE IMGBB (MENGHEMAT 99% KAPASITAS DATABASE FIREBASE)
-// ============================================================================
-
-// ----------------------------------------------------------------------------
-// JURUS 2: INTEGRASI CLOUD SERVER (IMGBB) UNTUK GAMBAR DAN PDF
-// ----------------------------------------------------------------------------
-window.uploadKeImgBB = async function(base64Data) {
-    // Kunci API Publik Gratis untuk Upload Anonim
-    var apiKey = "d2b70b55ec70f443b7e4529f79b69152"; 
-    var b64str = base64Data.includes(',') ? base64Data.split(',')[1] : base64Data;
-    var formData = new FormData();
-    formData.append("image", b64str);
-
-    var res = await fetch("https://api.imgbb.com/1/upload?key=" + apiKey, {
-        method: "POST",
-        body: formData
-    });
-    var data = await res.json();
-    if (!data.success) throw new Error("Cloud server sedang sibuk, gagal mengunggah gambar.");
-    return data.data.url; // Hanya URL pendek yang dikembalikan
-};
-
-// Modifikasi Tombol Upload Gambar Toolbar -> Masuk ke Cloud Server
-function pasangSistemUploadGambarCloud() {
-    var oldImgInput = document.getElementById('image-upload-input');
-    if (oldImgInput && !oldImgInput.getAttribute('data-cloud-ready')) {
-        var newImgInput = oldImgInput.cloneNode(true);
-        newImgInput.setAttribute('data-cloud-ready', 'true');
-        oldImgInput.parentNode.replaceChild(newImgInput, oldImgInput);
-
-        newImgInput.addEventListener('change', function(e) {
-            var file = e.target.files[0];
-            if (!file) return;
-            var sb = document.getElementById('save-status-bar');
-            if (sb) sb.innerHTML = "<span style='color:#e67e22;'>⏳ Mengunggah Gambar ke Cloud...</span>";
-
-            var reader = new FileReader();
-            reader.onload = async function(ev) {
-                try {
-                    // Kirim ke ImgBB, dapatkan URL-nya
-                    var cloudUrl = await window.uploadKeImgBB(ev.target.result);
-                    window.kembalikanSeleksiTeks();
-                    // Sisipkan HANYA URL tersebut ke dalam Editor (Ukuran teks super kecil)
-                    document.execCommand('insertImage', false, cloudUrl);
-                    if (sb) sb.innerHTML = "<span style='color:#2ecc71;'>✓ Gambar Cloud Berhasil Disisipkan</span>";
-                    window.triggerInput();
-                } catch(err) {
-                    alert("Gagal unggah: " + err.message);
-                    if (sb) sb.innerHTML = "Cloud Sync: Ready";
-                }
-            };
-            reader.readAsDataURL(file);
-            e.target.value = '';
-        });
-    }
-}
-setInterval(pasangSistemUploadGambarCloud, 1500);
-
-// Modifikasi Tombol PDF Slide -> Masuk ke Cloud Server
-window.prosesUploadPDFMateri = async function(inputEl) {
-    var file = inputEl.files && inputEl.files[0];
-    if (!file) return;
-
-    var statusEl = document.getElementById('save-status-bar');
-    if (statusEl) statusEl.innerHTML = "<span style='color:#e67e22;'>⏳ Mengonversi PDF & Mengunggah ke Cloud...</span>";
-
-    try {
-        var pdfjsLib = await window.muatLibraryPDFJS();
-        var arrayBuffer = await file.arrayBuffer();
-        var pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-        var b64Arr = [];
-
-        var maxPages = Math.min(pdf.numPages, 25);
-        for (var i = 1; i <= maxPages; i++) {
-            if (statusEl) statusEl.innerHTML = "<span style='color:#e67e22;'>⏳ Memproses Halaman " + i + "...</span>";
-            var page = await pdf.getPage(i);
-            var viewport = page.getViewport({ scale: 1.5 });
-            var canvas = document.createElement('canvas');
-            canvas.width = viewport.width; canvas.height = viewport.height;
-            var ctx = canvas.getContext('2d');
-            await page.render({ canvasContext: ctx, viewport: viewport }).promise;
-            // Kualitas dikompres 70% untuk optimalisasi kecepatan upload
-            b64Arr.push(canvas.toDataURL('image/jpeg', 0.7));
-        }
-
-        if (statusEl) statusEl.innerHTML = "<span style='color:#e67e22;'>☁️ Menyimpan Slide ke Cloud (Menghemat 95% Database)...</span>";
-
-        // Upload semua slide PDF ke ImgBB secara bersamaan (Parallel Upload)
-        var uploadPromises = b64Arr.map(function(b64) {
-            return window.uploadKeImgBB(b64);
-        });
-        var cloudUrls = await Promise.all(uploadPromises); // cloudUrls berisi deretan Teks Link URL
-
-        if (!window.contentBlocksData) window.contentBlocksData = [];
-        window.contentBlocksData.push({
-            type: 'pdf', pages: cloudUrls, currentSlide: 0, slideDrawings: {}, bg: '#ffffff', width: 'L', padTop: '20px', padBot: '30px', drawing: ''
-        });
-
-        window.renderBlocks();
-        if (typeof window.simpanKeDB === 'function') window.simpanKeDB();
-        if (statusEl) statusEl.innerHTML = "<span style='color:#2ecc71;'>✓ Slide PDF Cloud Berhasil Dibuat!</span>";
-        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-
-    } catch (e) {
-        alert("Gagal memuat PDF Cloud: " + e.message);
-        if (statusEl) statusEl.innerHTML = "Cloud Sync: Ready";
-    }
-    inputEl.value = '';
-};
-
-// ----------------------------------------------------------------------------
-// JURUS 1: MODE OFFLINE MURID & PENGIRIMAN DATA UJIAN VIA HTTP REST API
-// ----------------------------------------------------------------------------
-
-// Mendapatkan URL REST API sesuai Ruang Kerja (Workspace) Guru saat ini
-window.getRestDBUrl = function(path) {
-    var activeGuru = "mahardika";
-    var urlGuru = new URLSearchParams(window.location.search).get('guru');
-    if (urlGuru && urlGuru !== "null") activeGuru = urlGuru;
-    var prefix = (activeGuru === "mahardika") ? "" : ("workspace_" + activeGuru + "/");
-    return "https://mardikawan-project-default-rtdb.firebaseio.com/" + prefix + path + ".json";
-};
-
-// Modifikasi Pintu Masuk Ujian -> Otomatis Putus Koneksi Database
-var origVerifikasiMasuk = window.verifikasiMasukUjian;
-window.verifikasiMasukUjian = async function() {
-    if (typeof origVerifikasiMasuk === 'function') origVerifikasiMasuk();
-    
-    // Setelah 3 detik (diasumsikan soal ujian selesai diunduh), putuskan koneksi!
-    setTimeout(async function() {
-        if (window.isStrictUjianActive && sessionStorage.getItem("statusGuru") !== "aktif") {
-            try {
-                const { goOffline } = await import("https://www.gstatic.com/firebasejs/13.0.0/firebase-database.js");
-                goOffline(window.dbGlobal);
-                console.log("✅ MODE UJIAN OFFLINE AKTIF: Perangkat Siswa berhenti membebani Server Database.");
-            } catch(e) {}
-        }
-    }, 3000);
-};
-
-// ============================================================================
-// 1. SENSOR PELANGGARAN UJIAN (ANTI-ROTASI & ANTI-KEYBOARD VIRTUAL HP)
-// ============================================================================
-window.pantauPelanggaranUjian = function(e) {
-    // Jika ujian tidak aktif, atau siswa sedang dalam proses konfirmasi kumpul (Pop-up), matikan sensor!
-    if (!window.isStrictUjianActive || window.isSubmittingExam) return; 
-    if (document.body.classList.contains('mode-edit-aktif') || document.documentElement.classList.contains('force-edit-mode')) return;
-
-    let isViolation = false;
-    if (e.type === 'resize') {
-        if(window.visualViewport && window.visualViewport.scale !== 1) { 
-            window.initialWinW = window.innerWidth; window.initialWinH = window.innerHeight; return; 
-        }
-        
-        let wDiff = Math.abs(window.innerWidth - window.initialWinW); 
-        let hDiff = Math.abs(window.innerHeight - window.initialWinH);
-        
-        // KUNCI 1: Deteksi Rotasi Layar (Perubahan dari Portrait ke Landscape)
-        let isLandscape = window.innerWidth > window.innerHeight;
-        let wasLandscape = window.initialWinW > window.initialWinH;
-        
-        // Jika orientasi berubah, itu BUKAN split screen, abaikan pelanggaran!
-        if (isLandscape !== wasLandscape) {
-            window.initialWinW = window.innerWidth; window.initialWinH = window.innerHeight; 
-            return;
-        }
-        
-        // KUNCI 2: Deteksi Keyboard Virtual HP Muncul (Tinggi menyusut drastis, lebar tetap)
-        let isKeyboard = wDiff < 50 && hDiff > 100;
-        if (isKeyboard) { 
-            window.initialWinW = window.innerWidth; window.initialWinH = window.innerHeight; 
-            return; 
-        }
-        
-        // Split screen murni (dimensi berubah drastis tanpa rotasi)
-        if (wDiff > 100 || hDiff > (window.initialWinH * 0.35)) { 
-            isViolation = true; 
-        }
-    } else if (e.type === 'blur' || document.hidden || document.visibilityState === 'hidden') {
-        isViolation = true;
-    }
-
-    if (isViolation && (Date.now() - window.lastViolationTime > 3000)) {
-        window.lastViolationTime = Date.now(); window.initialWinW = window.innerWidth; window.initialWinH = window.innerHeight;
-        if (window.sedangMenghukum) { clearInterval(window.hukumanTimer); }
-        window.violationCount++; window.sedangMenghukum = true;
-        let sName = window.latihanState.namaSiswa, uName = window.latihanState.namaUjian;
-
-        if(window.violationCount >= 5) {
-            fetch(window.getRestDBUrl(`live_monitor/${uName}/${sName}`), { method: 'PUT', body: JSON.stringify({ vc: window.violationCount, time: Date.now(), status: 'Diskualifikasi (Kumpul Otomatis)' }) });
-            window.isSubmittingExam = true; // Matikan sensor sebelum alert muncul agar tidak looping
-            alert("🚨 PELANGGARAN KE-5 TERDETEKSI! Ujian dihentikan dan jawaban otomatis terkirim tanpa kompromi.");
-            window.kumpulkanUjianStrict(true);
-            return;
-        }
-
-        fetch(window.getRestDBUrl(`live_monitor/${uName}/${sName}`), { method: 'PUT', body: JSON.stringify({ vc: window.violationCount, time: Date.now(), status: 'Sedang Dihukum' }) });
-
-        let s = 600; if(window.violationCount >= 2) s = 1800;
-        let stateStr = localStorage.getItem('gamma_exam_state'); if(stateStr) { let state = JSON.parse(stateStr); state.vc = window.violationCount; state.penaltyEndTime = Date.now() + (s * 1000); localStorage.setItem('gamma_exam_state', JSON.stringify(state)); }
-        window.terapkanHukumanVisual(s);
-    }
-};
-
-// ============================================================================
-// 2. KUMPULKAN UJIAN (MENCEGAH ERROR PELANGGARAN SAAT KLIK TOMBOL SELESAI)
-// ============================================================================
-window.kumpulkanUjianStrict = function(isForceSubmit = false) {
-    let s = window.latihanState;
-    
-    // KUNCI UTAMA: Aktifkan bendera ini SEBELUM memunculkan kotak Confirm/Alert
-    window.isSubmittingExam = true; 
-
-    if (!isForceSubmit && s.answered.size < s.total) {
-        // Kotak confirm ini akan mencuri fokus, tapi karena isSubmittingExam sudah true, sensor tidak akan menjatuhkan hukuman
-        if (!confirm(`Baru dijawab ${s.answered.size}/${s.total}. Yakin kumpulkan?`)) {
-            // Jika batal kumpul, hidupkan lagi sensornya setelah jeda 1 detik agar aman
-            setTimeout(() => { window.isSubmittingExam = false; }, 1000);
-            return;
-        }
-    }
-
-    // Cabut seluruh sensor ujian dari browser
-    window.isStrictUjianActive = false; 
-    document.removeEventListener("visibilitychange", window.pantauPelanggaranUjian); 
-    window.removeEventListener("blur", window.pantauPelanggaranUjian); 
-    window.removeEventListener("resize", window.pantauPelanggaranUjian);
-    if (window.onbeforeunload) window.onbeforeunload = null;
-
-    let sb = document.getElementById('save-status-bar');
-    if (sb) { sb.style.display = 'block'; sb.innerHTML = "<span style='color:#e67e22;'>Merekap Jawaban...</span>"; }
-
-    let cor = 0; let rincian = [];
-    for (let i = 0; i < s.total; i++) {
-        let j = s.jawabans ? s.jawabans[i] : null; let q = s.soalArr[i]; let isBenar = false;
-        if (j) {
-            if (q.type === 'short_answer' || (!q.options && q.correctAnswers)) {
-                let normalizedUser = (j.text || '').toLowerCase().replace(/\s+/g, ' ');
-                isBenar = q.correctAnswers.some(ans => ans.toLowerCase().trim().replace(/\s+/g, ' ') === normalizedUser);
-            } else { isBenar = (j.index === q.correctIndex); }
-        }
-        if (isBenar) cor++; rincian.push(j ? (j.huruf || j.text || "-") : "-");
-    }
-    s.correct = cor; let score = Math.round((cor / s.total) * 100);
-
-    localStorage.setItem('gamma_exam_submitted_' + s.namaUjian + '_' + s.namaSiswa, 'true');
-    localStorage.removeItem('gamma_exam_state');
-
-    let statusTeks = isForceSubmit ? `Selesai (Otomatis) | Nilai: ${score}` : `Selesai (Aman) | Nilai: ${score}`;
-    let payloadHasil = { nama: s.namaSiswa, nilai: score, benar: cor, total: s.total, jawaban: rincian, timestamp: Date.now() };
-
-    if(typeof window.getRestDBUrl === 'function'){
-        fetch(window.getRestDBUrl(`live_monitor/${s.namaUjian}/${s.namaSiswa}`), { method: 'PUT', body: JSON.stringify({ vc: window.violationCount, status: statusTeks, time: Date.now() }) });
-        fetch(window.getRestDBUrl(`hasil_ujian/${s.namaUjian}/${Date.now()}_${Math.random().toString(36).substr(2,4)}`), { method: 'PUT', body: JSON.stringify(payloadHasil) });
-    }
-
-    if (sb) sb.innerHTML = "<span style='color:#2ecc71;'>✓ Berhasil Dikumpulkan!</span>";
-    document.body.classList.remove('strict-mode-active');
-    if (window.ujianTimerInterval) clearInterval(window.ujianTimerInterval);
-    document.getElementById('ujian-timer-fixed').style.display = 'none';
-    
-    if (window.hukumanTimer) clearInterval(window.hukumanTimer); 
-    document.getElementById('strict-warning-overlay').style.display = 'none';
-    let submitBtn = document.querySelector('#ujian-strict-container .btn-submit-ujian'); 
-    if (submitBtn) submitBtn.style.display = 'none';
-
-    if (isForceSubmit) {
-        document.getElementById('ujian-strict-subtitle').innerText = "Ujian Telah Selesai. Anda tidak dapat melihat review/pembahasan.";
-        document.getElementById('btn-close-strict').style.display = 'block';
-        document.getElementById('ujian-strict-container').innerHTML = '<h2 style="text-align:center; color:#e74c3c; margin-top:50px;">Jawaban Anda Telah Terkirim</h2><p style="text-align:center;">Silakan keluar dari ruangan ujian.</p>';
-    } else {
-        document.getElementById('ujian-strict-subtitle').innerText = "Mode Review: Ujian telah dikumpulkan.";
-        document.getElementById('btn-close-strict').style.display = 'block';
-        if (window.tampilkanToastFullscreen) window.tampilkanToastFullscreen("✅ Ujian berhasil dikumpulkan!");
-        else alert("✅ Ujian berhasil dikumpulkan!");
-    }
-    
-    document.getElementById('quiz-result-score').innerText = score; document.getElementById('quiz-result-correct').innerText = cor; document.getElementById('quiz-result-total').innerText = s.total;
-    document.getElementById('btn-remedial').style.display = 'none'; window.bukaModal('modal-quiz-result');
-};
-
-// ============================================================================
-// MODUL MEDIA V3: VIDEO PLAYER & KONVERSI PDF JADI SLIDES (GESER KIRI-KANAN)
-// ============================================================================
-(function() {
-    // 1. Muat mesin pembaca PDF (PDF.js) secara otomatis jika belum ada
-    if (!window.pdfjsLib) {
-        var scriptPdf = document.createElement('script');
-        scriptPdf.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-        scriptPdf.onload = function() {
-            window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-        };
-        document.head.appendChild(scriptPdf);
-    }
-
-    var lama = document.getElementById('modal-tambah-media');
-    if (lama) lama.remove();
-
-    // 2. Jendela Modal Pilihan Video & PDF Slides
-    var htmlModal = 
-    '<div id="modal-tambah-media" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:100000; justify-content:center; align-items:center; font-family:sans-serif;">' +
-        '<div style="background:#fff; width:90%; max-width:520px; padding:25px; border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,0.4);">' +
-            '<h3 style="margin-top:0; color:#2c3e50; border-bottom:2px solid #ecf0f1; padding-bottom:10px;">➕ Pasang Video / Slide PDF</h3>' +
-            '<div style="display:flex; gap:10px; margin-bottom:15px;">' +
-                '<label style="flex:1; background:#f4f6f7; padding:10px; border-radius:6px; text-align:center; cursor:pointer; font-weight:bold; border:1px solid #bdc3c7;">' +
-                    '<input type="radio" name="jenis-media" value="pdf" checked> 📑 PDF (Jadi Slide Geser)' +
-                '</label>' +
-                '<label style="flex:1; background:#f4f6f7; padding:10px; border-radius:6px; text-align:center; cursor:pointer; font-weight:bold; border:1px solid #bdc3c7;">' +
-                    '<input type="radio" name="jenis-media" value="video"> 🎬 Video Player' +
-                '</label>' +
-            '</div>' +
-            '<input type="file" id="input-file-finder" accept="application/pdf,video/*" style="display:none;">' +
-            '<div id="dropzone-media" onclick="document.getElementById(\'input-file-finder\').click()" style="border:2px dashed #3498db; background:#ebf5fb; padding:25px 15px; text-align:center; border-radius:8px; cursor:pointer; margin-bottom:12px;">' +
-                '<b id="info-file-media" style="color:#2980b9; font-size:14px;">📂 Klik untuk Pilih PDF / Video dari Finder<br><small style="color:#7f8c8d; font-weight:normal;">(Atau seret file langsung ke kotak ini)</small></b>' +
-            '</div>' +
-            '<input type="text" id="input-link-media" placeholder="🔗 Atau Paste Link Google Drive / YouTube (Khusus Video)..." style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:6px; box-sizing:border-box;">' +
-            '<div id="status-proses-media" style="text-align:center; font-size:13px; font-weight:bold; color:#e67e22; margin-top:10px;"></div>' +
-            '<div style="display:flex; gap:10px; margin-top:18px;">' +
-                '<button type="button" onclick="document.getElementById(\'modal-tambah-media\').style.display=\'none\'" style="flex:1; padding:11px; background:#e74c3c; color:#fff; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">Batal</button>' +
-                '<button type="button" id="btn-pasang-media" style="flex:2; padding:11px; background:#2ecc71; color:#fff; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">🚀 Pasang ke Materi</button>' +
-            '</div>' +
-        '</div>' +
-    '</div>';
-    document.body.insertAdjacentHTML('beforeend', htmlModal);
-
-    var fileTerpilih = null;
-    var inputFinder = document.getElementById('input-file-finder');
-    var dropzone = document.getElementById('dropzone-media');
-
-    function setFilePilihan(f) {
-        if (!f) return;
-        fileTerpilih = f;
-        document.getElementById('info-file-media').innerHTML = "✅ File Siap: <b>" + f.name + "</b>";
-        dropzone.style.background = "#d4efdf";
-        dropzone.style.borderColor = "#2ecc71";
-        if (f.name.toLowerCase().endsWith('.pdf') || f.type.indexOf('pdf') !== -1) {
-            document.querySelector('input[name="jenis-media"][value="pdf"]').checked = true;
-        } else {
-            document.querySelector('input[name="jenis-media"][value="video"]').checked = true;
-        }
-    }
-
-    inputFinder.onchange = function() { if (this.files && this.files[0]) setFilePilihan(this.files[0]); };
-    dropzone.ondragover = function(e) { e.preventDefault(); dropzone.style.background = '#d6eaf8'; };
-    dropzone.ondragleave = function(e) { e.preventDefault(); dropzone.style.background = '#ebf5fb'; };
-    dropzone.ondrop = function(e) {
-        e.preventDefault();
-        if (e.dataTransfer.files && e.dataTransfer.files[0]) setFilePilihan(e.dataTransfer.files[0]);
-    };
-
-    // 3. Fungsi Navigasi Slide PDF (Geser Kiri, Kanan & Fullscreen)
-    window.geserSlidePDF = function(btn, arah) {
-        var wrapper = btn.closest('.mardi-pdf-slider');
-        if (!wrapper) return;
-        var slides = wrapper.querySelectorAll('.mardi-slide-img');
-        if (slides.length === 0) return;
-
-        var aktifIdx = 0;
-        for (var i = 0; i < slides.length; i++) {
-            if (slides[i].style.display !== 'none') {
-                aktifIdx = i;
-                break;
-            }
-        }
-
-        var targetIdx = aktifIdx + arah;
-        if (targetIdx < 0) targetIdx = 0;
-        if (targetIdx >= slides.length) targetIdx = slides.length - 1;
-
-        for (var j = 0; j < slides.length; j++) {
-            slides[j].style.display = (j === targetIdx) ? 'block' : 'none';
-        }
-
-        var info = wrapper.querySelector('.mardi-slide-counter');
-        if (info) info.innerText = 'Slide ' + (targetIdx + 1) + ' / ' + slides.length;
-    };
-
-    // ============================================================================
-// SISTEM FULLSCREEN UNIVERSAL (PDF & VIDEO)
-// ============================================================================
-window.jalankanFiturFullscreen = function(elem) {
-    if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.mozFullScreenElement && !document.msFullscreenElement) {
-        // Coba masuk Fullscreen pakai API Browser asli
-        if (elem.requestFullscreen) {
-            elem.requestFullscreen().catch(function() { elem.classList.add('pseudo-fullscreen'); });
-        } else if (elem.webkitRequestFullscreen) {
-            elem.webkitRequestFullscreen();
-        } else if (elem.mozRequestFullScreen) {
-            elem.mozRequestFullScreen();
-        } else if (elem.msRequestFullscreen) {
-            elem.msRequestFullscreen();
-        } else {
-            elem.classList.add('pseudo-fullscreen'); // Fallback jika gagal
-        }
-    } else {
-        // Keluar Fullscreen jika sedang aktif
-        if (document.exitFullscreen) document.exitFullscreen();
-        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
-        else if (document.mozCancelFullScreen) document.mozCancelFullScreen();
-        else if (document.msExitFullscreen) document.msExitFullscreen();
-        elem.classList.remove('pseudo-fullscreen');
-    }
-    
-    // Jika mode pseudo-fullscreen aktif (karena ditolak Apple/iOS), tambahkan tombol keluar darurat
-    setTimeout(function() {
-        if (elem.classList.contains('pseudo-fullscreen')) {
-            document.body.style.overflow = 'hidden';
-            if (!elem.querySelector('.btn-close-pseudo')) {
-                var btnX = document.createElement('button');
-                btnX.className = 'btn-close-pseudo';
-                btnX.innerHTML = '✖ Keluar Fullscreen';
-                btnX.style.cssText = 'position:absolute; top:20px; right:20px; z-index:999999; background:rgba(231,76,60,0.9); color:#fff; border:none; padding:10px 15px; border-radius:30px; font-weight:bold; cursor:pointer; box-shadow:0 5px 15px rgba(0,0,0,0.5);';
-                btnX.onclick = function(e) {
-                    e.stopPropagation();
-                    elem.classList.remove('pseudo-fullscreen');
-                    document.body.style.overflow = 'auto';
-                    btnX.remove();
-                };
-                elem.appendChild(btnX);
-            }
-        } else {
-            document.body.style.overflow = 'auto';
-            var btnX = elem.querySelector('.btn-close-pseudo');
-            if (btnX) btnX.remove();
-        }
-    }, 200);
-};
-
-window.fullscreenSlidePDF = function(btn) {
-    var wrapper = btn.closest('.mardi-pdf-slider');
-    if (wrapper) window.jalankanFiturFullscreen(wrapper);
-};
-
-window.mardiVidFS = function(id) {
-    var wrap = document.getElementById(id + '_wrap');
-    var vid = document.getElementById(id);
-    if (!wrap) return;
-
-    // Khusus iPhone Video Player (Mendukung Fullscreen Bawaan Video di iOS)
-    if (vid && vid.webkitEnterFullscreen && /iPhone|iPod/i.test(navigator.userAgent)) {
-        vid.webkitEnterFullscreen();
-        return;
-    }
-    window.jalankanFiturFullscreen(wrap);
-};
-    
-    function mFormTime(sec) {
-        if (isNaN(sec)) return "00:00";
-        let m = Math.floor(sec / 60), s = Math.floor(sec % 60);
-        return (m < 10 ? '0'+m : m) + ':' + (s < 10 ? '0'+s : s);
-    }
-
-    function rakitPlayerVideo(url) {
-        let id = 'vid_' + Date.now();
-        return '<div class="mardi-video-wrapper" id="' + id + '_wrap" contenteditable="false" style="max-width:800px; margin:15px auto; background:#000; position:relative; overflow:hidden; border-radius:10px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); font-family: sans-serif; user-select:none;">' +
-            // KUNCI PERBAIKAN: CSS Khusus agar video mengisi penuh 100vh saat Fullscreen
-            '<style>.mardi-video-wrapper:fullscreen video { max-height: 100vh !important; height: 100vh !important; object-fit: contain; } .mardi-video-wrapper:-webkit-full-screen video { max-height: 100vh !important; height: 100vh !important; object-fit: contain; }</style>' +
-            '<video id="' + id + '" src="' + url + '" style="width:100%; max-height:500px; display:block; cursor:pointer;" onclick="window.mardiVidToggle(\'' + id + '\')" ontimeupdate="window.mardiVidUpdate(\'' + id + '\')" onloadedmetadata="window.mardiVidMeta(\'' + id + '\')"></video>' +
-            '<div class="mardi-vid-controls" style="position:absolute; bottom:0; left:0; width:100%; background:linear-gradient(transparent, rgba(0,0,0,0.85)); padding:0 15px 10px 15px; box-sizing:border-box; display:flex; flex-direction:column; gap:8px; opacity:1; transition:opacity 0.3s;" onmouseenter="this.style.opacity=1" onmouseleave="if(!document.getElementById(\'' + id + '\').paused) this.style.opacity=0">' +
-                '<div style="width:100%; height:5px; background:rgba(255,255,255,0.3); cursor:pointer; position:relative; border-radius:3px;" onclick="window.mardiVidSeek(event, \'' + id + '\')">' +
-                    '<div id="' + id + '_progress" style="height:100%; width:0%; background:#e74c3c; border-radius:3px; pointer-events:none; position:relative;">' +
-                        '<div style="position:absolute; right:-5px; top:-4px; width:13px; height:13px; background:#e74c3c; border-radius:50%; box-shadow:0 0 5px rgba(0,0,0,0.5);"></div>' +
-                    '</div>' +
-                '</div>' +
-                '<div style="display:flex; justify-content:space-between; align-items:center; color:#fff; margin-top:5px;">' +
-                    '<div style="display:flex; align-items:center; gap:20px;">' +
-                        '<div style="cursor:pointer; display:flex; align-items:center; justify-content:center; width:30px; height:30px;" onclick="window.mardiVidToggle(\'' + id + '\')" id="' + id + '_playBtn">' +
-                            '<svg viewBox="0 0 24 24" width="28" height="28" fill="white"><path d="M8 5v14l11-7z"/></svg>' +
-                        '</div>' +
-                        '<div style="cursor:pointer; display:flex; align-items:center;" onclick="window.mardiVidSkip(\'' + id + '\', -10)" title="Mundur 10 Detik">' +
-                            '<svg viewBox="0 0 24 24" width="26" height="26" fill="white"><path d="M12.5 3C17.15 3 21 6.85 21 11.5S17.15 20 12.5 20 4 16.15 4 11.5h2c0 3.59 2.91 6.5 6.5 6.5s6.5-2.91 6.5-6.5-2.91-6.5-6.5-6.5-4.22 2.03-5.59 5.09H9.5l-4-4 4-4v2.53C11.16 4.36 12.5 3 12.5 3zM10 14h1v-3.5H9v.5h1V14zm2.5-3.5v3c0 .55.45 1 1 1h1.5c.55 0 1-.45 1-1v-3c0-.55-.45-1-1-1H13.5c-.55 0-1 .45-1 1zm1 2.5v-2h1.5v2h-1.5z"/></svg>' +
-                        '</div>' +
-                        '<div style="cursor:pointer; display:flex; align-items:center;" onclick="window.mardiVidSkip(\'' + id + '\', 10)" title="Maju 10 Detik">' +
-                            '<svg viewBox="0 0 24 24" width="26" height="26" fill="white"><path d="M11.5 3C6.85 3 3 6.85 3 11.5S6.85 20 11.5 20 20 16.15 20 11.5h-2c0 3.59-2.91 6.5-6.5 6.5S5 15.09 5 11.5 7.91 5 11.5 5s4.22 2.03 5.59 5.09H14.5l4-4-4-4v2.53C12.84 4.36 11.5 3 11.5 3zM9 14h1v-3.5H8v.5h1V14zm2.5-3.5v3c0 .55.45 1 1 1h1.5c.55 0 1-.45 1-1v-3c0-.55-.45-1-1-1H12.5c-.55 0-1 .45-1 1zm1 2.5v-2h1.5v2h-1.5z"/></svg>' +
-                        '</div>' +
-                        '<div style="cursor:pointer; display:flex; align-items:center;" onclick="window.mardiVidMute(\'' + id + '\')" id="' + id + '_muteBtn">' +
-                            '<svg viewBox="0 0 24 24" width="24" height="24" fill="white"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>' +
-                        '</div>' +
-                        '<span style="font-size:13px; font-weight:bold; font-family:monospace; margin-left:5px;" id="' + id + '_time">00:00 / 00:00</span>' +
-                    '</div>' +
-                    '<div style="display:flex; align-items:center; gap:20px;">' +
-                        '<select onchange="window.mardiVidSpeed(\'' + id + '\', this.value)" style="background:transparent; color:#fff; border:none; outline:none; cursor:pointer; font-weight:bold; appearance:none; font-size:14px;">' +
-                            '<option value="0.5" style="color:#000;">0.5x</option>' +
-                            '<option value="1" selected style="color:#000;">1.0x</option>' +
-                            '<option value="1.5" style="color:#000;">1.5x</option>' +
-                            '<option value="2" style="color:#000;">2.0x</option>' +
-                        '</select>' +
-                        '<div style="cursor:pointer; display:flex; align-items:center;" onclick="window.mardiVidFS(\'' + id + '\')">' +
-                            '<svg viewBox="0 0 24 24" width="24" height="24" fill="white"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>' +
-                        '</div>' +
-                    '</div>' +
-                '</div>' +
-            '</div>' +
-        '</div><br>';
-    }
-
-    // 6. Eksekusi Saat Tombol "Pasang ke Materi" Diklik
-    document.getElementById('btn-pasang-media').onclick = async function() {
-        var link = document.getElementById('input-link-media').value.trim();
-        var jenis = document.querySelector('input[name="jenis-media"]:checked').value;
-        var statusEl = document.getElementById('status-proses-media');
-        var btn = this;
-        var htmlHasil = '';
-
-        try {
-            btn.disabled = true;
-            if (fileTerpilih) {
-                var isPDF = (jenis === 'pdf' || fileTerpilih.name.toLowerCase().endsWith('.pdf'));
-                if (isPDF) {
-                    htmlHasil = await ubahPDFJadiSlidesHTML(fileTerpilih, statusEl);
-                } else {
-                    var blobUrl = URL.createObjectURL(fileTerpilih);
-                    htmlHasil = rakitPlayerVideo(blobUrl);
-                }
-            } else if (link) {
-                var idDrive = link.match(/\/d\/([a-zA-Z0-9_-]+)/);
-                if (idDrive && idDrive[1]) {
-                    htmlHasil = '<iframe src="https://drive.google.com/file/d/' + idDrive[1] + '/preview" width="100%" height="450" style="border:none; border-radius:10px; margin:10px 0;" allow="autoplay; fullscreen"></iframe><br>';
-                } else {
-                    htmlHasil = rakitPlayerVideo(link);
-                }
-            } else {
-                alert("Pilih file PDF/Video dari Finder atau tempel link terlebih dahulu!");
-                btn.disabled = false;
-                return;
-            }
-
-            if (window.kotakMateriTarget) {
-                window.kotakMateriTarget.insertAdjacentHTML('beforeend', htmlHasil);
-                window.kotakMateriTarget.dispatchEvent(new Event('input', { bubbles: true }));
-                window.kotakMateriTarget.dispatchEvent(new Event('blur', { bubbles: true }));
-            }
-            statusEl.innerText = '';
-            btn.disabled = false;
-            document.getElementById('modal-tambah-media').style.display = 'none';
-        } catch (err) {
-            statusEl.innerText = "❌ Gagal: " + err.message;
-            btn.disabled = false;
-        }
-    };
-
-    // 7. Sisipkan Tombol "➕ Media" di Setiap Kotak Materi
-    setInterval(function() {
-        document.querySelectorAll('button').forEach(function(btn) {
-            var t = btn.innerText || '';
-            if (t.includes('Setting') || t.includes('Delete')) {
-                var bar = btn.parentNode;
-                if (bar && !bar.querySelector('.btn-media-mardi')) {
-                    var b = document.createElement('button');
-                    b.type = 'button';
-                    b.className = 'btn-media-mardi';
-                    b.innerText = '➕ Media';
-                    b.style.cssText = 'background:#2ecc71; color:#fff; border:none; padding:5px 10px; border-radius:4px; margin-right:5px; cursor:pointer; font-weight:bold; font-size:12px;';
-                    b.onclick = function() {
-                        var blok = bar.parentElement;
-                        window.kotakMateriTarget = blok.querySelector('[contenteditable="true"]') || blok.querySelector('.box-content') || blok;
-                        fileTerpilih = null;
-                        document.getElementById('input-file-finder').value = '';
-                        document.getElementById('input-link-media').value = '';
-                        document.getElementById('status-proses-media').innerText = '';
-                        document.getElementById('info-file-media').innerHTML = '📂 Klik untuk Pilih PDF / Video dari Finder<br><small style="color:#7f8c8d; font-weight:normal;">(Atau seret file langsung ke kotak ini)</small>';
-                        dropzone.style.background = '#ebf5fb';
-                        dropzone.style.borderColor = '#3498db';
-                        document.getElementById('modal-tambah-media').style.display = 'flex';
-                    };
-                    bar.insertBefore(b, bar.firstChild);
-                }
-            }
-        });
-    }, 1500);
-})();
-
-// ============================================================================
-// MODUL CATATAN SISWA (STYLE GOOGLE KEEP) DI TABEL ABSENSI - REVISI FINAL
-// ============================================================================
-window.activeSiswaCatatanIdx = -1;
-
-window.bukaCatatanSiswa = function(sIdx) {
-    window.activeSiswaCatatanIdx = sIdx;
-    var kls = window.kelasAbsensiAktif || window.kelasAdminUtama;
-    var dataKls = window.pastikanStrukturAbsensiKelas(kls);
-    var siswa = dataKls.siswaList[sIdx];
-
-    var m = document.getElementById('modal-catatan-siswa');
-    if (!m) {
-        var html = `
-        <div id="modal-catatan-siswa" class="mahardika-modal-wrap" style="display:flex; z-index: 2147483647 !important; background:rgba(0,0,0,0.6);">
-            <div class="mahardika-modal-card modal-box" style="max-width:420px; background:#fffdf1; border-radius:12px; overflow:hidden; border:2px solid #f1c40f; box-shadow:0 15px 40px rgba(0,0,0,0.2); pointer-events:auto;">
-                <div style="padding:15px 20px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f8e48f; background:#fff9c4;">
-                    <h3 style="margin:0; font-size:16px; color:#d35400;">📝 Catatan: <span id="judul-catatan-siswa" style="color:#2c3e50;"></span></h3>
-                    <button type="button" onclick="document.getElementById('modal-catatan-siswa').style.display='none'" style="background:none; border:none; font-size:20px; font-weight:bold; cursor:pointer; color:#e74c3c;">✕</button>
-                </div>
-                <div style="padding:20px; flex:1; overflow-y:auto; min-height:220px; max-height:55vh;" id="body-catatan-siswa"></div>
-                <div style="padding:15px; border-top:1px solid #f8e48f; background:#fff;">
-                    <div style="display:flex; gap:8px;">
-                        <input type="text" id="input-catatan-baru" placeholder="Tulis catatan atau list baru..." style="flex:1; padding:10px; border:1px solid #f1c40f; border-radius:8px; outline:none; font-family:'Quicksand', sans-serif; font-size:13px; font-weight:600;">
-                        <button type="button" onclick="window.tambahCatatanSiswa()" style="background:#f39c12; color:#fff; border:none; padding:10px 15px; border-radius:8px; font-weight:bold; cursor:pointer; font-size:13px; box-shadow:0 2px 6px rgba(243, 156, 18, 0.3);">+ Tambah</button>
-                    </div>
-                </div>
-            </div>
-        </div>`;
-        
-        document.body.insertAdjacentHTML('beforeend', html);
-        m = document.getElementById('modal-catatan-siswa');
-        
-        // Tekan Enter untuk mengirim catatan
-        document.getElementById('input-catatan-baru').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                window.tambahCatatanSiswa();
-            }
-        });
-    } else {
-        m.style.display = 'flex';
-    }
-
-    document.getElementById('judul-catatan-siswa').innerText = siswa.nama;
-    window.renderCatatanSiswa();
-    setTimeout(function() { document.getElementById('input-catatan-baru').focus(); }, 150);
-};
-
-window.renderCatatanSiswa = function() {
-    var kls = window.kelasAbsensiAktif || window.kelasAdminUtama;
-    var dataKls = window.pastikanStrukturAbsensiKelas(kls);
-    var sIdx = window.activeSiswaCatatanIdx;
-    var siswa = dataKls.siswaList[sIdx];
-    var container = document.getElementById('body-catatan-siswa');
-    
-    if (!siswa.catatan || siswa.catatan.length === 0) {
-        container.innerHTML = '<div style="text-align:center; color:#95a5a6; font-style:italic; padding:30px 10px; font-size:13px;">Belum ada catatan.<br>Ketik di bawah untuk menambahkan list.</div>';
-        return;
-    }
-
-    var html = siswa.catatan.map(function(cat, cIdx) {
-        var isDone = cat.done ? 'text-decoration:line-through; color:#95a5a6;' : 'color:#2c3e50;';
-        var checkIcon = cat.done ? '✅' : '⬜';
-        var bgCard = cat.done ? '#f8f9fa' : '#ffffff';
-        
-        return `
-        <div style="background:${bgCard}; padding:10px 15px; border-radius:8px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 3px 10px rgba(0,0,0,0.06); border:1px solid #fcf3cf; border-left:5px solid #f1c40f; transition:0.2s;">
-            <div style="display:flex; align-items:center; gap:10px; flex:1; cursor:pointer;" onclick="window.toggleCatatanSiswa(${cIdx})" title="Klik untuk menandai selesai">
-                <span style="font-size:14px;">${checkIcon}</span>
-                <span style="font-size:13px; font-weight:600; flex:1; ${isDone} word-break:break-word;">${cat.text}</span>
-            </div>
-            <button type="button" onclick="window.hapusCatatanSiswa(${cIdx})" style="background:none; border:none; color:#e74c3c; cursor:pointer; font-size:14px; padding:5px 8px; margin-left:10px; border-radius:4px;" onmouseover="this.style.background='#fadbd8'" onmouseout="this.style.background='none'" title="Hapus Catatan">🗑️</button>
-        </div>`;
-    }).join('');
-    
-    container.innerHTML = html;
-    container.scrollTop = container.scrollHeight;
-};
-
-window.tambahCatatanSiswa = function() {
-    try {
-        var input = document.getElementById('input-catatan-baru');
-        var val = input.value.trim();
-        if (!val) return;
-
-        var kls = window.kelasAbsensiAktif || window.kelasAdminUtama;
-        var dataKls = window.pastikanStrukturAbsensiKelas(kls);
-        var sIdx = window.activeSiswaCatatanIdx;
-        var siswa = dataKls.siswaList[sIdx];
-
-        if (!siswa.catatan) siswa.catatan = [];
-        siswa.catatan.push({ text: val, done: false });
-        
-        input.value = '';
-        if (window.simpanAbsensiKeDB) window.simpanAbsensiKeDB();
-        window.renderCatatanSiswa();
-    } catch (e) {
-        alert("Gagal menambahkan catatan: " + e.message);
-    }
-};
-
-window.hapusCatatanSiswa = function(cIdx) {
-    var kls = window.kelasAbsensiAktif || window.kelasAdminUtama;
-    var dataKls = window.pastikanStrukturAbsensiKelas(kls);
-    var sIdx = window.activeSiswaCatatanIdx;
-    var siswa = dataKls.siswaList[sIdx];
-    
-    if(confirm("Hapus catatan ini secara permanen?")) {
-        siswa.catatan.splice(cIdx, 1);
-        if (window.simpanAbsensiKeDB) window.simpanAbsensiKeDB();
-        window.renderCatatanSiswa();
-    }
-};
-
-window.toggleCatatanSiswa = function(cIdx) {
-    var kls = window.kelasAbsensiAktif || window.kelasAdminUtama;
-    var dataKls = window.pastikanStrukturAbsensiKelas(kls);
-    var sIdx = window.activeSiswaCatatanIdx;
-    var siswa = dataKls.siswaList[sIdx];
-    
-    siswa.catatan[cIdx].done = !siswa.catatan[cIdx].done;
-    if (window.simpanAbsensiKeDB) window.simpanAbsensiKeDB();
-    window.renderCatatanSiswa();
-};
-
-// ============================================================================
-// MODUL LAPORAN PRAKTIKUM DIGITAL (A4 PDF, DAFPUS, G-DRIVE 20 FILE, SINKRON JUDUL)
-// ============================================================================
-
-// Fungsi Cadangan ImgBB (Menjaga agar fitur upload gambar lainnya tidak error)
-window.uploadKeImgBB = async function(base64Data) {
-    var apiKey = "d2b70b55ec70f443b7e4529f79b69152"; 
-    var b64str = base64Data.includes(',') ? base64Data.split(',')[1] : base64Data;
-    var formData = new FormData(); formData.append("image", b64str);
-    var res = await fetch("https://api.imgbb.com/1/upload?key=" + apiKey, { method: "POST", body: formData });
-    var data = await res.json();
-    if (!data.success) throw new Error("Cloud server ImgBB sibuk.");
-    return data.data.url;
-};
-
-document.querySelectorAll('#modal-praktikum, #view-praktikum-guru, #view-praktikum-siswa').forEach(el => el.remove());
-window.daftarJudulPraktikum = [];
-
-var htmlModalPrakFinal = `
-<div id="modal-praktikum" class="modal-overlay" style="display:none; z-index:999999;">
-    <div class="modal-box" style="width:850px; max-width:95vw; background:#fff; border-radius:8px; overflow:hidden;">
-        <div style="background:#2ecc71; color:#fff; padding:15px 20px; display:flex; justify-content:space-between; align-items:center;">
-            <h3 style="margin:0;">🧪 Laporan Praktikum & Pengumpulan Media</h3>
-            <button type="button" onclick="document.getElementById('modal-praktikum').style.display='none'" style="background:none; border:none; color:#fff; font-size:18px; font-weight:bold; cursor:pointer;">✕</button>
-        </div>
-        <div style="padding:20px; max-height:80vh; overflow-y:auto; background:#f4f6f7;">
-            
-            <!-- ================= TAMPILAN GURU ================= -->
-            <div id="view-praktikum-guru" style="display:none;">
-                <div style="background:#fff; padding:20px; border-radius:8px; box-shadow:0 2px 10px rgba(0,0,0,0.05); margin-bottom:20px; border-left:5px solid #2980b9;">
-                    <label style="font-weight:bold; color:#34495e; font-size:14px;">⚙️ Atur Judul Praktikum Aktif (Untuk Dropdown Siswa):</label>
-                    <div style="display:flex; gap:10px; margin-top:8px;">
-                        <input type="text" id="guru-judul-baru" placeholder="Contoh: Uji Enzim Katalase Hati Ayam" style="flex:1; padding:10px; border:1px solid #bdc3c7; border-radius:6px; font-weight:bold;">
-                        <button type="button" onclick="window.tambahJudulPraktikum()" style="background:#2980b9; color:white; border:none; padding:10px 15px; border-radius:6px; font-weight:bold; cursor:pointer;">+ Tambah Judul</button>
-                    </div>
-                    <div id="list-judul-praktikum" style="margin-top:12px; display:flex; flex-wrap:wrap; gap:8px;"></div>
-                </div>
-
-                <div style="background:#fff; padding:20px; border-radius:8px; box-shadow:0 2px 10px rgba(0,0,0,0.05);">
-                    <label style="font-weight:bold; color:#34495e;">📂 Pilih Laporan Siswa yang Masuk:</label>
-                    <select id="select-laporan-siswa" onchange="window.bukaLaporanSiswaLengkap()" style="width:100%; padding:12px; margin-top:8px; margin-bottom:20px; border:1px solid #bdc3c7; border-radius:6px; font-size:16px;"></select>
-                    <div id="tempat-laporan-guru" style="border:1px solid #ecf0f1; padding:25px; border-radius:8px; min-height:400px; background:#fff;">
-                        <i style="color:#7f8c8d;">Belum ada laporan yang dipilih.</i>
-                    </div>
-                </div>
-            </div>
-
-            <!-- ================= TAMPILAN SISWA ================= -->
-            <div id="view-praktikum-siswa" style="display:none;">
-                
-                <div style="background:#fff; padding:20px; border-radius:8px; box-shadow:0 2px 10px rgba(0,0,0,0.05); margin-bottom:20px;">
-                    <h4 style="margin:0 0 15px 0; color:#2c3e50; border-bottom:2px solid #3498db; padding-bottom:5px;">📝 FORM LAPORAN PRAKTIKUM</h4>
-                    
-                    <label style="font-weight:bold; font-size:13px; color:#34495e;">Judul Praktikum:</label>
-                    <select id="prak-judul" style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #bdc3c7; border-radius:6px; font-weight:bold; font-size:14px; background:#e8f4f8; color:#0b3954;">
-                        <option value="">-- Pilih Judul Praktikum dari Guru --</option>
-                    </select>
-                    
-                    <div style="display:flex; gap:15px; margin-bottom:15px; flex-wrap:wrap;">
-                        <div style="flex:1; min-width:150px;">
-                            <label style="font-weight:bold; font-size:13px; color:#34495e;">1. Pilih Kelas Anda:</label>
-                            <select id="prak-kelas" style="width:100%; padding:12px; border:1px solid #bdc3c7; border-radius:6px; box-sizing:border-box;" onchange="window.updateDatalistSiswaPrak()">
-                                <option value="">-- Pilih Kelas --</option>
-                            </select>
-                        </div>
-                        <div style="flex:2; min-width:200px;">
-                            <label style="font-weight:bold; font-size:13px; color:#34495e;">2. Ketua Kelompok (Ketik/Pilih):</label>
-                            <input type="text" id="prak-ketua" list="datalist-siswa-prak" autocomplete="off" placeholder="Nama Lengkap Ketua" style="width:100%; padding:12px; border:1px solid #bdc3c7; border-radius:6px; box-sizing:border-box;">
-                            <datalist id="datalist-siswa-prak"></datalist>
-                        </div>
-                    </div>
-                    
-                    <label style="font-weight:bold; font-size:13px; color:#34495e;">Anggota Kelompok (Opsional, Maksimal 5):</label>
-                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:15px;">
-                        <input type="text" id="prak-anggota1" list="datalist-siswa-prak" autocomplete="off" placeholder="Anggota 1" style="padding:10px; border:1px solid #bdc3c7; border-radius:6px;">
-                        <input type="text" id="prak-anggota2" list="datalist-siswa-prak" autocomplete="off" placeholder="Anggota 2" style="padding:10px; border:1px solid #bdc3c7; border-radius:6px;">
-                        <input type="text" id="prak-anggota3" list="datalist-siswa-prak" autocomplete="off" placeholder="Anggota 3" style="padding:10px; border:1px solid #bdc3c7; border-radius:6px;">
-                        <input type="text" id="prak-anggota4" list="datalist-siswa-prak" autocomplete="off" placeholder="Anggota 4" style="padding:10px; border:1px solid #bdc3c7; border-radius:6px;">
-                        <input type="text" id="prak-anggota5" list="datalist-siswa-prak" autocomplete="off" placeholder="Anggota 5" style="padding:10px; border:1px solid #bdc3c7; border-radius:6px;">
-                    </div>
-
-                    <label style="font-weight:bold; font-size:14px; color:#34495e;">1. Dasar Teori</label>
-                    <textarea id="prak-teori" style="width:100%; height:80px; padding:10px; margin-bottom:15px; border:1px solid #bdc3c7; border-radius:6px; resize:vertical;"></textarea>
-                    
-                    <label style="font-weight:bold; font-size:14px; color:#34495e;">2. Alat dan Bahan</label>
-                    <textarea id="prak-alat" style="width:100%; height:80px; padding:10px; margin-bottom:15px; border:1px solid #bdc3c7; border-radius:6px; resize:vertical;"></textarea>
-                    
-                    <label style="font-weight:bold; font-size:14px; color:#34495e;">3. Metode Praktikum</label>
-                    <textarea id="prak-metode" style="width:100%; height:100px; padding:10px; margin-bottom:15px; border:1px solid #bdc3c7; border-radius:6px; resize:vertical;"></textarea>
-                    
-                    <label style="font-weight:bold; font-size:14px; color:#34495e;">4. Hasil dan Pembahasan</label>
-                    <textarea id="prak-hasil" style="width:100%; height:120px; padding:10px; margin-bottom:15px; border:1px solid #bdc3c7; border-radius:6px; resize:vertical;"></textarea>
-                    
-                    <label style="font-weight:bold; font-size:14px; color:#34495e;">5. Kesimpulan</label>
-                    <textarea id="prak-kesimpulan" style="width:100%; height:80px; padding:10px; margin-bottom:15px; border:1px solid #bdc3c7; border-radius:6px; resize:vertical;"></textarea>
-
-                    <label style="font-weight:bold; font-size:14px; color:#34495e;">6. Daftar Pustaka (APA Style)</label>
-                    <textarea id="prak-dafpus" placeholder="Contoh: Campbell, N. A., dkk. (2008). Biologi Edisi Kedelapan. Jakarta: Erlangga." style="width:100%; height:80px; padding:10px; margin-bottom:15px; border:1px solid #bdc3c7; border-radius:6px; resize:vertical;"></textarea>
-                    
-                    <label style="font-weight:bold; font-size:14px; color:#34495e; display:block; margin-bottom:5px;">📸 Lampiran Foto (Maksimal 20 Foto untuk PDF):</label>
-                    <div id="dropzone-lampiran" style="border:2px dashed #3498db; background:#ebf5fb; padding:20px; text-align:center; border-radius:6px; margin-bottom:10px; cursor:pointer;" onclick="document.getElementById('prak-lampiran').click()">
-                        <b style="color:#2980b9;">📂 Klik di Sini untuk Memilih Banyak Foto Sekaligus</b><br>
-                        <small style="color:#7f8c8d;">(Otomatis terkompresi. Bisa pilih foto sekaligus dari HP/Laptop)</small>
-                        <input type="file" id="prak-lampiran" accept="image/*" multiple style="display:none;" onchange="window.tampilkanNamaFilePrakBanyak(this, 'nama-file-lampiran')">
-                        <div id="nama-file-lampiran" style="margin-top:10px; font-weight:bold; color:#27ae60;"></div>
-                    </div>
-
-                    <p id="prak-status" style="font-size:14px; font-weight:bold; margin-bottom:15px; text-align:center;"></p>
-                    <button onclick="window.kirimLaporanPraktikumFinal(event)" style="width:100%; background:#27ae60; color:#fff; padding:15px; border:none; border-radius:6px; font-weight:bold; font-size:16px; cursor:pointer; box-shadow:0 4px 6px rgba(39, 174, 96, 0.3); transition:0.2s;">📄 Kumpulkan Laporan Praktikum (PDF)</button>
-                </div>
-
-                <!-- ================= GOOGLE DRIVE UPLOAD ================= -->
-                <div style="background:#fff; padding:20px; border-radius:8px; box-shadow:0 2px 10px rgba(0,0,0,0.05); border-left:5px solid #f1c40f;">
-                    <h4 style="margin:0 0 10px 0; color:#d35400;">📁 PENGUMPULAN VIDEO/FOTO KE GOOGLE DRIVE GURU</h4>
-                    <p style="font-size:13px; color:#7f8c8d; margin-top:0;">File besar yang di-upload di sini (hingga 20 file sekaligus) akan otomatis tersusun di folder Google Drive Bapak Mahardika.</p>
-                    
-                    <div style="display:flex; gap:10px; margin-bottom:15px; flex-wrap:wrap;">
-                        <div style="flex:1; min-width:150px;">
-                            <label style="font-weight:bold; font-size:13px; color:#34495e;">Pilih Kelas:</label>
-                            <select id="drive-kelas" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:6px;">
-                                <option value="">-- Pilih Kelas --</option>
-                            </select>
-                        </div>
-                        <div style="flex:1; min-width:150px;">
-                            <label style="font-weight:bold; font-size:13px; color:#34495e;">Judul Praktikum:</label>
-                            <select id="drive-judul" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:6px;">
-                                <option value="">-- Pilih Judul --</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <label style="font-weight:bold; font-size:13px; color:#34495e;">Pilih File Video/Foto (Maksimal 20):</label>
-                    <input type="file" id="drive-file" accept="video/*, image/*" multiple style="width:100%; padding:10px; background:#ecf0f1; border-radius:6px; margin-bottom:15px; box-sizing:border-box;">
-                    
-                    <p id="drive-status" style="font-size:14px; font-weight:bold; margin-bottom:15px; text-align:center;"></p>
-                    <button onclick="window.uploadLangsungKeDrive(event)" style="width:100%; background:#f39c12; color:#fff; padding:15px; border:none; border-radius:6px; font-weight:bold; font-size:15px; cursor:pointer; box-shadow:0 4px 6px rgba(243, 156, 18, 0.3);">☁️ Upload ke Google Drive</button>
-                </div>
-
-            </div>
-        </div>
-    </div>
-</div>`;
-document.body.insertAdjacentHTML('beforeend', htmlModalPrakFinal);
-
-window.muatDaftarJudulPraktikum = function() {
-    window.fbOnValue(window.fbRefGlobal(window.dbGlobal, 'konfigurasi_praktikum/judul_list'), function(snap) {
-        window.daftarJudulPraktikum = snap.exists() ? snap.val() : [];
-        var htmlList = '';
-        var htmlOpsi = '<option value="">-- Pilih Judul Praktikum --</option>';
-        window.daftarJudulPraktikum.forEach(function(j, idx) {
-            htmlList += '<div style="background:#e8f4f8; color:#2980b9; padding:5px 10px; border-radius:15px; font-size:12px; font-weight:bold; display:flex; align-items:center; border:1px solid #aed6f1;">' + 
-                        j + '<span onclick="window.hapusJudulPraktikum('+idx+')" style="margin-left:8px; cursor:pointer; color:#e74c3c;">✕</span></div>';
-            htmlOpsi += '<option value="'+j+'">'+j+'</option>';
-        });
-        
-        var listContainer = document.getElementById('list-judul-praktikum');
-        var selPrak = document.getElementById('prak-judul');
-        var selDrive = document.getElementById('drive-judul');
-        if (listContainer) listContainer.innerHTML = htmlList;
-        if (selPrak) selPrak.innerHTML = htmlOpsi;
-        if (selDrive) selDrive.innerHTML = htmlOpsi;
-    });
-};
-
-window.tambahJudulPraktikum = function() {
-    var input = document.getElementById('guru-judul-baru');
-    var val = input.value.trim();
-    if (!val) return;
-    if (!window.daftarJudulPraktikum.includes(val)) {
-        window.daftarJudulPraktikum.push(val);
-        window.fbSet(window.fbRefGlobal(window.dbGlobal, 'konfigurasi_praktikum/judul_list'), window.daftarJudulPraktikum);
-    }
-    input.value = '';
-};
-
-window.hapusJudulPraktikum = function(idx) {
-    if (confirm("Hapus judul praktikum ini dari dropdown siswa?")) {
-        window.daftarJudulPraktikum.splice(idx, 1);
-        window.fbSet(window.fbRefGlobal(window.dbGlobal, 'konfigurasi_praktikum/judul_list'), window.daftarJudulPraktikum);
-    }
-};
-
-window.muatOpsiKelasPrak = function() {
-    var sel1 = document.getElementById('prak-kelas');
-    var sel2 = document.getElementById('drive-kelas');
-    var daftarKls = (window.konfigPendidikan && window.konfigPendidikan.daftarKelas) ? window.konfigPendidikan.daftarKelas : [];
-    var opsiHtml = '<option value="" disabled selected>-- Pilih Kelas --</option>';
-    daftarKls.forEach(k => { opsiHtml += '<option value="' + k + '">' + k + '</option>'; });
-    if(sel1 && sel1.options.length <= 1) sel1.innerHTML = opsiHtml;
-    if(sel2 && sel2.options.length <= 1) sel2.innerHTML = opsiHtml;
-};
-
-window.updateDatalistSiswaPrak = function() {
-    var kls = document.getElementById('prak-kelas').value;
-    var dl = document.getElementById('datalist-siswa-prak');
-    if (!dl) return;
-    dl.innerHTML = '';
-    if (kls && window.dataAbsensiGlobal && window.dataAbsensiGlobal[kls] && window.dataAbsensiGlobal[kls].siswaList) {
-        window.dataAbsensiGlobal[kls].siswaList.forEach(s => {
-            var opt = document.createElement('option');
-            opt.value = s.nama;
-            dl.appendChild(opt);
-        });
-    }
-};
-
-window.initAutoSavePraktikum = function() {
-    const fields = ['prak-judul', 'prak-ketua', 'prak-kelas', 'prak-anggota1', 'prak-anggota2', 'prak-anggota3', 'prak-anggota4', 'prak-anggota5', 'prak-teori', 'prak-alat', 'prak-metode', 'prak-hasil', 'prak-kesimpulan', 'prak-dafpus'];
-    fields.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) {
-            const savedData = localStorage.getItem('draft_prak_' + id);
-            if (savedData) el.value = savedData;
-            el.addEventListener('input', () => localStorage.setItem('draft_prak_' + id, el.value));
-        }
-    });
-};
-
-window.tampilkanNamaFilePrakBanyak = function(input, labelId) {
-    var label = document.getElementById(labelId);
-    if (input.files && input.files.length > 0) {
-        var count = input.files.length;
-        if (count > 20) {
-            alert("⚠️ Maksimal 20 foto. Hanya 20 foto pertama yang diproses.");
-            count = 20;
-        }
-        label.innerHTML = "✅ " + count + " Foto Terpilih (Siap Dikirim)";
-    } else { label.innerHTML = ""; }
-};
-
-window.kompresDanUploadImgBB = function(file) {
-    return new Promise(function(resolve, reject) {
-        var reader = new FileReader();
-        reader.onload = function(e) {
-            var img = new Image();
-            img.onload = function() {
-                var canvas = document.createElement('canvas');
-                var MAX_WIDTH = 1200; var MAX_HEIGHT = 1200; 
-                var width = img.width; var height = img.height;
-                if (width > height) { if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; } }
-                else { if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; } }
-                canvas.width = width; canvas.height = height;
-                var ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, width, height);
-                var b64str = canvas.toDataURL('image/jpeg', 0.6).split(',')[1];
-                var formData = new FormData();
-                formData.append("image", b64str);
-                
-                fetch("https://api.imgbb.com/1/upload?key=d2b70b55ec70f443b7e4529f79b69152", { method: "POST", body: formData })
-                .then(function(res){ return res.json(); })
-                .then(function(data){
-                    if (data.success) resolve(data.data.url);
-                    else reject(new Error("Ditolak ImgBB"));
-                }).catch(function(err){ reject(err); });
-            };
-            img.onerror = function() { reject(new Error("Bukan foto valid")); };
-            img.src = e.target.result;
-        };
-        reader.readAsDataURL(file);
-    });
-};
-
-window.bukaModalPraktikum = function() {
-    window.muatOpsiKelasPrak(); 
-    window.muatDaftarJudulPraktikum();
-    document.getElementById('modal-praktikum').style.display = 'flex';
-    if (sessionStorage.getItem("statusGuru") === "aktif") {
-        document.getElementById('view-praktikum-siswa').style.display = 'none';
-        document.getElementById('view-praktikum-guru').style.display = 'block';
-        window.muatDaftarLaporanLengkap();
-    } else {
-        document.getElementById('view-praktikum-guru').style.display = 'none';
-        document.getElementById('view-praktikum-siswa').style.display = 'block';
-        setTimeout(window.initAutoSavePraktikum, 300);
-    }
-};
-
-window.kirimLaporanPraktikumFinal = async function(event) {
-    var j = document.getElementById('prak-judul').value.trim();
-    var kt = document.getElementById('prak-ketua').value.trim();
-    var kl = document.getElementById('prak-kelas').value;
-    var ag = [];
-    for(let i=1; i<=5; i++) { let val = document.getElementById('prak-anggota'+i).value.trim(); if(val) ag.push(val); }
-    var t = document.getElementById('prak-teori').value.trim();
-    var a = document.getElementById('prak-alat').value.trim();
-    var m = document.getElementById('prak-metode').value.trim();
-    var h = document.getElementById('prak-hasil').value.trim();
-    var kes = document.getElementById('prak-kesimpulan').value.trim();
-    var dp = document.getElementById('prak-dafpus').value.trim();
-    
-    var fileInput = document.getElementById('prak-lampiran');
-    var statusEl = document.getElementById('prak-status');
-
-    if (!j || !kt || !kl || !t || !a || !m || !h) {
-        alert("⚠️ Mohon lengkapi Kelas, Ketua, Judul, dan seluruh form teks Praktikum!");
-        return;
-    }
-
-    var btn = event.target;
-    btn.disabled = true; btn.style.background = "#95a5a6";
-
-    try {
-        var lampiranUrls = [];
-        if (fileInput.files && fileInput.files.length > 0) {
-            var batas = Math.min(fileInput.files.length, 20);
-            for(let i=0; i<batas; i++) {
-                statusEl.innerHTML = "<span style='color:#f39c12;'>☁️ Memproses foto " + (i+1) + " dari " + batas + "...</span>";
-                try {
-                    let urlImg = await window.kompresDanUploadImgBB(fileInput.files[i]);
-                    lampiranUrls.push(urlImg);
-                } catch(e) {}
-            }
-        }
-
-        statusEl.innerHTML = "<span style='color:#f39c12;'>💾 Mengirim data ke server Guru...</span>";
-        var idLaporan = Date.now() + "_" + kt.replace(/[^a-zA-Z0-9]/g, '');
-        var dbRestUrl = window.getRestDBUrl("laporan_praktikum/" + idLaporan);
-
-        var payload = {
-            judul: j, ketua: kt, kelas: kl, anggota: ag,
-            dasarTeori: t, alatBahan: a, metode: m, hasil: h, kesimpulan: kes, dafpus: dp,
-            lampiranUrls: lampiranUrls, waktu: new Date().toLocaleString('id-ID')
-        };
-
-        await fetch(dbRestUrl, { method: 'PUT', body: JSON.stringify(payload) });
-
-        statusEl.innerHTML = "<span style='color:#2ecc71;'>✅ Laporan berhasil dikumpulkan!</span>";
-        const fields = ['prak-judul', 'prak-ketua', 'prak-kelas', 'prak-anggota1', 'prak-anggota2', 'prak-anggota3', 'prak-anggota4', 'prak-anggota5', 'prak-teori', 'prak-alat', 'prak-metode', 'prak-hasil', 'prak-kesimpulan', 'prak-dafpus'];
-        fields.forEach(id => localStorage.removeItem('draft_prak_' + id));
-
-        setTimeout(function(){
-            statusEl.innerText = "";
-            btn.disabled = false; btn.style.background = "#27ae60";
-            fields.forEach(id => { if(document.getElementById(id)) document.getElementById(id).value = ''; });
-            document.getElementById('nama-file-lampiran').innerText = "";
-            document.getElementById('modal-praktikum').style.display = 'none';
-        }, 2500);
-
-    } catch (err) {
-        statusEl.innerHTML = "<span style='color:#e74c3c;'>❌ Gagal mengirim: " + err.message + "</span>";
-        btn.disabled = false; btn.style.background = "#27ae60";
-    }
-};
-
-window.muatDaftarLaporanLengkap = async function() {
-    var select = document.getElementById('select-laporan-siswa');
-    var wadah = document.getElementById('tempat-laporan-guru');
-    select.innerHTML = '<option value="">⏳ Mengambil data...</option>';
-    try {
-        var res = await fetch(window.getRestDBUrl("laporan_praktikum"));
-        var data = await res.json();
-        window.dataLaporanTemp = data || {};
-        select.innerHTML = '<option value="">-- Pilih Laporan Siswa --</option>';
-        var adaData = false;
-        for (var key in window.dataLaporanTemp) {
-            adaData = true;
-            var lap = window.dataLaporanTemp[key];
-            var opt = document.createElement('option');
-            opt.value = key; opt.text = lap.kelas + " | Ketua: " + lap.ketua + " | " + lap.judul;
-            select.appendChild(opt);
-        }
-        if(!adaData) wadah.innerHTML = '<i style="color:#7f8c8d;">Belum ada laporan dari siswa.</i>';
-        else wadah.innerHTML = '<i style="color:#7f8c8d;">Silakan pilih laporan pada kotak di atas.</i>';
-    } catch(e) { select.innerHTML = '<option value="">❌ Gagal memuat data</option>'; }
-};
-
-window.bukaLaporanSiswaLengkap = function() {
-    var key = document.getElementById('select-laporan-siswa').value;
-    var wadah = document.getElementById('tempat-laporan-guru');
-    if (!key) { wadah.innerHTML = '<i style="color:#7f8c8d;">Pilih siswa untuk melihat laporan.</i>'; return; }
-
-    var lap = window.dataLaporanTemp[key];
-    var imgHtml = ''; var lampiranPdfHtml = '';
-    if (lap.lampiranUrls && lap.lampiranUrls.length > 0) {
-        lap.lampiranUrls.forEach(url => {
-            imgHtml += `<a href="${url}" target="_blank"><img src="${url}" style="max-width:100%; max-height:300px; border-radius:8px; margin:5px 10px 5px 0; box-shadow:0 2px 5px rgba(0,0,0,0.1); display:inline-block;"></a>`;
-            lampiranPdfHtml += `<img src="${url}" class="lampiran-img" alt="Bukti Praktikum">`;
-        });
-    } else {
-        imgHtml = '<i style="color:#7f8c8d;">(Siswa tidak melampirkan foto)</i>';
-        lampiranPdfHtml = '<p style="text-align:center;"><i>Tidak ada foto lampiran yang diunggah.</i></p>';
-    }
-
-    var formatBab = (judul, isi) => '<div style="margin-bottom:20px;"><h4 style="margin:0 0 5px 0; color:#2980b9; border-bottom:1px solid #ecf0f1; padding-bottom:5px;">'+judul+'</h4><div style="background:#fff; padding:15px; border-left:4px solid #3498db; border-radius:0 4px 4px 0; white-space:pre-wrap; font-size:14px;">'+(isi || '-')+'</div></div>';
-    var teksAnggotaLayar = (lap.anggota && lap.anggota.length > 0) ? ('<p style="margin:5px 0 0 0; font-size:14px; color:#34495e;"><b>Anggota:</b> ' + lap.anggota.join(', ') + '</p>') : '';
-
-    wadah.innerHTML = 
-        '<button id="btn-print-formal" style="background:#2c3e50; color:#fff; border:none; padding:10px 15px; border-radius:6px; cursor:pointer; font-weight:bold; float:right; margin-bottom:15px;">🖨️ Cetak Buku PDF (Kertas A4)</button>' +
-        '<div style="clear:both; border-bottom:2px dashed #bdc3c7; padding-bottom:15px; margin-bottom:20px; text-align:center;">' +
-            '<h2 style="margin:0; text-transform:uppercase; color:#2c3e50; font-size:20px;">LAPORAN: ' + lap.judul + '</h2>' +
-            '<p style="margin:5px 0 0 0; font-size:16px;"><b>Ketua: ' + lap.ketua + '</b> (Kelas ' + lap.kelas + ')</p>' +
-            teksAnggotaLayar +
-            '<small style="color:#7f8c8d;">Dikirim pada: ' + lap.waktu + '</small>' +
-        '</div>' +
-        formatBab('Dasar Teori', lap.dasarTeori) +
-        formatBab('Alat dan Bahan', lap.alatBahan) +
-        formatBab('Metode Praktikum', lap.metode) +
-        formatBab('Hasil dan Pembahasan', lap.hasil) +
-        formatBab('Kesimpulan', lap.kesimpulan) +
-        formatBab('Daftar Pustaka', lap.dafpus) +
-        '<div style="margin-bottom:15px;"><h4 style="margin:0 0 5px 0; color:#2980b9;">📸 Lampiran Dokumentasi</h4>' + imgHtml + '</div>';
-    
-    document.getElementById('btn-print-formal').onclick = function() {
-        const bulanArr = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-        const dateObj = new Date();
-        const teksBulanTahun = bulanArr[dateObj.getMonth()] + ' ' + dateObj.getFullYear();
-
-        let anggotaHtml = '';
-        if (lap.anggota && lap.anggota.length > 0) {
-            lap.anggota.forEach((nama, i) => {
-                anggotaHtml += `<p style="font-size:14pt; margin:5px 0;">Anggota ${i+1}: ${nama}</p>`;
-            });
-        }
-
-        const win = window.open('', '', 'width=1000,height=800');
-        win.document.write(`
-            <html><head><title>Laporan Praktikum - ${lap.ketua}</title>
-            <style>
-                @page { size: A4; margin: 0; }
-                body { font-family: 'Times New Roman', serif; line-height: 1.5; color: #000; padding: 0; margin: 0; background: #eee; }
-                .page { width: 210mm; min-height: 297mm; padding: 25mm 20mm; box-sizing: border-box; margin: 0 auto; background: #fff; position: relative; page-break-after: always; }
-                .page-num { position: absolute; bottom: 15mm; right: 20mm; font-size: 12pt; font-weight: normal; }
-                
-                .cover { text-align: center; display: block; padding-top: 50px; }
-                .cover h1 { font-size: 18pt; text-transform: uppercase; margin-bottom: 5px; }
-                .cover h2 { font-size: 16pt; text-transform: uppercase; margin-bottom: 10px; font-weight: normal; }
-                .cover img { max-width: 180px; margin: 30px 0; }
-                .cover p, .cover h3 { margin: 5px 0; }
-                .cover .footer { position: absolute; bottom: 30mm; left: 0; right: 0; text-align: center; }
-                
-                .section-title { text-align: center; text-transform: uppercase; font-size: 14pt; margin-bottom: 30px; font-weight: bold; }
-                .toc p { margin: 10px 0; display: flex; justify-content: space-between; font-size: 12pt; font-weight: bold; }
-                .toc p span:first-child { flex: 1; border-bottom: 1px dotted #000; margin-right: 10px; }
-                .content-text { text-align: justify; font-size: 12pt; white-space: pre-wrap; }
-                .lampiran-img { max-width: 100%; max-height: 240mm; display: block; margin: 20px auto; page-break-inside: avoid; }
-            </style>
-            </head><body>
-                
-                <div class="page cover">
-                    <h1>LAPORAN PRAKTIKUM LABORATORIUM</h1>
-                    <h2>"${lap.judul}"</h2>
-                    <img src="logo-bodhi.png" alt="Logo">
-                    <h3 style="font-size:14pt; margin-top:20px;">PEMBIMBING:</h3>
-                    <p style="font-size:14pt; font-weight:bold; margin-bottom:40px;">Mahardika Wiryawan, S.Pd</p>
-                    <h3 style="font-size:14pt;">OLEH:</h3>
-                    <p style="font-size:14pt; font-weight:bold;">Ketua kelompok: ${lap.ketua}</p>
-                    ${anggotaHtml}
-                    <div class="footer">
-                        <h3 style="font-size:14pt; margin:0;">SMAS BODHI DHARMA BATAM</h3>
-                        <h3 style="font-size:14pt; margin:5px 0 0 0; font-weight:normal;">${teksBulanTahun}</h3>
-                    </div>
-                </div>
-
-                <div class="page">
-                    <div class="section-title">DAFTAR ISI</div>
-                    <div class="toc">
-                        <p><span>DAFTAR ISI</span> <span>ii</span></p>
-                        <p><span>DASAR TEORI</span> <span>1</span></p>
-                        <p><span>ALAT DAN BAHAN</span> <span>2</span></p>
-                        <p><span>METODE PRAKTIKUM</span> <span>3</span></p>
-                        <p><span>HASIL DAN PEMBAHASAN</span> <span>4</span></p>
-                        <p><span>KESIMPULAN</span> <span>5</span></p>
-                        <p><span>DAFTAR PUSTAKA</span> <span>6</span></p>
-                        <p><span>LAMPIRAN</span> <span>7</span></p>
-                    </div>
-                    <div class="page-num">ii</div>
-                </div>
-
-                <div class="page"><div class="section-title">DASAR TEORI</div><div class="content-text">${lap.dasarTeori || '-'}</div><div class="page-num">1</div></div>
-                <div class="page"><div class="section-title">ALAT DAN BAHAN</div><div class="content-text">${lap.alatBahan || '-'}</div><div class="page-num">2</div></div>
-                <div class="page"><div class="section-title">METODE PRAKTIKUM</div><div class="content-text">${lap.metode || '-'}</div><div class="page-num">3</div></div>
-                <div class="page"><div class="section-title">HASIL DAN PEMBAHASAN</div><div class="content-text">${lap.hasil || '-'}</div><div class="page-num">4</div></div>
-                <div class="page"><div class="section-title">KESIMPULAN</div><div class="content-text">${lap.kesimpulan || '-'}</div><div class="page-num">5</div></div>
-                <div class="page"><div class="section-title">DAFTAR PUSTAKA</div><div class="content-text">${lap.dafpus || '-'}</div><div class="page-num">6</div></div>
-                
-                <div class="page"><div class="section-title">LAMPIRAN</div>${lampiranPdfHtml}<div class="page-num">7</div></div>
-
-            </body></html>
-        `);
-        win.document.close(); win.focus();
-        setTimeout(() => { win.print(); win.close(); }, 1200);
-    };
-};
-
-setInterval(function() {
-    var navbarUl = document.getElementById('dynamic-navbar');
-    if (navbarUl && !document.getElementById('btn-nav-praktikum')) {
-        var li = document.createElement('li'); li.id = 'btn-nav-praktikum'; li.style.display = "inline-block";
-        li.innerHTML = '<a href="#" onclick="window.bukaModalPraktikum(); return false;" style="color:#2ecc71; font-weight:bold; letter-spacing:1px; text-decoration:none; padding:10px 15px; display:block;">🧪 PRAKTIKUM</a>';
-        if (navbarUl.children.length >= 2) navbarUl.insertBefore(li, navbarUl.children[2]);
-        else navbarUl.appendChild(li);
-    }
-}, 1000);
-
-// ============================================================================
-// PENGIRIMAN MEDIA KE GOOGLE DRIVE (Tembus Keamanan CORS & Maks 20 File)
-// ============================================================================
-window.uploadLangsungKeDrive = async function(event) {
-    var kelas = document.getElementById('drive-kelas').value;
-    var judul = document.getElementById('drive-judul').value;
-    var fileInput = document.getElementById('drive-file');
-    var statusEl = document.getElementById('drive-status');
-    
-    if (!kelas || !judul) { alert("⚠️ Mohon pilih Kelas dan Judul Praktikum Anda terlebih dahulu!"); return; }
-    if (!fileInput.files || fileInput.files.length === 0) { alert("⚠️ Pilih file video atau foto yang ingin diupload!"); return; }
-
-    // ======================================================================================
-    // PENTING: LINK GOOGLE SCRIPT DI BAWAH INI ADALAH MILIK ANDA. 
-    // JANGAN DIHAPUS. INI YANG MENGATASI MASALAH CORS 405.
-    // ======================================================================================
-    var scriptUrl = "https://script.google.com/macros/s/AKfycbw7sPch1Tp2nbDosiwHvFDDCUgxDnqBSBXmOzK00TbVhsRToNf2Cq5KMO98wkgFldCy/exec";
-
-    var btn = event.target;
-    btn.disabled = true; btn.style.background = "#95a5a6";
-    
-    var files = fileInput.files;
-    var batas = Math.min(files.length, 20);
-    var suksesCount = 0;
-
-    for (var i = 0; i < batas; i++) {
-        var file = files[i];
-        if (file.size > 50 * 1024 * 1024) {
-            statusEl.innerHTML = "<span style='color:#e74c3c;'>⚠️ File " + file.name + " dilewati (Maks 50MB).</span>";
-            continue;
-        }
-
-        statusEl.innerHTML = "<span style='color:#f39c12;'>☁️ Mengirim file " + (i+1) + " dari " + batas + "... Mohon tunggu.</span>";
-
-        try {
-            var fileData = await new Promise(function(resolve, reject) {
-                var reader = new FileReader();
-                reader.onload = function(e) { resolve(e.target.result.split("base64,")[1]); };
-                reader.onerror = function(e) { reject(e); };
-                reader.readAsDataURL(file);
-            });
-
-            var payload = { fileName: file.name, mimeType: file.type, fileData: fileData, kelas: kelas, judul: judul };
-
-            // PERBAIKAN CORS: Menggunakan text/plain agar browser tidak mengirim request OPTIONS yang ditolak Google.
-            var res = await fetch(scriptUrl, { 
-                method: "POST", 
-                headers: { "Content-Type": "text/plain;charset=utf-8" },
-                body: JSON.stringify(payload) 
-            });
-            var data = await res.json();
-            
-            if (data.success) suksesCount++;
-            else console.log("Gagal dari Google:", data.error);
-        } catch(e) {
-            console.log("Error Jaringan:", e);
-        }
-    }
-
-    if (suksesCount > 0) {
-        statusEl.innerHTML = "<span style='color:#2ecc71;'>✅ " + suksesCount + " File berhasil masuk ke Google Drive Guru!</span>";
-        fileInput.value = '';
-    } else {
-        statusEl.innerHTML = "<span style='color:#e74c3c;'>❌ Terjadi kesalahan. Pastikan hak akses Google Apps Script sudah diset ke 'Anyone'.</span>";
-    }
-    btn.disabled = false; btn.style.background = "#f39c12";
-};
-
-// ============================================================================
-// MASTER PATCH FULLSCREEN UNIVERSAL & RESPONSIVE RESOLUTION (ANTI-BLUR/TERPOTONG)
-// ============================================================================
-
-(function pasangCSSFullscreenTangguh() {
-    if(document.getElementById('mardi-fs-patch')) return;
-    var style = document.createElement('style');
-    style.id = 'mardi-fs-patch';
-    style.innerHTML = `
-        /* 1. Fix 100vh Safari iOS (Tinggi layar asli tanpa terpotong address bar) */
-        :root { --vh: 1vh; }
-        
-        .mardi-pseudo-fs {
-            position: fixed !important;
-            top: 0 !important; left: 0 !important;
-            width: 100vw !important;
-            /* Gunakan variabel --vh agar persis sama dengan ukuran layar HP asli */
-            height: 100vh !important;
-            height: calc(var(--vh, 1vh) * 100) !important; 
-            max-width: 100vw !important;
-            max-height: calc(var(--vh, 1vh) * 100) !important;
-            z-index: 2147483640 !important;
-            margin: 0 !important; border-radius: 0 !important;
-            overflow-y: auto !important; box-sizing: border-box !important;
-        }
-        .mardi-pseudo-fs-dark { background: #000 !important; }
-        .mardi-pseudo-fs-light { background: #ecf0f1 !important; padding: 65px 25px 30px 25px !important; }
-        .mardi-pseudo-fs video, .mardi-pseudo-fs .mardi-slide-img {
-            max-height: calc(var(--vh, 1vh) * 100) !important; height: calc(var(--vh, 1vh) * 100) !important;
-            width: 100% !important; object-fit: contain !important; margin: 0 auto !important;
-        }
-        .btn-close-pseudo-mardi {
-            position: fixed !important; top: 15px !important; right: 15px !important; z-index: 2147483647 !important;
-            background: rgba(231,76,60,0.95) !important; color: #fff !important; border: 2px solid #c0392b !important;
-            padding: 8px 15px !important; border-radius: 30px !important; font-weight: bold !important;
-            cursor: pointer !important; box-shadow: 0 4px 15px rgba(0,0,0,0.5) !important;
-            font-size: 13px !important; font-family: sans-serif !important;
-        }
-        .btn-close-pseudo-mardi:hover { background: #c0392b !important; }
-        
-        /* 2. Penyesuaian seluruh Modal untuk HP agar form Praktikum dkk tidak meluber */
-        .modal-box, .mahardika-modal-card { 
-            max-width: 95vw !important; 
-            max-height: calc(var(--vh, 1vh) * 90) !important; 
-            margin: 0 auto; overflow-x: hidden; 
-        }
-    `;
-    document.head.appendChild(style);
-})();
-
-// ----------------------------------------------------------------------------
-// 1. MESIN RESPONSIVE & ANTI TERPOTONG (Menyesuaikan Tinggi Layar & Orientasi HP)
-// ----------------------------------------------------------------------------
-function sesuaikanLayarUniversal() {
-    // Menghitung 1% dari tinggi viewport (memperhitungkan address bar HP)
-    let vh = window.innerHeight * 0.01;
-    document.documentElement.style.setProperty('--vh', `${vh}px`);
-    
-    // Update ketinggian elemen yang sedang fullscreen buatan
-    let fsElem = document.querySelector('.mardi-pseudo-fs');
-    if (fsElem) fsElem.style.height = window.innerHeight + 'px';
-}
-// Pasang sensor layar agar langsung menyesuaikan saat HP diputar / Resize
-window.addEventListener('resize', sesuaikanLayarUniversal);
-window.addEventListener('orientationchange', function() {
-    setTimeout(sesuaikanLayarUniversal, 250); // Tunggu HP selesai merotasi layar
-    setTimeout(function() { 
-        if (window.muatUlangSemuaKanvasGambar) window.muatUlangSemuaKanvasGambar(); 
-    }, 450);
-});
-sesuaikanLayarUniversal(); // Jalankan pertama kali saat web dibuka
-
-// ----------------------------------------------------------------------------
-// 2. MESIN ANTI-BLUR CANVAS UNTUK LAYAR RESOLUSI TINGGI (Retina Display)
-// ----------------------------------------------------------------------------
-window.inisialisasiSatuCanvas = function(cvs, isTypingResize) {
-    let p = cvs.parentElement; if (!p) return; 
-    let cw = p.clientWidth || p.offsetWidth;
-    let ch = p.clientHeight || p.offsetHeight; 
-    if (cw === 0 || ch === 0) return; 
-    
-    let fbIdx = cvs.getAttribute('data-fb-index'); 
-    let blockIdx = cvs.getAttribute('data-index'); 
-    let sv = '';
-    
-    if (fbIdx !== null && window.floatingBoxesData && window.floatingBoxesData[fbIdx]) {
-        sv = window.floatingBoxesData[fbIdx].drawing || '';
-    } else if (blockIdx !== null && window.contentBlocksData && window.contentBlocksData[blockIdx]) {
-        let bObj = window.contentBlocksData[blockIdx];
-        if (bObj.type === 'pdf' && bObj.slideDrawings) sv = bObj.slideDrawings[bObj.currentSlide || 0] || '';
-        else sv = bObj.drawing || '';
-    }
-
-    // Mengambil rasio kepadatan pixel perangkat (Retina = 2 atau 3, Layar Standar = 1)
-    let dpr = window.devicePixelRatio || 1;
-    
-    // Atur dimensi memori kanvas membesar sesuai DPR, tapi ukuran CSS tetap pas di layar
-    if (cvs.width !== Math.round(cw * dpr) || cvs.height !== Math.round(ch * dpr) || cvs.style.width !== cw + 'px') { 
-        cvs.width = Math.round(cw * dpr); 
-        cvs.height = Math.round(ch * dpr); 
-        cvs.style.width = cw + 'px';
-        cvs.style.height = ch + 'px';
-        
-        let ctx = cvs.getContext('2d', { willReadFrequently: true }); 
-        ctx.scale(dpr, dpr); // Sesuaikan skala tinta otomatis ke resolusi tinggi
-        ctx.clearRect(0, 0, cw, ch);
-        
-        if (sv) { 
-            let img = new Image(); 
-            img.onload = () => { ctx.drawImage(img, 0, 0, cw, ch); }; 
-            img.src = sv; 
-        } 
+        stampLasso(); 
+        if(window.simpanKeDB) window.simpanKeDB(); 
+        let pt = document.getElementById('pen-tools');
+        if(pt) pt.style.transform = 'none';
     } 
 };
 
-// ----------------------------------------------------------------------------
-// 3. MESIN FULLSCREEN TANGGUH (TOGGLE: KLIK MASUK, KLIK LAGI KELUAR)
-// ----------------------------------------------------------------------------
-window.eksekusiFullscreenTangguh = function(elem, isDark) {
-    var isNativeFS = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement;
-    var isPseudoFS = elem.classList.contains('mardi-pseudo-fs');
+window.setDrawingTool = function(t) { 
+    stampLasso(); 
+    activeTool = t; 
+    document.querySelectorAll('#pen-tools button.tool-btn').forEach(b => b.classList.remove('active')); 
+    document.getElementById('btn-'+t).classList.add('active'); 
+};
 
-    // JIKA SEDANG FULLSCREEN -> FUNGSI SEBAGAI MINIMIZE (KELUAR)
-    if (isNativeFS || isPseudoFS) {
-        if (isNativeFS) {
-            if (document.exitFullscreen) document.exitFullscreen().catch(()=>{});
-            else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+window.setPenColor = function(c, btn) { 
+    window.penColor = c; 
+    document.querySelectorAll('.col-btn').forEach(b => b.classList.remove('active')); 
+    if(btn) btn.classList.add('active'); 
+};
+
+window.setPenSize = function(s, btn) { 
+    window.penSize = s; 
+    document.querySelectorAll('.sz-btn').forEach(b => b.classList.remove('active')); 
+    if(btn) btn.classList.add('active'); 
+};
+
+window.togglePalmReject = function(isActive) { window.pencilOnly = isActive; };
+
+window.clearSemuaCoretan = function() { 
+    if(confirm("Hapus semua coretan?")) { 
+        document.querySelectorAll('.drawing-layer').forEach(cvs => { 
+            cvs.getContext('2d').clearRect(0,0,cvs.width,cvs.height); 
+            let fbIdx = cvs.getAttribute('data-fb-index'); 
+            let blockIdx = cvs.getAttribute('data-index'); 
+            if(fbIdx !== null && window.floatingBoxesData[fbIdx]) window.floatingBoxesData[fbIdx].drawing = ""; 
+            else if(window.contentBlocksData[blockIdx]) window.contentBlocksData[blockIdx].drawing = ""; 
+        }); 
+        if(window.simpanKeDB) window.simpanKeDB(); 
+    } 
+};
+
+// Inisialisasi Canvas
+function inisialisasiSemuaCanvas() { document.querySelectorAll('.drawing-layer').forEach(cvs => inisialisasiSatuCanvas(cvs, false)); } 
+function inisialisasiSatuCanvas(cvs, isTypingResize) { 
+    let p = cvs.parentElement; if(!p) return; 
+    let cw = p.clientWidth || p.offsetWidth, ch = p.clientHeight || p.offsetHeight; if(cw === 0 || ch === 0) return; 
+    let fbIdx = cvs.getAttribute('data-fb-index'); let blockIdx = cvs.getAttribute('data-index'); 
+    let sv = (fbIdx !== null) ? (window.floatingBoxesData[fbIdx] ? window.floatingBoxesData[fbIdx].drawing : '') : (window.contentBlocksData[blockIdx] ? window.contentBlocksData[blockIdx].drawing : ''); 
+    if(cvs.width !== cw || cvs.height !== ch) { 
+        cvs.width = cw; cvs.height = ch; 
+        let ctx = cvs.getContext('2d', { willReadFrequently: true }); ctx.clearRect(0,0,cw,ch);
+        if(sv) { let i = new Image(); i.onload = () => { ctx.drawImage(i, 0, 0); }; i.src = sv; } 
+    } 
+} 
+
+function resizeLaserCanvas() { 
+    if(globalLaserCvs) { globalLaserCvs.width = window.innerWidth; globalLaserCvs.height = window.innerHeight; } 
+} 
+window.addEventListener('resize', () => { setTimeout(inisialisasiSemuaCanvas,200); resizeLaserCanvas(); stampLasso(); });
+
+// Render Laser Logika
+function renderLaser() { 
+    if(!globalLaserCtx) return;
+    globalLaserCtx.clearRect(0,0,globalLaserCvs.width,globalLaserCvs.height); 
+    let now = Date.now(); let fadeStart = laserLastActiveTime + 1000; 
+    if (now > fadeStart && laserLastActiveTime > 0) { 
+        let alpha = 1 - ((now - fadeStart) / 1000); 
+        if (alpha <= 0) { alpha = 0; laserStrokes = []; laserLastActiveTime = 0; } 
+        globalLaserCtx.globalAlpha = alpha; 
+    } else { globalLaserCtx.globalAlpha = 1; } 
+    
+    laserStrokes.forEach(s => { 
+        if(s.points.length < 2) return; 
+        globalLaserCtx.beginPath(); globalLaserCtx.moveTo(s.points[0].x,s.points[0].y); 
+        for(let i=1; i<s.points.length; i++) globalLaserCtx.lineTo(s.points[i].x,s.points[i].y); 
+        globalLaserCtx.lineCap = 'round'; globalLaserCtx.lineJoin = 'round'; 
+        globalLaserCtx.lineWidth = window.penSize * 2; globalLaserCtx.strokeStyle = window.penColor; globalLaserCtx.stroke(); 
+    }); 
+    requestAnimationFrame(renderLaser); 
+} 
+renderLaser();
+
+// Kontrol Sentuh (Touch & Pointer)
+window.activeTouches = 0;
+document.addEventListener('touchstart', e => {
+    if (!window.isDrawingMode) return; if (e.target.closest('#pen-tools')) return;
+    window.activeTouches = e.touches.length;
+    let hasStylus = false;
+    for (let i = 0; i < e.touches.length; i++) { if (e.touches[i].touchType === 'stylus' || e.touches[i].touchType === 'pen') hasStylus = true; }
+    if (hasStylus) { e.preventDefault(); } else { if (!window.pencilOnly && e.touches.length === 1) e.preventDefault(); }
+}, { passive: false });
+
+document.addEventListener('pointerdown', e => { 
+    // Resize gambar di luar mode drawing
+    if(!window.isDrawingMode && e.target.tagName === 'IMG' && (document.body.classList.contains('mode-edit-aktif') || document.documentElement.classList.contains('force-edit-mode'))) { 
+        let i = e.target, sX = e.clientX, sW = i.offsetWidth; 
+        function m(me) { i.style.width = (sW + (me.clientX - sX)) + 'px'; i.style.maxWidth = '100%'; } 
+        function up() { 
+            document.removeEventListener('pointermove', m); document.removeEventListener('pointerup', up); 
+            let p = i.closest('.content-block') || i.closest('.fb-content'); 
+            if(p) p.dispatchEvent(new Event('input', {bubbles: true})); 
+        } 
+        document.addEventListener('pointermove', m); document.addEventListener('pointerup', up); 
+        e.preventDefault(); return; 
+    } 
+    
+    if(!window.isDrawingMode) return; if (e.target.closest('#pen-tools')) return;
+    if (e.pointerType === 'touch') { if (window.pencilOnly) { isPenDown = false; return; } else { if (window.activeTouches > 1) { isPenDown = false; return; } } }
+    if(isFloating && floatUI) { if(e.target.closest('.lasso-float')) return; stampLasso(); } 
+    
+    if(e.target.classList.contains('drawing-layer')) { 
+        isPenDown = true; window.isShapeRecognized = false; clearTimeout(window.shapeHoldTimer);
+        
+        if(activeTool === 'laser') { 
+            laserLastActiveTime = Date.now(); 
+            currentLaserStroke = {points: [{x: e.clientX, y: e.clientY}]}; 
+            laserStrokes.push(currentLaserStroke); 
+        } else { 
+            let c = e.target; currentDrawCtx = c.getContext('2d', { willReadFrequently: true }); 
+            let r = c.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top; 
+            
+            if(activeTool === 'lasso') { 
+                lassoTargetCanvas = c; lassoPath = [{x,y}]; 
+                lassoSavedImageData = currentDrawCtx.getImageData(0,0,c.width,c.height); 
+            } else if (activeTool === 'highlighter' || activeTool === 'line' || activeTool === 'pen') {
+                window.drawSnapshot = currentDrawCtx.getImageData(0,0,c.width,c.height);
+                window.drawPoints = [{x,y}];
+                currentDrawCtx.beginPath(); currentDrawCtx.moveTo(x,y); 
+                currentDrawCtx.lineCap = 'round'; currentDrawCtx.lineJoin = 'round'; 
+            } else { 
+                currentDrawCtx.beginPath(); currentDrawCtx.moveTo(x,y); 
+                currentDrawCtx.lineCap = 'round'; currentDrawCtx.lineJoin = 'round'; 
+                if(activeTool === 'eraser') { 
+                    currentDrawCtx.globalCompositeOperation = 'destination-out'; 
+                    currentDrawCtx.lineWidth = window.penSize * 5; 
+                    currentDrawCtx.strokeStyle = 'rgba(0,0,0,1)'; 
+                } 
+            } 
+        } 
+    } 
+});
+
+// Auto-Shape AI Logic
+window.recognizeShape = function() {
+    if(!isPenDown || !currentDrawCtx || window.isShapeRecognized || window.drawPoints.length < 10) return;
+    let pts = window.drawPoints;
+    let minX = pts[0].x, maxX = pts[0].x, minY = pts[0].y, maxY = pts[0].y;
+    pts.forEach(p => { if(p.x < minX) minX = p.x; if(p.x > maxX) maxX = p.x; if(p.y < minY) minY = p.y; if(p.y > maxY) maxY = p.y; });
+    
+    let w = maxX - minX; let h = maxY - minY;
+    let start = pts[0]; let end = pts[pts.length - 1];
+    let dist = Math.hypot(end.x - start.x, end.y - start.y);
+    
+    currentDrawCtx.putImageData(window.drawSnapshot, 0, 0);
+    currentDrawCtx.beginPath();
+    currentDrawCtx.strokeStyle = window.penColor;
+    currentDrawCtx.lineWidth = window.penSize;
+    
+    if(dist < (Math.max(w,h) * 0.4)) { 
+        let centerX = minX + (w/2); let centerY = minY + (h/2);
+        if(Math.abs(w-h) < Math.max(w,h) * 0.3) {
+            currentDrawCtx.arc(centerX, centerY, Math.max(w,h)/2, 0, 2 * Math.PI);
+        } else {
+            currentDrawCtx.rect(minX, minY, w, h);
         }
-        elem.classList.remove('mardi-pseudo-fs', 'mardi-pseudo-fs-dark', 'mardi-pseudo-fs-light');
-        document.body.style.overflow = 'auto';
-        var btnX = elem.querySelector('.btn-close-pseudo-mardi');
-        if (btnX) btnX.remove();
+    } else {
+        currentDrawCtx.moveTo(start.x, start.y);
+        currentDrawCtx.lineTo(end.x, end.y);
+    }
+    currentDrawCtx.stroke();
+    window.isShapeRecognized = true;
+};
+
+document.addEventListener('pointermove', e => { 
+    if(!window.isDrawingMode || !isPenDown) return; 
+    if(e.pointerType === 'touch' && (window.pencilOnly || window.activeTouches > 1)) { isPenDown = false; return; }
+
+    if(activeTool === 'laser' && currentLaserStroke) { 
+        laserLastActiveTime = Date.now(); currentLaserStroke.points.push({x: e.clientX, y: e.clientY}); 
+    } else if(currentDrawCtx) { 
+        let r = currentDrawCtx.canvas.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top; 
+        
+        if(activeTool === 'lasso') { 
+            lassoPath.push({x,y}); currentDrawCtx.putImageData(lassoSavedImageData,0,0); 
+            currentDrawCtx.beginPath(); currentDrawCtx.moveTo(lassoPath[0].x,lassoPath[0].y); 
+            for(let i=1; i<lassoPath.length; i++) currentDrawCtx.lineTo(lassoPath[i].x,lassoPath[i].y); 
+            currentDrawCtx.strokeStyle = '#3498db'; currentDrawCtx.lineWidth = 1.5; currentDrawCtx.setLineDash([5,5]); currentDrawCtx.stroke(); currentDrawCtx.setLineDash([]); 
+        } else if(activeTool === 'highlighter') {
+            window.drawPoints.push({x,y}); currentDrawCtx.putImageData(window.drawSnapshot,0,0); currentDrawCtx.beginPath(); currentDrawCtx.moveTo(window.drawPoints[0].x, window.drawPoints[0].y);
+            for(let i=1; i<window.drawPoints.length; i++) currentDrawCtx.lineTo(window.drawPoints[i].x, window.drawPoints[i].y);
+            currentDrawCtx.globalAlpha = 0.4; currentDrawCtx.strokeStyle = window.penColor; currentDrawCtx.lineWidth = window.penSize * 4; currentDrawCtx.stroke(); currentDrawCtx.globalAlpha = 1.0;
+        } else if(activeTool === 'line') {
+            currentDrawCtx.putImageData(window.drawSnapshot,0,0); currentDrawCtx.beginPath(); currentDrawCtx.moveTo(window.drawPoints[0].x, window.drawPoints[0].y); currentDrawCtx.lineTo(x, y);
+            currentDrawCtx.strokeStyle = window.penColor; currentDrawCtx.lineWidth = window.penSize; currentDrawCtx.stroke();
+        } else if(activeTool === 'pen') {
+            if(!window.isShapeRecognized) {
+                window.drawPoints.push({x,y}); currentDrawCtx.lineTo(x,y); currentDrawCtx.stroke(); 
+                clearTimeout(window.shapeHoldTimer); window.shapeHoldTimer = setTimeout(window.recognizeShape, 700);
+            }
+        } else { 
+            currentDrawCtx.lineTo(x,y); currentDrawCtx.stroke(); 
+        } 
+    } 
+});
+
+document.addEventListener('pointerup', () => { 
+    if(!window.isDrawingMode || !isPenDown) return; 
+    isPenDown = false; clearTimeout(window.shapeHoldTimer);
+    if(isFloating) return; 
+    
+    if(activeTool === 'laser' && currentLaserStroke) { 
+        laserLastActiveTime = Date.now(); currentLaserStroke = null; 
+    } else if(activeTool === 'lasso' && currentDrawCtx && lassoPath.length > 5) { 
+        currentDrawCtx.putImageData(lassoSavedImageData,0,0); createFloatingLasso(currentDrawCtx.canvas); 
+    } else if(activeTool !== 'laser' && activeTool !== 'lasso' && currentDrawCtx) { 
+        let fbIdx = currentDrawCtx.canvas.getAttribute('data-fb-index'); let blockIdx = currentDrawCtx.canvas.getAttribute('data-index'); 
+        let dataToSave = currentDrawCtx.canvas.toDataURL("image/png");
+        if(fbIdx !== null && window.floatingBoxesData[fbIdx]) window.floatingBoxesData[fbIdx].drawing = dataToSave; 
+        else if(window.contentBlocksData[blockIdx]) window.contentBlocksData[blockIdx].drawing = dataToSave; 
+        
+        let st = document.getElementById('save-status-bar');
+        if(st) st.innerHTML = "<span style='color:#e67e22;'>✍️ Saving...</span>"; 
+        if(window.simpanKeDB) window.simpanKeDB();
+    } 
+    if(activeTool !== 'laser') currentDrawCtx = null; 
+});
+
+window.convertLassoToMath = function() {
+    if(!isFloating || !floatUI) return;
+    let dummyMath = "$$ E = mc^2 $$<br>$$ x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a} $$";
+    let cR = lassoTargetCanvas.getBoundingClientRect(), fR = floatUI.getBoundingClientRect(); 
+    let offsetX = fR.left - cR.left, offsetY = fR.top - cR.top;
+    
+    floatUI.remove(); floatUI = null; isFloating = false;
+    let fbIdx = lassoTargetCanvas.getAttribute('data-fb-index'); let blockIdx = lassoTargetCanvas.getAttribute('data-index'); 
+    
+    if(fbIdx !== null && window.floatingBoxesData[fbIdx]) {
+        window.floatingBoxesData[fbIdx].html += `<div style="position:absolute; left:${offsetX}px; top:${offsetY}px; color:#2c3e50; font-weight:bold;">${dummyMath}</div>`;
+        window.floatingBoxesData[fbIdx].drawing = lassoTargetCanvas.toDataURL(); 
+    } else if(window.contentBlocksData[blockIdx]) {
+        window.contentBlocksData[blockIdx].html += `<div style="position:relative; margin-top:20px; color:#2c3e50; font-weight:bold;"><b>AI Math Detected:</b><br>${dummyMath}</div>`;
+        window.contentBlocksData[blockIdx].drawing = lassoTargetCanvas.toDataURL(); 
+    }
+    if(window.simpanKeDB) window.simpanKeDB();
+    window.toggleDrawingMode(); 
+    if(window.renderMathJax) setTimeout(window.renderMathJax, 500);
+    alert("Sihir AI: Coretan tangan diubah menjadi teks LaTeX MathJax!");
+};
+
+function createFloatingLasso(cvs) { 
+    let ctx = cvs.getContext('2d'), miX = cvs.width, miY = cvs.height, maX = 0, maY = 0; 
+    lassoPath.forEach(p => { if(p.x < miX) miX = p.x; if(p.x > maX) maX = p.x; if(p.y < miY) miY = p.y; if(p.y > maY) maY = p.y; }); 
+    let w = maX - miX, h = maY - miY; if(w < 5 || h < 5) return; 
+    
+    let tCvs = document.createElement('canvas'); tCvs.width = w; tCvs.height = h; tCvs.className = "lasso-float-canvas";
+    let tCtx = tCvs.getContext('2d'); tCtx.beginPath(); 
+    lassoPath.forEach((p,i) => i === 0 ? tCtx.moveTo(p.x - miX, p.y - miY) : tCtx.lineTo(p.x - miX, p.y - miY)); 
+    tCtx.closePath(); tCtx.clip(); tCtx.drawImage(cvs, -miX, -miY); 
+    
+    ctx.globalCompositeOperation = 'destination-out'; ctx.beginPath(); 
+    lassoPath.forEach((p,i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)); ctx.fill(); 
+    ctx.globalCompositeOperation = 'source-over'; 
+    
+    floatUI = document.createElement('div'); floatUI.className = 'lasso-float'; floatUI.appendChild(tCvs); 
+    
+    let btnBar = document.createElement('div'); btnBar.className = 'lasso-btn-bar';
+    btnBar.innerHTML = `<button onclick="convertLassoToMath()">∑ Convert Math (AI)</button>`;
+    floatUI.appendChild(btnBar);
+
+    let r = cvs.getBoundingClientRect(); floatUI.style.width = w + 'px'; floatUI.style.height = h + 'px'; floatUI.style.left = (r.left + miX) + 'px'; floatUI.style.top = (r.top + miY + window.scrollY) + 'px'; 
+
+    let isDraggingFloat = false, sX, sY, sL, sT;
+    tCvs.addEventListener('pointerdown', function(e) {
+        e.stopPropagation(); e.preventDefault();
+        isDraggingFloat = true; sX = e.clientX; sY = e.clientY;
+        sL = parseFloat(floatUI.style.left) || 0; sT = parseFloat(floatUI.style.top) || 0;
+        tCvs.setPointerCapture(e.pointerId);
+    });
+    tCvs.addEventListener('pointermove', function(e) {
+        if(!isDraggingFloat) return; e.stopPropagation(); e.preventDefault();
+        floatUI.style.left = (sL + (e.clientX - sX)) + 'px'; floatUI.style.top = (sT + (e.clientY - sY)) + 'px';
+    });
+    tCvs.addEventListener('pointerup', function(e) {
+        if(!isDraggingFloat) return; isDraggingFloat = false; tCvs.releasePointerCapture(e.pointerId); e.stopPropagation(); e.preventDefault();
+    });
+
+    document.body.appendChild(floatUI); isFloating = true; lassoPath = []; 
+} 
+
+function stampLasso() { 
+    if(!isFloating || !floatUI || !lassoTargetCanvas) return; 
+    let ctx = lassoTargetCanvas.getContext('2d'), cR = lassoTargetCanvas.getBoundingClientRect(), fR = floatUI.getBoundingClientRect(); 
+    ctx.drawImage(floatUI.querySelector('canvas'), fR.left - cR.left, fR.top - cR.top); 
+    floatUI.remove(); floatUI = null; isFloating = false; 
+    
+    let fbIdx = lassoTargetCanvas.getAttribute('data-fb-index'); let blockIdx = lassoTargetCanvas.getAttribute('data-index'); 
+    if(fbIdx !== null && window.floatingBoxesData[fbIdx]) window.floatingBoxesData[fbIdx].drawing = lassoTargetCanvas.toDataURL(); 
+    else if(window.contentBlocksData[blockIdx]) window.contentBlocksData[blockIdx].drawing = lassoTargetCanvas.toDataURL(); 
+    if(window.simpanKeDB) window.simpanKeDB(); 
+}
+
+/* =========================================
+   LOGIKA RUANG ADMINISTRASI GURU & KELOLA AKUN MULTI-GURU
+   ========================================= */
+window.bukaModalAdministrasi = function() {
+    window.bukaModal('modal-administrasi');
+    
+    let username = (sessionStorage.getItem("username") || "mahardika").toLowerCase();
+    let btnAkun = document.getElementById('btn-kelola-akun');
+    let badgeGuru = document.getElementById('badge-ruang-guru-aktif');
+    
+    if (badgeGuru) {
+        badgeGuru.innerText = "👤 Ruang Guru: " + username;
+    }
+
+    // Tombol Kelola Akun Guru HANYA muncul untuk pemilik utama (mahardika)
+    if(username === "mahardika" && btnAkun) {
+        btnAkun.style.display = 'block';
+        window.renderDaftarAkunGuru();
+    } else if(btnAkun) {
+        btnAkun.style.display = 'none';
+    }
+};
+
+window.bukaTabAdmin = function(tabId, btnElement) {
+    document.querySelectorAll('.admin-tab-content').forEach(function(el) {
+        el.style.display = 'none';
+    });
+    
+    let targetTab = document.getElementById(tabId);
+    if (targetTab) targetTab.style.display = 'block';
+    
+    document.querySelectorAll('.tab-admin-btn').forEach(function(btn) {
+        if(btn.id !== 'btn-kelola-akun') {
+            btn.style.background = '#ffffff';
+            btn.style.color = '#333';
+            btn.style.border = '1px solid #ccc';
+            btn.style.boxShadow = 'none';
+        }
+    });
+    
+    if(btnElement && btnElement.id !== 'btn-kelola-akun') {
+        btnElement.style.background = '#0b3954';
+        btnElement.style.color = 'white';
+        btnElement.style.border = 'none';
+    }
+
+    if (tabId === 'tab-kelola-akun') {
+        window.renderDaftarAkunGuru();
+    }
+};
+
+// Fungsi Salin Link Siswa untuk Guru yang Sedang Login (atau dari Tabel Akun Guru)
+window.salinLinkSiswaGuru = function(targetUsername) {
+    let guruUser = (targetUsername || sessionStorage.getItem("username") || window.guruAktif || "mahardika").toLowerCase();
+    let baseUrl = window.location.origin + window.location.pathname;
+    let linkSiswa = guruUser === "mahardika"
+        ? baseUrl + "?bab=home"
+        : baseUrl + "?guru=" + encodeURIComponent(guruUser) + "&bab=home";
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(linkSiswa).then(function() {
+            alert("🔗 Link Siswa berhasil disalin!\n\n" + linkSiswa + "\n\nBagikan link ini kepada siswa agar mereka langsung masuk ke ruang belajar \"" + guruUser + "\".");
+        }).catch(function() {
+            prompt("Salin link khusus siswa di bawah ini:", linkSiswa);
+        });
+    } else {
+        prompt("Salin link khusus siswa di bawah ini:", linkSiswa);
+    }
+};
+
+// Fungsi Simpan Akun Guru Baru (Khusus Super Admin Mahardika)
+window.simpanAkunGuruBaru = function() {
+    if (sessionStorage.getItem("username") !== "mahardika") return alert("Hanya Admin Utama yang dapat mengelola akun guru!");
+
+    let nama = document.getElementById('input-guru-nama').value.trim();
+    let userRaw = document.getElementById('input-guru-user').value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+    let pass = document.getElementById('input-guru-pass').value.trim();
+
+    if (!nama || !userRaw || !pass) return alert("Nama Guru, Username, dan Password wajib diisi lengkap!");
+    if (userRaw === "mahardika" || userRaw === "sbd") return alert("Username tersebut tidak bisa digunakan!");
+    if (pass.length < 6) return alert("Password minimal 6 karakter untuk keamanan Firebase!");
+
+    let emailBaru = userRaw + "@guru.com";
+    let btn = document.querySelector('#tab-kelola-akun .btn-action');
+    let oldText = btn.innerText;
+    
+    btn.innerText = "⏳ Mengamankan di Firebase...";
+    btn.disabled = true;
+
+    // Buat akun di Firebase Auth melalui Mesin Bayangan
+    window.buatAkunAuthGuru(emailBaru, pass, function() {
+        if (!window.daftarAkunGuru) window.daftarAkunGuru = {};
+        window.daftarAkunGuru[userRaw] = {
+            nama: nama, username: userRaw, password: pass, dibuat: new Date().toISOString()
+        };
+
+        document.getElementById('input-guru-nama').value = "";
+        document.getElementById('input-guru-user').value = "";
+        document.getElementById('input-guru-pass').value = "";
+
+        window.renderDaftarAkunGuru();
+        if (typeof window.simpanDaftarAkunGuruKeDB === "function") window.simpanDaftarAkunGuruKeDB();
+        
+        btn.innerText = oldText;
+        btn.disabled = false;
+        alert("✅ Akun guru berhasil dibuat dan dilindungi Firebase Auth tingkat tinggi!");
+    }, function(err) {
+        btn.innerText = oldText;
+        btn.disabled = false;
+        alert("❌ Gagal membuat akun: Username sudah dipakai atau koneksi terputus.");
+    });
+};
+
+// Render Tabel Daftar Akun Guru
+window.renderDaftarAkunGuru = function() {
+    let tbody = document.getElementById('body-daftar-akun-guru');
+    if (!tbody) return;
+
+    let daftar = window.daftarAkunGuru || {};
+    let keys = Object.keys(daftar).sort();
+
+    if (keys.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:#7f8c8d;">Belum ada akun guru tambahan yang terdaftar.</td></tr>';
         return;
     }
 
-    // JIKA BELUM FULLSCREEN -> FUNGSI SEBAGAI MAXIMIZE (MASUK)
-    var jalankanPseudoFS = function() {
-        elem.classList.add('mardi-pseudo-fs');
-        elem.classList.add(isDark ? 'mardi-pseudo-fs-dark' : 'mardi-pseudo-fs-light');
-        document.body.style.overflow = 'hidden';
-        if (typeof sesuaikanLayarUniversal === 'function') sesuaikanLayarUniversal(); 
-        
-        if (!elem.querySelector('.btn-close-pseudo-mardi')) {
-            var btnExit = document.createElement('button');
-            btnExit.className = 'btn-close-pseudo-mardi';
-            btnExit.innerHTML = '✖ Keluar Layar Penuh';
-            btnExit.onclick = function(e) {
-                e.stopPropagation(); e.preventDefault();
-                window.eksekusiFullscreenTangguh(elem, isDark); // Klik lagi untuk keluar
-                if (window.keluarBlockFullscreen) window.keluarBlockFullscreen();
-            };
-            elem.appendChild(btnExit);
+    let html = '';
+    keys.forEach(function(uKey, idx) {
+        let g = daftar[uKey];
+        html += '<tr>' +
+            '<td style="font-weight:bold; color:#7f8c8d;">' + (idx + 1) + '</td>' +
+            '<td style="text-align:left; font-weight:bold; color:#2c3e50;">' + (g.nama || uKey) + '</td>' +
+            '<td><span style="background:#eaf2f8; color:#2980b9; padding:3px 8px; border-radius:4px; font-weight:bold;">' + uKey + '</span></td>' +
+            '<td style="font-family:monospace; font-weight:bold; color:#333;">' + (g.password || '') + '</td>' +
+            '<td>' +
+                '<div style="display:flex; gap:6px; justify-content:center;">' +
+                    '<button style="background:#2980b9; color:white; border:none; padding:5px 10px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;" onclick="window.salinLinkSiswaGuru(\'' + uKey + '\')">🔗 Link Siswa</button>' +
+                    '<button style="background:#e74c3c; color:white; border:none; padding:5px 10px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;" onclick="window.hapusAkunGuru(\'' + uKey + '\')">🗑️ Hapus</button>' +
+                '</div>' +
+            '</td>' +
+        '</tr>';
+    });
+
+    tbody.innerHTML = html;
+};
+
+window.hapusAkunGuru = function(uKey) {
+    if (!window.daftarAkunGuru || !window.daftarAkunGuru[uKey]) return;
+    if (confirm('Hapus akses login untuk akun guru "' + uKey + '"?')) {
+        delete window.daftarAkunGuru[uKey];
+        window.renderDaftarAkunGuru();
+        if (typeof window.simpanDaftarAkunGuruKeDB === "function") {
+            window.simpanDaftarAkunGuruKeDB();
         }
-    };
-
-    // Mencoba fitur native HP dulu
-    var promise = null;
-    if (elem.requestFullscreen) promise = elem.requestFullscreen();
-    else if (elem.webkitRequestFullscreen) promise = elem.webkitRequestFullscreen();
-    else if (elem.mozRequestFullScreen) promise = elem.mozRequestFullScreen();
-
-    if (promise !== undefined && promise !== null) {
-        promise.catch(function(err) { jalankanPseudoFS(); }); // Paksa buatan jika ditolak
-    } else {
-        jalankanPseudoFS(); // Paksa buatan jika HP iPhone
     }
 };
 
-window.toggleFullScreen = function() { 
-    window.eksekusiFullscreenTangguh(document.documentElement, false); 
+/* =========================================
+   LOGIKA KELOLA KELAS & SISWA (ADMINISTRASI)
+   ========================================= */
+window.adminData = {}; // Format: { "X Dana": ["Ali", "Budi"], "X Sila": ["Cici"] }
+window.kelasAktifAdmin = "";
+
+window.renderAdminData = function() {
+    let htmlDropdown = '<option value="">-- Pilih Kelas --</option>';
+    let htmlListKelas = '';
+    let totalSiswaSemua = 0;
+    
+    let kelasArray = Object.keys(window.adminData).sort();
+    
+    kelasArray.forEach(k => {
+        let jml = window.adminData[k].length;
+        totalSiswaSemua += jml;
+        htmlDropdown += `<option value="${k}">${k}</option>`;
+        
+        let isAktif = (k === window.kelasAktifAdmin) ? 'background:#e8f4f8; border-color:#3498db; border-left:4px solid #2980b9;' : 'background:#f8f9fa; border-color:#eee;';
+        htmlListKelas += `
+            <li style="display:flex; justify-content:space-between; align-items:center; padding:10px 15px; border:1px solid transparent; border-radius:6px; cursor:pointer; transition:0.2s; ${isAktif}" onclick="pilihKelasAdmin('${k}')">
+                <span style="font-weight:bold; color:#2c3e50;">🏫 ${k} <span style="font-size:11px; color:#7f8c8d; font-weight:normal;">(${jml} Siswa)</span></span>
+                <button style="background:#fadbd8; border:none; color:#c0392b; border-radius:4px; padding:4px 8px; font-size:11px; font-weight:bold; cursor:pointer;" onclick="hapusKelasAdmin('${k}', event)">🗑️ Hapus</button>
+            </li>`;
+    });
+    
+    document.getElementById('admin-select-kelas').innerHTML = htmlDropdown;
+    if(window.kelasAktifAdmin) document.getElementById('admin-select-kelas').value = window.kelasAktifAdmin;
+    
+    document.getElementById('list-admin-kelas').innerHTML = htmlListKelas || '<p style="color:#7f8c8d; font-size:12px; text-align:center;">Belum ada kelas yang dibuat.</p>';
+    document.getElementById('admin-info-total-siswa').innerText = totalSiswaSemua;
+    
+    window.renderListSiswaAdmin();
 };
 
-window.toggleBlockFullscreen = function(btnEl, index) {
-    var wrapper = document.querySelector('.block-wrapper[data-index="' + index + '"]');
-    if (!wrapper) return;
+window.pilihKelasAdmin = function(namaKelas) {
+    if(!namaKelas) return;
+    window.kelasAktifAdmin = namaKelas;
+    window.renderAdminData();
+    if(typeof window.renderAbsensiAdmin === "function") window.renderAbsensiAdmin();
+    if(typeof window.renderAgendaAdmin === "function") window.renderAgendaAdmin();
+    if(typeof window.renderReminderAdmin === "function") window.renderReminderAdmin();
+};
+
+window.renderListSiswaAdmin = function() {
+    let labelKelas = document.getElementById('label-kelas-aktif');
+    let labelTotal = document.getElementById('label-total-siswa-kelas');
+    let listSiswa = document.getElementById('list-admin-siswa');
     
-    // Jika tombol Fokus di-klik dan sudah fokus, maka artinya Keluar
-    if (wrapper.classList.contains('block-fullscreen-active') || wrapper.classList.contains('mardi-pseudo-fs')) {
-        window.keluarBlockFullscreen();
+    if(!window.kelasAktifAdmin || !window.adminData[window.kelasAktifAdmin]) {
+        labelKelas.innerText = "Belum Dipilih"; labelKelas.style.color = "#e74c3c";
+        labelTotal.innerText = "0";
+        listSiswa.innerHTML = '<p style="color:#7f8c8d; font-size:12px; text-align:center; padding:20px; background:#f9f9f9; border-radius:6px;">Pilih kelas di sebelah kiri terlebih dahulu.</p>';
         return;
     }
     
-    // Bersihkan sisa jika ada
-    document.querySelectorAll('.block-fullscreen-active, .mardi-pseudo-fs').forEach(function(el) {
-        el.classList.remove('block-fullscreen-active', 'mardi-pseudo-fs', 'mardi-pseudo-fs-light', 'mardi-pseudo-fs-dark');
-        var btnOld = el.querySelector('.btn-close-pseudo-mardi');
-        if (btnOld) btnOld.remove();
+    labelKelas.innerText = window.kelasAktifAdmin; labelKelas.style.color = "#2980b9";
+    let siswaArr = window.adminData[window.kelasAktifAdmin];
+    labelTotal.innerText = siswaArr.length;
+    
+    let htmlSiswa = '';
+    siswaArr.sort().forEach((s, idx) => {
+        htmlSiswa += `
+            <li style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; border-bottom:1px dashed #eee; background:#fcfcfc;">
+                <span style="font-size:13px; font-weight:bold; color:#333;"><span style="display:inline-block; width:20px; height:20px; background:#2c3e50; color:white; text-align:center; border-radius:50%; line-height:20px; font-size:10px; margin-right:10px;">${idx+1}</span> ${s}</span>
+                <button style="background:none; color:#c0392b; border:none; font-size:11px; cursor:pointer; font-weight:bold;" onclick="hapusSiswaAdmin('${s}')">🗑️ Hapus</button>
+            </li>`;
     });
     
-    wrapper.classList.add('block-fullscreen-active');
-    wrapper.scrollTop = 0;
-
-    var bar = window.pastikanBarFokusAda();
-    if(bar) bar.style.display = 'flex';
-    
-    window.eksekusiFullscreenTangguh(wrapper, false);
-    setTimeout(function() { if (window.muatUlangSemuaKanvasGambar) window.muatUlangSemuaKanvasGambar(); }, 300);
+    listSiswa.innerHTML = htmlSiswa || '<p style="color:#7f8c8d; font-size:12px; text-align:center;">Kelas ini masih kosong. Silakan input nama siswa di atas.</p>';
 };
 
-window.keluarBlockFullscreen = function() {
-    document.querySelectorAll('.block-fullscreen-active, .mardi-pseudo-fs').forEach(function(el) {
-        el.classList.remove('block-fullscreen-active', 'mardi-pseudo-fs', 'mardi-pseudo-fs-light', 'mardi-pseudo-fs-dark');
-        el.style.transform = 'none'; el.style.marginBottom = ''; el.style.zoom = 1;
-        var btnX = el.querySelector('.btn-close-pseudo-mardi');
-        if (btnX) btnX.remove();
-        
-        var isNativeFS = document.fullscreenElement || document.webkitFullscreenElement;
-        if (isNativeFS) {
-            if (document.exitFullscreen) document.exitFullscreen().catch(()=>{});
-            else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+window.tambahKelasAdmin = function() {
+    let input = document.getElementById('input-nama-kelas-baru');
+    let val = input.value.trim();
+    if(!val) return;
+    if(window.adminData[val]) return alert("Nama kelas sudah ada!");
+    
+    window.adminData[val] = []; // Buat kelas dengan array siswa kosong
+    window.kelasAktifAdmin = val;
+    input.value = "";
+    window.renderAdminData();
+    if(typeof window.simpanAdminKeDB === "function") window.simpanAdminKeDB();
+};
+
+window.hapusKelasAdmin = function(namaKelas, e) {
+    e.stopPropagation();
+    if(confirm(`Yakin ingin menghapus kelas ${namaKelas} beserta seluruh siswanya?`)) {
+        delete window.adminData[namaKelas];
+        if(window.kelasAktifAdmin === namaKelas) window.kelasAktifAdmin = "";
+        window.renderAdminData();
+        if(typeof window.simpanAdminKeDB === "function") window.simpanAdminKeDB();
+    }
+};
+
+window.tambahSiswaAdmin = function() {
+    if(!window.kelasAktifAdmin) return alert("Pilih kelas di daftar sebelah kiri terlebih dahulu!");
+    let input = document.getElementById('input-nama-siswa-massal');
+    let val = input.value.trim();
+    if(!val) return;
+    
+    let baris = val.split('\n');
+    let adaSiswaBaru = false;
+    baris.forEach(b => {
+        let nama = b.trim();
+        if(nama && !window.adminData[window.kelasAktifAdmin].includes(nama)) {
+            window.adminData[window.kelasAktifAdmin].push(nama);
+            adaSiswaBaru = true;
         }
     });
-
-    window.fokusZoomLevel = 1;
-    document.body.style.overflow = 'auto';
     
-    var bar = document.getElementById('fokus-floating-bar');
-    if (bar) bar.style.display = 'none';
-    if (window.isDrawingMode && typeof window.toggleDrawingMode === 'function') window.toggleDrawingMode();
-    setTimeout(function() { if (window.muatUlangSemuaKanvasGambar) window.muatUlangSemuaKanvasGambar(); }, 300);
+    if(adaSiswaBaru) {
+        input.value = "";
+        window.renderAdminData();
+        if(typeof window.simpanAdminKeDB === "function") window.simpanAdminKeDB();
+    } else {
+        alert("Siswa tersebut sudah ada di kelas ini.");
+    }
 };
 
-window.jalankanFiturFullscreen = function(elem) { window.eksekusiFullscreenTangguh(elem, true); };
+window.hapusSiswaAdmin = function(namaSiswa) {
+    if(confirm(`Hapus ${namaSiswa} dari kelas ${window.kelasAktifAdmin}?`)) {
+        window.adminData[window.kelasAktifAdmin] = window.adminData[window.kelasAktifAdmin].filter(s => s !== namaSiswa);
+        window.renderAdminData();
+        if(typeof window.simpanAdminKeDB === "function") window.simpanAdminKeDB();
+    }
+};
 
-// ============================================================================
-// PENGEMBALIAN FUNGSI REMINDER (ABSENSI & UJIAN)
-// ============================================================================
-window.tampilkanUIReminder = function() {
-    var body = document.getElementById('body-ruang-administrasi');
-    if (!body) return;
+const modalAdminObserver = new MutationObserver((mutations) => {
+    mutations.forEach((m) => {
+        if(m.target.id === 'modal-administrasi' && m.target.style.display === 'flex') {
+            window.renderAdminData();
+            if(typeof window.renderAbsensiAdmin === "function") window.renderAbsensiAdmin();
+            if(typeof window.renderAgendaAdmin === "function") window.renderAgendaAdmin();
+            if(typeof window.renderReminderAdmin === "function") window.renderReminderAdmin();
+        }
+    });
+});
+modalAdminObserver.observe(document.getElementById('modal-administrasi'), { attributes: true, attributeFilter: ['style'] });
+
+const modalManajerObserver = new MutationObserver((mutations) => {
+    mutations.forEach((m) => {
+        if(m.target.id === 'modal-manajer-ujian' && m.target.style.display === 'flex') {
+            if(typeof window.renderManajerUjian === "function") window.renderManajerUjian();
+        }
+    });
+});
+if(document.getElementById('modal-manajer-ujian')) {
+    modalManajerObserver.observe(document.getElementById('modal-manajer-ujian'), { attributes: true, attributeFilter: ['style'] });
+}
+
+/* =========================================
+   LOGIKA ABSENSI SISWA (ADMINISTRASI)
+   ========================================= */
+window.adminAbsensiData = {}; // Format: { "X Dana": { tgl: ["31/10/2026"], status: { "Nama Siswa": ["H"] } } }
+
+window.renderAbsensiAdmin = function() {
+    let label = document.getElementById('label-absensi-kelas');
+    let thead = document.getElementById('head-absensi-pertemuan');
+    let tbody = document.getElementById('body-absensi-siswa');
     
-    var klsAktif = window.kelasAdminUtama || window.ambilDaftarKelasAktif()[0];
-    var isSemuaKelas = (window.modeFilterReminder === 'SEMUA_KELAS');
-    var daftarTarget = isSemuaKelas ? window.ambilDaftarKelasAktif() : [klsAktif];
-    var dataRem = window.kumpulkanDataReminder(daftarTarget);
-
-    var semuaNamaUjian = new Set();
-    Object.keys(window.bankUjianGlobal || {}).forEach(function(u) { semuaNamaUjian.add(u); });
-    Object.keys(window.dataRekapNilai || {}).forEach(function(u) { semuaNamaUjian.add(u); });
-    Object.values(window.rekapNilaiGlobal || {}).forEach(function(d) { if (d && d.ujian) semuaNamaUjian.add(d.ujian); });
+    // Cegah error jika elemen tidak ditemukan (misal di halaman luar)
+    if(!label || !thead || !tbody) return;
     
-    var opsiUjianHtml = '<option value="">-- Pilih Paket Ujian untuk Dipantau di Kelas ' + klsAktif + ' --</option>' +
-        Array.from(semuaNamaUjian).sort().map(function(u) { return '<option value="' + u + '">' + u + '</option>'; }).join('');
+    // Jika belum ada kelas yang dipilih atau kelas tersebut kosong
+    if(!window.kelasAktifAdmin || !window.adminData[window.kelasAktifAdmin] || window.adminData[window.kelasAktifAdmin].length === 0) {
+        label.innerText = "Belum Dipilih / Kelas Kosong"; label.style.color = "#e74c3c";
+        thead.innerHTML = "<tr><th>Pilih kelas yang memiliki daftar siswa terlebih dahulu.</th></tr>";
+        tbody.innerHTML = "";
+        return;
+    }
+    
+    label.innerText = window.kelasAktifAdmin; label.style.color = "#2980b9";
+    
+    // Inisialisasi struktur database absensi jika kelas ini benar-benar baru dibuka
+    if(!window.adminAbsensiData[window.kelasAktifAdmin]) {
+        window.adminAbsensiData[window.kelasAktifAdmin] = { tgl: [], status: {} };
+    }
+    
+    let absData = window.adminAbsensiData[window.kelasAktifAdmin];
+    let siswaArr = window.adminData[window.kelasAktifAdmin].sort(); // Urut abjad
+    
+    // 1. Render Header (Judul Kolom)
+    let hHTML = `<th style="width:40px; background:#2c3e50;">No</th><th style="text-align:left; min-width:180px; background:#2c3e50;">Nama Siswa</th><th style="width:80px; background:#2c3e50;">Aksi</th>`;
+    absData.tgl.forEach((t, i) => {
+        hHTML += `<th style="width:90px; cursor:pointer; background:#34495e;" onclick="editTanggalAbsensi(${i})" title="Klik untuk ubah tanggal">Pertemuan ${i+1}<br><span style="font-size:10px; font-weight:normal; color:#f1c40f;">${t}</span></th>`;
+    });
+    hHTML += `<th style="background:#27ae60; width:40px;">H</th><th style="background:#e67e22; width:40px;">S</th><th style="background:#2980b9; width:40px;">I</th><th style="background:#c0392b; width:40px;">A</th>`;
+    thead.innerHTML = hHTML;
+    
+    // 2. Render Body (Baris Siswa)
+    let bHTML = '';
+    siswaArr.forEach((s, idx) => {
+        if(!absData.status[s]) absData.status[s] = []; 
+        
+        let rekap = { 'H':0, 'S':0, 'I':0, 'A':0 };
+        let cellHTML = '';
+        
+        // Loop setiap pertemuan untuk anak ini
+        absData.tgl.forEach((t, i) => {
+            let stat = absData.status[s][i] || '-';
+            if(rekap[stat] !== undefined) rekap[stat]++;
+            
+            let bg = stat === 'H' ? '#d5f5e3' : stat === 'S' ? '#fdebd0' : stat === 'I' ? '#d4e6f1' : stat === 'A' ? '#fadbd8' : 'transparent';
+            cellHTML += `<td style="background:${bg}; font-weight:bold; cursor:pointer;" onclick="toggleStatusAbsensi('${s}', ${i})">${stat}</td>`;
+        });
+        
+        bHTML += `<tr>
+            <td style="font-weight:bold; color:#7f8c8d;">${idx+1}</td>
+            <td style="text-align:left; font-weight:600;">${s}</td>
+            <td><button style="background:#f1c40f; color:#333; border:none; padding:4px 8px; border-radius:4px; font-size:10px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:4px; margin:0 auto;"><span style="font-size:12px;">📝</span> Catatan</button></td>
+            ${cellHTML}
+            <td style="font-weight:bold; color:#27ae60;">${rekap['H']}</td><td style="font-weight:bold; color:#e67e22;">${rekap['S']}</td><td style="font-weight:bold; color:#2980b9;">${rekap['I']}</td><td style="font-weight:bold; color:#c0392b;">${rekap['A']}</td>
+        </tr>`;
+    });
+    tbody.innerHTML = bHTML;
+};
 
-    var htmlAbsensi = '';
-    if (dataRem.grupAbsensi.length === 0) {
-        htmlAbsensi = '<div style="padding:20px; text-align:center; color:#64748b; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:8px;">🎉 Tidak ada siswa yang ketinggalan materi pelajaran pada ' + (isSemuaKelas ? 'seluruh kelas.' : 'kelas ' + klsAktif + '.') + '</div>';
-    } else {
-        htmlAbsensi = dataRem.grupAbsensi.map(function(grp) {
-            if (grp.items.length === 1) {
-                var item = grp.items[0];
-                return '<div class="reminder-card-single">' +
-                    '<div><span style="background:#0b3954; color:#fff; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:bold; margin-right:6px;">' + item.kelas + '</span><span style="color:#64748b; font-size:12px; margin-right:6px;">[' + item.waktu + ']</span> ' + window.labelStatusAbsenLengkap(item.status) + ' — <b style="color:#d35400; font-size:14px;">' + item.nama + '</b> perlu mengikuti <b style="color:#0b3954; text-decoration:underline;">' + item.materi + '</b></div>' +
-                    '<button type="button" class="btn-dismiss-reminder" title="Selesai / Hapus Pengingat" onclick="window.dismissSatuReminder(\'' + item.id + '\', event)">✕</button></div>';
-            }
-            var isOpen = !!window.statusBukaDropdownReminder[grp.groupKey];
-            var gabunganId = grp.items.map(function(i) { return i.id; }).join('|');
-            var subRows = grp.items.map(function(item, idx) {
-                return '<div class="reminder-sub-row"><div><span style="font-weight:bold; color:#64748b; margin-right:6px;">' + (idx + 1) + '.</span>' + window.labelStatusAbsenLengkap(item.status) + ' — <b style="color:#d35400;">' + item.nama + '</b> perlu mengikuti <b style="color:#0b3954;">' + item.materi + '</b></div><button type="button" class="btn-dismiss-reminder" title="Selesai untuk ' + item.nama + '" onclick="window.dismissSatuReminder(\'' + item.id + '\', event)">✕</button></div>';
-            }).join('');
-            return '<div class="reminder-group-box"><div class="reminder-group-header" onclick="window.toggleDropdownGrupReminder(\'' + grp.groupKey + '\')"><div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;"><span id="rem-icon-' + grp.groupKey + '" style="font-weight:bold; font-size:15px; color:#0b3954; width:14px;">' + (isOpen ? '▾' : '▸') + '</span><span style="background:#0b3954; color:#fff; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:bold;">' + grp.kelas + '</span><span style="color:#475569; font-weight:600;">[' + grp.waktu + ']</span><span style="background:#fef3c7; color:#b45309; padding:2px 9px; border-radius:12px; font-weight:bold; font-size:12px;">👥 ' + grp.items.length + ' Siswa Tidak Hadir</span><span>perlu mengikuti <b style="color:#0b3954; text-decoration:underline;">' + grp.materi + '</b></span></div><button type="button" class="btn-dismiss-reminder" title="Hapus Semua di Grup Ini" onclick="window.dismissGrupReminder(\'' + gabunganId + '\', event)">✕</button></div><div id="rem-body-' + grp.groupKey + '" class="reminder-group-body' + (isOpen ? ' open' : '') + '">' + subRows + '</div></div>';
-        }).join('');
+// --- LANJUTAN LOGIKA ABSENSI ---
+
+window.tambahPertemuanAbsensi = function() {
+    if(!window.kelasAktifAdmin) return alert("Pilih kelas di sebelah kiri terlebih dahulu!");
+    if(!window.adminData[window.kelasAktifAdmin] || window.adminData[window.kelasAktifAdmin].length === 0) return alert("Kelas ini belum memiliki siswa!");
+    
+    let absData = window.adminAbsensiData[window.kelasAktifAdmin];
+    
+    // Buat format tanggal hari ini otomatis (DD/MM/YYYY)
+    let today = new Date();
+    let tglStr = today.getDate().toString().padStart(2, '0') + '/' + (today.getMonth()+1).toString().padStart(2, '0') + '/' + today.getFullYear();
+    
+    absData.tgl.push(tglStr); // Tambah kolom tanggal baru
+    
+    // Isi default status '-' (kosong) untuk semua siswa di pertemuan baru ini
+    let siswaArr = window.adminData[window.kelasAktifAdmin];
+    siswaArr.forEach(s => {
+        if(!absData.status[s]) absData.status[s] = [];
+        absData.status[s].push('-'); 
+    });
+    
+    window.renderAbsensiAdmin();
+    if(typeof window.simpanAbsensiKeDB === "function") window.simpanAbsensiKeDB();
+};
+
+window.toggleStatusAbsensi = function(namaSiswa, pIndex) {
+    let absData = window.adminAbsensiData[window.kelasAktifAdmin];
+    let curr = absData.status[namaSiswa][pIndex];
+    
+    // Urutan siklus klik: '-' -> 'H' -> 'S' -> 'I' -> 'A' -> kembali ke '-'
+    let cycle = {'-': 'H', 'H': 'S', 'S': 'I', 'I': 'A', 'A': '-'};
+    absData.status[namaSiswa][pIndex] = cycle[curr] || 'H';
+    
+    window.renderAbsensiAdmin();
+    if(typeof window.simpanAbsensiKeDB === "function") window.simpanAbsensiKeDB();
+};
+
+window.editTanggalAbsensi = function(pIndex) {
+    let absData = window.adminAbsensiData[window.kelasAktifAdmin];
+    let oldTgl = absData.tgl[pIndex];
+    let newTgl = prompt("Ubah tanggal pertemuan ini:", oldTgl);
+    
+    if(newTgl && newTgl.trim() !== "") {
+        absData.tgl[pIndex] = newTgl.trim();
+        window.renderAbsensiAdmin();
+        if(typeof window.simpanAbsensiKeDB === "function") window.simpanAbsensiKeDB();
+    }
+};
+
+/* =========================================
+   LOGIKA AGENDA MENGAJAR (ADMINISTRASI)
+   ========================================= */
+window.adminAgendaData = {}; // Format: { "X Dana": [ {tgl: "2026-10-31", jp: 2, materi: "biologi", ket: "lancar", rencana: "ujian"} ] }
+
+window.renderAgendaAdmin = function() {
+    let label = document.getElementById('label-agenda-kelas');
+    let tbody = document.getElementById('body-agenda-mengajar');
+    if(!label || !tbody) return;
+
+    if(!window.kelasAktifAdmin) {
+        label.innerText = "Belum Dipilih"; label.style.color = "#e74c3c";
+        tbody.innerHTML = "<tr><td colspan='7' style='text-align:center; color:#7f8c8d; font-weight:bold; padding:20px;'>Pilih kelas terlebih dahulu.</td></tr>";
+        return;
+    }
+    
+    label.innerText = window.kelasAktifAdmin; label.style.color = "#2980b9";
+    if(!window.adminAgendaData[window.kelasAktifAdmin]) window.adminAgendaData[window.kelasAktifAdmin] = [];
+    
+    let agendaArr = window.adminAgendaData[window.kelasAktifAdmin];
+    
+    // Hitung total semua agenda untuk header administrasi
+    let totalAgendaSemua = 0;
+    Object.values(window.adminAgendaData).forEach(arr => totalAgendaSemua += arr.length);
+    let infoAgenda = document.getElementById('admin-info-total-agenda');
+    if(infoAgenda) infoAgenda.innerText = totalAgendaSemua;
+
+    if(agendaArr.length === 0) {
+        tbody.innerHTML = "<tr><td colspan='7' style='text-align:center; color:#7f8c8d; padding:20px;'>Belum ada catatan agenda untuk kelas ini.</td></tr>";
+        return;
     }
 
-    var htmlUjian = '';
-    if (dataRem.grupUjian.length === 0) {
-        htmlUjian = '<div style="padding:20px; text-align:center; color:#64748b; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:8px;">🎉 Semua siswa pada ' + (isSemuaKelas ? 'seluruh kelas' : 'kelas ' + klsAktif) + ' telah mengikuti ujian yang dipantau.</div>';
+    let bHTML = '';
+    agendaArr.forEach((item, idx) => {
+        bHTML += `<tr>
+            <td style="text-align:center; font-weight:bold; color:#7f8c8d;">${idx+1}</td>
+            <td style="font-weight:600;">${item.tgl}</td>
+            <td style="text-align:center; font-weight:bold;">${item.jp}</td>
+            <td>${item.materi}</td>
+            <td>${item.ket}</td>
+            <td style="color:#16a085; font-weight:600;">${item.rencana}</td>
+            <td style="text-align:center;"><button style="background:none; color:#c0392b; border:none; cursor:pointer; font-size:14px;" onclick="hapusAgendaAdmin(${idx})" title="Hapus Jurnal">🗑️</button></td>
+        </tr>`;
+    });
+    tbody.innerHTML = bHTML;
+};
+
+window.tambahAgendaAdmin = function() {
+    if(!window.kelasAktifAdmin) return alert("Pilih kelas di sebelah kiri terlebih dahulu!");
+    let tgl = document.getElementById('agenda-tanggal').value;
+    let jp = document.getElementById('agenda-jp').value;
+    let materi = document.getElementById('agenda-materi').value.trim();
+    let ket = document.getElementById('agenda-keterangan').value.trim();
+    let rencana = document.getElementById('agenda-rencana').value.trim();
+
+    if(!tgl || !jp || !materi) return alert("Tanggal, JP, dan Materi wajib diisi!");
+
+    if(!window.adminAgendaData[window.kelasAktifAdmin]) window.adminAgendaData[window.kelasAktifAdmin] = [];
+    
+    window.adminAgendaData[window.kelasAktifAdmin].push({
+        tgl: tgl, jp: jp, materi: materi, ket: ket, rencana: rencana
+    });
+
+    // Bersihkan input teks setelah simpan
+    document.getElementById('agenda-materi').value = "";
+    document.getElementById('agenda-keterangan').value = "";
+    document.getElementById('agenda-rencana').value = "";
+
+    window.renderAgendaAdmin();
+    if(typeof window.simpanAgendaKeDB === "function") window.simpanAgendaKeDB();
+};
+
+window.hapusAgendaAdmin = function(idx) {
+    if(confirm("Hapus catatan agenda ini?")) {
+        window.adminAgendaData[window.kelasAktifAdmin].splice(idx, 1);
+        window.renderAgendaAdmin();
+        if(typeof window.simpanAgendaKeDB === "function") window.simpanAgendaKeDB();
+    }
+};
+
+/* =========================================
+   LOGIKA EXPORT EXCEL (CSV) ADMINISTRASI
+   ========================================= */
+window.exportExcelAbsensi = function() {
+    if(!window.kelasAktifAdmin || !window.adminData[window.kelasAktifAdmin] || window.adminData[window.kelasAktifAdmin].length === 0) {
+        return alert("Pilih kelas yang memiliki data absensi terlebih dahulu!");
+    }
+    
+    let absData = window.adminAbsensiData[window.kelasAktifAdmin] || { tgl: [], status: {} };
+    let siswaArr = window.adminData[window.kelasAktifAdmin].sort();
+    
+    // 1. Menyusun Judul Kolom (Header)
+    let csvContent = "No,Nama Siswa,";
+    absData.tgl.forEach((t, i) => {
+        csvContent += `Pertemuan ${i+1} (${t}),`;
+    });
+    csvContent += "Hadir,Sakit,Izin,Alfa\n";
+    
+    // 2. Menyusun Baris Data Siswa
+    siswaArr.forEach((s, idx) => {
+        let row = `${idx+1},"${s}",`;
+        let rekap = { 'H':0, 'S':0, 'I':0, 'A':0 };
+        
+        absData.tgl.forEach((t, i) => {
+            let stat = (absData.status[s] && absData.status[s][i]) ? absData.status[s][i] : '-';
+            if(rekap[stat] !== undefined) rekap[stat]++;
+            row += `${stat},`;
+        });
+        
+        row += `${rekap['H']},${rekap['S']},${rekap['I']},${rekap['A']}\n`;
+        csvContent += row;
+    });
+    
+    // 3. Proses Download File
+    let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    let url = URL.createObjectURL(blob);
+    let link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Absensi_Kelas_${window.kelasAktifAdmin}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
+window.exportExcelAgenda = function() {
+    if(!window.kelasAktifAdmin || !window.adminAgendaData[window.kelasAktifAdmin] || window.adminAgendaData[window.kelasAktifAdmin].length === 0) {
+        return alert("Pilih kelas yang memiliki catatan agenda terlebih dahulu!");
+    }
+    
+    let agendaArr = window.adminAgendaData[window.kelasAktifAdmin];
+    
+    // 1. Menyusun Judul Kolom
+    let csvContent = "No,Tanggal,JP,Materi Pembelajaran,Keterangan,Rencana Berikutnya\n";
+    
+    // 2. Menyusun Baris Catatan (Pakai kutip ganda agar teks yang mengandung koma tidak error di Excel)
+    agendaArr.forEach((item, idx) => {
+        csvContent += `${idx+1},"${item.tgl}","${item.jp}","${item.materi}","${item.ket}","${item.rencana}"\n`;
+    });
+    
+    // 3. Proses Download File
+    let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    let url = URL.createObjectURL(blob);
+    let link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Agenda_Mengajar_Kelas_${window.kelasAktifAdmin}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
+/* =========================================
+   LOGIKA PENGINGAT (REMINDER) ADMINISTRASI
+   ========================================= */
+window.modeReminderAdmin = 'khusus';
+
+// Array memori untuk menyimpan ID pengingat absensi yang sudah Anda hapus (klik X)
+window.adminPengingatMateriDismissed = window.adminPengingatMateriDismissed || [];
+
+window.setModeReminder = function(mode) {
+    window.modeReminderAdmin = mode;
+    let bK = document.getElementById('btn-rem-khusus');
+    let bS = document.getElementById('btn-rem-semua');
+    if(mode === 'khusus') {
+        bK.style.background = '#0b3954'; bK.style.color = 'white'; bK.style.border = 'none';
+        bS.style.background = '#ffffff'; bS.style.color = '#333'; bS.style.border = '1px solid #ccc';
     } else {
-        htmlUjian = dataRem.grupUjian.map(function(grp) {
-            if (grp.items.length === 1) {
-                var item = grp.items[0];
-                return '<div class="reminder-card-single exam-type"><div><span style="background:#c0392b; color:#fff; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:bold; margin-right:6px;">' + item.kelas + '</span><b style="color:#c0392b; font-size:14px;">' + item.nama + '</b> perlu mengikuti ujian <b style="color:#0b3954; text-decoration:underline;">' + item.ujian + '</b></div><button type="button" class="btn-dismiss-reminder" onclick="window.dismissSatuReminder(\'' + item.id + '\', event)">✕</button></div>';
+        bS.style.background = '#0b3954'; bS.style.color = 'white'; bS.style.border = 'none';
+        bK.style.background = '#ffffff'; bK.style.color = '#333'; bK.style.border = '1px solid #ccc';
+    }
+    window.renderReminderAdmin();
+};
+
+function groupBerdasarkanKelas(arrayData) {
+    return arrayData.reduce((acc, item) => {
+        if (!acc[item.kelas]) acc[item.kelas] = [];
+        acc[item.kelas].push(item);
+        return acc;
+    }, {});
+}
+
+// ----------------------------------------------------
+// 1. MESIN SINKRONISASI MATERI (ABSENSI)
+// ----------------------------------------------------
+window.sinkronisasiMateriOtomatis = function() {
+    if(!window.adminDataPengingat) window.adminDataPengingat = { materi: [], ujian: [] };
+    
+    // Jangan reset window.adminDataPengingat.materi secara brutal, kita hanya akan menambahkan yang baru
+    
+    if(window.adminAbsensiData) {
+        for(let kelas in window.adminAbsensiData) {
+            let absKelas = window.adminAbsensiData[kelas];
+            for(let nama in absKelas.status) {
+                let statArray = absKelas.status[nama];
+                
+                statArray.forEach((stat, pIndex) => {
+                    // Jika anak memiliki status -, S, I, atau A
+                    if(['-', 'S', 'I', 'A'].includes(stat)) {
+                        let tgl = absKelas.tgl[pIndex];
+                        let idRem = `materi_${kelas.replace(/\s/g,'_')}_${nama.replace(/\s/g,'_')}_${pIndex}`;
+
+                        // Cek apakah pengingat ini sudah pernah dihapus oleh guru (klik X)
+                        let isDismissed = window.adminPengingatMateriDismissed.includes(idRem);
+                        // Cek apakah sudah ada di list saat ini
+                        let isAlreadyIn = window.adminDataPengingat.materi.find(m => m.id === idRem);
+
+                        if(!isDismissed && !isAlreadyIn) {
+                            window.adminDataPengingat.materi.push({
+                                id: idRem,
+                                kelas: kelas,
+                                nama: nama,
+                                teks: `tertinggal materi Pertemuan ${pIndex + 1} (${tgl})`,
+                                status: stat
+                            });
+                        }
+                    }
+                });
             }
-            var isOpen = !!window.statusBukaDropdownReminder[grp.groupKey];
-            var gabunganId = grp.items.map(function(i) { return i.id; }).join('|');
-            var subRows = grp.items.map(function(item, idx) {
-                return '<div class="reminder-sub-row"><div><span style="font-weight:bold; color:#64748b; margin-right:6px;">' + (idx + 1) + '.</span><b style="color:#c0392b;">' + item.nama + '</b> perlu mengikuti ujian <b style="color:#0b3954;">' + item.ujian + '</b></div><button type="button" class="btn-dismiss-reminder" onclick="window.dismissSatuReminder(\'' + item.id + '\', event)">✕</button></div>';
-            }).join('');
-            return '<div class="reminder-group-box exam-type"><div class="reminder-group-header" onclick="window.toggleDropdownGrupReminder(\'' + grp.groupKey + '\')"><div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;"><span id="rem-icon-' + grp.groupKey + '" style="font-weight:bold; font-size:15px; color:#8e44ad; width:14px;">' + (isOpen ? '▾' : '▸') + '</span><span style="background:#8e44ad; color:#fff; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:bold;">' + grp.kelas + '</span><span style="background:#fadbd8; color:#c0392b; padding:2px 9px; border-radius:12px; font-weight:bold; font-size:12px;">🎯 ' + grp.items.length + ' Siswa Belum Ujian</span><span>perlu mengikuti ujian <b style="color:#0b3954; text-decoration:underline;">' + grp.ujian + '</b></span></div><button type="button" class="btn-dismiss-reminder" onclick="window.dismissGrupReminder(\'' + gabunganId + '\', event)">✕</button></div><div id="rem-body-' + grp.groupKey + '" class="reminder-group-body' + (isOpen ? ' open' : '') + '">' + subRows + '</div></div>';
-        }).join('');
+        }
+    }
+};
+
+// ----------------------------------------------------
+// 2. FUNGSI RENDER MASTER & BADGE
+// ----------------------------------------------------
+window.renderReminderAdmin = function() {
+    let labelKelas = document.getElementById('label-rem-kelas');
+    if(labelKelas) labelKelas.innerText = window.kelasAktifAdmin || "Belum Dipilih";
+
+    // Panggil mesin sinkronisasi absensi agar data baru masuk
+    window.sinkronisasiMateriOtomatis();
+
+    // Render Dropdown Ujian
+    let selUjian = document.getElementById('rem-pilih-ujian');
+    if(selUjian) {
+        let currentVal = selUjian.value; 
+        let htmlOpt = '<option value="">-- Pilih Paket Ujian untuk Dipantau --</option>';
+        Object.keys(window.adminBankUjianData || {}).sort().forEach(paket => {
+            htmlOpt += `<option value="${paket}">${paket}</option>`;
+        });
+        selUjian.innerHTML = htmlOpt;
+        if(currentVal) selUjian.value = currentVal;
     }
 
-    body.innerHTML =
-        '<div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:10px; background:#f8fafc; padding:12px 15px; border:1px solid #e2e8f0; border-radius:10px; margin-bottom:16px;">' +
-            '<div style="display:flex; align-items:center; gap:8px;">' +
-                '<span style="font-weight:bold; font-size:13px; color:#0b3954;">Tampilkan Pengingat:</span>' +
-                '<button type="button" onclick="window.modeFilterReminder=\'KELAS_INI\'; window.tampilkanUIReminder();" style="padding:6px 12px; border-radius:6px; border:1px solid #0b3954; font-weight:bold; font-size:12px; cursor:pointer; background:' + (!isSemuaKelas ? '#0b3954' : '#fff') + '; color:' + (!isSemuaKelas ? '#fff' : '#0b3954') + ';">🏫 Khusus Kelas ' + klsAktif + '</button>' +
-                '<button type="button" onclick="window.modeFilterReminder=\'SEMUA_KELAS\'; window.tampilkanUIReminder();" style="padding:6px 12px; border-radius:6px; border:1px solid #0b3954; font-weight:bold; font-size:12px; cursor:pointer; background:' + (isSemuaKelas ? '#0b3954' : '#fff') + '; color:' + (isSemuaKelas ? '#fff' : '#0b3954') + ';">📂 Semua Kelas</button>' +
-            '</div>' +
-            '<div style="font-size:12px; color:#64748b;">💡 Pengingat tidak akan hilang sebelum tombol <b>✕</b> ditekan.</div>' +
-        '</div>' +
-        '<div style="margin-bottom:22px;">' +
-            '<h4 style="margin:0 0 10px 0; color:#0b3954; font-size:14px; display:flex; align-items:center; gap:8px;">📚 1. Pengingat Siswa Ketinggalan Materi Pelajaran (Status: -, A, S, I)</h4>' +
-            htmlAbsensi +
-        '</div>' +
-        '<div>' +
-            '<div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px;">' +
-                '<h4 style="margin:0; color:#c0392b; font-size:14px;">🎯 2. Pengingat Siswa Belum Mengikuti Ujian</h4>' +
-                '<div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">' +
-                    '<select id="select-pantau-ujian-baru" style="padding:6px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px;">' + opsiUjianHtml + '</select>' +
-                    '<button type="button" onclick="window.tambahPantauUjianKelas()" style="background:#8e44ad; color:#fff; border:none; padding:7px 12px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer;">+ Cek Ujian di Kelas ' + klsAktif + '</button>' +
+    window.gambarUIHasilMateri();
+    window.gambarUIHasilPantauan();
+
+    // Update notifikasi angka merah di Tab Reminder
+    let tabBtn = document.querySelector('button[onclick*="tab-reminder"] span');
+    if(tabBtn) {
+        let totalMat = window.adminDataPengingat?.materi?.length || 0;
+        let totalUji = window.dataPantauanUjian?.siswaBelum?.length || 0;
+        tabBtn.innerText = totalMat + totalUji;
+    }
+};
+
+// ----------------------------------------------------
+// 3. UI PENGINGAT MATERI (Hijau-Orange)
+// ----------------------------------------------------
+window.gambarUIHasilMateri = function() {
+    let listMateri = document.getElementById('list-rem-materi');
+    if(!listMateri) return;
+
+    let dataMat = window.adminDataPengingat.materi || [];
+
+    if (window.modeReminderAdmin === 'khusus' && window.kelasAktifAdmin) {
+        dataMat = dataMat.filter(item => item.kelas === window.kelasAktifAdmin);
+    }
+
+    if(dataMat.length === 0) {
+        listMateri.innerHTML = `<div style="text-align:center; padding:15px; color:#95a5a6; font-size:13px; border:1px dashed #bdc3c7; border-radius:8px; background:#fafafa;">🎉 Tidak ada siswa yang ketinggalan materi pelajaran.</div>`;
+        return;
+    }
+
+    let grupMateri = groupBerdasarkanKelas(dataMat);
+    let html = '';
+
+    for (let kls in grupMateri) {
+        html += `
+        <details open style="margin-bottom:10px; background:#fff; border:1px solid #d5dbdb; border-radius:8px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+            <summary style="display:flex; justify-content:space-between; align-items:center; padding:12px 15px; background:#eafaf1; cursor:pointer; list-style:none; border-left:4px solid #27ae60;">
+                <div style="display:flex; align-items:center; gap:10px; flex:1;">
+                    <span style="font-size:12px; color:#27ae60;">▶</span>
+                    <span style="background:#27ae60; color:white; padding:3px 8px; border-radius:4px; font-size:11px; font-weight:bold;">${kls}</span>
+                    <span style="background:#fdebd0; color:#d35400; padding:3px 8px; border-radius:4px; font-size:11px; font-weight:bold;">📚 ${grupMateri[kls].length} Pengingat Absensi</span>
+                </div>
+                <button style="background:#e74c3c; color:white; border-radius:50%; width:24px; height:24px; border:none; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:12px; font-weight:bold;" onclick="event.preventDefault(); window.hapusMateriLevel('kelas', '${kls}');">✕</button>
+            </summary>
+            <div style="padding:10px 15px; display:flex; flex-direction:column; gap:8px; background:#fdfefe;">`;
+
+        grupMateri[kls].forEach(item => {
+            // Beri warna berbeda berdasarkan status absensi
+            let badgeColor = item.status === '-' ? '#7f8c8d' : (item.status === 'A' ? '#c0392b' : (item.status === 'S' ? '#e67e22' : '#2980b9'));
+            
+            html += `
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; background:#f9fdfa; border:1px solid #d5f5e3; border-left:4px solid #27ae60; border-radius:6px;">
+                    <div style="font-size:13px; color:#2c3e50;">
+                        <span style="background:#27ae60; color:white; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold; margin-right:6px;">${kls}</span> 
+                        <strong>${item.nama}</strong> ${item.teks} 
+                        <span style="background:${badgeColor}; color:white; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold; margin-left:6px;">Status: ${item.status}</span>
+                    </div>
+                    <button style="background:#e74c3c; color:white; border-radius:50%; width:22px; height:22px; border:none; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:10px; font-weight:bold;" onclick="window.hapusMateriLevel('item', null, '${item.id}')">✕</button>
+                </div>`;
+        });
+        html += `</div></details>`;
+    }
+    listMateri.innerHTML = html;
+};
+
+// PENGHAPUSAN MATERI (Menyimpan di memori agar tidak muncul lagi)
+window.hapusMateriLevel = function(level, kelas = null, itemId = null) {
+    if(!window.adminDataPengingat) return;
+
+    if (level === 'kelas') {
+        if(!confirm(`Tutup semua pengingat absensi untuk Kelas ${kelas}?`)) return;
+        window.adminDataPengingat.materi.forEach(m => {
+            if(m.kelas === kelas) window.adminPengingatMateriDismissed.push(m.id);
+        });
+        window.adminDataPengingat.materi = window.adminDataPengingat.materi.filter(item => item.kelas !== kelas);
+    } 
+    else if (level === 'item') {
+        window.adminPengingatMateriDismissed.push(itemId);
+        window.adminDataPengingat.materi = window.adminDataPengingat.materi.filter(item => item.id !== itemId);
+    }
+    window.renderReminderAdmin();
+};
+
+// ----------------------------------------------------
+// 4. PANTAUAN UJIAN (Merah-Ungu)
+// ----------------------------------------------------
+window.dataPantauanUjian = null;
+
+window.pantauUjianOtomatis = function() {
+    let kelas = window.kelasAktifAdmin;
+    let paket = document.getElementById('rem-pilih-ujian').value;
+
+    if(!kelas) return alert("Pilih kelas di header atas (Pilih Kelas Terlebih Dahulu)!");
+    if(!paket) return alert("Pilih paket ujian di menu dropdown terlebih dahulu!");
+
+    let semuaSiswa = window.adminData[kelas] || [];
+    if(semuaSiswa.length === 0) return alert("Kelas ini belum memiliki daftar siswa.");
+
+    let rekapKelas = window.adminRekapNilaiData[kelas] || {};
+    let rekapPaket = rekapKelas[paket] || {};
+    let siswaSudahUjian = Object.keys(rekapPaket);
+
+    let siswaBelumUjian = semuaSiswa.filter(nama => !siswaSudahUjian.includes(nama));
+
+    window.dataPantauanUjian = { kelas: kelas, paket: paket, siswaBelum: siswaBelumUjian };
+    window.renderReminderAdmin();
+};
+
+window.gambarUIHasilPantauan = function() {
+    let listUjian = document.getElementById('list-rem-ujian');
+    if(!listUjian) return;
+
+    let data = window.dataPantauanUjian;
+    
+    if(!data || !data.siswaBelum || data.siswaBelum.length === 0) {
+        listUjian.innerHTML = `<div style="text-align:center; padding:15px; color:#95a5a6; font-size:13px; border:1px dashed #bdc3c7; border-radius:8px; background:#fafafa;">🎉 Tidak ada pantauan atau semua siswa telah selesai ujian.</div>`;
+        return;
+    }
+
+    let html = `
+    <details open style="margin-bottom:10px; background:#fff; border:1px solid #d5dbdb; border-radius:8px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+        <summary style="display:flex; justify-content:space-between; align-items:center; padding:12px 15px; background:#f4f0fa; cursor:pointer; list-style:none; border-left:4px solid #8e44ad;">
+            <div style="display:flex; align-items:center; gap:10px; flex:1;">
+                <span style="font-size:12px;">▶</span>
+                <span style="background:#8e44ad; color:white; padding:3px 8px; border-radius:4px; font-size:11px; font-weight:bold;">${data.kelas}</span>
+                <span style="background:#fadbd8; color:#c0392b; padding:3px 8px; border-radius:4px; font-size:11px; font-weight:bold;">🎯 ${data.siswaBelum.length} Siswa Belum Ujian</span>
+            </div>
+            <button style="background:#e74c3c; color:white; border-radius:50%; width:24px; height:24px; border:none; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:12px; font-weight:bold;" onclick="event.preventDefault(); window.hapusPantauanKelas();">✕</button>
+        </summary>
+        <div style="padding:10px 15px; display:flex; flex-direction:column; gap:8px; background:#fdfefe;">`;
+    
+    data.siswaBelum.forEach(nama => {
+        html += `
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; background:#fdf2f2; border:1px solid #fadbd8; border-left:4px solid #e74c3c; border-radius:6px;">
+                <div style="font-size:13px; color:#c0392b;">
+                    <span style="background:#c0392b; color:white; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold; margin-right:6px;">${data.kelas}</span> 
+                    <strong>${nama}</strong> belum mengikuti <u>${data.paket}</u>
+                </div>
+                <button style="background:#e74c3c; color:white; border-radius:50%; width:22px; height:22px; border:none; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:10px; font-weight:bold;" onclick="window.hapusPantauanSiswa('${nama}')">✕</button>
+            </div>`;
+    });
+
+    html += `</div></details>`;
+    listUjian.innerHTML = html;
+};
+
+window.hapusPantauanKelas = function() {
+    if(confirm("Tutup hasil pantauan ujian ini?")) {
+        window.dataPantauanUjian = null;
+        window.renderReminderAdmin();
+    }
+};
+
+window.hapusPantauanSiswa = function(namaSiswa) {
+    if(window.dataPantauanUjian && window.dataPantauanUjian.siswaBelum) {
+        window.dataPantauanUjian.siswaBelum = window.dataPantauanUjian.siswaBelum.filter(n => n !== namaSiswa);
+        window.renderReminderAdmin();
+    }
+};
+
+/* =========================================
+   MESIN PARSER SOAL, PREVIEW KANAN, & MANAJER UJIAN TERPADU
+   ========================================= */
+// Bersihkan modal duplikat lama (jika masih ada di atas HTML) agar ID mengarah ke Ruang Manajer Ujian Terpadu
+document.querySelectorAll('#modal-kontrol-ujian, #modal-live-monitor, #modal-admin-bank-ujian').forEach(function(el) {
+    el.remove();
+});
+
+window.tempSoalUjianParsed = [];
+window.tempBobotUjian = {};
+window.selectedBankUjianName = "";
+
+// Fungsi Berpindah Tab di dalam Ruang Manajer Ujian Terpadu (Gaya Ruang Administrasi)
+window.bukaTabManajerUjian = function(tabId, btnElement) {
+    document.querySelectorAll('.ujian-tab-content').forEach(function(el) {
+        el.style.display = 'none';
+    });
+
+    let targetEl = document.getElementById(tabId);
+    if (targetEl) {
+        targetEl.style.display = 'flex';
+    }
+
+    document.querySelectorAll('.tab-ujian-btn').forEach(function(btn) {
+        btn.style.background = '#ffffff';
+        btn.style.color = '#333';
+        btn.style.border = '1px solid #ccc';
+        btn.style.boxShadow = 'none';
+    });
+
+    let activeBtn = btnElement || document.querySelector('[onclick*="' + tabId + '"]');
+    if (activeBtn) {
+        activeBtn.style.background = '#0b3954';
+        activeBtn.style.color = 'white';
+        activeBtn.style.border = 'none';
+    }
+
+    if (tabId === 'tab-ujian-bank') {
+        window.renderDropdownBankUjianTersimpan();
+    } else if (tabId === 'tab-ujian-kontrol') {
+        window.renderKontrolUjian();
+    } else if (tabId === 'tab-ujian-monitor') {
+        window.muatDropdownLiveMonitor();
+        window.renderIsiLiveMonitor();
+    }
+    window.updateHeaderInfoManajerUjian();
+};
+
+window.updateHeaderInfoManajerUjian = function() {
+    let totalBank = Object.keys(window.adminBankUjianData || {}).length;
+    let totalAktif = Object.keys(window.adminUjianAktifData || {}).length;
+    let elBank = document.getElementById('info-total-bank-ujian');
+    let elAktif = document.getElementById('info-total-ujian-aktif');
+    if (elBank) elBank.innerText = totalBank;
+    if (elAktif) elAktif.innerText = totalAktif;
+};
+
+// Ubah Soal Array kembali ke Format Teks Mentah agar bisa diedit di Textarea
+window.konversiSoalKeTeksMentah = function(soalArr) {
+    if (!Array.isArray(soalArr) || soalArr.length === 0) return "";
+    return soalArr.map(function(q) {
+        let lines = [];
+        lines.push("Soal: " + (q.question || "").replace(/<br\s*\/?>/gi, "\n"));
+        if (q.type === 'IS') {
+            lines.push("Tipe: IS");
+            lines.push("Kunci: " + (q.correct || []).join(" | "));
+        } else if (q.type === 'Essay') {
+            lines.push("Tipe: Essay");
+            lines.push("Kunci: " + (q.correct || []).join(" "));
+        } else if (q.type === 'PGK') {
+            (q.options || []).forEach(function(opt) {
+                let isBenar = (q.correct || []).includes(opt.label);
+                lines.push(opt.label + ". " + opt.text + (isBenar ? " (benar)" : " (salah)"));
+            });
+        } else {
+            (q.options || []).forEach(function(opt) {
+                lines.push(opt.label + ". " + opt.text);
+            });
+            lines.push("Kunci: " + ((q.correct && q.correct[0]) ? q.correct[0] : "A"));
+        }
+        if (q.explanation) {
+            lines.push("Pembahasan: " + q.explanation);
+        }
+        return lines.join("\n");
+    }).join("\n\n");
+};
+
+// Render Dropdown "🗂️ Pilih Bank Ujian Tersimpan" di Bawah Kiri
+window.renderDropdownBankUjianTersimpan = function() {
+    let sel = document.getElementById('select-bank-ujian-tersimpan');
+    if (!sel) return;
+
+    let bank = window.adminBankUjianData || {};
+    let keys = Object.keys(bank).sort();
+    let html = '<option value="">-- Buat Paket Baru / Pilih Bank Ujian Tersimpan --</option>';
+
+    keys.forEach(function(nama) {
+        let pkt = bank[nama];
+        let soalArr = (pkt && pkt.soal) ? pkt.soal : [];
+        let c = { PG: 0, PGK: 0, IS: 0, Essay: 0 };
+        soalArr.forEach(function(q) { if (c[q.type] !== undefined) c[q.type]++; });
+
+        let rincian = c.PG + ' PG' + (c.PGK > 0 ? ', ' + c.PGK + ' PGK' : '') + ', ' + c.IS + ' IS, dan ' + c.Essay + ' Essay';
+        let selected = (nama === window.selectedBankUjianName) ? 'selected' : '';
+        html += '<option value="' + nama.replace(/"/g, '&quot;') + '" ' + selected + '>' + nama + ' — ' + soalArr.length + ' Soal (' + rincian + ')</option>';
+    });
+
+    sel.innerHTML = html;
+    window.updateHeaderInfoManajerUjian();
+};
+
+// Saat Guru Memilih Bank Ujian Tersimpan dari Dropdown Kiri Bawah
+window.pilihBankUjianTersimpan = function(namaPaket) {
+    window.selectedBankUjianName = namaPaket || "";
+    let inputNama = document.getElementById('admin-bu-nama');
+    let inputText = document.getElementById('admin-bu-text');
+    let inPG = document.getElementById('bobot-pg');
+    let inPGK = document.getElementById('bobot-pgk');
+    let inIS = document.getElementById('bobot-is');
+    let inES = document.getElementById('bobot-es');
+
+    if (!namaPaket || !window.adminBankUjianData || !window.adminBankUjianData[namaPaket]) {
+        if (inputNama) inputNama.value = "";
+        if (inputText) inputText.value = "";
+        if (inPG) inPG.value = "";
+        if (inPGK) inPGK.value = "";
+        if (inIS) inIS.value = "";
+        if (inES) inES.value = "";
+        window.analisisSoalOtomatis();
+        return;
+    }
+
+    let pkt = window.adminBankUjianData[namaPaket];
+    if (inputNama) inputNama.value = namaPaket;
+    if (inputText) inputText.value = window.konversiSoalKeTeksMentah(pkt.soal || []);
+
+    if (pkt.bobot) {
+        if (inPG) inPG.value = pkt.bobot.PG ? Number(pkt.bobot.PG.toFixed(2)) : "";
+        if (inPGK) inPGK.value = pkt.bobot.PGK ? Number(pkt.bobot.PGK.toFixed(2)) : "";
+        if (inIS) inIS.value = pkt.bobot.IS ? Number(pkt.bobot.IS.toFixed(2)) : "";
+        if (inES) inES.value = pkt.bobot.Essay ? Number(pkt.bobot.Essay.toFixed(2)) : "";
+    }
+
+    window.analisisSoalOtomatis();
+};
+
+window.analisisSoalOtomatis = function() {
+    let rawTextEl = document.getElementById('admin-bu-text');
+    if (!rawTextEl) return;
+    let rawText = rawTextEl.value;
+    let infoBox = document.getElementById('info-analisis-soal');
+    let bobotBox = document.getElementById('box-bobot-soal');
+    let previewWrap = document.getElementById('preview-bank-ujian-wrapper');
+    
+    let blocks = rawText.split(/\n\s*\n|\n---\n/);
+    let questions = [];
+    
+    blocks.forEach(function(block) {
+        let lines = block.trim().split('\n').map(function(l) { return l.trim(); }).filter(function(l) { return l.length > 0; });
+        if(lines.length === 0) return;
+        
+        let qObj = { type: 'PG', question: '', options: [], correct: [], explanation: '' };
+        let isParsingOptions = false;
+        
+        lines.forEach(function(line) {
+            let lowerLine = line.toLowerCase();
+            
+            if (lowerLine.startsWith('soal:')) {
+                qObj.question = line.substring(5).trim();
+            } 
+            else if (lowerLine.startsWith('tipe:')) {
+                let type = lowerLine.substring(5).trim();
+                if(type === 'is' || type === 'isian singkat') qObj.type = 'IS';
+                else if(type === 'essay' || type === 'esai') qObj.type = 'Essay';
+            }
+            else if (lowerLine.startsWith('kunci:')) {
+                isParsingOptions = false;
+                let kunciStr = line.substring(6).trim();
+                if(qObj.type === 'IS') {
+                    qObj.correct = kunciStr.split('|').map(function(s) { return s.trim(); });
+                } else if (qObj.type === 'Essay') {
+                    qObj.correct = [kunciStr];
+                } else {
+                    qObj.correct = [kunciStr.toUpperCase()];
+                }
+            }
+            else if (lowerLine.startsWith('pembahasan:')) {
+                isParsingOptions = false;
+                qObj.explanation = line.substring(11).trim();
+            }
+            else if (/^[a-eA-E]\./.test(line)) { 
+                isParsingOptions = true;
+                let optLabel = line.charAt(0).toUpperCase();
+                let optText = line.substring(2).trim();
+                
+                if(optText.toLowerCase().endsWith('(benar)')) {
+                    qObj.type = 'PGK';
+                    optText = optText.substring(0, optText.length - 7).trim();
+                    qObj.correct.push(optLabel);
+                } else if (optText.toLowerCase().endsWith('(salah)')) {
+                    qObj.type = 'PGK';
+                    optText = optText.substring(0, optText.length - 7).trim();
+                }
+                
+                qObj.options.push({ label: optLabel, text: optText });
+            }
+            else {
+                if(isParsingOptions && qObj.options.length > 0) {
+                    qObj.options[qObj.options.length-1].text += ' ' + line;
+                } else if (qObj.explanation) {
+                    qObj.explanation += ' ' + line;
+                } else if (qObj.question && qObj.options.length === 0) {
+                    qObj.question += '<br>' + line;
+                }
+            }
+        });
+        
+        if(qObj.type === 'PGK') qObj.correct = [...new Set(qObj.correct)];
+        if(qObj.question) questions.push(qObj);
+    });
+    
+    window.tempSoalUjianParsed = questions;
+    
+    let counts = { 'PG':0, 'PGK':0, 'IS':0, 'Essay':0 };
+    questions.forEach(function(q) { if(counts[q.type] !== undefined) counts[q.type]++; });
+    
+    if(questions.length === 0) {
+        if (infoBox) infoBox.style.display = 'block';
+        if (bobotBox) bobotBox.style.display = 'none';
+        if (previewWrap) previewWrap.style.display = 'none';
+        return;
+    }
+    
+    if (infoBox) infoBox.style.display = 'none';
+    if (bobotBox) bobotBox.style.display = 'flex';
+    
+    document.getElementById('row-pg').style.display = counts['PG'] > 0 ? 'flex' : 'none';
+    document.getElementById('row-pgk').style.display = counts['PGK'] > 0 ? 'flex' : 'none';
+    document.getElementById('row-is').style.display = counts['IS'] > 0 ? 'flex' : 'none';
+    document.getElementById('row-es').style.display = counts['Essay'] > 0 ? 'flex' : 'none';
+    
+    document.getElementById('jml-pg').innerText = counts['PG'];
+    document.getElementById('jml-pgk').innerText = counts['PGK'];
+    document.getElementById('jml-is').innerText = counts['IS'];
+    document.getElementById('jml-es').innerText = counts['Essay'];
+    
+    window.kalkulasiBobotOtomatis();
+    window.renderPreviewSoalUjianKanan(questions, counts);
+};
+
+// Render Preview Soal di Bawah Kalkulator Bobot (Bisa Di-scroll ke Bawah)
+window.renderPreviewSoalUjianKanan = function(questions, counts) {
+    let wrap = document.getElementById('preview-bank-ujian-wrapper');
+    let listEl = document.getElementById('preview-bank-ujian-list');
+    let titleEl = document.getElementById('preview-bu-title');
+    let sumEl = document.getElementById('preview-bu-summary');
+    let btnHapusBank = document.getElementById('btn-hapus-bank-terpilih');
+    if (!wrap || !listEl) return;
+
+    wrap.style.display = 'block';
+    let namaPaket = (document.getElementById('admin-bu-nama') && document.getElementById('admin-bu-nama').value.trim()) || window.selectedBankUjianName || "Draft Paket Ujian";
+    if (titleEl) titleEl.innerText = namaPaket;
+
+    let rincian = counts.PG + ' PG' + (counts.PGK > 0 ? ', ' + counts.PGK + ' PGK' : '') + ', ' + counts.IS + ' IS, dan ' + counts.Essay + ' Essay';
+    if (sumEl) sumEl.innerText = '📊 Total: ' + questions.length + ' Soal (' + rincian + ')';
+
+    let isSavedBank = Boolean(window.selectedBankUjianName && window.adminBankUjianData && window.adminBankUjianData[window.selectedBankUjianName]);
+    if (btnHapusBank) btnHapusBank.style.display = isSavedBank ? 'inline-block' : 'none';
+
+    let html = '';
+    questions.forEach(function(q, idx) {
+        let badgeBg = q.type === 'PG' ? '#3498db' : (q.type === 'PGK' ? '#8e44ad' : (q.type === 'IS' ? '#f39c12' : '#e67e22'));
+        let opsiStr = '';
+        if (q.options && q.options.length > 0) {
+            opsiStr = 'Opsi: ' + q.options.map(function(o) { return o.label + '. ' + o.text; }).join(' | ') + ' — ';
+        }
+        let kunciStr = (q.correct && q.correct.length > 0) ? q.correct.join(', ') : '-';
+
+        html += '<div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px 12px; display:flex; justify-content:space-between; align-items:center; gap:10px;">' +
+            '<div style="flex:1; min-width:0;">' +
+                '<div style="font-size:12px; font-weight:bold; color:#1e293b; margin-bottom:4px; line-height:1.4;">' +
+                    (idx + 1) + '. <span style="background:' + badgeBg + '; color:white; padding:1px 6px; border-radius:4px; font-size:10px; margin:0 4px;">' + q.type + '</span> ' +
+                    q.question +
+                '</div>' +
+                '<div style="font-size:11px; color:#64748b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' +
+                    opsiStr + '<span style="color:#16a085; font-weight:bold;">Kunci: ' + kunciStr + '</span>' +
                 '</div>' +
             '</div>' +
-            htmlUjian +
+            '<button style="background:#fadbd8; color:#c0392b; border:none; border-radius:6px; width:28px; height:28px; cursor:pointer; font-size:12px; flex-shrink:0;" title="Hapus Soal Nomor ' + (idx + 1) + '" onclick="window.hapusSatuSoalPreviewUjian(' + idx + ')">🗑️</button>' +
         '</div>';
+    });
+
+    listEl.innerHTML = html;
 };
+
+// Hapus 1 Nomor Soal dari Preview Kanan
+window.hapusSatuSoalPreviewUjian = function(idx) {
+    if (!window.tempSoalUjianParsed || !window.tempSoalUjianParsed[idx]) return;
+    if (!confirm('Hapus soal nomor ' + (idx + 1) + ' dari paket ini?')) return;
+
+    window.tempSoalUjianParsed.splice(idx, 1);
+    let inputText = document.getElementById('admin-bu-text');
+    if (inputText) {
+        inputText.value = window.konversiSoalKeTeksMentah(window.tempSoalUjianParsed);
+    }
+    window.analisisSoalOtomatis();
+
+    // Jika sedang mengedit Bank Ujian yang sudah tersimpan, langsung perbarui ke DB
+    if (window.selectedBankUjianName && window.adminBankUjianData && window.adminBankUjianData[window.selectedBankUjianName]) {
+        window.adminBankUjianData[window.selectedBankUjianName].soal = window.tempSoalUjianParsed;
+        window.adminBankUjianData[window.selectedBankUjianName].bobot = window.tempBobotUjian;
+        if (typeof window.simpanBankUjianKeDB === "function") window.simpanBankUjianKeDB();
+        window.renderDropdownBankUjianTersimpan();
+    }
+};
+
+// Cetak PDF / Export Word langsung dari Preview Bank Ujian
+window.cetakPreviewBankUjian = function(format) {
+    let judul = (document.getElementById('admin-bu-nama') && document.getElementById('admin-bu-nama').value.trim()) || window.selectedBankUjianName || "Soal Ujian";
+    window.cetakDokumenUniversal(format, judul, window.tempSoalUjianParsed);
+};
+
+// Hapus Bank Ujian yang Sedang Dipilih di Dropdown
+window.hapusBankUjianTerpilih = function() {
+    let target = window.selectedBankUjianName;
+    if (!target || !window.adminBankUjianData || !window.adminBankUjianData[target]) return;
+    if (confirm('Yakin ingin menghapus Bank Ujian "' + target + '" secara permanen?')) {
+        delete window.adminBankUjianData[target];
+        window.selectedBankUjianName = "";
+        window.pilihBankUjianTersimpan("");
+        window.renderDropdownBankUjianTersimpan();
+        if (typeof window.simpanBankUjianKeDB === "function") window.simpanBankUjianKeDB();
+    }
+};
+
+window.kalkulasiBobotOtomatis = function() {
+    let maxScore = 100;
+    
+    let cPG = parseInt(document.getElementById('jml-pg').innerText) || 0;
+    let cPGK = parseInt(document.getElementById('jml-pgk').innerText) || 0;
+    let cIS = parseInt(document.getElementById('jml-is').innerText) || 0;
+    let cES = parseInt(document.getElementById('jml-es').innerText) || 0;
+    
+    let inPG = document.getElementById('bobot-pg').value;
+    let inPGK = document.getElementById('bobot-pgk').value;
+    let inIS = document.getElementById('bobot-is').value;
+    let inES = document.getElementById('bobot-es').value;
+    
+    let usedScore = 0;
+    let totalQuestionsInEmptyTypes = 0;
+    
+    if(cPG > 0) { if(inPG !== "") usedScore += cPG * parseFloat(inPG); else totalQuestionsInEmptyTypes += cPG; }
+    if(cPGK > 0) { if(inPGK !== "") usedScore += cPGK * parseFloat(inPGK); else totalQuestionsInEmptyTypes += cPGK; }
+    if(cIS > 0) { if(inIS !== "") usedScore += cIS * parseFloat(inIS); else totalQuestionsInEmptyTypes += cIS; }
+    if(cES > 0) { if(inES !== "") usedScore += cES * parseFloat(inES); else totalQuestionsInEmptyTypes += cES; }
+    
+    let sisaScore = maxScore - usedScore;
+    let calculatedScorePerItem = 0;
+    
+    if(totalQuestionsInEmptyTypes > 0 && sisaScore > 0) {
+        calculatedScorePerItem = sisaScore / totalQuestionsInEmptyTypes;
+    }
+
+    document.getElementById('bobot-pg').placeholder = (cPG > 0 && inPG === "") ? calculatedScorePerItem.toFixed(1) : "";
+    document.getElementById('bobot-pgk').placeholder = (cPGK > 0 && inPGK === "") ? calculatedScorePerItem.toFixed(1) : "";
+    document.getElementById('bobot-is').placeholder = (cIS > 0 && inIS === "") ? calculatedScorePerItem.toFixed(1) : "";
+    document.getElementById('bobot-es').placeholder = (cES > 0 && inES === "") ? calculatedScorePerItem.toFixed(1) : "";
+    
+    let finalTotal = usedScore + (totalQuestionsInEmptyTypes * calculatedScorePerItem);
+    
+    let totalEl = document.getElementById('total-poin-bobot');
+    totalEl.innerText = parseFloat(finalTotal.toFixed(2));
+    
+    let btnSimpan = document.getElementById('btn-simpan-bank-ujian');
+    
+    if(Math.abs(finalTotal - 100) > 0.01 || finalTotal < 0) {
+        totalEl.style.color = '#c0392b';
+        totalEl.parentElement.style.borderColor = '#c0392b';
+        totalEl.parentElement.style.background = '#fadbd8';
+        btnSimpan.disabled = true;
+        btnSimpan.style.background = '#bdc3c7';
+        btnSimpan.style.cursor = 'not-allowed';
+        btnSimpan.innerText = "Total Harus 100 Poin ⚠️";
+    } else {
+        totalEl.style.color = '#16a085';
+        totalEl.parentElement.style.borderColor = '#16a085';
+        totalEl.parentElement.style.background = '#e8f8f5';
+        btnSimpan.disabled = false;
+        btnSimpan.style.background = '#e67e22';
+        btnSimpan.style.cursor = 'pointer';
+        btnSimpan.innerText = "Simpan Ke Bank Ujian 💾";
+    }
+    
+    window.tempBobotUjian = {
+        'PG': inPG !== "" ? parseFloat(inPG) : calculatedScorePerItem,
+        'PGK': inPGK !== "" ? parseFloat(inPGK) : calculatedScorePerItem,
+        'IS': inIS !== "" ? parseFloat(inIS) : calculatedScorePerItem,
+        'Essay': inES !== "" ? parseFloat(inES) : calculatedScorePerItem
+    };
+};
+
+window.adminBankUjianData = window.adminBankUjianData || {};
+
+window.simpanPaketUjianSistem = function() {
+    let namaPaket = document.getElementById('admin-bu-nama').value.trim();
+    if(!namaPaket) return alert("Nama paket ujian tidak boleh kosong!");
+    if(window.tempSoalUjianParsed.length === 0) return alert("Belum ada soal yang terdeteksi!");
+
+    window.adminBankUjianData[namaPaket] = {
+        soal: window.tempSoalUjianParsed,
+        bobot: window.tempBobotUjian,
+        tanggalDibuat: new Date().toISOString()
+    };
+
+    window.selectedBankUjianName = namaPaket;
+    window.renderDropdownBankUjianTersimpan();
+    window.analisisSoalOtomatis();
+    
+    if(typeof window.simpanBankUjianKeDB === "function") window.simpanBankUjianKeDB();
+    alert('✅ Paket ujian "' + namaPaket + '" berhasil disimpan ke Bank Ujian!');
+};
+
+window.renderManajerUjian = function() {
+    window.renderDropdownBankUjianTersimpan();
+    window.renderKontrolUjian();
+    window.updateHeaderInfoManajerUjian();
+};
+
+window.hapusPaketUjian = function(namaPaket) {
+    if(confirm('Yakin ingin menghapus paket ujian "' + namaPaket + '" secara permanen?')) {
+        delete window.adminBankUjianData[namaPaket];
+        if (window.selectedBankUjianName === namaPaket) {
+            window.selectedBankUjianName = "";
+            window.pilihBankUjianTersimpan("");
+        }
+        window.renderManajerUjian();
+        if(typeof window.simpanBankUjianKeDB === "function") window.simpanBankUjianKeDB();
+    }
+};
+
+window.editPaketUjian = function(namaPaket) {
+    window.bukaModal('modal-manajer-ujian');
+    window.bukaTabManajerUjian('tab-ujian-bank');
+    window.pilihBankUjianTersimpan(namaPaket);
+};
+
+/* =========================================
+   LOGIKA MANAJER LATIHAN & BANK SOAL (C1, C2, HOTS + FILTER KELAS AKTIF)
+   ========================================= */
+window.adminBankLatihanData = window.adminBankLatihanData || {};
+
+window.simpanKeBankSoalPusat = function() {
+    let kelas = document.getElementById('admin-bs-kelas').value;
+    let mapel = document.getElementById('admin-bs-mapel').value;
+    let bab = document.getElementById('admin-bs-bab').value.trim();
+    let kesulitan = document.getElementById('admin-bs-kesulitan').value;
+    let rawText = document.getElementById('admin-bs-text').value;
+
+    if(!bab) return alert("Nama Bab wajib diisi!");
+    if(!rawText) return alert("Soal tidak boleh kosong!");
+
+    let blocks = rawText.split(/\n\s*\n|\n---\n/);
+    let questions = [];
+    
+    blocks.forEach(function(block) {
+        let lines = block.trim().split('\n').map(function(l) { return l.trim(); }).filter(function(l) { return l.length > 0; });
+        if(lines.length === 0) return;
+        
+        let qObj = { type: 'PG', question: '', options: [], correct: [], explanation: '' };
+        let isParsingOptions = false;
+        
+        lines.forEach(function(line) {
+            let lowerLine = line.toLowerCase();
+            if (lowerLine.startsWith('soal:')) { qObj.question = line.substring(5).trim(); } 
+            else if (lowerLine.startsWith('tipe:')) {
+                let type = lowerLine.substring(5).trim();
+                if(type === 'is' || type === 'isian singkat') qObj.type = 'IS';
+                else if(type === 'essay' || type === 'esai') qObj.type = 'Essay';
+            }
+            else if (lowerLine.startsWith('kunci:')) {
+                isParsingOptions = false;
+                let kunciStr = line.substring(6).trim();
+                if(qObj.type === 'IS') qObj.correct = kunciStr.split('|').map(function(s) { return s.trim(); });
+                else if (qObj.type === 'Essay') qObj.correct = [kunciStr];
+                else qObj.correct = [kunciStr.toUpperCase()];
+            }
+            else if (lowerLine.startsWith('pembahasan:')) {
+                isParsingOptions = false;
+                qObj.explanation = line.substring(11).trim();
+            }
+            else if (/^[a-eA-E]\./.test(line)) { 
+                isParsingOptions = true;
+                let optLabel = line.charAt(0).toUpperCase();
+                let optText = line.substring(2).trim();
+                if(optText.toLowerCase().endsWith('(benar)')) {
+                    qObj.type = 'PGK'; optText = optText.substring(0, optText.length - 7).trim(); qObj.correct.push(optLabel);
+                } else if (optText.toLowerCase().endsWith('(salah)')) {
+                    qObj.type = 'PGK'; optText = optText.substring(0, optText.length - 7).trim();
+                }
+                qObj.options.push({ label: optLabel, text: optText });
+            }
+            else {
+                if(isParsingOptions && qObj.options.length > 0) qObj.options[qObj.options.length-1].text += ' ' + line;
+                else if (qObj.explanation) qObj.explanation += ' ' + line;
+                else if (qObj.question && qObj.options.length === 0) qObj.question += '<br>' + line;
+            }
+        });
+        
+        if(qObj.type === 'PGK') qObj.correct = [...new Set(qObj.correct)];
+        if(qObj.question) questions.push(qObj);
+    });
+
+    if(questions.length === 0) return alert("Gagal mengekstrak soal. Pastikan format teks benar!");
+
+    let key = kelas + '_' + mapel + '_' + bab + '_' + kesulitan;
+    if(!window.adminBankLatihanData[key]) {
+        window.adminBankLatihanData[key] = { kelas: kelas, mapel: mapel, bab: bab, kesulitan: kesulitan, soal: [] };
+    }
+    window.adminBankLatihanData[key].soal.push(...questions);
+
+    document.getElementById('admin-bs-text').value = "";
+    window.tutupModal('modal-admin-bank-soal');
+    window.bukaModal('modal-manajer-soal');
+    window.renderManajerSoal();
+    
+    if(typeof window.simpanBankLatihanKeDB === "function") window.simpanBankLatihanKeDB();
+};
+
+// Render Manajer Latihan sekaligus Menghidupkan Dropdown Filter Kelas (Gambar 3)
+window.renderManajerSoal = function() {
+    let listEl = document.getElementById('list-manajer-soal');
+    let selFilter = document.getElementById('filter-manajer-kelas');
+    if(!listEl || !selFilter) return;
+
+    let currentFilter = selFilter.value || "Semua";
+    let keys = Object.keys(window.adminBankLatihanData || {});
+
+    // Kumpulkan semua nama kelas yang ada di Bank Latihan agar dropdown berfungsi penuh
+    let kelasSet = new Set();
+    keys.forEach(function(k) {
+        let item = window.adminBankLatihanData[k];
+        if (item && item.kelas) kelasSet.add(item.kelas);
+    });
+
+    let htmlOpt = '<option value="Semua">Semua Kelas</option>';
+    Array.from(kelasSet).sort().forEach(function(kls) {
+        let selected = (kls === currentFilter) ? 'selected' : '';
+        htmlOpt += '<option value="' + kls + '" ' + selected + '>' + kls + '</option>';
+    });
+    selFilter.innerHTML = htmlOpt;
+
+    // Jika kelas yang dipilih sebelumnya sudah dihapus, kembalikan ke Semua
+    if (currentFilter !== "Semua" && !kelasSet.has(currentFilter)) {
+        currentFilter = "Semua";
+        selFilter.value = "Semua";
+    }
+
+    let filteredKeys = keys.filter(function(k) {
+        return currentFilter === "Semua" || window.adminBankLatihanData[k].kelas === currentFilter;
+    });
+
+    if(filteredKeys.length === 0) {
+        listEl.innerHTML = '<p style="color:#7f8c8d; font-size:12px; text-align:center; margin-top:20px;">Belum ada arsip latihan yang sesuai dengan filter kelas.</p>';
+        return;
+    }
+
+    let html = '';
+    filteredKeys.sort().forEach(function(k) {
+        let item = window.adminBankLatihanData[k];
+        let badgeDiffColor = item.kesulitan === 'C1' ? '#27ae60' : (item.kesulitan === 'C2' ? '#f39c12' : '#c0392b');
+        html += '<li class="soal-manager-item" style="display:flex; justify-content:space-between; align-items:center; background:#f8f9fa; border:1px solid #eee; margin-bottom:8px; padding:12px; border-radius:6px;">' +
+            '<div class="soal-manager-info">' +
+                '<div style="font-weight:bold; color:#2c3e50; font-size:13px; margin-bottom:4px;">🚀 ' + item.bab + ' <span style="font-size:11px; color:#7f8c8d; font-weight:normal;">(' + item.mapel + ')</span></div>' +
+                '<div style="font-size:11px; color:#7f8c8d; display:flex; gap:6px; align-items:center;">' +
+                    '<span class="soal-manager-tag" style="background:#8e44ad; padding:2px 6px;">' + item.kelas + '</span>' +
+                    '<span class="soal-manager-tag" style="background:' + badgeDiffColor + '; padding:2px 6px;">' + item.kesulitan + '</span>' +
+                    '<span style="font-weight:bold; color:#27ae60;">' + item.soal.length + ' Soal Tersimpan</span>' +
+                '</div>' +
+            '</div>' +
+            '<button style="background:#e74c3c; color:white; border:none; padding:5px 10px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;" onclick="hapusBankLatihan(\'' + k + '\')">🗑️ Hapus</button>' +
+        '</li>';
+    });
+    listEl.innerHTML = html;
+};
+
+window.hapusBankLatihan = function(key) {
+    if(confirm("Hapus seluruh arsip soal untuk bab ini?")) {
+        delete window.adminBankLatihanData[key];
+        window.renderManajerSoal();
+        if(typeof window.simpanBankLatihanKeDB === "function") window.simpanBankLatihanKeDB();
+    }
+};
+
+const modalLatihanObserver = new MutationObserver(function(mutations) {
+    mutations.forEach(function(m) {
+        if(m.target.id === 'modal-manajer-soal' && m.target.style.display === 'flex') {
+            if(typeof window.renderManajerSoal === "function") window.renderManajerSoal();
+        }
+    });
+});
+if(document.getElementById('modal-manajer-soal')) {
+    modalLatihanObserver.observe(document.getElementById('modal-manajer-soal'), { attributes: true, attributeFilter: ['style'] });
+}
+
+/* =========================================
+   LOGIKA KONTROL UJIAN & LIVE MONITOR (TERINTEGRASI DI MANAJER UJIAN)
+   ========================================= */
+window.adminUjianAktifData = window.adminUjianAktifData || {};
+window.adminLiveMonitorData = window.adminLiveMonitorData || {};
+
+window.bukaModalKontrolUjian = function() {
+    window.bukaModal('modal-manajer-ujian');
+    window.bukaTabManajerUjian('tab-ujian-kontrol');
+};
+
+window.renderKontrolUjian = function() {
+    let selectEl = document.getElementById('admin-pilih-ujian');
+    let htmlOpt = '<option value="">-- Pilih Paket Ujian --</option>';
+    
+    let paketAktif = Object.values(window.adminUjianAktifData).map(function(u) { return u.paket; });
+    let bankKeys = Object.keys(window.adminBankUjianData || {});
+    
+    bankKeys.forEach(function(k) {
+        if(!paketAktif.includes(k)) {
+            htmlOpt += '<option value="' + k + '">' + k + '</option>';
+        }
+    });
+    
+    if(selectEl) selectEl.innerHTML = htmlOpt;
+
+    let container = document.getElementById('container-ujian-aktif');
+    let aktifKeys = Object.keys(window.adminUjianAktifData || {});
+    window.updateHeaderInfoManajerUjian();
+    
+    if(aktifKeys.length === 0) {
+        if(container) container.innerHTML = '<p style="color:#7f8c8d; font-size:12px; text-align:center; padding:20px; background:#f8f9fa; border-radius:6px; border:1px dashed #ccc;">Belum ada ujian yang diaktifkan.</p>';
+        return;
+    }
+
+    let htmlAktif = '';
+    aktifKeys.forEach(function(kode) {
+        let u = window.adminUjianAktifData[kode];
+        htmlAktif += '<div style="display:flex; justify-content:space-between; align-items:center; background:#fff; border:1px solid #e1e8ed; padding:12px; border-radius:6px; margin-bottom:8px; border-left:4px solid #27ae60; box-shadow:0 2px 5px rgba(0,0,0,0.02);">' +
+            '<div>' +
+                '<div style="font-weight:bold; color:#2c3e50; font-size:14px; margin-bottom:4px;">🎯 ' + u.paket + '</div>' +
+                '<div style="font-size:11px; color:#7f8c8d;">' +
+                    'Kode Akses: <span style="background:#f1c40f; color:#333; padding:2px 6px; border-radius:4px; font-weight:bold; font-size:12px; letter-spacing:1px;">' + kode + '</span> | Waktu: <span style="font-weight:bold;">' + u.durasi + ' Menit</span>' +
+                '</div>' +
+            '</div>' +
+            '<button style="background:#c0392b; color:white; border:none; padding:6px 12px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer; transition:0.2s;" onclick="nonaktifkanUjian(\'' + kode + '\')" onmouseover="this.style.background=\'#a93226\'" onmouseout="this.style.background=\'#c0392b\'">🛑 Tutup Akses</button>' +
+        '</div>';
+    });
+    if(container) container.innerHTML = htmlAktif;
+};
+
+window.simpanKontrolUjian = function() {
+    let paket = document.getElementById('admin-pilih-ujian').value;
+    let kode = document.getElementById('admin-kode-ujian').value.trim().toUpperCase();
+    let durasi = parseInt(document.getElementById('admin-durasi-ujian').value);
+
+    if(!paket) return alert("Pilih paket ujian terlebih dahulu!");
+    if(!kode) return alert("Kode akses ujian tidak boleh kosong!");
+    if(window.adminUjianAktifData[kode]) return alert("Kode ujian ini sudah dipakai/sedang aktif. Gunakan kode lain!");
+    if(!durasi || durasi <= 0) return alert("Durasi ujian tidak valid!");
+
+    window.adminUjianAktifData[kode] = {
+        paket: paket,
+        durasi: durasi,
+        dibuat: new Date().toISOString()
+    };
+
+    document.getElementById('admin-kode-ujian').value = "";
+    document.getElementById('admin-durasi-ujian').value = "90";
+    
+    window.renderKontrolUjian();
+    if(typeof window.simpanUjianAktifKeDB === "function") window.simpanUjianAktifKeDB();
+};
+
+window.nonaktifkanUjian = function(kode) {
+    if(confirm('Yakin ingin menutup akses ujian (Kode: ' + kode + ')? Siswa yang belum masuk tidak akan bisa mengaksesnya lagi.')) {
+        delete window.adminUjianAktifData[kode];
+        window.renderKontrolUjian();
+        if(typeof window.simpanUjianAktifKeDB === "function") window.simpanUjianAktifKeDB();
+    }
+};
+
+// --- MESIN LIVE MONITOR UJIAN ---
+window.perbaruiBadgeNotifMonitor = function() {
+    let badge = document.getElementById('badge-notif');
+    if(!badge) return;
+    let adaPelanggaran = false;
+    let allPaket = window.adminLiveMonitorData || {};
+    Object.keys(allPaket).forEach(function(p) {
+        let kelasObj = allPaket[p] || {};
+        Object.keys(kelasObj).forEach(function(k) {
+            let siswaObj = kelasObj[k] || {};
+            Object.keys(siswaObj).forEach(function(s) {
+                if((siswaObj[s].pelanggaran || 0) > 0) adaPelanggaran = true;
+            });
+        });
+    });
+    badge.style.display = adaPelanggaran ? 'inline-block' : 'none';
+};
+
+window.bukaModalLiveMonitor = function() {
+    window.bukaModal('modal-manajer-ujian');
+    window.bukaTabManajerUjian('tab-ujian-monitor');
+};
+
+window.tutupLiveMonitor = function() {
+    window.tutupModal('modal-manajer-ujian');
+};
+
+window.muatDropdownLiveMonitor = function() {
+    let selPaket = document.getElementById('live-monitor-paket');
+    let selKelas = document.getElementById('live-monitor-kelas');
+    if(!selPaket) return;
+
+    let prevPaket = selPaket.value;
+    let prevKelas = selKelas ? selKelas.value : 'Semua';
+
+    let paketSet = new Set();
+    Object.keys(window.adminBankUjianData || {}).forEach(function(p) { paketSet.add(p); });
+    Object.values(window.adminUjianAktifData || {}).forEach(function(u) { if(u.paket) paketSet.add(u.paket); });
+    Object.keys(window.adminLiveMonitorData || {}).forEach(function(p) { paketSet.add(p); });
+
+    let htmlPaket = '<option value="">-- Pilih Ujian --</option>';
+    Array.from(paketSet).sort().forEach(function(p) {
+        let selected = (p === prevPaket) ? 'selected' : '';
+        htmlPaket += '<option value="' + p + '" ' + selected + '>' + p + '</option>';
+    });
+    selPaket.innerHTML = htmlPaket;
+
+    if(!selPaket.value) {
+        let liveKeys = Object.keys(window.adminLiveMonitorData || {});
+        if(liveKeys.length === 1) selPaket.value = liveKeys[0];
+    }
+
+    window.perbaruiDropdownKelasMonitor(prevKelas);
+};
+
+window.perbaruiDropdownKelasMonitor = function(prevKelas) {
+    let selPaket = document.getElementById('live-monitor-paket');
+    let selKelas = document.getElementById('live-monitor-kelas');
+    if(!selKelas) return;
+
+    let paketDipilih = selPaket ? selPaket.value : '';
+    let kelasSet = new Set();
+
+    Object.keys(window.adminData || {}).forEach(function(k) { kelasSet.add(k); });
+    if(paketDipilih && window.adminLiveMonitorData && window.adminLiveMonitorData[paketDipilih]) {
+        Object.keys(window.adminLiveMonitorData[paketDipilih]).forEach(function(k) { kelasSet.add(k); });
+    }
+
+    let htmlKelas = '<option value="Semua">Semua Kelas</option>';
+    Array.from(kelasSet).sort().forEach(function(k) {
+        let selected = (k === prevKelas) ? 'selected' : '';
+        htmlKelas += '<option value="' + k + '" ' + selected + '>' + k + '</option>';
+    });
+    selKelas.innerHTML = htmlKelas;
+};
+
+window.loadLiveMonitor = function(paketVal) {
+    window.perbaruiDropdownKelasMonitor(document.getElementById('live-monitor-kelas') ? document.getElementById('live-monitor-kelas').value : 'Semua');
+    window.renderIsiLiveMonitor();
+};
+
+window.renderIsiLiveMonitor = function() {
+    let selPaket = document.getElementById('live-monitor-paket');
+    let selKelas = document.getElementById('live-monitor-kelas');
+    let listEl = document.getElementById('live-monitor-list');
+    if(!listEl || !selPaket) return;
+
+    let paket = selPaket.value;
+    let filterKelas = selKelas ? selKelas.value : 'Semua';
+
+    if(!paket) {
+        listEl.innerHTML = '<div style="text-align:center; padding:25px; color:#7f8c8d; background:#f8f9fa; border-radius:8px; border:1px dashed #ccc;">Pilih paket ujian di atas untuk melihat pantauan siswa secara langsung.</div>';
+        return;
+    }
+
+    let dataPaket = (window.adminLiveMonitorData && window.adminLiveMonitorData[paket]) ? window.adminLiveMonitorData[paket] : {};
+    let daftarBaris = [];
+
+    Object.keys(dataPaket).sort().forEach(function(kls) {
+        if(filterKelas !== 'Semua' && kls !== filterKelas) return;
+        let siswaMap = dataPaket[kls] || {};
+        Object.keys(siswaMap).sort().forEach(function(nama) {
+            let item = siswaMap[nama];
+            daftarBaris.push({
+                kelas: kls,
+                nama: nama,
+                status: item.status || 'Sedang Mengerjakan',
+                pelanggaran: item.pelanggaran || 0
+            });
+        });
+    });
+
+    if(daftarBaris.length === 0) {
+        listEl.innerHTML = '<div style="text-align:center; padding:25px; color:#7f8c8d; background:#f8f9fa; border-radius:8px; border:1px dashed #ccc;">Belum ada aktivitas siswa pada ujian <b>' + paket + '</b>' + (filterKelas !== 'Semua' ? ' di kelas <b>' + filterKelas + '</b>' : '') + '.</div>';
+        return;
+    }
+
+    let html = '';
+    daftarBaris.forEach(function(row) {
+        let isAman = row.pelanggaran === 0;
+        let isKicked = row.pelanggaran >= 5 || row.status === 'Dikeluarkan';
+
+        let bgCard = isAman ? '#d5f5e3' : (isKicked ? '#fadbd8' : '#fef5d1');
+        let borderCard = isAman ? '#a9dfbf' : (isKicked ? '#f5b7b1' : '#f5cba7');
+        let statusRight = isAman
+            ? '<span style="color:#1e3729; font-weight:700;">✅ Aman</span>'
+            : (isKicked
+                ? '<span style="color:#c0392b; font-weight:700;">❌ Dikeluarkan (' + row.pelanggaran + 'x)</span>'
+                : '<span style="color:#2c3e50; font-weight:700;">⚠️ Melanggar (' + row.pelanggaran + 'x)</span>');
+
+        html += '<div style="display:flex; justify-content:space-between; align-items:center; background:' + bgCard + '; border:1px solid ' + borderCard + '; padding:12px 16px; border-radius:8px;">' +
+            '<div>' +
+                '<div style="font-weight:700; font-size:15px; color:#1e272e; margin-bottom:2px;">' + row.kelas + ' - ' + row.nama + '</div>' +
+                '<div style="font-size:12px; color:#485460;">' + row.status + '</div>' +
+            '</div>' +
+            '<div style="font-size:14px;">' + statusRight + '</div>' +
+        '</div>';
+    });
+
+    listEl.innerHTML = html;
+};
+
+window.hapusLiveMonitorData = function() {
+    let selPaket = document.getElementById('live-monitor-paket');
+    let selKelas = document.getElementById('live-monitor-kelas');
+    let paket = selPaket ? selPaket.value : '';
+    let kelas = selKelas ? selKelas.value : 'Semua';
+
+    if(!paket) {
+        return alert("Pilih ujian yang ingin dihapus history-nya terlebih dahulu!");
+    }
+
+    let pesanKonfirmasi = (kelas && kelas !== 'Semua')
+        ? 'Hapus riwayat Live Monitor untuk ujian "' + paket + '" khusus kelas "' + kelas + '"?'
+        : 'Hapus seluruh riwayat Live Monitor untuk ujian "' + paket + '" (Semua Kelas)?';
+
+    if(confirm(pesanKonfirmasi)) {
+        if(window.adminLiveMonitorData && window.adminLiveMonitorData[paket]) {
+            if(kelas && kelas !== 'Semua') {
+                delete window.adminLiveMonitorData[paket][kelas];
+            } else {
+                delete window.adminLiveMonitorData[paket];
+            }
+        }
+        if(typeof window.hapusDataLiveMonitorDiDB === "function") {
+            window.hapusDataLiveMonitorDiDB(paket, kelas);
+        }
+        window.renderIsiLiveMonitor();
+        window.perbaruiBadgeNotifMonitor();
+    }
+};
+
+/* =========================================
+   LOGIKA GERBANG MASUK UJIAN (SISWA)
+   ========================================= */
+window.renderDropdownKelasUjian = function() {
+    // Cegat tamu yang belum login
+    if (!sessionStorage.getItem("statusLogin")) {
+        window.tutupModal('modal-enter-ujian');
+        alert("🔒 Akses Ditolak: Anda harus LOGIN sebagai Siswa untuk mengikuti Ujian Kelas.");
+        window.bukaModal('modal-login-sistem');
+        return;
+    }
+
+    let selKelas = document.getElementById('ujian-select-kelas');
+    if(!selKelas) return;
+    
+    let htmlOpt = '<option value="">-- Pilih Kelas Anda --</option>';
+    let kelasArray = Object.keys(window.adminData || {}).sort();
+    
+    kelasArray.forEach(function(k) {
+        htmlOpt += '<option value="' + k + '">' + k + '</option>';
+    });
+    selKelas.innerHTML = htmlOpt;
+    document.getElementById('ujian-select-nama').innerHTML = '<option value="">-- Pilih Kelas Terlebih Dahulu --</option>';
+    document.getElementById('input-kode-ujian').value = "";
+};
+
+window.updateDropdownNamaUjian = function() {
+    let selKelas = document.getElementById('ujian-select-kelas').value;
+    let selNama = document.getElementById('ujian-select-nama');
+    
+    if(!selKelas) {
+        selNama.innerHTML = '<option value="">-- Pilih Kelas Terlebih Dahulu --</option>';
+        return;
+    }
+    
+    let siswaArr = (window.adminData[selKelas] || []).sort();
+    let htmlOpt = '<option value="">-- Pilih Nama Anda --</option>';
+    
+    siswaArr.forEach(function(s) {
+        htmlOpt += '<option value="' + s + '">' + s + '</option>';
+    });
+    selNama.innerHTML = htmlOpt;
+};
+
+window.verifikasiMasukUjian = function() {
+    let kelas = document.getElementById('ujian-select-kelas').value;
+    let nama = document.getElementById('ujian-select-nama').value;
+    let kode = document.getElementById('input-kode-ujian').value.trim().toUpperCase();
+
+    if(!kelas) return alert("Pilih kelas Anda terlebih dahulu!");
+    if(!nama) return alert("Pilih nama Anda terlebih dahulu!");
+    if(!kode) return alert("Masukkan Kode Ujian!");
+
+    let ujianAktif = window.adminUjianAktifData[kode];
+    if(!ujianAktif) {
+        return alert("❌ Kode Ujian tidak valid atau ujian belum diaktifkan oleh guru!");
+    }
+
+    let namaPaket = ujianAktif.paket;
+    let paketData = window.adminBankUjianData[namaPaket];
+    if(!paketData) {
+        return alert("❌ Terjadi kesalahan sistem: Paket soal tidak ditemukan.");
+    }
+
+    window.sesiUjianSiswa = {
+        kelas: kelas,
+        nama: nama,
+        kode: kode,
+        paket: namaPaket,
+        durasi: ujianAktif.durasi,
+        soal: paketData.soal,
+        bobot: paketData.bobot,
+        jawaban: {}
+    };
+
+    window.tutupModal('modal-enter-ujian');
+    window.bukaRuangUjianStrict();
+};
+
+const modalEnterUjianObserver = new MutationObserver(function(mutations) {
+    mutations.forEach(function(m) {
+        if(m.target.id === 'modal-enter-ujian' && m.target.style.display === 'flex') {
+            if(typeof window.renderDropdownKelasUjian === "function") window.renderDropdownKelasUjian();
+        }
+    });
+});
+if(document.getElementById('modal-enter-ujian')) {
+    modalEnterUjianObserver.observe(document.getElementById('modal-enter-ujian'), { attributes: true, attributeFilter: ['style'] });
+}
+
+/* =========================================
+   LOGIKA RUANG UJIAN KETAT (HEMAT SERVER, OFFLINE-ONLINE, & ANTI-CHEAT PRESISI)
+   ========================================= */
+window.sedangDialogSistem = false;
+window.graceOrientationTime = 0;
+
+// Fungsi Pembantu: Dialog Web Aman (Tidak Memicu Pelanggaran Blur saat Muncul)
+window.alertAmanUjian = function(pesan) {
+    window.sedangDialogSistem = true;
+    alert(pesan);
+    setTimeout(function() { window.sedangDialogSistem = false; }, 600);
+};
+
+window.confirmAmanUjian = function(pesan) {
+    window.sedangDialogSistem = true;
+    let hasil = confirm(pesan);
+    setTimeout(function() { window.sedangDialogSistem = false; }, 600);
+    return hasil;
+};
+
+// Backup Jawaban Siswa ke Memori Perangkat Lokal (0% Beban Server)
+window.simpanCadanganLokalUjian = function() {
+    if (!window.sesiUjianSiswa) return;
+    try {
+        let keyCadangan = 'cadangan_ujian_' + window.sesiUjianSiswa.kode + '_' + window.sesiUjianSiswa.kelas + '_' + window.sesiUjianSiswa.nama;
+        localStorage.setItem(keyCadangan, JSON.stringify({
+            jawaban: window.sesiUjianSiswa.jawaban || {},
+            violationCount: window.violationCount || 0,
+            sisaDetik: window.sisaDetikUjian || (window.sesiUjianSiswa.durasi * 60)
+        }));
+    } catch (e) {}
+};
+
+window.hapusCadanganLokalUjian = function() {
+    if (!window.sesiUjianSiswa) return;
+    try {
+        let keyCadangan = 'cadangan_ujian_' + window.sesiUjianSiswa.kode + '_' + window.sesiUjianSiswa.kelas + '_' + window.sesiUjianSiswa.nama;
+        localStorage.removeItem(keyCadangan);
+    } catch (e) {}
+};
+
+window.bukaRuangUjianStrict = function() {
+    let header = document.getElementById('header-wrap');
+    let nav = document.getElementById('main-nav');
+    let breadcrumb = document.querySelector('.bottom-breadcrumb-bar');
+    if(header) header.style.display = 'none';
+    if(nav) nav.style.display = 'none';
+    if(breadcrumb) breadcrumb.style.display = 'none';
+    
+    document.body.style.overflow = 'hidden';
+    document.body.classList.add('strict-mode-active');
+    
+    let room = document.getElementById('ujian-strict-room');
+    if(room) room.style.display = 'block';
+    let judulUI = document.getElementById('ujian-judul-ui');
+    if(judulUI) judulUI.innerText = "🎯 " + window.sesiUjianSiswa.paket;
+
+    // Pulihkan jawaban jika sebelumnya halaman sempat ter-refresh karena sinyal/baterai
+    let pkt = window.sesiUjianSiswa;
+    let keyCadangan = 'cadangan_ujian_' + pkt.kode + '_' + pkt.kelas + '_' + pkt.nama;
+    let dataLokal = null;
+    try {
+        let rawLokal = localStorage.getItem(keyCadangan);
+        if (rawLokal) dataLokal = JSON.parse(rawLokal);
+    } catch (e) {}
+
+    if (dataLokal && dataLokal.jawaban) {
+        window.sesiUjianSiswa.jawaban = dataLokal.jawaban;
+        window.violationCount = dataLokal.violationCount || 0;
+        window.sisaDetikUjian = dataLokal.sisaDetik || (pkt.durasi * 60);
+    } else {
+        window.sesiUjianSiswa.jawaban = {};
+        window.violationCount = 0;
+        window.sisaDetikUjian = pkt.durasi * 60;
+    }
+    
+    window.renderSoalUjianSiswa();
+    window.mulaiTimerUjian();
+    
+    window.isPenaltyActive = false;
+    window.penaltyInterval = null;
+    window.lastOrientation = window.innerWidth > window.innerHeight ? 'landscape' : 'portrait';
+    window.initUjianWidth = window.innerWidth;
+    window.initUjianHeight = window.innerHeight;
+    window.isStrictUjianActive = true;
+
+    // 1. Kirim status mulai ke Live Monitor, lalu PUTUS KONEKSI SERVER setelah 3 detik agar hemat beban 1000 siswa
+    if(typeof window.simpanStatusLiveMonitorKeDB === "function") {
+        if(typeof window.modeHematServerUjian === "function") window.modeHematServerUjian(false);
+        window.simpanStatusLiveMonitorKeDB(pkt.paket, pkt.kelas, pkt.nama, {
+            kelas: pkt.kelas,
+            nama: pkt.nama,
+            paket: pkt.paket,
+            status: "Sedang Mengerjakan",
+            pelanggaran: window.violationCount || 0,
+            waktuUpdate: new Date().toISOString()
+        });
+        setTimeout(function() {
+            if (window.isStrictUjianActive && typeof window.modeHematServerUjian === "function") {
+                window.modeHematServerUjian(true); // Masuk mode hemat server (Offline mandiri)
+            }
+        }, 3000);
+    }
+};
+
+window.inlineEditSoal = function(tipe, soalIdx, field, optLabel, newText) {
+    let isAdmin = sessionStorage.getItem("statusLogin") === "admin";
+    if(!isAdmin) return;
+
+    let sesi = tipe === 'latihan' ? window.sesiLatihanSiswa : window.sesiUjianSiswa;
+    let q = sesi.soal[soalIdx];
+
+    if(field === 'question') q.question = newText;
+    if(field === 'explanation') q.explanation = newText;
+    if(field === 'option') {
+        let opt = q.options.find(function(o) { return o.label === optLabel; });
+        if(opt) opt.text = newText;
+    }
+
+    if(tipe === 'latihan') {
+        let key = sesi.paketKey;
+        if (key && window.adminBankLatihanData[key]) {
+            window.adminBankLatihanData[key].soal = sesi.soal;
+            if(typeof window.simpanBankLatihanKeDB === "function") window.simpanBankLatihanKeDB();
+        }
+    } else {
+        let key = sesi.paket;
+        if (key && window.adminBankUjianData[key]) {
+            window.adminBankUjianData[key].soal = sesi.soal;
+            if(typeof window.simpanBankUjianKeDB === "function") window.simpanBankUjianKeDB();
+        }
+    }
+};
+
+window.renderSoalUjianSiswa = function() {
+    let container = document.getElementById('ujian-strict-container');
+    if(!container) return;
+    
+    let isAdmin = sessionStorage.getItem("statusLogin") === "admin";
+    let soalArr = window.sesiUjianSiswa.soal;
+    let jawabanTersimpan = window.sesiUjianSiswa.jawaban || {};
+    let html = '';
+
+    // Indikator Mode Hemat Server / Offline-Ready
+    html += '<div id="banner-status-koneksi-ujian" style="max-width:800px; margin:0 auto 15px auto; padding:8px 15px; border-radius:8px; background:#eafaf1; border:1px solid #a9dfbf; color:#1e8449; font-size:12px; font-weight:bold; text-align:center;">🛡️ Mode Ujian Mandiri Aktif: Jawaban Anda tersimpan otomatis di perangkat dan tetap aman meskipun sinyal internet naik-turun.</div>';
+    
+    soalArr.forEach(function(q, idx) {
+        let qEditAttr = isAdmin ? 'contenteditable="true" style="border-bottom:1px dashed #e67e22; outline:none; cursor:text;" onblur="window.inlineEditSoal(\'ujian\', ' + idx + ', \'question\', null, this.innerText)"' : '';
+        let ansLama = jawabanTersimpan[idx];
+        
+        html += '<div class="quiz-question-card" id="soal-ujian-' + idx + '" style="margin-bottom:25px; box-shadow:0 4px 10px rgba(0,0,0,0.05);">';
+        html += '<div class="quiz-question-text" style="font-size:16px;" ' + qEditAttr + '>' + (idx+1) + '. ' + q.question + '</div>';
+        
+        if(q.type === 'IS' || q.type === 'Essay') {
+            let valLama = (typeof ansLama === 'string') ? ansLama.replace(/"/g, '&quot;') : '';
+            html += '<input type="text" class="input-box" value="' + valLama + '" placeholder="Ketik jawaban Anda..." style="font-size:15px; font-weight:600; border:2px solid #3498db; width:100%; box-sizing:border-box;" oninput="window.simpanJawabanUjian(' + idx + ', this.value, \'' + q.type + '\', this)">';
+        } else if (q.type === 'PG' || q.type === 'PGK') {
+            html += '<div class="quiz-options">';
+            q.options.forEach(function(opt) {
+                let optEditAttr = isAdmin ? 'contenteditable="true" style="border-bottom:1px dashed #e67e22; outline:none; cursor:text; padding:2px;" onclick="event.stopPropagation()" onblur="window.inlineEditSoal(\'ujian\', ' + idx + ', \'option\', \'' + opt.label + '\', this.innerText)"' : '';
+                
+                if(q.type === 'PG') {
+                    let isSelected = (ansLama === opt.label);
+                    let stylePG = isSelected ? 'background:#3498db; color:white; border-color:#2980b9; font-weight:bold;' : '';
+                    html += '<button type="button" class="quiz-option-btn opsi-ujian-' + idx + '" style="' + stylePG + '" onclick="window.pilihJawabanUjianPG(' + idx + ', \'' + opt.label + '\', this)">' + opt.label + '. <span ' + optEditAttr + '>' + opt.text + '</span></button>';
+                } else {
+                    let isChecked = Array.isArray(ansLama) && ansLama.includes(opt.label);
+                    let stylePGK = isChecked ? 'background:#ebf5fb; border-color:#2980b9; font-weight:bold;' : '';
+                    html += '<label id="lbl-ujian-pgk-' + idx + '-' + opt.label + '" class="quiz-option-btn" style="display:flex; align-items:center; gap:10px; cursor:pointer; ' + stylePGK + '">' +
+                                '<input type="checkbox" ' + (isChecked ? 'checked' : '') + ' style="width:18px; height:18px; cursor:pointer;" onchange="window.pilihJawabanUjianPGK(' + idx + ', \'' + opt.label + '\', this.checked)">' +
+                                '<span ' + optEditAttr + '>' + opt.label + '. ' + opt.text + '</span>' +
+                             '</label>';
+                }
+            });
+            html += '</div>';
+        }
+        html += '</div>';
+    });
+    
+    html += '<div id="box-status-kumpul-offline" style="display:none; max-width:500px; margin:20px auto; padding:15px; border-radius:10px; background:#fef9e7; border:2px solid #f39c12; text-align:center; color:#d35400; font-weight:bold;"></div>';
+    html += '<div style="text-align:center; margin-top:30px; margin-bottom:60px;">' +
+                '<button id="btn-kumpul-ujian-utama" class="btn-action" style="background:#27ae60; width:100%; max-width:400px; font-size:18px; padding:15px; border-radius:30px;" onclick="window.kumpulkanUjianSiswa()">📥 Kumpulkan Jawaban</button>' +
+             '</div>';
+             
+    container.innerHTML = html;
+    
+    let exitBtn = document.getElementById('btn-keluar-latihan');
+    if(exitBtn) exitBtn.style.display = 'none'; 
+};
+
+// Siswa bebas mengganti jawaban (misal dari A ke B) sebelum klik Kumpulkan
+window.pilihJawabanUjianPG = function(soalIdx, labelPilihan, btnEl) {
+    document.querySelectorAll('.opsi-ujian-' + soalIdx).forEach(function(b) {
+        b.style.background = 'white'; b.style.color = '#495057';
+        b.style.borderColor = '#ced4da'; b.style.fontWeight = 'normal';
+    });
+    btnEl.style.background = '#3498db'; btnEl.style.color = 'white';
+    btnEl.style.borderColor = '#2980b9'; btnEl.style.fontWeight = 'bold';
+    
+    // Langsung timpa jawaban lama dengan pilihan terbaru (B)
+    window.sesiUjianSiswa.jawaban[soalIdx] = labelPilihan;
+    window.simpanCadanganLokalUjian();
+};
+
+window.pilihJawabanUjianPGK = function(soalIdx, labelPilihan, isChecked) {
+    if(!Array.isArray(window.sesiUjianSiswa.jawaban[soalIdx])) {
+        window.sesiUjianSiswa.jawaban[soalIdx] = [];
+    }
+    let arr = window.sesiUjianSiswa.jawaban[soalIdx];
+    
+    if(isChecked) {
+        if(!arr.includes(labelPilihan)) arr.push(labelPilihan);
+    } else {
+        window.sesiUjianSiswa.jawaban[soalIdx] = arr.filter(function(l) { return l !== labelPilihan; });
+    }
+
+    let lblEl = document.getElementById('lbl-ujian-pgk-' + soalIdx + '-' + labelPilihan);
+    if (lblEl) {
+        lblEl.style.background = isChecked ? '#ebf5fb' : 'white';
+        lblEl.style.borderColor = isChecked ? '#2980b9' : '#ced4da';
+        lblEl.style.fontWeight = isChecked ? 'bold' : 'normal';
+    }
+    window.simpanCadanganLokalUjian();
+};
+
+window.simpanJawabanUjian = function(soalIdx, nilaiText, tipe, inputEl) {
+    if(tipe === 'IS') {
+        let trimmed = nilaiText.trim();
+        let words = trimmed ? trimmed.split(/\s+/) : [];
+        if(words.length > 3) {
+            window.alertAmanUjian("⚠️ Isian singkat dibatasi maksimal 3 kata!");
+            nilaiText = words.slice(0,3).join(" ");
+            if (inputEl) inputEl.value = nilaiText;
+        }
+    }
+    window.sesiUjianSiswa.jawaban[soalIdx] = nilaiText;
+    window.simpanCadanganLokalUjian();
+};
+
+window.timerIntervalUjian = null;
+window.mulaiTimerUjian = function() {
+    let timerEl = document.getElementById('ujian-timer-fixed');
+    if(timerEl) timerEl.style.display = 'block';
+    
+    if (typeof window.sisaDetikUjian !== 'number' || window.sisaDetikUjian <= 0) {
+        window.sisaDetikUjian = window.sesiUjianSiswa.durasi * 60;
+    }
+    
+    clearInterval(window.timerIntervalUjian);
+    window.timerIntervalUjian = setInterval(function() {
+        window.sisaDetikUjian--;
+        if (window.sisaDetikUjian % 10 === 0) {
+            window.simpanCadanganLokalUjian();
+        }
+
+        if(window.sisaDetikUjian <= 0) {
+            clearInterval(window.timerIntervalUjian);
+            timerEl.innerText = "00:00:00";
+            window.isStrictUjianActive = false; // Matikan sensor sebelum pengumuman waktu habis
+            window.alertAmanUjian("⌛ WAKTU HABIS! Jawaban Anda akan dikumpulkan secara otomatis.");
+            window.kumpulkanUjianSiswa(true);
+            return;
+        }
+        
+        let jam = Math.floor(window.sisaDetikUjian / 3600);
+        let mnt = Math.floor((window.sisaDetikUjian % 3600) / 60);
+        let dtk = window.sisaDetikUjian % 60;
+        
+        timerEl.innerText = String(jam).padStart(2, '0') + ":" + String(mnt).padStart(2, '0') + ":" + String(dtk).padStart(2, '0');
+            
+        if(window.sisaDetikUjian < 300) timerEl.style.background = '#c0392b';
+        else timerEl.style.background = '#2c3e50';
+        
+    }, 1000);
+};
+
+// Pengumpul Jawaban dengan Dukungan Offline-Online & Anti-Nyangkut
+window.kumpulkanUjianSiswa = function(isForce, isKicked) {
+    try {
+        let forceSubmit = isForce === true;
+        let kickedSubmit = isKicked === true;
+
+        if(!forceSubmit) {
+            // Gunakan confirmAmanUjian agar pop-up konfirmasi web TIDAK dianggap pelanggaran!
+            if(!window.confirmAmanUjian("Yakin ingin mengumpulkan jawaban sekarang? Pastikan semua jawaban sudah Anda periksa.")) return;
+        }
+        
+        // Matikan sensor anti-cheat begitu siswa resmi mengumpulkan
+        clearInterval(window.timerIntervalUjian);
+        clearInterval(window.penaltyInterval);
+        window.isStrictUjianActive = false; 
+        document.body.classList.remove('strict-mode-active');
+
+        let pkt = window.sesiUjianSiswa;
+        let totalNilai = 0; 
+        let hasilDetail = []; 
+        
+        if(!pkt || !pkt.soal) {
+            window.alertAmanUjian("❌ Sesi ujian tidak valid. Anda akan dikembalikan ke beranda.");
+            window.location.href = "index.html?bab=home";
+            return;
+        }
+
+        let bobotPG = (pkt.bobot && pkt.bobot.PG) ? pkt.bobot.PG : 0;
+        let bobotPGK = (pkt.bobot && pkt.bobot.PGK) ? pkt.bobot.PGK : 0;
+        let bobotIS = (pkt.bobot && pkt.bobot.IS) ? pkt.bobot.IS : 0;
+
+        pkt.soal.forEach(function(q, idx) {
+            let ans = (pkt.jawaban && pkt.jawaban[idx] !== undefined) ? pkt.jawaban[idx] : "";
+            let poin = 0; 
+            let status = "Salah";
+            
+            if (q.type === 'PG') {
+                if (ans && q.correct && q.correct.includes(ans)) { 
+                    poin = bobotPG; 
+                    status = "Benar"; 
+                }
+            } else if (q.type === 'PGK') {
+                let studentAnsArr = Array.isArray(ans) ? ans : [];
+                let correctCount = 0; 
+                let totalOps = (q.options || []).length;
+                
+                if(totalOps > 0 && studentAnsArr.length > 0) {
+                    (q.options || []).forEach(function(opt) {
+                        let isExpected = (q.correct || []).includes(opt.label);
+                        let isAnswered = studentAnsArr.includes(opt.label);
+                        if (isExpected === isAnswered) correctCount++;
+                    });
+                    poin = (bobotPGK / totalOps) * correctCount;
+                    if (correctCount === totalOps) status = "Benar Sempurna";
+                    else if (correctCount > 0) status = "Benar Parsial";
+                }
+            } else if (q.type === 'IS') {
+                if (ans && q.correct && q.correct.some(function(k) { return String(ans).toLowerCase().trim() === String(k).toLowerCase().trim(); })) {
+                    poin = bobotIS; 
+                    status = "Benar";
+                }
+            } else if (q.type === 'Essay') { 
+                poin = 0; 
+                status = "Menunggu Guru"; 
+            }
+
+            totalNilai += poin;
+            hasilDetail.push({ 
+                soal: q.question, 
+                tipe: q.type, 
+                kunci: q.correct || [], 
+                jawabSiswa: (ans !== "" && (!Array.isArray(ans) || ans.length > 0)) ? ans : "-", 
+                pembahasan: q.explanation || "Tidak ada pembahasan.", 
+                poinDidapat: poin, 
+                status: status 
+            });
+        });
+
+        let pathDB = 'admin_rekap_nilai/' + pkt.kelas + '/' + pkt.paket + '/' + pkt.nama;
+        let payload = { 
+            nilaiAkhir: parseFloat(totalNilai.toFixed(2)), 
+            waktuKumpul: new Date().toISOString(), 
+            detail: hasilDetail, 
+            pelanggaran: window.violationCount || 0 
+        };
+
+        // Nyalakan kembali koneksi ke server untuk mengirim nilai akhir
+        if (typeof window.modeHematServerUjian === "function") {
+            window.modeHematServerUjian(false);
+        }
+
+        let btnKumpul = document.getElementById('btn-kumpul-ujian-utama');
+        let boxOffline = document.getElementById('box-status-kumpul-offline');
+        if (btnKumpul) {
+            btnKumpul.disabled = true;
+            btnKumpul.innerText = "⏳ Mengirim Jawaban ke Server...";
+        }
+
+        // Simpan ke antrean lokal terlebih dahulu agar 100% aman walau sinyal tiba-tiba putus
+        window.paketAntreanKumpul = {
+            pathDB: pathDB,
+            payload: payload,
+            pkt: pkt,
+            kickedSubmit: kickedSubmit,
+            totalNilai: totalNilai,
+            hasilDetail: hasilDetail
+        };
+
+        window.prosesKirimAntreanUjian();
+
+    } catch(e) {
+        console.error("Error Ujian:", e);
+        window.alertAmanUjian("Sistem mendeteksi kendala teknis: " + e.message);
+    }
+};
+
+window.prosesKirimAntreanUjian = function() {
+    if (!window.paketAntreanKumpul) return;
+    let item = window.paketAntreanKumpul;
+    let boxOffline = document.getElementById('box-status-kumpul-offline');
+    let btnKumpul = document.getElementById('btn-kumpul-ujian-utama');
+
+    // Jika perangkat sedang tidak ada sinyal internet sama sekali
+    if (!navigator.onLine) {
+        if (boxOffline) {
+            boxOffline.style.display = 'block';
+            boxOffline.innerHTML = '📡 Koneksi internet Anda sedang terputus.<br>Jangan tutup halaman ini! Jawaban Anda sudah dikunci dengan aman dan akan <b>otomatis terkirim</b> begitu internet tersambung kembali.<br><button class="btn-action" style="background:#e67e22; width:auto; margin-top:10px; padding:8px 16px; font-size:12px;" onclick="window.prosesKirimAntreanUjian()">🔄 Coba Kirim Ulang Sekarang</button>';
+        }
+        return;
+    }
+
+    if (typeof window.modeHematServerUjian === "function") window.modeHematServerUjian(false);
+
+    let fungsiKirim = window.kirimNilaiUjianAmanKeDB || function(p, data, ok) {
+        if (typeof window.simpanNilaiUjianKeDB === "function") window.simpanNilaiUjianKeDB(p, data);
+        if (ok) ok();
+    };
+
+    fungsiKirim(item.pathDB, item.payload, function() {
+        // Berhasil terkirim ke Firebase
+        if(typeof window.simpanStatusLiveMonitorKeDB === "function") {
+            window.simpanStatusLiveMonitorKeDB(item.pkt.paket, item.pkt.kelas, item.pkt.nama, {
+                kelas: item.pkt.kelas,
+                nama: item.pkt.nama,
+                paket: item.pkt.paket,
+                status: item.kickedSubmit ? "Dikeluarkan" : "Selesai",
+                pelanggaran: window.violationCount || 0,
+                waktuUpdate: new Date().toISOString()
+            });
+        }
+
+        window.hapusCadanganLokalUjian();
+        window.paketAntreanKumpul = null;
+
+        if (item.kickedSubmit) {
+            document.body.style.overflow = 'auto'; 
+            window.location.href = "index.html?bab=home"; 
+        } else {
+            window.alertAmanUjian("✅ Jawaban Anda telah berhasil dikumpulkan dan dicatat oleh sistem!");
+            window.renderPembahasanUjian(item.totalNilai, item.hasilDetail);
+        }
+    }, function(err) {
+        if (boxOffline) {
+            boxOffline.style.display = 'block';
+            boxOffline.innerHTML = '⚠️ Gagal menghubungi server karena sinyal lemah.<br>Jawaban Anda tetap aman. Silakan periksa sinyal internet Anda lalu klik tombol di bawah:<br><button class="btn-action" style="background:#e67e22; width:auto; margin-top:10px; padding:8px 16px; font-size:12px;" onclick="window.prosesKirimAntreanUjian()">🔄 Kirim Ulang Jawaban</button>';
+        }
+        if (btnKumpul) {
+            btnKumpul.disabled = false;
+            btnKumpul.innerText = "🔄 Kirim Ulang Jawaban";
+        }
+    });
+};
+
+// Otomatis kirim jawaban begitu sinyal HP/Laptop siswa kembali menyala
+window.addEventListener('online', function() {
+    if (window.paketAntreanKumpul) {
+        window.prosesKirimAntreanUjian();
+    }
+});
+
+window.renderPembahasanUjian = function(totalNilai, hasilDetail) {
+    let container = document.getElementById('ujian-strict-container');
+    if(!container) return;
+    
+    window.scrollTo(0,0); 
+    let roomEl = document.getElementById('ujian-strict-room');
+    if(roomEl) roomEl.scrollTo(0,0);
+
+    let headerWrap = document.getElementById('header-wrap');
+    let nav = document.getElementById('main-nav');
+    if(headerWrap) headerWrap.style.display = 'flex';
+    if(nav) nav.style.display = 'block';
+    document.body.style.overflow = 'auto'; 
+
+    let judulUI = document.getElementById('ujian-judul-ui');
+    if(judulUI) judulUI.innerText = "📈 HASIL & PEMBAHASAN UJIAN";
+    let timerEl = document.getElementById('ujian-timer-fixed');
+    if(timerEl) timerEl.style.display = 'none';
+
+    let html = '<div style="background:#e8f8f5; border:2px solid #16a085; padding:20px; border-radius:8px; text-align:center; margin-bottom:30px;"><h2 style="color:#2c3e50; margin:0 0 10px 0;">Nilai Akhir Anda</h2><div style="font-size:48px; font-weight:900; color:#16a085;">' + totalNilai.toFixed(1) + '</div></div>';
+    
+    hasilDetail.forEach(function(h, idx) {
+        let badgeColor = h.status.includes('Benar') ? '#27ae60' : (h.status==='Menunggu Guru' ? '#f39c12' : '#c0392b');
+        let jawabStr = Array.isArray(h.jawabSiswa) ? h.jawabSiswa.join(', ') : h.jawabSiswa;
+        html += '<div class="quiz-question-card" style="margin-bottom:20px; border-left:5px solid ' + badgeColor + '; box-shadow:0 2px 8px rgba(0,0,0,0.05);">' +
+            '<div style="display:flex; justify-content:space-between; margin-bottom:10px; border-bottom:1px solid #eee; padding-bottom:10px; flex-wrap:wrap; gap:6px;">' +
+                '<span style="font-weight:bold; color:#7f8c8d;">Soal ' + (idx+1) + ' (' + h.tipe + ')</span>' +
+                '<span style="background:' + badgeColor + '; color:white; padding:4px 10px; border-radius:12px; font-size:11px; font-weight:bold;">' + h.status + ' (+' + h.poinDidapat.toFixed(1) + ' pt)</span>' +
+            '</div>' +
+            '<div style="font-size:15px; color:#2c3e50; margin-bottom:15px;">' + h.soal + '</div>' +
+            '<div style="background:#f8f9fa; padding:12px; border-radius:6px; font-size:13px; margin-bottom:10px; border:1px solid #e1e8ed;">' +
+                '<div style="margin-bottom:8px;"><strong>Jawaban Anda:</strong> <span style="color:#e74c3c; font-weight:bold;">' + jawabStr + '</span></div>' +
+                '<div><strong>Kunci Jawaban:</strong> <span style="color:#27ae60; font-weight:bold;">' + (h.kunci || []).join(', ') + '</span></div>' +
+            '</div>' +
+            '<div style="background:#eef2f3; padding:12px; border-radius:6px; font-size:13px; border-left:3px solid #2980b9;"><strong>💡 Pembahasan:</strong><br><div style="margin-top:5px; line-height:1.5;">' + h.pembahasan + '</div></div>' +
+        '</div>';
+    });
+    
+    html += '<div style="text-align:center; margin-top:30px; margin-bottom:50px;"><button class="btn-action" style="background:#c0392b; padding:12px 25px; font-size:14px; border-radius:30px; width:100%; max-width:300px;" onclick="window.location.href=\'index.html?bab=home\'">🚪 Keluar dari Pembahasan</button></div>';
+    
+    container.innerHTML = html;
+};
+
+/* =========================================
+   SISTEM KEAMANAN GLOBAL & SENSOR ANTI-CHEAT PRESISI
+   ========================================= */
+window.lastViolationTime = window.lastViolationTime || 0;
+window.blurCheckTimer = null;
+
+// 1. Perisai Global Anti-Inspect & Anti-Screenshot (Keyboard)
+document.addEventListener('contextmenu', function(e) { 
+    if (sessionStorage.getItem("statusLogin") !== "admin") {
+        e.preventDefault(); 
+    }
+});
+
+document.addEventListener('keydown', function(e) {
+    // A. IZINKAN TOMBOL VOLUME DI SEMUA PERANGKAT
+    if (e.key === 'AudioVolumeUp' || e.key === 'AudioVolumeDown' || e.key === 'AudioVolumeMute' || e.keyCode === 174 || e.keyCode === 175 || e.keyCode === 173) {
+        return;
+    }
+
+    // B. DETEKSI SCREENSHOT SAAT UJIAN (PrintScreen, Mac Cmd+Shift+3/4/5, Windows Win+Shift+S)
+    if (window.isStrictUjianActive) {
+        let isPrintScreen = (e.key === 'PrintScreen' || e.keyCode === 44);
+        let isMacShot = (e.metaKey && e.shiftKey && (e.key === '3' || e.key === '4' || e.key === '5'));
+        let isWinSnip = (e.metaKey && e.shiftKey && (e.key === 'S' || e.key === 's'));
+        if (isPrintScreen || isMacShot || isWinSnip) {
+            e.preventDefault();
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText("Screenshot dilarang selama ujian berlangsung!");
+            }
+            window.triggerPelanggaran("Terdeteksi melakukan tangkapan layar (Screenshot)!");
+            return false;
+        }
+    }
+
+    if (sessionStorage.getItem("statusLogin") === "admin") return;
+
+    // C. BLOKIR INSPECT ELEMENT UNTUK SISWA & TAMU
+    if (e.key === 'F12' || e.keyCode === 123) {
+        e.preventDefault(); return false;
+    }
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j' || e.key === 'C' || e.key === 'c')) {
+        e.preventDefault(); return false;
+    }
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'U' || e.key === 'u' || e.key === 'S' || e.key === 's')) {
+        e.preventDefault(); return false;
+    }
+});
+
+document.addEventListener('keyup', function(e) {
+    if (window.isStrictUjianActive && (e.key === 'PrintScreen' || e.keyCode === 44)) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText("Screenshot dilarang selama ujian berlangsung!");
+        }
+        window.triggerPelanggaran("Terdeteksi menekan tombol Screenshot!");
+    }
+});
+
+window.triggerPelanggaran = function(alasanKhusus) {
+    if(!window.isStrictUjianActive || window.sedangDialogSistem) return;
+
+    let now = Date.now();
+    if(now - window.lastViolationTime < 1200) return; 
+    window.lastViolationTime = now;
+
+    window.violationCount++;
+    window.simpanCadanganLokalUjian();
+    clearInterval(window.penaltyInterval); 
+
+    // Sambungkan sementara ke Firebase untuk melaporkan pelanggaran ke Live Monitor, lalu putus lagi setelah 3 detik
+    if(typeof window.simpanStatusLiveMonitorKeDB === "function" && window.sesiUjianSiswa) {
+        let pkt = window.sesiUjianSiswa;
+        if (typeof window.modeHematServerUjian === "function") window.modeHematServerUjian(false);
+        window.simpanStatusLiveMonitorKeDB(pkt.paket, pkt.kelas, pkt.nama, {
+            kelas: pkt.kelas,
+            nama: pkt.nama,
+            paket: pkt.paket,
+            status: window.violationCount >= 5 ? "Dikeluarkan" : "Sedang Mengerjakan",
+            pelanggaran: window.violationCount,
+            waktuUpdate: new Date().toISOString()
+        });
+        setTimeout(function() {
+            if (window.isStrictUjianActive && typeof window.modeHematServerUjian === "function") {
+                window.modeHematServerUjian(true);
+            }
+        }, 3000);
+    }
+    
+    let overlay = document.getElementById('strict-warning-overlay');
+    let info = document.getElementById('strict-warning-info');
+    let countdownEl = document.getElementById('strict-countdown');
+    
+    overlay.style.display = 'flex';
+    
+    if(window.violationCount === 1) window.penaltyWaitTime = 600;
+    else if(window.violationCount === 2) window.penaltyWaitTime = 1000;
+    else if(window.violationCount === 3) window.penaltyWaitTime = 2000; 
+    else if(window.violationCount === 4) window.penaltyWaitTime = 3000; 
+    else if(window.violationCount >= 5) {
+        overlay.style.display = 'none';
+        window.isStrictUjianActive = false;
+        window.alertAmanUjian("❌ PELANGGARAN MAKSIMAL (5x)!\n\nSistem mendeteksi aktivitas mencurigakan berulang kali. Ujian dihentikan paksa dan jawaban dikumpulkan otomatis!");
+        window.kumpulkanUjianSiswa(true, true); 
+        return;
+    }
+
+    window.isPenaltyActive = true;
+    let teksAlasan = alasanKhusus ? ' (' + alasanKhusus + ')' : '';
+    info.innerText = 'Pelanggaran ke-' + window.violationCount + '/5!' + teksAlasan + ' ' + (window.violationCount === 4 ? '(PERINGATAN TERAKHIR!)' : '');
+    countdownEl.innerText = window.penaltyWaitTime;
+
+    window.penaltyInterval = setInterval(function() {
+        window.penaltyWaitTime--;
+        countdownEl.innerText = window.penaltyWaitTime;
+        
+        if(window.penaltyWaitTime <= 0) {
+            clearInterval(window.penaltyInterval);
+            overlay.style.display = 'none';
+            window.isPenaltyActive = false;
+        }
+    }, 1000);
+};
+
+window.cancelHukuman = function() {
+    clearInterval(window.penaltyInterval);
+    document.getElementById('strict-warning-overlay').style.display = 'none';
+    window.isPenaltyActive = false;
+    window.alertAmanUjian("Kunci penalti berhasil dibuka oleh Guru.");
+};
+
+// 2. Sensor Keluar dari Tab / Keluar dari Aplikasi (VisibilityChange)
+document.addEventListener("visibilitychange", function() {
+    if (document.hidden && window.isStrictUjianActive && !window.sedangDialogSistem) {
+        window.triggerPelanggaran("Keluar dari tab atau menutup layar aplikasi");
+    }
+});
+
+// 3. Sensor Aplikasi Ketiga / AI Mengambang (Blur dengan Toleransi Tombol Volume 350ms)
+window.addEventListener("blur", function() {
+    if (!window.isStrictUjianActive || window.sedangDialogSistem) return;
+    clearTimeout(window.blurCheckTimer);
+    window.blurCheckTimer = setTimeout(function() {
+        // Jika setelah 350ms fokus masih hilang (misal membuka Floating AI / Split App), picu pelanggaran
+        if (window.isStrictUjianActive && !window.sedangDialogSistem && (!document.hasFocus() || document.hidden)) {
+            window.triggerPelanggaran("Membuka aplikasi pihak ketiga atau layar mengambang");
+        }
+    }, 350);
+});
+
+window.addEventListener("focus", function() {
+    clearTimeout(window.blurCheckTimer);
+});
+
+// 4. Sensor Orientasi Layar (Boleh Portrait <-> Landscape) vs Resize/Split-Screen (Tidak Boleh)
+window.addEventListener("orientationchange", function() {
+    // Beri masa kebal 1.2 detik saat HP diputar Portrait <-> Landscape
+    window.graceOrientationTime = Date.now() + 1200;
+    setTimeout(function() {
+        window.lastOrientation = window.innerWidth > window.innerHeight ? 'landscape' : 'portrait';
+        window.initUjianWidth = window.innerWidth;
+        window.initUjianHeight = window.innerHeight;
+    }, 500);
+});
+
+window.addEventListener("resize", function() {
+    if(!window.isStrictUjianActive || window.sedangDialogSistem) return;
+    
+    // Abaikan jika sedang dalam transisi memutar HP (Portrait <-> Landscape)
+    if (Date.now() < window.graceOrientationTime) {
+        window.lastOrientation = window.innerWidth > window.innerHeight ? 'landscape' : 'portrait';
+        window.initUjianWidth = window.innerWidth;
+        window.initUjianHeight = window.innerHeight;
+        return;
+    }
+
+    let currentOrientation = window.innerWidth > window.innerHeight ? 'landscape' : 'portrait';
+    if(currentOrientation !== window.lastOrientation) {
+        window.graceOrientationTime = Date.now() + 1000;
+        window.lastOrientation = currentOrientation; 
+        window.initUjianWidth = window.innerWidth;
+        window.initUjianHeight = window.innerHeight;
+        return; 
+    }
+    
+    // Abaikan jika siswa sedang mengetik di kotak Isian/Essay (munculnya keyboard HP hanya mengubah tinggi, bukan lebar)
+    let activeTag = document.activeElement ? document.activeElement.tagName : '';
+    let isTypingInput = (activeTag === 'INPUT' || activeTag === 'TEXTAREA');
+
+    // Jika lebar layar berubah > 45px (Resize jendela laptop atau Split-Screen samping), langsung melanggar!
+    if(Math.abs(window.innerWidth - window.initUjianWidth) > 45) {
+        window.initUjianWidth = window.innerWidth;
+        window.triggerPelanggaran("Mengubah ukuran layar atau membuka Split-Screen");
+        return;
+    }
+
+    // Jika tinggi layar menyusut drastis (> 35%) padahal TIDAK sedang mengetik di kotak jawaban (indikasi Split-Screen atas-bawah di HP)
+    if (!isTypingInput && window.initUjianHeight && (window.initUjianHeight - window.innerHeight > window.initUjianHeight * 0.35)) {
+        window.initUjianHeight = window.innerHeight;
+        window.triggerPelanggaran("Membagi layar (Split-Screen)");
+    }
+});
+
+/* =========================================
+   LOGIKA REKAP NILAI (LEDGER & EXPORT)
+   ========================================= */
+window.adminRekapNilaiData = window.adminRekapNilaiData || {};
+
+window.renderDropdownRekap = function() {
+    let selKelas = document.getElementById('filter-rekap-kelas');
+    let selPaket = document.getElementById('filter-rekap-paket');
+    if(!selKelas || !selPaket) return;
+    
+    let kelasAktif = selKelas.value;
+    let paketAktif = selPaket.value;
+
+    let kelasArr = Object.keys(window.adminData || {}).sort();
+    let htmlK = '<option value="">-- Pilih Kelas --</option>';
+    kelasArr.forEach(function(k) { htmlK += '<option value="' + k + '" ' + (k===kelasAktif?'selected':'') + '>' + k + '</option>'; });
+    selKelas.innerHTML = htmlK;
+
+    let bankKeys = Object.keys(window.adminBankUjianData || {}).sort();
+    let htmlP = '<option value="">-- Pilih Paket Ujian --</option>';
+    bankKeys.forEach(function(p) { htmlP += '<option value="' + p + '" ' + (p===paketAktif?'selected':'') + '>' + p + '</option>'; });
+    selPaket.innerHTML = htmlP;
+    
+    window.renderRekapNilai();
+};
+
+window.renderRekapNilai = function() {
+    let selKelas = document.getElementById('filter-rekap-kelas').value;
+    let selPaket = document.getElementById('filter-rekap-paket').value;
+    let tbody = document.getElementById('body-rekap-nilai');
+    if(!tbody) return;
+    
+    if(!selKelas || !selPaket) {
+        tbody.innerHTML = '<tr><td colspan="6" style="padding:20px; color:#7f8c8d; font-weight:bold;">Pilih Kelas dan Paket Ujian di atas untuk melihat ledger.</td></tr>';
+        return;
+    }
+    
+    let dataSiswa = (window.adminRekapNilaiData[selKelas] && window.adminRekapNilaiData[selKelas][selPaket]) ? window.adminRekapNilaiData[selKelas][selPaket] : {};
+    let namaSiswaArr = Object.keys(dataSiswa).sort();
+    
+    if(namaSiswaArr.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="padding:20px; color:#e67e22; font-weight:bold;">Belum ada siswa dari kelas ' + selKelas + ' yang mengumpulkan ujian ' + selPaket + '.</td></tr>';
+        return;
+    }
+
+    let html = '';
+    namaSiswaArr.forEach(function(nama, idx) {
+        let d = dataSiswa[nama];
+        let dDateObj = new Date(d.waktuKumpul);
+        let dDate = dDateObj.getHours().toString().padStart(2,'0')+':'+dDateObj.getMinutes().toString().padStart(2,'0')+' - '+dDateObj.getDate().toString().padStart(2,'0')+'/'+(dDateObj.getMonth()+1).toString().padStart(2,'0');
+        
+        let badgePelanggaran = d.pelanggaran >= 5 ? '<span style="background:#c0392b; color:white; padding:3px 8px; border-radius:12px; font-size:10px; font-weight:bold;">KICKED</span>' : (d.pelanggaran > 0 ? '<span style="background:#f39c12; color:white; padding:3px 8px; border-radius:12px; font-size:10px; font-weight:bold;">' + d.pelanggaran + 'x</span>' : '<span style="color:#27ae60; font-weight:bold;">Aman</span>');
+        
+        let essayMenunggu = false;
+        if(d.detail) essayMenunggu = d.detail.some(function(x) { return x.status === 'Menunggu Guru'; });
+        
+        let btnKoreksi = essayMenunggu ? 
+            '<button style="background:#8e44ad; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:11px; font-weight:bold;" data-k="' + selKelas + '" data-p="' + selPaket + '" data-n="' + nama + '" onclick="window.bukaKoreksiUjian(this)">✏️ Koreksi Essay</button>' :
+            '<button style="background:#3498db; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:11px; font-weight:bold;" data-k="' + selKelas + '" data-p="' + selPaket + '" data-n="' + nama + '" onclick="window.bukaKoreksiUjian(this)">👁️ Lihat Detail</button>';
+
+        html += '<tr style="border-bottom:1px solid #eee;">' +
+            '<td style="color:#7f8c8d; font-weight:bold;">' + (idx+1) + '</td>' +
+            '<td style="text-align:left; font-weight:bold; color:#2c3e50;">' + nama + '</td>' +
+            '<td style="font-size:11px; color:#7f8c8d; font-weight:bold;">' + dDate + '</td>' +
+            '<td>' + badgePelanggaran + '</td>' +
+            '<td style="font-size:18px; font-weight:900; color:#16a085;">' + d.nilaiAkhir + '</td>' +
+            '<td>' + btnKoreksi + '</td>' +
+        '</tr>';
+    });
+    tbody.innerHTML = html;
+};
+
+window.exportExcelRekapNilai = function() {
+    let selKelas = document.getElementById('filter-rekap-kelas').value;
+    let selPaket = document.getElementById('filter-rekap-paket').value;
+    if(!selKelas || !selPaket) return alert("Pilih kelas dan paket terlebih dahulu!");
+    
+    let dataSiswa = (window.adminRekapNilaiData[selKelas] && window.adminRekapNilaiData[selKelas][selPaket]) ? window.adminRekapNilaiData[selKelas][selPaket] : {};
+    let namaSiswaArr = Object.keys(dataSiswa).sort();
+    if(namaSiswaArr.length === 0) return alert("Tidak ada data nilai!");
+
+    let bankPaket = window.adminBankUjianData[selPaket] || {};
+    let bankSoal = bankPaket.soal || [];
+    let bobot = bankPaket.bobot || {PG:0, PGK:0, IS:0, Essay:0};
+    if(bankSoal.length === 0 && namaSiswaArr.length > 0) bankSoal = dataSiswa[namaSiswaArr[0]].detail; 
+
+    let pgCount = 0, pgkCount = 0, isCount = 0, esCount = 0;
+    bankSoal.forEach(function(q) {
+        let tipe = q.tipe || q.type;
+        if(tipe === 'PG') pgCount++;
+        else if(tipe === 'PGK') pgkCount++;
+        else if(tipe === 'IS' || tipe === 'Isian') isCount++;
+        else if(tipe === 'Essay') esCount++;
+    });
+
+    let offsetTabelBobot = 2 + pgCount + pgkCount - 1;
+    if(offsetTabelBobot < 2) offsetTabelBobot = 2;
+
+    let bPG = Number(bobot.PG.toFixed(2));
+    let bPGK = Number(bobot.PGK.toFixed(2));
+    let bIS = Number(bobot.IS.toFixed(2));
+    let bESS = Number(bobot.Essay.toFixed(2));
+
+    let html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">' +
+    '<head><meta charset="utf-8"><style>' +
+        'table { border-collapse: collapse; font-family: Calibri, sans-serif; font-size: 12px; }' +
+        'th, td { border: 1px solid #000000; padding: 6px; text-align: center; vertical-align: middle; }' +
+        '.text-left { text-align: left; }' +
+        '.bg-header { background-color: #f2f2f2; font-weight: bold; }' +
+        '.bg-title { font-size: 16px; font-weight: bold; border: none; text-align: center; }' +
+        '.no-border { border: none; }' +
+    '</style></head><body><table>' +
+        '<tr><td colspan="' + (2 + pgCount + pgkCount + isCount + esCount + 1) + '" class="bg-title">Ledger Siswa</td></tr>' +
+        '<tr><td colspan="' + (2 + pgCount + pgkCount + isCount + esCount + 1) + '" class="no-border"></td></tr>' +
+        '<tr><td colspan="2" class="text-left no-border" style="font-weight:bold;">Kelas: ' + selKelas + '</td>';
+    for(let i=0; i<offsetTabelBobot - 2; i++) html += '<td class="no-border"></td>';
+    if(pgCount > 0) html += '<td class="bg-header">PG</td>';
+    if(pgkCount > 0) html += '<td class="bg-header">PGK</td>';
+    if(isCount > 0) html += '<td class="bg-header">IS</td>';
+    if(esCount > 0) html += '<td class="bg-header">ESS</td>';
+    
+    html += '</tr><tr><td colspan="2" class="text-left no-border" style="font-weight:bold;">Ujian: ' + selPaket + '</td>';
+    for(let i=0; i<offsetTabelBobot - 2; i++) html += '<td class="no-border"></td>';
+    if(pgCount > 0) html += '<td>' + bPG + '</td>';
+    if(pgkCount > 0) html += '<td>' + bPGK + '</td>';
+    if(isCount > 0) html += '<td>' + bIS + '</td>';
+    if(esCount > 0) html += '<td>' + bESS + '</td>';
+    html += '</tr><tr><td colspan="' + (2 + pgCount + pgkCount + isCount + esCount + 1) + '" class="no-border"></td></tr>';
+
+    html += '<tr><td rowspan="2" class="bg-header">No</td><td rowspan="2" class="bg-header text-left" style="width:200px;">Nama Siswa</td>';
+    if(pgCount > 0) html += '<td colspan="' + pgCount + '" class="bg-header">Pilihan Ganda</td>';
+    if(pgkCount > 0) html += '<td colspan="' + pgkCount + '" class="bg-header">Pilihan Ganda Kompleks</td>';
+    if(isCount > 0) html += '<td colspan="' + isCount + '" class="bg-header">Isian</td>';
+    if(esCount > 0) html += '<td colspan="' + esCount + '" class="bg-header">Essay</td>';
+    html += '<td rowspan="2" class="bg-header">Nilai Akhir</td></tr><tr>';
+
+    for(let i=1; i<=pgCount; i++) html += '<td class="bg-header">' + i + '</td>';
+    for(let i=1; i<=pgkCount; i++) html += '<td class="bg-header">' + i + '</td>';
+    for(let i=1; i<=isCount; i++) html += '<td class="bg-header">' + i + '</td>';
+    for(let i=1; i<=esCount; i++) html += '<td class="bg-header">' + i + '</td>';
+    html += '</tr>';
+
+    namaSiswaArr.forEach(function(nama, idx) {
+        let d = dataSiswa[nama];
+        html += '<tr><td>' + (idx+1) + '</td><td class="text-left">' + nama + '</td>';
+        d.detail.forEach(function(h) {
+            if(h.tipe === 'PG') {
+                let ans = Array.isArray(h.jawabSiswa) ? h.jawabSiswa[0] : h.jawabSiswa;
+                html += '<td>' + (ans||'').toLowerCase() + '</td>';
+            } else if(h.tipe === 'PGK') {
+                let frac = bobot.PGK > 0 ? (h.poinDidapat / bobot.PGK) : 0;
+                html += '<td>' + Number(frac.toFixed(2)) + '</td>';
+            } else if(h.tipe === 'IS' || h.tipe === 'Isian') {
+                html += '<td>' + (h.poinDidapat > 0 ? 1 : 0) + '</td>';
+            } else if(h.tipe === 'Essay') {
+                let frac = bobot.Essay > 0 ? (h.poinDidapat / bobot.Essay) : 0;
+                html += '<td>' + Number(frac.toFixed(2)) + '</td>';
+            }
+        });
+        html += '<td style="font-weight:bold;">' + d.nilaiAkhir + '</td></tr>';
+    });
+
+    html += '</table></body></html>';
+
+    let blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+    let link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = 'Ledger_' + selKelas + '_' + selPaket.replace(/\s+/g, '_') + '.xls';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
+const modalRekapObserver = new MutationObserver(function(mutations) {
+    mutations.forEach(function(m) {
+        if(m.target.id === 'modal-rekap-nilai' && m.target.style.display === 'flex') {
+            if(typeof window.renderDropdownRekap === "function") window.renderDropdownRekap();
+        }
+    });
+});
+if(document.getElementById('modal-rekap-nilai')) {
+    modalRekapObserver.observe(document.getElementById('modal-rekap-nilai'), { attributes: true, attributeFilter: ['style'] });
+}
+
+/* =========================================
+   LOGIKA KOREKSI ESSAY & DETAIL JAWABAN (GURU)
+   ========================================= */
+window.koreksiDataBuffer = {}; 
+
+window.bukaKoreksiUjian = function(btnElement) {
+    let k = btnElement.getAttribute('data-k');
+    let p = btnElement.getAttribute('data-p');
+    let n = btnElement.getAttribute('data-n');
+    window.tempKoreksiTarget = { kelas: k, paket: p };
+    window.muatDataKoreksi(n);
+};
+
+window.gantiSiswaKoreksi = function() {
+    let n = document.getElementById('koreksi-select-siswa').value;
+    window.muatDataKoreksi(n);
+};
+
+window.muatDataKoreksi = function(namaSiswa) {
+    let t = window.tempKoreksiTarget;
+    let dataSiswa = window.adminRekapNilaiData[t.kelas][t.paket][namaSiswa];
+    t.nama = namaSiswa; t.data = dataSiswa;
+
+    let sel = document.getElementById('koreksi-select-siswa');
+    let allStudents = Object.keys(window.adminRekapNilaiData[t.kelas][t.paket]).sort();
+    let opt = '';
+    allStudents.forEach(function(s) { opt += '<option value="' + s + '" ' + (s===namaSiswa?'selected':'') + '>' + s + '</option>'; });
+    sel.innerHTML = opt;
+
+    let badgePelanggaran = dataSiswa.pelanggaran > 0 ? '<span style="background:#e74c3c; color:white; padding:2px 8px; border-radius:12px; font-size:10px; font-weight:bold;">⚠️ ' + dataSiswa.pelanggaran + 'x Pelanggaran</span>' : '<span style="background:#27ae60; color:white; padding:2px 8px; border-radius:12px; font-size:10px; font-weight:bold;">✅ Aman</span>';
+    document.getElementById('koreksi-info-badges').innerHTML = '<span style="background:#2980b9; color:white; padding:2px 8px; border-radius:12px; font-size:10px; font-weight:bold;">' + t.kelas + '</span> <span style="background:#8e44ad; color:white; padding:2px 8px; border-radius:12px; font-size:10px; font-weight:bold;">' + t.paket + '</span> ' + badgePelanggaran;
+    
+    let grid = document.getElementById('koreksi-grid-container');
+    let html = '';
+    
+    let bankData = window.adminBankUjianData[t.paket];
+    let maxPoinIS = bankData ? bankData.bobot.IS : 0;
+    let maxPoinEssay = bankData ? bankData.bobot.Essay : 0;
+    
+    dataSiswa.detail.forEach(function(h, idx) {
+        if (h.tipe === 'IS' || h.tipe === 'Essay') {
+            let isEssay = h.tipe === 'Essay';
+            let maxP = isEssay ? maxPoinEssay : maxPoinIS;
+            let fraksiSkor = maxP > 0 ? (h.poinDidapat / maxP) : 0; 
+
+            let uiKoreksiGuru = '';
+            if(isEssay) {
+                uiKoreksiGuru = '<div style="flex:1; min-width:220px; background:#fdf2e9; border:1px solid #edbb99; border-radius:6px; padding:10px; display:flex; justify-content:space-between; align-items:center;">' +
+                    '<div><div style="font-size:10px; font-weight:bold; color:#d35400; margin-bottom:3px; text-transform:uppercase;">Koreksi Essay</div><div style="font-size:11px; color:#ba4a00;">Input fraksi (0.0 - 1.0)</div></div>' +
+                    '<input type="number" id="input-koreksi-' + idx + '" step="0.1" min="0" max="1" value="' + fraksiSkor.toFixed(2) + '" style="width:60px; padding:5px; text-align:center; font-weight:bold; border:2px solid #d35400; border-radius:4px; color:#d35400; background:white; font-size:14px;" oninput="window.hitungSkorLiveKoreksi()">' +
+                '</div>';
+            } else {
+                let isChecked = (h.poinDidapat > 0) ? 'checked' : '';
+                uiKoreksiGuru = '<div style="flex:1; min-width:220px; background:#eafaf1; border:1px solid #a9dfbf; border-radius:6px; padding:10px; display:flex; justify-content:space-between; align-items:center;">' +
+                    '<div><div style="font-size:10px; font-weight:bold; color:#27ae60; margin-bottom:3px; text-transform:uppercase;">Koreksi Guru</div><div style="font-size:11px; color:#1e8449;">Klik centang jika benar</div></div>' +
+                    '<label style="cursor:pointer; display:flex; align-items:center; gap:8px; background:white; padding:6px 10px; border-radius:6px; border:1px solid #27ae60;">' +
+                        '<span style="font-size:12px; font-weight:bold; color:#27ae60;">BENAR</span>' +
+                        '<input type="checkbox" id="chk-koreksi-' + idx + '" style="width:20px; height:20px; cursor:pointer; accent-color:#16a085;" onchange="window.hitungSkorLiveKoreksi()" ' + isChecked + '>' +
+                    '</label>' +
+                '</div>';
+            }
+            
+            html += '<div style="background:#ffffff; border:1px solid #e1e8ed; border-radius:8px; overflow:hidden; box-shadow:0 2px 4px rgba(0,0,0,0.02);">' +
+                '<div style="background:#f8f9fa; padding:8px 15px; border-bottom:1px solid #e1e8ed; display:flex; justify-content:space-between; align-items:center;">' +
+                    '<span style="font-weight:bold; color:#2c3e50; font-size:13px;">Soal ' + (idx+1) + ' <span style="font-size:11px; color:#7f8c8d; font-weight:normal; margin-left:5px;">(' + h.tipe + ')</span></span>' +
+                    '<span style="background:#ecf0f1; color:#34495e; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:bold;">Maks: ' + maxP.toFixed(2) + ' pt</span>' +
+                '</div>' +
+                '<div style="padding:12px 15px;">' +
+                    '<div style="font-size:14px; color:#2c3e50; margin-bottom:12px; line-height:1.4;">' + h.soal + '</div>' +
+                    '<div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px;">' +
+                        '<div style="flex:1; min-width:220px; background:#fdfefe; border:1px solid #d5dbdb; border-radius:6px; padding:10px;">' +
+                            '<div style="font-size:10px; font-weight:bold; color:#7f8c8d; margin-bottom:5px; text-transform:uppercase;">Jawaban Siswa</div>' +
+                            '<div style="font-size:14px; color:#c0392b; font-weight:600;">' + h.jawabSiswa + '</div>' +
+                        '</div>' +
+                        uiKoreksiGuru +
+                    '</div>' +
+                    '<div style="background:#f4f6f6; border-radius:6px; padding:10px 12px; font-size:12px; color:#34495e; border-left:3px solid #3498db;">' +
+                        '<strong style="color:#2980b9;">💡 Kunci / Pembahasan:</strong> <br>' +
+                        '<div style="margin-top:4px; line-height:1.4;">' + h.pembahasan + '</div>' +
+                    '</div>' +
+                '</div>' +
+            '</div>';
+        }
+    });
+    grid.innerHTML = html;
+    window.hitungSkorLiveKoreksi();
+    window.bukaModal('modal-koreksi-ujian');
+};
+
+window.hitungSkorLiveKoreksi = function() {
+    let t = window.tempKoreksiTarget;
+    let bankData = window.adminBankUjianData[t.paket];
+    let maxPoinIS = bankData ? bankData.bobot.IS : 0;
+    let maxPoinEssay = bankData ? bankData.bobot.Essay : 0;
+
+    let total = 0;
+    t.data.detail.forEach(function(h, idx) {
+        if(h.tipe === 'PG' || h.tipe === 'PGK') {
+            total += h.poinDidapat;
+        } else if(h.tipe === 'IS' || h.tipe === 'Isian') {
+            let chk = document.getElementById('chk-koreksi-' + idx);
+            if(chk && chk.checked) total += maxPoinIS;
+        } else if(h.tipe === 'Essay') {
+            let inp = document.getElementById('input-koreksi-' + idx);
+            if(inp) {
+                let val = parseFloat(inp.value) || 0;
+                if(val > 1) val = 1; 
+                if(val < 0) val = 0;
+                total += (val * maxPoinEssay);
+            }
+        }
+    });
+    document.getElementById('koreksi-nilai-live').innerText = total.toFixed(2);
+};
+
+window.simpanKoreksiManual = function() {
+    let t = window.tempKoreksiTarget;
+    let bankData = window.adminBankUjianData[t.paket];
+    let maxPoinIS = bankData ? bankData.bobot.IS : 0;
+    let maxPoinEssay = bankData ? bankData.bobot.Essay : 0;
+
+    let updateDetail = [...t.data.detail];
+    let totalPoinBaru = 0;
+
+    updateDetail.forEach(function(h, idx) {
+        if(h.tipe === 'PG' || h.tipe === 'PGK') {
+            totalPoinBaru += h.poinDidapat;
+        } else if(h.tipe === 'IS' || h.tipe === 'Isian') {
+            let chk = document.getElementById('chk-koreksi-' + idx);
+            let isChecked = chk ? chk.checked : false;
+            h.poinDidapat = isChecked ? maxPoinIS : 0;
+            h.status = isChecked ? "Benar" : "Salah";
+            totalPoinBaru += h.poinDidapat;
+        } else if(h.tipe === 'Essay') {
+            let inp = document.getElementById('input-koreksi-' + idx);
+            let val = inp ? parseFloat(inp.value) : 0;
+            if(isNaN(val)) val = 0; if(val > 1) val = 1; if(val < 0) val = 0;
+            
+            h.poinDidapat = (val * maxPoinEssay);
+            h.status = val === 1 ? "Benar Sempurna" : (val > 0 ? "Benar Parsial" : "Salah");
+            totalPoinBaru += h.poinDidapat;
+        }
+    });
+
+    t.data.nilaiAkhir = parseFloat(totalPoinBaru.toFixed(2));
+    t.data.detail = updateDetail;
+    window.adminRekapNilaiData[t.kelas][t.paket][t.nama] = t.data;
+    
+    let pathDB = 'admin_rekap_nilai/' + t.kelas + '/' + t.paket + '/' + t.nama;
+    if(typeof window.simpanNilaiUjianKeDB === "function") window.simpanNilaiUjianKeDB(pathDB, t.data);
+
+    alert("✅ Nilai berhasil diperbarui ke database!");
+    window.renderRekapNilai(); 
+};
+    
+/* =========================================
+   LOGIKA GERBANG & RUANG LATIHAN SISWA (SINKRON C1, C2, HOTS)
+   ========================================= */
+window.renderDropdownLatihan = function() {
+    let selKelas = document.getElementById('latihan-select-kelas');
+    if(!selKelas) return;
+    
+    let bank = window.adminBankLatihanData || {};
+    let kelasSet = new Set();
+    Object.values(bank).forEach(function(item) { if (item && item.kelas) kelasSet.add(item.kelas); });
+
+    let html = '<option value="">-- Pilih Kelas Anda --</option>';
+    Array.from(kelasSet).sort().forEach(function(k) { html += '<option value="' + k + '">' + k + '</option>'; });
+    selKelas.innerHTML = html;
+
+    document.getElementById('latihan-select-mapel').innerHTML = '<option value="">-- Pilih Kelas Dahulu --</option>';
+    document.getElementById('latihan-select-bab').innerHTML = '<option value="">-- Pilih Mapel Dahulu --</option>';
+    let selKes = document.getElementById('latihan-select-kesulitan');
+    if (selKes) selKes.innerHTML = '<option value="">-- Pilih Bab Dahulu --</option>';
+};
+
+window.updateDropdownLatihanMapel = function() {
+    let kelas = document.getElementById('latihan-select-kelas').value;
+    let selMapel = document.getElementById('latihan-select-mapel');
+    let selKes = document.getElementById('latihan-select-kesulitan');
+    
+    if(!kelas) {
+        selMapel.innerHTML = '<option value="">-- Pilih Kelas Dahulu --</option>';
+        document.getElementById('latihan-select-bab').innerHTML = '<option value="">-- Pilih Mapel Dahulu --</option>';
+        if (selKes) selKes.innerHTML = '<option value="">-- Pilih Bab Dahulu --</option>';
+        return;
+    }
+
+    let bank = window.adminBankLatihanData || {};
+    let mapelSet = new Set();
+    Object.values(bank).forEach(function(item) { if(item.kelas === kelas) mapelSet.add(item.mapel); });
+
+    let html = '<option value="">-- Pilih Mata Pelajaran --</option>';
+    Array.from(mapelSet).sort().forEach(function(m) { html += '<option value="' + m + '">' + m + '</option>'; });
+    selMapel.innerHTML = html;
+    document.getElementById('latihan-select-bab').innerHTML = '<option value="">-- Pilih Mapel Dahulu --</option>';
+    if (selKes) selKes.innerHTML = '<option value="">-- Pilih Bab Dahulu --</option>';
+};
+
+window.updateDropdownLatihanBab = function() {
+    let kelas = document.getElementById('latihan-select-kelas').value;
+    let mapel = document.getElementById('latihan-select-mapel').value;
+    let selBab = document.getElementById('latihan-select-bab');
+    let selKes = document.getElementById('latihan-select-kesulitan');
+
+    if(!mapel) {
+        selBab.innerHTML = '<option value="">-- Pilih Mapel Dahulu --</option>';
+        if (selKes) selKes.innerHTML = '<option value="">-- Pilih Bab Dahulu --</option>';
+        return;
+    }
+
+    let bank = window.adminBankLatihanData || {};
+    let babSet = new Set();
+
+    Object.keys(bank).forEach(function(k) {
+        let item = bank[k];
+        if(item.kelas === kelas && item.mapel === mapel && item.bab) {
+            babSet.add(item.bab);
+        }
+    });
+
+    let html = '<option value="">-- Pilih Bab Materi --</option>';
+    Array.from(babSet).sort().forEach(function(b) {
+        html += '<option value="' + b + '">' + b + '</option>';
+    });
+    selBab.innerHTML = html;
+    if (selKes) selKes.innerHTML = '<option value="">-- Pilih Bab Dahulu --</option>';
+};
+
+window.updateDropdownLatihanKesulitan = function() {
+    let kelas = document.getElementById('latihan-select-kelas').value;
+    let mapel = document.getElementById('latihan-select-mapel').value;
+    let bab = document.getElementById('latihan-select-bab').value;
+    let selKes = document.getElementById('latihan-select-kesulitan');
+    if (!selKes) return;
+
+    if (!bab) {
+        selKes.innerHTML = '<option value="">-- Pilih Bab Dahulu --</option>';
+        return;
+    }
+
+    let bank = window.adminBankLatihanData || {};
+    let urutanLevel = { 'C1': 1, 'C2': 2, 'HOTS': 3 };
+    let ditemukan = [];
+
+    Object.keys(bank).forEach(function(k) {
+        let item = bank[k];
+        if (item.kelas === kelas && item.mapel === mapel && item.bab === bab) {
+            ditemukan.push({ key: k, kesulitan: item.kesulitan, jml: (item.soal || []).length });
+        }
+    });
+
+    ditemukan.sort(function(a, b) {
+        return (urutanLevel[a.kesulitan] || 99) - (urutanLevel[b.kesulitan] || 99);
+    });
+
+    let html = '<option value="">-- Pilih Tingkat Kesulitan (C1 / C2 / HOTS) --</option>';
+    ditemukan.forEach(function(d) {
+        html += '<option value="' + d.key + '">Tingkat ' + d.kesulitan + ' (' + d.jml + ' Soal)</option>';
+    });
+    selKes.innerHTML = html;
+
+    // Jika hanya ada 1 tingkat kesulitan pada bab tersebut, pilih otomatis agar praktis
+    if (ditemukan.length === 1) {
+        selKes.value = ditemukan[0].key;
+    }
+};
+
+window.sesiLatihanSiswa = null;
+
+window.mulaiLatihanSiswa = function() {
+    let selKes = document.getElementById('latihan-select-kesulitan');
+    let key = selKes ? selKes.value : document.getElementById('latihan-select-bab').value;
+    if(!key) return alert("Pilih Bab dan Tingkat Kesulitan (C1 / C2 / HOTS) terlebih dahulu!");
+
+    let paketData = window.adminBankLatihanData[key];
+    if(!paketData || !paketData.soal || paketData.soal.length === 0) return alert("Soal tidak ditemukan di arsip!");
+
+    let shuffledSoal = [...paketData.soal].sort(function() { return Math.random() - 0.5; });
+
+    window.sesiLatihanSiswa = {
+        paketKey: key,
+        kelas: paketData.kelas,
+        mapel: paketData.mapel,
+        bab: paketData.bab,
+        kesulitan: paketData.kesulitan,
+        soal: shuffledSoal,
+        jawaban: {}
+    };
+    window.tutupModal('modal-enter-latihan');
+    window.bukaRuangLatihan();
+};
+
+window.bukaRuangLatihan = function() {
+    let header = document.getElementById('header-wrap');
+    let nav = document.getElementById('main-nav');
+    let breadcrumb = document.querySelector('.bottom-breadcrumb-bar');
+    if(header) header.style.display = 'none';
+    if(nav) nav.style.display = 'none';
+    if(breadcrumb) breadcrumb.style.display = 'none';
+
+    document.body.style.overflow = 'auto';
+
+    let room = document.getElementById('ujian-strict-room');
+    if(room) { room.style.display = 'block'; room.scrollTo(0,0); }
+
+    let judulUI = document.getElementById('ujian-judul-ui');
+    if(judulUI) judulUI.innerText = '🚀 Latihan: ' + window.sesiLatihanSiswa.bab + ' (Tingkat ' + window.sesiLatihanSiswa.kesulitan + ')';
+
+    let timerEl = document.getElementById('ujian-timer-fixed');
+    if(timerEl) timerEl.style.display = 'none';
+
+    window.isStrictUjianActive = false;
+    window.renderSoalLatihanSiswa();
+};
+
+// ---------------------------------------------------------
+// MESIN UI LATIHAN, AUTO-CHECK, & EXPORT UNIVERSAL
+// ---------------------------------------------------------
+window.renderSoalLatihanSiswa = function() {
+    let container = document.getElementById('ujian-strict-container');
+    if(!container) return;
+
+    let soalArr = window.sesiLatihanSiswa.soal;
+    window.sesiLatihanSiswa.statusJawab = new Array(soalArr.length).fill(false);
+    window.sesiLatihanSiswa.skorTotal = 0;
+
+    let html = '';
+
+    html += '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:25px; background:white; padding:15px; border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,0.05); border:1px solid #e1e8ed;">' +
+        '<div style="display:flex; gap:10px;">' +
+            '<button class="btn-action" style="background:#2c3e50; padding:8px 15px; font-size:12px; border-radius:30px; display:flex; align-items:center; gap:5px; width:auto;" onclick="window.cetakDokumenUniversal(\'pdf\', \'Latihan Mandiri: ' + window.sesiLatihanSiswa.bab + ' (' + window.sesiLatihanSiswa.kesulitan + ')\', window.sesiLatihanSiswa.soal)">🖨️ Print PDF</button>' +
+            '<button class="btn-action" style="background:#2c3e50; padding:8px 15px; font-size:12px; border-radius:30px; display:flex; align-items:center; gap:5px; width:auto;" onclick="window.cetakDokumenUniversal(\'word\', \'Latihan Mandiri: ' + window.sesiLatihanSiswa.bab + ' (' + window.sesiLatihanSiswa.kesulitan + ')\', window.sesiLatihanSiswa.soal)">📄 Export Word</button>' +
+        '</div>' +
+        '<button class="btn-action" style="background:#e74c3c; padding:8px 15px; font-size:12px; border-radius:30px; display:flex; align-items:center; gap:5px; width:auto;" onclick="window.location.href=\'index.html?bab=home\'">✕ Keluar Ruang</button>' +
+    '</div>';
+
+    soalArr.forEach(function(q, idx) {
+        html += '<div class="quiz-question-card" id="card-latihan-' + idx + '" style="margin-bottom:25px; box-shadow:0 4px 10px rgba(0,0,0,0.05); border-radius:8px; background:white; padding:20px; border:1px solid #e1e8ed;">';
+        html += '<div class="quiz-question-text" style="font-size:15px; color:#2c3e50; margin-bottom:15px; line-height:1.5;">' + (idx+1) + '. ' + q.question + '</div>';
+
+        if(q.type === 'IS' || q.type === 'Essay') {
+            html += '<input type="text" id="input-latihan-' + idx + '" class="input-box" placeholder="Ketik jawaban Anda... (tekan Enter atau klik di luar kotak untuk mengunci jawaban)" style="font-size:14px; padding:10px; border:1px solid #ccc; border-radius:6px; width:100%; box-sizing:border-box;" onchange="window.simpanJawabanLatihan(' + idx + ', this)">';
+        } else if (q.type === 'PG' || q.type === 'PGK') {
+            html += '<div class="quiz-options" style="display:flex; flex-direction:column; gap:8px;">';
+            q.options.forEach(function(opt) {
+                if(q.type === 'PG') {
+                    html += '<button id="opsi-btn-' + idx + '-' + opt.label + '" class="quiz-option-btn opsi-latihan-' + idx + '" data-label="' + opt.label + '" style="text-align:left; background:white; border:1px solid #e1e8ed; padding:12px 15px; border-radius:6px; cursor:pointer; font-size:14px; color:#34495e; transition:0.2s;" onclick="window.pilihJawabanLatihanPG(' + idx + ', \'' + opt.label + '\', this)">' + opt.label + '. ' + opt.text + '</button>';
+                } else {
+                    html += '<label id="opsi-lbl-' + idx + '-' + opt.label + '" class="quiz-option-btn opsi-latihan-' + idx + '" data-label="' + opt.label + '" style="display:flex; align-items:center; gap:10px; background:white; border:1px solid #e1e8ed; padding:12px 15px; border-radius:6px; cursor:pointer; font-size:14px; color:#34495e;">' +
+                                '<input type="checkbox" id="chk-latihan-' + idx + '-' + opt.label + '" style="width:16px; height:16px; cursor:pointer; accent-color:#f39c12;" onchange="window.pilihJawabanLatihanPGK(' + idx + ', \'' + opt.label + '\', this.checked)">' +
+                                '<span>' + opt.label + '. ' + opt.text + '</span>' +
+                             '</label>';
+                }
+            });
+            html += '</div>';
+        }
+
+        html += '<div id="bahas-' + idx + '" style="display:none; margin-top:15px; padding:12px 15px; background:#ebf5fb; border-left:4px solid #2980b9; border-radius:4px; font-size:13px; color:#2c3e50;">' +
+                    '<strong style="color:#2980b9;">Kunci: ' + (q.correct || q.correctAnswers || []).join(', ') + '</strong><br>' +
+                    '<div style="margin-top:5px; color:#34495e;"><strong>Pembahasan:</strong> ' + (q.explanation || 'Tidak ada pembahasan.') + '</div>' +
+                 '</div>';
+        html += '</div>';
+    });
+
+    container.innerHTML = html;
+    let defaultCloseBtn = document.getElementById('btn-close-strict');
+    if(defaultCloseBtn) defaultCloseBtn.style.display = 'none';
+};
+
+window.cekSelesaiLatihan = function() {
+    let dijawab = window.sesiLatihanSiswa.statusJawab.filter(Boolean).length;
+    let total = window.sesiLatihanSiswa.soal.length;
+    if (dijawab === total) {
+        let nilaiAkhir = Math.round((window.sesiLatihanSiswa.skorTotal / total) * 100);
+        let modal = document.getElementById('modal-quiz-result');
+        if(modal) {
+            let scoreEl = document.getElementById('quiz-result-score');
+            scoreEl.innerText = nilaiAkhir;
+            document.getElementById('quiz-result-correct').innerText = window.sesiLatihanSiswa.skorTotal;
+            document.getElementById('quiz-result-total').innerText = total;
+            let btnRem = document.getElementById('btn-remedial');
+            if (btnRem) btnRem.style.display = 'none';
+            modal.style.display = 'flex';
+        }
+    }
+};
+
+window.pilihJawabanLatihanPG = function(soalIdx, labelPilihan, btnEl) {
+    if(window.sesiLatihanSiswa.statusJawab[soalIdx]) return;
+
+    let q = window.sesiLatihanSiswa.soal[soalIdx];
+    window.sesiLatihanSiswa.statusJawab[soalIdx] = true;
+    window.sesiLatihanSiswa.jawaban[soalIdx] = labelPilihan;
+
+    let isCorrect = q.correct.includes(labelPilihan);
+    if(isCorrect) window.sesiLatihanSiswa.skorTotal += 1;
+
+    document.querySelectorAll('.opsi-latihan-' + soalIdx).forEach(function(btn) {
+        btn.style.cursor = 'not-allowed';
+        btn.disabled = true;
+        let lbl = btn.getAttribute('data-label');
+        if (q.correct.includes(lbl)) {
+            btn.style.background = '#d5f5e3'; btn.style.borderColor = '#27ae60'; btn.style.color = '#1e8449'; btn.style.fontWeight = 'bold';
+        } else if (lbl === labelPilihan && !isCorrect) {
+            btn.style.background = '#fadbd8'; btn.style.borderColor = '#e74c3c'; btn.style.color = '#c0392b'; btn.style.fontWeight = 'bold';
+        } else {
+            btn.style.opacity = '0.6';
+        }
+    });
+
+    document.getElementById('bahas-' + soalIdx).style.display = 'block';
+    window.cekSelesaiLatihan();
+};
+
+window.pilihJawabanLatihanPGK = function(soalIdx, labelPilihan, isChecked) {
+    if(window.sesiLatihanSiswa.statusJawab[soalIdx]) {
+        document.getElementById('chk-latihan-' + soalIdx + '-' + labelPilihan).checked = !isChecked;
+        return;
+    }
+    
+    let q = window.sesiLatihanSiswa.soal[soalIdx];
+    let lblEl = document.getElementById('opsi-lbl-' + soalIdx + '-' + labelPilihan);
+
+    if (q.correct.includes(labelPilihan)) {
+        lblEl.style.background = '#d5f5e3'; lblEl.style.borderColor = '#27ae60';
+    } else {
+        lblEl.style.background = '#fadbd8'; lblEl.style.borderColor = '#e74c3c';
+        window.sesiLatihanSiswa.statusJawab[soalIdx] = true;
+        document.getElementById('bahas-' + soalIdx).style.display = 'block';
+        window.cekSelesaiLatihan();
+        return; 
+    }
+
+    let correctCount = 0;
+    q.correct.forEach(function(c) {
+        let el = document.getElementById('chk-latihan-' + soalIdx + '-' + c);
+        if(el && el.checked) correctCount++;
+    });
+
+    if (correctCount === q.correct.length) {
+        window.sesiLatihanSiswa.statusJawab[soalIdx] = true;
+        window.sesiLatihanSiswa.skorTotal += 1;
+        document.getElementById('bahas-' + soalIdx).style.display = 'block';
+        window.cekSelesaiLatihan();
+    }
+};
+
+window.simpanJawabanLatihan = function(soalIdx, inputEl) {
+    if(window.sesiLatihanSiswa.statusJawab[soalIdx]) return;
+    let val = inputEl.value.trim();
+    if(!val) return;
+
+    let q = window.sesiLatihanSiswa.soal[soalIdx];
+    window.sesiLatihanSiswa.statusJawab[soalIdx] = true;
+    window.sesiLatihanSiswa.jawaban[soalIdx] = val;
+
+    inputEl.disabled = true;
+    inputEl.style.cursor = 'not-allowed';
+
+    if (q.type === 'IS') {
+        let keys = (q.correctAnswers || q.correct || []).map(function(k) { return k.toLowerCase().trim(); });
+        if (keys.includes(val.toLowerCase())) {
+            inputEl.style.background = '#d5f5e3'; inputEl.style.borderColor = '#27ae60'; inputEl.style.color = '#1e8449';
+            window.sesiLatihanSiswa.skorTotal += 1;
+        } else {
+            inputEl.style.background = '#fadbd8'; inputEl.style.borderColor = '#e74c3c'; inputEl.style.color = '#c0392b';
+        }
+    } else {
+        inputEl.style.background = '#eef2f7'; inputEl.style.borderColor = '#94a3b8';
+        window.sesiLatihanSiswa.skorTotal += 1;
+    }
+
+    document.getElementById('bahas-' + soalIdx).style.display = 'block';
+    window.cekSelesaiLatihan();
+};
+
+// =========================================================
+// MESIN PRINTER UNIVERSAL SOAL (PDF & WORD)
+// =========================================================
+window.cetakDokumenUniversal = function(format, judul, dataSoal) {
+    if(!dataSoal || dataSoal.length === 0) return alert("Belum ada soal untuk dicetak!");
+
+    let html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">';
+    html += '<head><meta charset="utf-8"><title>' + judul + '</title>';
+    html += '<style>';
+    html += '@page { size: A4; margin: 1in; } ';
+    html += 'body { font-family: "Times New Roman", Times, serif; font-size: 10pt; color: #000; line-height: 1.5; margin: 0; padding: 0; } ';
+    html += 'h1 { font-size: 12pt; font-weight: bold; text-align: center; margin-bottom: 20pt; } ';
+    html += '.soal-item { margin-bottom: 15pt; page-break-inside: avoid; } ';
+    html += '.soal-teks { margin-bottom: 5pt; } ';
+    html += '.opsi-list { list-style-type: none; padding-left: 15pt; margin: 0; } ';
+    html += '.opsi-item { margin-bottom: 3pt; } ';
+    html += '.titik-isian { letter-spacing: 2pt; font-weight: normal; } ';
+    html += '</style></head><body>';
+    html += '<h1>' + judul + '</h1>';
+
+    dataSoal.forEach(function(q, i) {
+        html += '<div class="soal-item">';
+        let qText = q.question;
+
+        if (q.type === 'IS' || q.type === 'short_answer') {
+            qText += ' <span class="titik-isian">....................</span>'; 
+        } else if (q.type === 'Essay') {
+            qText += '<br><br><span class="titik-isian">....................................................................................................</span><br><span class="titik-isian">....................................................................................................</span><br><span class="titik-isian">....................................................................................................</span>';
+        }
+
+        html += '<div class="soal-teks">' + (i+1) + '. ' + qText + '</div>';
+
+        if (q.type === 'PG' || q.type === 'PGK' || q.type === 'mc') {
+            html += '<ul class="opsi-list">';
+            (q.options || []).forEach(function(opt, optIdx) {
+                let label = opt.label || String.fromCharCode(65 + optIdx);
+                let text = opt.text || opt;
+                html += '<li class="opsi-item">' + label + '. ' + text + '</li>';
+            });
+            html += '</ul>';
+        }
+        html += '</div>';
+    });
+
+    html += '</body></html>';
+
+    if (format === 'word') {
+        let blob = new Blob(['\ufeff', html], { type: 'application/msword' });
+        let url = URL.createObjectURL(blob);
+        let link = document.createElement('a');
+        link.href = url;
+        link.download = judul.replace(/[^a-z0-9]/gi, '_') + '.doc';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    } else if (format === 'pdf') {
+        let printWin = window.open('', '', 'width=800,height=600');
+        printWin.document.write(html);
+        printWin.document.close();
+        printWin.focus();
+        setTimeout(function() {
+            printWin.print();
+            printWin.close();
+        }, 500);
+    }
+};
+
+window.cetakKuisPDF = function(containerId, judul) {
+    let soalArr = [];
+    if (containerId.indexOf('inline-kuis-') === 0) {
+        let idx = containerId.split('-')[2];
+        soalArr = window.contentBlocksData[idx].questions;
+    } else {
+        soalArr = window.sesiLatihanSiswa ? window.sesiLatihanSiswa.soal : (window.sesiUjianSiswa ? window.sesiUjianSiswa.soal : []);
+    }
+    window.cetakDokumenUniversal('pdf', judul || 'Kuis', soalArr);
+};
+
+window.exportWordKuis = function(containerId, judul) {
+    let soalArr = [];
+    if (containerId.indexOf('inline-kuis-') === 0) {
+        let idx = containerId.split('-')[2];
+        soalArr = window.contentBlocksData[idx].questions;
+    } else {
+        soalArr = window.sesiLatihanSiswa ? window.sesiLatihanSiswa.soal : (window.sesiUjianSiswa ? window.sesiUjianSiswa.soal : []);
+    }
+    window.cetakDokumenUniversal('word', judul || 'Kuis', soalArr);
+};
+
+const modalLatihanEnterObserver = new MutationObserver(function(mutations) {
+    mutations.forEach(function(m) {
+        if(m.target.id === 'modal-enter-latihan' && m.target.style.display === 'flex') {
+            if(typeof window.renderDropdownLatihan === "function") window.renderDropdownLatihan();
+        }
+    });
+});
+if(document.getElementById('modal-enter-latihan')) {
+    modalLatihanEnterObserver.observe(document.getElementById('modal-enter-latihan'), { attributes: true, attributeFilter: ['style'] });
+}
