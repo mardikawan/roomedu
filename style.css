@@ -45,8 +45,11 @@ body:not(.mode-edit-aktif):not(.force-edit-mode) .hidden-nav-item { display: non
 .bg-pattern-dots { background-image: radial-gradient(#bdc3c7 2px, transparent 2px) !important; background-size: 30px 30px; }
 
 .drawing-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 100; touch-action: none; }
-.drawing-mode-active .drawing-layer { pointer-events: auto; cursor: crosshair; touch-action: pan-x pan-y pinch-zoom !important; }
+.drawing-mode-active .drawing-layer { pointer-events: auto; cursor: crosshair; touch-action: none; }
+/* Saat Palm Reject aktif di iPad: 1 jari scroll, 2 jari zoom in/out, hanya Apple Pencil yang menggambar */
+.drawing-mode-active.palm-reject-on .drawing-layer { touch-action: pan-x pan-y pinch-zoom !important; }
 .drawing-mode-active .content-block, .drawing-mode-active .fb-content { pointer-events: none; user-select: none; } 
+.drawing-mode-active .pdf-slide-nav-bar, .drawing-mode-active .draw-float-img-item { pointer-events: auto !important; }
 
 .drawing-mode-active .navbar,
 .drawing-mode-active .admin-menu-bar,
@@ -54,14 +57,58 @@ body:not(.mode-edit-aktif):not(.force-edit-mode) .hidden-nav-item { display: non
 .drawing-mode-active .header-wrapper,
 .drawing-mode-active .fast-scroll-btns { display: none !important; }
 
-#laser-canvas { position: fixed; top: 0; left: 0; pointer-events: none; z-index: 9999; }
-.lasso-float { position: absolute; z-index: 10005; border: none; box-shadow: 0 5px 20px rgba(0,0,0,0.5); border-radius: 4px; background: rgba(255,255,255,0.1); touch-action: none; border: 2px dashed #3498db; }
-.lasso-float-canvas { cursor: move; touch-action: none; display: block; }
-.lasso-btn-bar { position:absolute; bottom:-40px; left:50%; transform:translateX(-50%); display:flex; gap:5px; background:white; padding:5px; border-radius:30px; box-shadow:0 4px 10px rgba(0,0,0,0.3); z-index:10006; white-space:nowrap; }
-.lasso-btn-bar button { background:#3498db; color:white; border:none; padding:5px 12px; border-radius:20px; font-size:11px; font-weight:bold; cursor:pointer; font-family:'Poppins'; transition:0.2s; }
+/* Pengunci Fullscreen Universal (Termasuk iPhone iOS) */
+body.ios-fullscreen-lock {
+    width: 100vw !important;
+    min-height: 100dvh !important;
+}
+#btn-fullscreen-global.is-fullscreen-active {
+    background: #e74c3c !important;
+    transform: scale(1.08);
+}
+
+#laser-canvas { position: fixed; top: 0; left: 0; pointer-events: none; z-index: 100010; }
+.lasso-float { position: absolute; z-index: 10005; box-shadow: 0 5px 20px rgba(0,0,0,0.45); border-radius: 4px; background: rgba(255,255,255,0.12); touch-action: none; border: 2px dashed #3498db; }
+.lasso-float-canvas { cursor: move; touch-action: none; display: block; width: 100%; height: 100%; }
+.lasso-resize-handle { position: absolute; width: 18px; height: 18px; right: -9px; bottom: -9px; background: #3498db; border: 2px solid #fff; border-radius: 50%; cursor: se-resize; z-index: 10008; box-shadow: 0 2px 6px rgba(0,0,0,0.3); touch-action: none; }
+.lasso-btn-bar { position:absolute; bottom:-42px; left:50%; transform:translateX(-50%); display:flex; gap:5px; background:white; padding:5px 8px; border-radius:30px; box-shadow:0 4px 12px rgba(0,0,0,0.3); z-index:10007; white-space:nowrap; }
+.lasso-btn-bar button { background:#3498db; color:white; border:none; padding:5px 10px; border-radius:20px; font-size:11px; font-weight:bold; cursor:pointer; font-family:'Poppins'; transition:0.2s; }
 .lasso-btn-bar button:hover { transform:scale(1.05); background:#2980b9; }
 
-.content-block { background: transparent; min-height: 50px; font-size: 17px; width: 100%; transition: 0.3s; position: relative; line-height: 1.5; z-index: 2; outline: none; box-sizing: border-box; }
+/* Gambar Bebas Geser (Draggable Sticker/Image) di Mode Draw */
+.draw-float-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 95; overflow: hidden; }
+.draw-float-img-item { position: absolute; pointer-events: auto; cursor: move; touch-action: none; border: 2px dashed transparent; border-radius: 4px; user-select: none; }
+.mode-edit-aktif .draw-float-img-item:hover, .drawing-mode-active .draw-float-img-item:hover, .draw-float-img-item.active-float-img { border-color: #3498db; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+.draw-float-img-item img { width: 100%; height: 100%; object-fit: contain; display: block; pointer-events: none; margin: 0 !important; box-shadow: none !important; }
+.draw-float-img-del { display: none; position: absolute; top: -12px; right: -12px; width: 24px; height: 24px; border-radius: 50%; background: #e74c3c; color: white; border: 2px solid white; font-size: 11px; font-weight: bold; cursor: pointer; align-items: center; justify-content: center; z-index: 5; }
+.draw-float-img-resize { display: none; position: absolute; bottom: -8px; right: -8px; width: 16px; height: 16px; border-radius: 50%; background: #3498db; border: 2px solid white; cursor: se-resize; z-index: 5; touch-action: none; }
+.mode-edit-aktif .draw-float-img-item:hover .draw-float-img-del, .drawing-mode-active .draw-float-img-item:hover .draw-float-img-del,
+.mode-edit-aktif .draw-float-img-item:hover .draw-float-img-resize, .drawing-mode-active .draw-float-img-item:hover .draw-float-img-resize { display: flex; }
+
+/* UKURAN CONTENT BLOCK: KERTAS A4 PORTRAIT (MAKSIMAL 794px x 1123px) */
+.content-block { background: transparent; min-height: 120px; font-size: 17px; width: 100%; max-width: 794px !important; transition: 0.2s; position: relative; line-height: 1.5; z-index: 2; outline: none; box-sizing: border-box; }
+.content-block.a4-portrait-block { max-width: 794px !important; max-height: 1123px !important; overflow: hidden !important; padding: 30px 40px !important; background: rgba(255,255,255,0.92); box-shadow: 0 4px 18px rgba(0,0,0,0.06); border-radius: 6px; }
+.content-block.a4-limit-reached { border-bottom: 4px solid #e74c3c !important; }
+
+/* UKURAN SLIDE PDF: KERTAS A4 LANDSCAPE (BISA DIGESER KANAN-KIRI & DICORET) */
+.pdf-landscape-block { max-width: 1020px !important; width: 96vw !important; padding: 0 !important; background: #ffffff; border-radius: 10px; box-shadow: 0 8px 25px rgba(0,0,0,0.12); overflow: hidden; border: 2px solid #cbd5e1; }
+.pdf-slide-stage { position: relative; width: 100%; aspect-ratio: 297 / 210; background: #f1f5f9; overflow: hidden; user-select: none; }
+.pdf-slide-bg { width: 100%; height: 100%; object-fit: contain; display: block; pointer-events: none; user-select: none; margin: 0 !important; border-radius: 0 !important; box-shadow: none !important; }
+.pdf-slide-nav-bar { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; background: #0b3954; color: white; font-family: 'Poppins', sans-serif; font-size: 12px; gap: 10px; flex-wrap: wrap; z-index: 120; position: relative; }
+.pdf-slide-nav-bar button { background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.25); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 12px; transition: 0.2s; }
+.pdf-slide-nav-bar button:hover:not(:disabled) { background: #f1c40f; color: #0b3954; border-color: #f1c40f; }
+.pdf-slide-nav-bar button:disabled { opacity: 0.35; cursor: not-allowed; }
+/* Mode Fokus PDF Fullscreen Penuh (Benar-benar 100% Layar) */
+/* Mode Fokus PDF Fullscreen Penuh (Z-Index di bawah alat Draw) */
+.block-wrapper.pdf-focus-fullscreen { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100dvh !important; z-index: 90000 !important; background: #000000 !important; padding: 0 !important; margin: 0 !important; box-sizing: border-box !important; display: flex !important; align-items: center !important; justify-content: center !important; overflow: hidden !important; border-radius: 0 !important; }
+.block-wrapper.pdf-focus-fullscreen .pdf-landscape-block { max-width: 100vw !important; max-height: 100dvh !important; width: 100vw !important; height: 100dvh !important; border: none !important; border-radius: 0 !important; display: flex; flex-direction: column; }
+.block-wrapper.pdf-focus-fullscreen .pdf-slide-stage { flex: 1; height: 100%; width: 100%; aspect-ratio: auto; margin: 0; display: flex; align-items: center; justify-content: center; }
+.block-wrapper.pdf-focus-fullscreen .pdf-slide-bg { width: 100%; height: 100%; object-fit: contain; }
+
+/* G-Drive PDF Full A4 Portrait */
+.gdrive-pdf-a4 { position: relative; width: 100%; max-width: 794px; aspect-ratio: 1 / 1.414; background: #f8f9fa; margin: 15px auto; border: 2px solid #3498db; border-radius: 8px; overflow: hidden; }
+.gdrive-pdf-a4 iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; }
+
 .content-block a { color: #3498db; text-decoration: underline; cursor: pointer; }
 .glossary-term { border-bottom: 2px dashed #d35400; color: inherit; font-weight: 600; cursor: pointer; background: rgba(255, 235, 59, 0.45); padding: 1px 4px; border-radius: 3px; transition: 0.2s; }
 .glossary-term:hover { background: rgba(255, 213, 79, 0.7); }
@@ -70,10 +117,9 @@ body:not(.mode-edit-aktif):not(.force-edit-mode) .hidden-nav-item { display: non
 
 .custom-site-btn { display: inline-block; background-color: #0b3954; color: #ffffff !important; padding: 12px 32px; border-radius: 30px; font-weight: 700; text-decoration: none !important; font-family: 'Montserrat', sans-serif; font-size: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); transition: all 0.3s ease; margin: 10px 5px; text-align: center; border: none; cursor: pointer; }
 .content-block h1, .fb-content h1 { font-size: 32px; font-weight: bold; margin-bottom: 15px; } .content-block h2, .fb-content h2 { font-size: 24px; font-weight: bold; margin-bottom: 12px; } .content-block h3, .fb-content h3 { font-size: 18px; font-weight: bold; margin-bottom: 10px; } .content-block p, .fb-content p { margin: 0 0 10px 0; } .content-block blockquote, .fb-content blockquote { border-left: 4px solid #3498db; margin: 15px 0; padding: 10px 20px; background: rgba(0,0,0,0.03); font-style: italic; border-radius: 0 8px 8px 0; }
-.content-block[data-width="S"] { max-width: 700px; padding-left: 20px; padding-right: 20px; } .content-block[data-width="M"] { max-width: 900px; padding-left: 20px; padding-right: 20px; } .content-block[data-width="L"] { max-width: 1100px; padding-left: 20px; padding-right: 20px; } .content-block[data-width="XL"] { max-width: 100%; padding-left: 5%; padding-right: 5%; }
-.mode-edit-aktif .content-block, .force-edit-mode .content-block { border: 1px dashed #a2d2ff; border-radius: 4px; padding-bottom: 10px; }
-.mode-edit-aktif .content-block:focus, .force-edit-mode .content-block:focus { outline: 2px solid #3498db; background-color: rgba(255,255,255,0.8); border-style: solid; }
-
+.content-block[data-width="S"], .content-block[data-width="M"], .content-block[data-width="L"], .content-block[data-width="XL"] { max-width: 794px; padding-left: 30px; padding-right: 30px; }
+.mode-edit-aktif .content-block, .force-edit-mode .content-block { border: 1px dashed #a2d2ff; border-radius: 6px; }
+.mode-edit-aktif .content-block:focus, .force-edit-mode .content-block:focus { outline: 2px solid #3498db; background-color: rgba(255,255,255,0.96); border-style: solid; }
 .block-controls { display: none; position: absolute; top: 10px; right: 10px; background: white; color: #333; border-radius: 6px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 150; border: 1px solid #eee; }
 .mode-edit-aktif .block-wrapper:hover .block-controls, .force-edit-mode .block-wrapper:hover .block-controls { display: flex; }
 .block-controls button { background: none; border: none; color: #555; padding: 6px 10px; cursor: pointer; font-size: 11px; border-right: 1px solid #eee; font-family: 'Poppins', sans-serif; font-weight: 600; } 
@@ -147,8 +193,11 @@ body:not(.mode-edit-aktif):not(.force-edit-mode) .hidden-nav-item { display: non
 .sz-btn { background:transparent; border:1px solid rgba(255,255,255,0.4); border-radius:6px; font-size:11px; font-weight:bold; padding:4px 8px; cursor:pointer; color:white; transition: 0.2s; }
 .sz-btn.active { background:white; color:#2b3643; border-color:white; }
 
-.toolbar-wrapper { width: 100%; overflow-x: auto; position: sticky; top: 10px; z-index: 100; margin: 10px auto; padding: 5px 0; }
-.mozello-toolbar { display: none; background: white; border: 1px solid #ddd; border-radius: 4px; padding: 3px 6px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); align-items: center; gap: 1px; font-family: 'Open Sans', sans-serif; width: max-content; margin: 0 auto; min-width: 100%; flex-wrap: nowrap; } 
+/* =========================================
+   TOOLBAR RESPONSIVE & STICKY
+   ========================================= */
+.toolbar-wrapper { width: 100%; overflow-x: auto; position: sticky; top: 0; z-index: 1900; margin: 10px auto; padding: 8px 0; background: rgba(248,249,250,0.95); backdrop-filter: blur(5px); box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+.mozello-toolbar { display: none; background: white; border: 1px solid #ddd; border-radius: 4px; padding: 3px 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); align-items: center; gap: 1px; font-family: 'Open Sans', sans-serif; width: max-content; margin: 0 auto; min-width: 100%; flex-wrap: nowrap; } 
 .mode-edit-aktif .mozello-toolbar, .force-edit-mode .mozello-toolbar { display: flex; }
 .toolbar-group { display: flex; align-items: center; gap: 1px; border-right: 1px solid #eee; padding-right: 2px; margin-right: 1px; } .toolbar-group:last-child { border-right: none; margin-right: 0; padding-right: 0; }
 .mozello-toolbar select { padding: 2px 2px; border: 1px solid #e0e0e0; border-radius: 3px; font-size: 11px; outline: none; background: #fdfdfd; cursor: pointer; color: #555; height: 22px; margin: 0 1px; } .mozello-toolbar button { background: none; border: none; font-size: 11px; cursor: pointer; padding: 3px 4px; border-radius: 3px; color: #555; height: 22px; display: flex; align-items: center; justify-content: center; font-weight: 500; } .mozello-toolbar button:hover { background: #f0f0f0; color: #333; }
@@ -183,9 +232,10 @@ body:not(.mode-edit-aktif):not(.force-edit-mode) .hidden-nav-item { display: non
    ========================================= */
 html, body {
     max-width: 100vw;
-    overflow-x: hidden;
+    overflow-x: clip; /* Mengganti 'hidden' menjadi 'clip' agar Toolbar Sticky bisa berfungsi */
     -webkit-text-size-adjust: 100%;
 }
+
 
 #temporary-quiz-room, #ujian-strict-room {
     height: 100vh;
@@ -201,69 +251,216 @@ html, body {
     box-sizing: border-box;
 }
 
-@media (max-width: 768px) {
-    .modal-box {
-        width: 94vw !important;
-        max-width: 94vw !important;
-        max-height: 90vh !important;
-        max-height: 90dvh !important;
-        margin: 0 auto;
-        box-sizing: border-box;
-    }
-    .modal-body {
-        padding: 14px !important;
-    }
-    #tab-ujian-bank, #tab-ujian-kontrol {
-        overflow-y: auto !important;
-    }
-    #tab-ujian-bank > div, #tab-ujian-kontrol > div, #tab-input-data > div > div, #tab-kelola-akun > div > div {
-        min-width: 100% !important;
-        flex: 1 1 100% !important;
-        height: auto !important;
-    }
-    #admin-bu-text {
-        min-height: 220px !important;
-    }
-    .toolbar-wrapper { padding-bottom: 10px; max-width: 100vw; }
-    .mozello-toolbar { flex-wrap: wrap !important; min-width: auto; width: 96%; justify-content: center; box-sizing: border-box; }
-    .header-wrapper { padding: 16px 12px !important; }
-    .header-title { font-size: 24px !important; max-width: 65vw; }
-    #btn-login-utama, #btn-logout-utama { right: 10px !important; padding: 6px 14px !important; font-size: 12px !important; }
-    .popup-welcome-box { width: 92vw !important; max-width: 92vw !important; padding: 18px !important; box-sizing: border-box; }
-    #ai-tutor-box { width: 92vw; bottom: 45px; right: 4vw; box-sizing: border-box; }
-    #temporary-quiz-room, #ujian-strict-room {
-        padding: 65px 12px 110px 12px !important;
-    }
-    #ujian-judul-ui, #lat-judul-ui {
-        font-size: 22px !important;
-        line-height: 1.3;
-    }
-    .quiz-question-card {
-        padding: 14px !important;
-    }
-    .quiz-option-btn {
-        font-size: 14px !important;
-        padding: 10px 12px !important;
-    }
-    .strict-text {
-        font-size: 36px !important;
-        padding: 0 15px;
-    }
-    #strict-warning-info {
-        font-size: 16px !important;
-        padding: 0 15px;
-    }
+/* =========================================
+   TABEL INTERAKTIF MODERN (RESIZE & HOVER BUTTON)
+   ========================================= */
+.table-control-wrap { position: relative; margin: 15px 0; overflow-x: auto; padding: 12px 12px 24px 12px; background: rgba(248, 249, 250, 0.5); border-radius: 8px; border: 1px dashed transparent; transition: 0.2s; }
+.mode-edit-aktif .table-control-wrap:hover, .force-edit-mode .table-control-wrap:hover { border-color: #cbd5e1; background: rgba(248, 249, 250, 0.9); }
+.interactive-table { width: 100%; border-collapse: collapse; table-layout: auto; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+.interactive-table th, .interactive-table td { border: 1px solid #cbd5e1; padding: 10px; min-width: 60px; position: relative; word-wrap: break-word; vertical-align: top; font-size: 14px; }
+.interactive-table th { background: #f8f9fa; font-weight: bold; color: #2c3e50; }
+
+/* Tombol + Melayang untuk Tambah Baris/Kolom */
+.tbl-btn-add { position: absolute; display: none; background: #3498db; color: white; border: 2px solid white; border-radius: 50%; width: 22px; height: 22px; font-size: 16px; line-height: 18px; text-align: center; cursor: pointer; z-index: 50; box-shadow: 0 2px 6px rgba(0,0,0,0.25); user-select: none; padding: 0; font-weight: bold; }
+.tbl-btn-add:hover { background: #2980b9; transform: scale(1.15); }
+.tbl-add-col { top: -11px; right: -11px; }
+.tbl-add-row { bottom: -11px; left: -11px; }
+
+.mode-edit-aktif .interactive-table td:hover .tbl-add-col, .mode-edit-aktif .interactive-table th:hover .tbl-add-col,
+.force-edit-mode .interactive-table td:hover .tbl-add-col, .force-edit-mode .interactive-table th:hover .tbl-add-col,
+.mode-edit-aktif .interactive-table td:hover .tbl-add-row, .mode-edit-aktif .interactive-table th:hover .tbl-add-row,
+.force-edit-mode .interactive-table td:hover .tbl-add-row, .force-edit-mode .interactive-table th:hover .tbl-add-row {
+    display: block;
 }
 
+@media (max-width: 768px) {
+    /* Perbaikan Modal & Form HP */
+    .modal-box { width: 94vw !important; max-width: 94vw !important; max-height: 90vh !important; max-height: 90dvh !important; margin: 0 auto; box-sizing: border-box; }
+    .modal-body { padding: 14px !important; }
+    #tab-ujian-bank > div, #tab-ujian-kontrol > div, #tab-input-data > div > div, #tab-kelola-akun > div > div { min-width: 100% !important; flex: 1 1 100% !important; height: auto !important; }
+    #admin-bu-text { min-height: 220px !important; }
+    
+    /* Horizontal Scroll untuk Navbar, Admin Menu, dan Toolbar Content */
+    .navbar { padding: 0 !important; }
+    #dynamic-navbar { display: flex !important; flex-wrap: nowrap !important; overflow-x: auto !important; white-space: nowrap !important; -webkit-overflow-scrolling: touch; padding: 10px !important; justify-content: flex-start !important; gap: 5px; }
+    #dynamic-navbar li { flex-shrink: 0; }
+    #dynamic-navbar a { padding: 8px 14px !important; font-size: 11px !important; }
+    
+    #admin-menu-bar { display: flex !important; flex-wrap: nowrap !important; overflow-x: auto !important; white-space: nowrap !important; -webkit-overflow-scrolling: touch; justify-content: flex-start !important; padding: 8px 10px !important; gap: 8px; }
+    #admin-menu-bar span { flex-shrink: 0; padding: 6px 10px !important; font-size: 11px !important; }
+
+    .toolbar-wrapper { padding: 5px 0 !important; border-radius: 0; }
+    .mozello-toolbar { display: flex !important; flex-wrap: nowrap !important; overflow-x: auto !important; white-space: nowrap !important; -webkit-overflow-scrolling: touch; justify-content: flex-start !important; padding: 5px 10px !important; width: 100vw !important; box-sizing: border-box; }
+    .toolbar-group { flex-shrink: 0; }
+    
+    /* Pengecilan Font dan Tombol Global di Layar HP */
+    .header-wrapper { padding: 12px 10px !important; }
+    .header-title { font-size: 18px !important; max-width: 60vw; }
+    #btn-login-utama, #btn-logout-utama { right: 10px !important; padding: 6px 12px !important; font-size: 11px !important; }
+    .custom-site-btn { padding: 8px 16px !important; font-size: 12px !important; }
+    .btn-action { font-size: 11px !important; padding: 6px 12px !important; }
+    .input-box { font-size: 12px !important; padding: 8px !important; }
+    
+    /* Tampilan Khusus Ruang Ujian & Latihan Mobile */
+    #temporary-quiz-room, #ujian-strict-room { padding: 65px 12px 110px 12px !important; }
+    #ujian-judul-ui, #lat-judul-ui { font-size: 20px !important; line-height: 1.3; }
+    .quiz-question-card { padding: 14px !important; }
+    .quiz-option-btn { font-size: 13px !important; padding: 10px 12px !important; }
+    .strict-text { font-size: 32px !important; padding: 0 15px; }
+    #strict-warning-info { font-size: 14px !important; padding: 0 15px; }
+    .popup-welcome-box { width: 92vw !important; max-width: 92vw !important; padding: 18px !important; box-sizing: border-box; }
+    #ai-tutor-box { width: 92vw; bottom: 45px; right: 4vw; box-sizing: border-box; }
+}
+
+/* Mode Fokus PDF Fullscreen Penuh (Benar-benar 100% Layar) */
+.block-wrapper.pdf-focus-fullscreen { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100dvh !important; z-index: 5000 !important; background: #000000 !important; padding: 0 !important; margin: 0 !important; box-sizing: border-box !important; display: flex !important; align-items: center !important; justify-content: center !important; overflow: hidden !important; border-radius: 0 !important; }
+.block-wrapper.pdf-focus-fullscreen .pdf-landscape-block { max-width: 100vw !important; max-height: 100dvh !important; width: 100vw !important; height: 100dvh !important; border: none !important; border-radius: 0 !important; display: flex; flex-direction: column; }
+.block-wrapper.pdf-focus-fullscreen .pdf-slide-stage { flex: 1; height: 100%; width: 100%; aspect-ratio: auto; margin: 0; display: flex; align-items: center; justify-content: center; position: relative; }
+.block-wrapper.pdf-focus-fullscreen .pdf-slide-bg { width: 100%; height: 100%; object-fit: contain; }
+
+/* G-Drive PDF Full A4 Portrait */
+.gdrive-pdf-a4 { position: relative; width: 100%; max-width: 794px; aspect-ratio: 1 / 1.414; background: #f8f9fa; margin: 15px auto; border: 2px solid #3498db; border-radius: 8px; overflow: hidden; }
+.gdrive-pdf-a4 iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; }
+
+/* ========================================================
+   GAYA KHUSUS CETAK PDF (@media print)
+   ======================================================== */
 @media print {
-    body { background: white !important; margin: 0 !important; padding: 20px !important; }
-    .header-wrapper, .navbar, .admin-menu-bar, .toolbar-wrapper, .right-edge-adder, .block-controls, .preview-btn, .fast-scroll-btns, .bottom-breadcrumb-bar, .btn-action, .btn-delete-q, #tooltip-istilah, .btn-toggle-nav, #ujian-timer-fixed, #ai-tutor-box { display: none !important; }
-    body, .content-block, .quiz-question-text, .quiz-option-btn, p, div, span, li, td, th { font-family: 'Times New Roman', Times, serif !important; font-size: 12pt !important; line-height: 1.25 !important; color: black !important; }
-    .block-wrapper { padding: 10px 0 !important; background: transparent !important; }
-    .content-block, .fb-content { border: none !important; box-shadow: none !important; max-width: 100% !important; padding: 0 !important; }
+    @page {
+        size: A4 portrait;
+        margin: 0 !important; 
+    }
+
+    body { 
+        background: white !important; 
+        margin: 0 !important; 
+        padding: 0 !important; 
+        -webkit-print-color-adjust: exact !important; 
+        print-color-adjust: exact !important;
+    }
+
+    .header-wrapper, .navbar, #admin-menu-bar, .toolbar-wrapper, .mozello-toolbar, 
+    .right-edge-adder, .block-controls, .preview-btn, .fast-scroll-btns, 
+    .bottom-breadcrumb-bar, .btn-action, .btn-delete-q, #tooltip-istilah, 
+    .btn-toggle-nav, #ujian-timer-fixed, #ai-tutor-box, .lasso-btn-bar, .tbl-btn-add { 
+        display: none !important; 
+    }
+
+    /* Lepaskan semua ikatan flexbox dan tinggi yang mengunci elemen dari atas hingga ke .block-wrapper */
+    .editor-wrapper, #blocks-container { 
+        display: block !important; 
+        width: 100% !important; 
+        height: auto !important; 
+        min-height: 0 !important;
+        margin: 0 !important; 
+        padding: 0 !important; 
+        background: white !important;
+    }
+
+    .block-wrapper {
+        position: relative !important;
+        display: block !important;
+        float: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        
+        /* Tinggi ditetapkan statis agar pas A4 (297mm - toleransi border) */
+        height: 296mm !important; 
+        max-height: 296mm !important;
+        
+        /* Memaksa elemen selalu berdiri di halaman terpisah (page-break) */
+        page-break-after: always !important;
+        page-break-inside: avoid !important;
+        break-after: page !important;
+        break-inside: avoid !important;
+        background: white !important;
+    }
+    
+    .block-wrapper:last-child {
+        page-break-after: auto !important;
+        break-after: auto !important;
+    }
+
+    /* Area konten (content-block) mengambil 100% dari block-wrapper */
+    .content-block, .content-block.a4-portrait-block {
+        position: relative !important;
+        display: block !important;
+        width: 100% !important;
+        height: 100% !important; 
+        max-width: 100% !important;
+        max-height: 100% !important;
+        
+        /* Berikan jarak dalam layaknya margin MS Word (sekitar 3cm) */
+        padding: 30mm !important;
+        margin: 0 !important;
+        
+        /* Kunci agar padding tidak membuat div melebar/membesar melebihi 296mm */
+        box-sizing: border-box !important;
+        overflow: hidden !important;
+        
+        /* Bersihkan garis putus-putus atau warna tepi */
+        border: none !important;
+        outline: none !important;
+        box-shadow: none !important;
+        background: white !important;
+    }
+
+    /* Bersihkan paksaan desain mode edit dari CSS lain */
+    .mode-edit-aktif .content-block, .force-edit-mode .content-block,
+    .content-block.a4-limit-reached {
+        border: none !important;
+        outline: none !important;
+        background: transparent !important;
+    }
+
+    /* Khusus untuk kuis dan tabel */
+    .table-control-wrap { border: none !important; background: transparent !important; padding: 0 !important; margin: 0 !important; }
+    .interactive-table { page-break-inside: avoid !important; }
     .quiz-container { box-shadow: none !important; border: none !important; padding: 0 !important; margin: 0 !important; background: transparent !important; }
     .quiz-header { border-bottom: 2px solid #000 !important; padding-bottom: 10px !important; margin-bottom: 20px !important; text-align: center !important; }
-    .quiz-question-card { page-break-inside: avoid; border: none !important; border-bottom: 1px solid #ddd !important; padding: 10px 0 !important; margin-bottom: 15px !important; background: transparent !important; }
+    .quiz-question-card { page-break-inside: avoid !important; break-inside: avoid !important; border: none !important; border-bottom: 1px solid #ddd !important; padding: 10px 0 !important; margin-bottom: 15px !important; background: transparent !important; }
+}
+
+/* =========================================
+   TOOLBAR RESPONSIVE & STICKY (Gaya Layar Normal)
+   ========================================= */
+.toolbar-wrapper { width: 100%; overflow-x: auto; position: sticky; top: 0; z-index: 1900; padding: 8px 0; background: rgba(248,249,250,0.98); border-bottom: 1px solid #ddd; box-shadow: 0 4px 15px rgba(0,0,0,0.08); transition: 0.3s; }
+.mozello-toolbar { display: none; background: white; border: 1px solid #ddd; border-radius: 4px; padding: 3px 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); align-items: center; gap: 1px; font-family: 'Open Sans', sans-serif; width: max-content; margin: 0 auto; min-width: 100%; flex-wrap: nowrap; } 
+.mode-edit-aktif .mozello-toolbar, .force-edit-mode .mozello-toolbar { display: flex; }
+.toolbar-group { display: flex; align-items: center; gap: 1px; border-right: 1px solid #eee; padding-right: 2px; margin-right: 1px; } .toolbar-group:last-child { border-right: none; margin-right: 0; padding-right: 0; }
+.mozello-toolbar select { padding: 2px 2px; border: 1px solid #e0e0e0; border-radius: 3px; font-size: 11px; outline: none; background: #fdfdfd; cursor: pointer; color: #555; height: 22px; margin: 0 1px; } .mozello-toolbar button { background: none; border: none; font-size: 11px; cursor: pointer; padding: 3px 4px; border-radius: 3px; color: #555; height: 22px; display: flex; align-items: center; justify-content: center; font-weight: 500; } .mozello-toolbar button:hover { background: #f0f0f0; color: #333; }
+.color-picker-wrapper { display: flex; align-items: center; gap: 1px; padding: 2px; border-radius: 3px; cursor: pointer; } .color-picker-wrapper input[type="color"] { width: 14px; height: 14px; padding: 0; border: none; background: transparent; cursor: pointer; }
+
+/* UKURAN CONTENT BLOCK: KERTAS A4 PORTRAIT PRESISI (Gaya Layar Normal) */
+.content-block { background: transparent; min-height: 120px; font-size: 17px; width: 100%; max-width: 794px !important; transition: 0.2s; position: relative; line-height: 1.5; z-index: 2; outline: none; box-sizing: border-box; }
+.content-block.a4-portrait-block { 
+    width: 100% !important;
+    max-width: 794px !important; 
+    height: 1123px !important; 
+    max-height: 1123px !important; 
+    overflow: hidden !important; 
+    padding: 40px 45px !important; 
+    background: rgba(255,255,255,0.98); 
+    box-shadow: 0 4px 18px rgba(0,0,0,0.06); 
+    border-radius: 6px; 
+}
+.content-block.a4-limit-reached { border-bottom: none !important; }
+
+/* ========================================================
+   GAYA KHUSUS CETAK PDF (@media print)
+   (Kode ini harus dibungkus dalam @media print)
+   ======================================================== */
+@media print {
+    /* PASTIKAN TABEL TIDAK TERPOTONG */
+    .table-control-wrap { border: none !important; background: transparent !important; padding: 0 !important; margin: 0 !important; }
+    .interactive-table { page-break-inside: avoid !important; }
+    .tbl-btn-add { display: none !important; }
+
+    /* 6. Pengaturan Tambahan untuk Kuis agar Rapi */
+    .quiz-container { box-shadow: none !important; border: none !important; padding: 0 !important; margin: 0 !important; background: transparent !important; }
+    .quiz-header { border-bottom: 2px solid #000 !important; padding-bottom: 10px !important; margin-bottom: 20px !important; text-align: center !important; }
+    .quiz-question-card { page-break-inside: avoid !important; break-inside: avoid !important; border: none !important; border-bottom: 1px solid #ddd !important; padding: 10px 0 !important; margin-bottom: 15px !important; background: transparent !important; }
     .quiz-question-text { font-weight: bold !important; margin-bottom: 8px !important; }
     .quiz-option-btn { border: none !important; background: transparent !important; padding: 2px 0 !important; margin-left: 20px !important; margin-bottom: 6px !important; color: black !important; display: block !important; }
 }
