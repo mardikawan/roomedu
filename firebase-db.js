@@ -161,6 +161,65 @@ onValue(ref(db, basePath + '/theme_settings'), function(snap) {
     }
 });
 
+/* =========================================
+   TARIK & SIMPAN DATA CATATAN GURU (EXCEL STYLE)
+   ========================================= */
+onValue(ref(db, basePath + '/admin_catatan_guru'), function(snap) {
+    if (snap.exists()) {
+        let data = snap.val();
+        // Normalisasi: Firebase terkadang mengubah array menjadi object, kita pastikan tetap array
+        window.adminCatatanGuruData = Array.isArray(data) ? data : Object.values(data);
+    } else {
+        window.adminCatatanGuruData = [{ id: 'sheet_1', nama: 'Sheet 1', html: '' }];
+    }
+    
+    // Render ulang UI hanya jika Jendela sedang terbuka DAN guru TIDAK sedang mengetik
+    let modalCG = document.getElementById('modal-catatan-guru');
+    if (modalCG && modalCG.style.display === 'flex' && typeof window.renderSheetsCG === "function") {
+        if (!window.isTypingCG) {
+            window.renderSheetsCG();
+            window.muatKontenSheetAktifCG();
+        }
+    }
+});
+
+window.simpanCatatanGuruKeDB = function() {
+    if (sessionStorage.getItem("statusLogin") !== "admin") return;
+    
+    let stat = document.getElementById('cg-sync-status');
+    if(stat) stat.innerHTML = "<span style='color:#f1c40f;'>☁️ Menyimpan...</span>";
+    
+    try {
+        // UBAH ARRAY JADI OBJECT MURNI: Firebase sangat benci struktur Array yang berubah-ubah.
+        // Kita paksa konversi jadi Object murni agar 100% diterima oleh server RTDB.
+        let payload = {};
+        let sourceData = Array.isArray(window.adminCatatanGuruData) ? window.adminCatatanGuruData : Object.values(window.adminCatatanGuruData);
+        
+        sourceData.forEach((sheet, idx) => {
+            if (sheet) {
+                payload['sheet_' + idx] = {
+                    id: sheet.id || ('sheet_' + Date.now()),
+                    nama: sheet.nama || ('Sheet ' + (idx + 1)),
+                    html: sheet.html || ''
+                };
+            }
+        });
+        
+        set(ref(db, basePath + '/admin_catatan_guru'), payload).then(() => {
+            if(stat) stat.innerHTML = "<span style='color:#2ecc71;'>✓ Tersimpan</span>";
+            window.isTypingCG = false; 
+        }).catch(err => {
+            console.error("Gagal simpan Catatan Guru:", err);
+            if(stat) stat.innerHTML = "<span style='color:#e74c3c;'>❌ Gagal</span>";
+            // Memunculkan pesan asli dari Firebase agar kita tahu penyebab pastinya
+            alert("⚠️ Firebase menolak penyimpanan!\nPesan Error: " + err.message + "\n\nSolusi: Pastikan 'Rules' di menu Realtime Database Firebase Anda sudah disetting menjadi \".write\": true");
+        });
+    } catch(e) {
+        console.error("Data error:", e);
+        if(stat) stat.innerHTML = "<span style='color:#e74c3c;'>❌ Error Data</span>";
+    }
+};
+
 onValue(ref(db, basePath + '/popup_pengumuman'), function(snap) {
     let box = document.getElementById('popup-content-box');
     if(snap.exists()) {

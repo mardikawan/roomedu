@@ -15,6 +15,10 @@ document.addEventListener("DOMContentLoaded", function() {
     if(!status) {
         if(btnLogin) btnLogin.style.display = 'block';
         if(btnLogout) btnLogout.style.display = 'none';
+        
+        // Pengaman Mutlak: Hapus paksa semua akses admin dari HTML/Body
+        document.body.classList.remove('mode-edit-aktif', 'has-login');
+        document.documentElement.classList.remove('force-edit-mode');
     } else {
         // 2. Jika sudah login (Siswa atau Admin/Guru)
         if(btnLogin) btnLogin.style.display = 'none';
@@ -663,7 +667,7 @@ document.addEventListener("selectionchange", function() {
         let container = range.commonAncestorContainer;
         let el = container.nodeType === 3 ? container.parentNode : container;
         if (el && el.closest) {
-            let editable = el.closest(".content-block, .fb-content, #popup-content-box");
+            let editable = el.closest(".content-block, .fb-content, #popup-content-box, #cg-editor-area");
             if (editable) {
                 window.lastActiveEditable = editable;
                 window.savedEditorRange = range.cloneRange();
@@ -711,7 +715,7 @@ function pastikanFokusEditor() {
 
 function triggerInput() { 
     let a = document.activeElement;
-    if (!a || !(a.classList.contains("content-block") || a.classList.contains("fb-content"))) {
+    if (!a || !(a.classList.contains("content-block") || a.classList.contains("fb-content") || a.id === "cg-editor-area")) {
         a = window.lastActiveEditable;
     }
     if (a && (a.classList.contains("content-block") || a.classList.contains("fb-content"))) {
@@ -947,8 +951,6 @@ window.renderBlocks = function() {
     }, 180);
 };
 
-// Pengawas Batas Tinggi Kertas A4 Portrait (1123px) dengan Fitur Auto Page-Break (MS Word Style)
-window.lastValidBlockHTML = {};
 
 // Pengawas Batas Kertas A4 Portrait dengan Auto Page-Break (MS Word Style)
 window.lastValidBlockHTML = {};
@@ -956,73 +958,47 @@ window.lastValidBlockHTML = {};
 window.cekBatasTinggiA4Keydown = function(e, el) {
     let idx = parseInt(el.getAttribute('data-index'));
     
-    // Auto Page-Break: Jika menekan Enter di dekat batas bawah halaman A4
-    if (e.key === 'Enter' && el.scrollHeight >= 1060) {
-        e.preventDefault(); 
-        let nextIdx = idx + 1;
-        let nextBlock = window.contentBlocksData[nextIdx];
-        
-        if (!nextBlock || nextBlock.type !== "text" || nextBlock.html.replace(/<[^>]*>?/gm, '').trim() !== "") {
-            let newBlock = { type: "text", html: "<p><br></p>", bg: window.contentBlocksData[idx].bg || "#ffffff", pattern: "", color: "#333333", width: "M", padTop: "40px", padBot: "40px", drawing: "" };
-            window.contentBlocksData.splice(nextIdx, 0, newBlock);
-            window.renderBlocks();
-        }
-
-        setTimeout(function() {
-            let nextBlockEl = document.querySelector('.content-block[data-index="' + nextIdx + '"]');
-            if (nextBlockEl) {
-                nextBlockEl.focus();
-                let range = document.createRange();
-                range.selectNodeContents(nextBlockEl);
-                range.collapse(true);
-                let sel = window.getSelection();
-                sel.removeAllRanges();
-                sel.addRange(range);
-            }
-        }, 10);
-        
-        if (window.simpanKeDB) window.simpanKeDB();
-    } else {
-        if (el.scrollHeight <= 1123) {
-            window.lastValidBlockHTML[idx] = el.innerHTML;
-        }
+    // Selalu simpan state HTML yang aman sebelum tombol apapun (termasuk Enter) diproses
+    if (el.scrollHeight <= 1123) {
+        window.lastValidBlockHTML[idx] = el.innerHTML;
     }
 };
 
 window.cekBatasTinggiA4Input = function(e, el) {
     let idx = parseInt(el.getAttribute('data-index'));
     
-    // Jika ketikan meluap menabrak batas A4
+    // Jika ketikan (termasuk Enter) membuat konten meluap menabrak batas bawah A4 (1123px)
     if (el.scrollHeight > 1123) {
-        // 1. Kembalikan isi halaman ke detik sebelum huruf terakhir diketik
+        // 1. Kembalikan isi halaman ke detik sebelum huruf/Enter terakhir ditekan
         if (window.lastValidBlockHTML[idx] !== undefined) {
             el.innerHTML = window.lastValidBlockHTML[idx];
         }
         
-        // 2. Tangkap huruf terakhir yang memicu luapan
+        // 2. Tangkap huruf terakhir yang memicu luapan (jika ada)
         let charTyped = e.data || "";
         let nextIdx = idx + 1;
         let nextBlock = window.contentBlocksData[nextIdx];
         
-        // 3. Buat lembar A4 baru jika di bawahnya belum ada
-        if (!nextBlock || nextBlock.type !== "text") {
+        // 3. Buat lembar A4 baru di bawahnya jika belum ada lembar kosong
+        if (!nextBlock || nextBlock.type !== "text" || nextBlock.html.replace(/<[^>]*>?/gm, '').trim() !== "") {
             let newBlock = { type: "text", html: "<p><br></p>", bg: window.contentBlocksData[idx].bg || "#ffffff", pattern: "", color: "#333333", width: "M", padTop: "40px", padBot: "40px", drawing: "" };
             window.contentBlocksData.splice(nextIdx, 0, newBlock);
             window.renderBlocks();
         }
         
-        // 4. Pindah kursor ke lembar baru & suntikkan huruf yang meluap tadi secara instan!
+        // 4. Pindah kursor ke lembar baru secara otomatis (Auto Page-Break)
         setTimeout(function() {
             let nextEl = document.querySelector('.content-block[data-index="' + nextIdx + '"]');
             if (nextEl) {
                 nextEl.focus();
                 let range = document.createRange();
                 range.selectNodeContents(nextEl);
-                range.collapse(true); // Pindah ke baris paling awal
+                range.collapse(true); // Kursor diletakkan di paling awal
                 let sel = window.getSelection();
                 sel.removeAllRanges();
                 sel.addRange(range);
                 
+                // Jika tumpah karena huruf, suntikkan hurufnya ke halaman baru
                 if (charTyped) {
                     document.execCommand('insertText', false, charTyped);
                 }
@@ -1031,6 +1007,7 @@ window.cekBatasTinggiA4Input = function(e, el) {
         
         if (window.simpanKeDB) window.simpanKeDB();
     } else {
+        // Perbarui HTML yang valid jika belum meluap
         window.lastValidBlockHTML[idx] = el.innerHTML;
     }
 };
@@ -1703,8 +1680,7 @@ window.prosesUploadPDFMateri = async function(input) {
             await page.render({ canvasContext: offCtx, viewport: viewport }).promise;
             offCtx.restore();
 
-            slidesArr.push({ bg: offCanvas.toDataURL('image/jpeg', 0.78), drawing: "", floatImages: [] });
-        }
+            slidesArr.push({ bg: offCanvas.toDataURL('image/jpeg', 0.6), drawing: "", floatImages: [] });        }
 
         let pdfBlockObj = {
             type: 'pdf_slides', title: file.name.replace(/\.pdf$/i, ''), activeSlide: 0, slides: slidesArr, bg: '#ffffff', pattern: '', color: '#333333', width: 'L', padTop: '25px', padBot: '25px', drawing: '', floatImages: []
@@ -7201,3 +7177,138 @@ const modalLatihanEnterObserver = new MutationObserver(function(mutations) {
 if(document.getElementById('modal-enter-latihan')) {
     modalLatihanEnterObserver.observe(document.getElementById('modal-enter-latihan'), { attributes: true, attributeFilter: ['style'] });
 }
+
+/* =========================================
+   MESIN CATATAN GURU (FLOATING EXCEL-STYLE)
+   ========================================= */
+window.adminCatatanGuruData = window.adminCatatanGuruData || [{ id: 'sheet_1', nama: 'Sheet 1', html: '' }];
+window.cgActiveIndex = 0;
+
+window.bukaCatatanGuru = function() {
+    document.getElementById('modal-catatan-guru').style.display = 'flex';
+    window.renderSheetsCG();
+    window.muatKontenSheetAktifCG();
+};
+
+window.tutupCatatanGuru = function() {
+    document.getElementById('modal-catatan-guru').style.display = 'none';
+};
+
+window.toggleSizeCatatanGuru = function() {
+    document.getElementById('modal-catatan-guru').classList.toggle('cg-maximized');
+};
+
+// Logika Tarik & Geser (Drag) Jendela
+let cgHeader = document.getElementById('cg-header');
+let cgBox = document.getElementById('modal-catatan-guru');
+let isDraggingCG = false, cgStartX, cgStartY, cgMouseX, cgMouseY;
+
+if(cgHeader) {
+    cgHeader.addEventListener('pointerdown', function(e) {
+        if (e.target.tagName === 'BUTTON' || cgBox.classList.contains('cg-maximized')) return;
+        isDraggingCG = true;
+        cgMouseX = e.clientX; cgMouseY = e.clientY;
+        let rect = cgBox.getBoundingClientRect();
+        cgStartX = rect.left; cgStartY = rect.top;
+        cgHeader.setPointerCapture(e.pointerId);
+    });
+    cgHeader.addEventListener('pointermove', function(e) {
+        if(!isDraggingCG) return;
+        cgBox.style.right = 'auto'; cgBox.style.bottom = 'auto';
+        cgBox.style.left = (cgStartX + (e.clientX - cgMouseX)) + 'px';
+        cgBox.style.top = (cgStartY + (e.clientY - cgMouseY)) + 'px';
+    });
+    cgHeader.addEventListener('pointerup', function(e) { 
+        isDraggingCG = false; 
+        cgHeader.releasePointerCapture(e.pointerId); 
+    });
+}
+
+// Logika Sheet (Tab)
+window.renderSheetsCG = function() {
+    let listEl = document.getElementById('cg-sheet-list');
+    if (!listEl) return;
+    let html = '';
+    window.adminCatatanGuruData.forEach((sheet, idx) => {
+        let isActive = (idx === window.cgActiveIndex) ? 'active' : '';
+        html += `<div class="cg-sheet-item ${isActive}" onclick="window.pindahSheetCG(${idx})" ondblclick="window.gantiNamaSheetCG(${idx})">
+                    <span>${sheet.nama}</span>
+                    <button class="cg-del-sheet" onclick="event.stopPropagation(); window.hapusSheetCG(${idx})" title="Hapus Sheet">✕</button>
+                 </div>`;
+    });
+    listEl.innerHTML = html;
+};
+
+window.muatKontenSheetAktifCG = function() {
+    let editor = document.getElementById('cg-editor-area');
+    if (!editor || !window.adminCatatanGuruData[window.cgActiveIndex]) return;
+    editor.innerHTML = window.adminCatatanGuruData[window.cgActiveIndex].html || '';
+};
+
+window.pindahSheetCG = function(idx) {
+    if (window.cgActiveIndex === idx) return;
+    window.cgActiveIndex = idx;
+    window.renderSheetsCG();
+    window.muatKontenSheetAktifCG();
+};
+
+window.tambahSheetCG = function() {
+    let namaBaru = "Sheet " + (window.adminCatatanGuruData.length + 1);
+    window.adminCatatanGuruData.push({ id: 'sheet_' + Date.now(), nama: namaBaru, html: '' });
+    window.cgActiveIndex = window.adminCatatanGuruData.length - 1; // Auto focus ke tab baru
+    window.renderSheetsCG();
+    window.muatKontenSheetAktifCG();
+    if(typeof window.simpanCatatanGuruKeDB === "function") window.simpanCatatanGuruKeDB();
+};
+
+window.gantiNamaSheetCG = function(idx) {
+    let namaLama = window.adminCatatanGuruData[idx].nama;
+    let namaBaru = prompt("Ubah nama sheet:", namaLama);
+    if (namaBaru && namaBaru.trim() !== "") {
+        window.adminCatatanGuruData[idx].nama = namaBaru.trim();
+        window.renderSheetsCG();
+        if(typeof window.simpanCatatanGuruKeDB === "function") window.simpanCatatanGuruKeDB();
+    }
+};
+
+window.hapusSheetCG = function(idx) {
+    if (window.adminCatatanGuruData.length <= 1) return alert("Minimal harus ada 1 sheet tersisa!");
+    if (confirm(`Hapus sheet "${window.adminCatatanGuruData[idx].nama}" beserta isinya?`)) {
+        window.adminCatatanGuruData.splice(idx, 1);
+        window.cgActiveIndex = 0; // Pindah ke sheet pertama
+        window.renderSheetsCG();
+        window.muatKontenSheetAktifCG();
+        if(typeof window.simpanCatatanGuruKeDB === "function") window.simpanCatatanGuruKeDB();
+    }
+};
+
+// Auto Save (Delay 0.8 detik & Kunci Fokus Cursor)
+window.cgSaveTimer = null;
+window.isTypingCG = false;
+
+window.simpanCatatanGuruDelay = function() {
+    let editor = document.getElementById('cg-editor-area');
+    if (!editor || !window.adminCatatanGuruData[window.cgActiveIndex]) return;
+    
+    window.isTypingCG = true; // Kunci agar Firebase tidak me-render ulang saat guru asyik mengetik
+    window.adminCatatanGuruData[window.cgActiveIndex].html = editor.innerHTML;
+
+    let stat = document.getElementById('cg-sync-status');
+    if (stat) stat.innerHTML = "<span style='color:#e67e22;'>✍️ Mengetik...</span>";
+
+    clearTimeout(window.cgSaveTimer);
+    window.cgSaveTimer = setTimeout(function() {
+        if(typeof window.simpanCatatanGuruKeDB === "function") {
+            window.simpanCatatanGuruKeDB();
+        } else {
+            console.error("Sistem gagal menemukan fungsi simpanCatatanGuruKeDB!");
+        }
+    }, 800);
+};
+
+// Pengaman Ekstra: Pastikan setiap modifikasi dari Toolbar (Bold, Warna, Tabel) memicu Auto-Save
+document.addEventListener('input', function(e) {
+    if (e.target && e.target.id === 'cg-editor-area') {
+        window.simpanCatatanGuruDelay();
+    }
+});
