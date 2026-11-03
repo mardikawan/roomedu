@@ -6832,7 +6832,7 @@ window.buangSoalLatihanAdmin = function(soalIdx) {
 };
 
 // ---------------------------------------------------------
-// MESIN UI LATIHAN (EDITABLE UNTUK ADMIN, AUTO-CHECK UNTUK SISWA)
+// MESIN UI LATIHAN, AUTO-CHECK, & EXPORT UNIVERSAL
 // ---------------------------------------------------------
 window.renderSoalLatihanSiswa = function() {
     let container = document.getElementById('ujian-strict-container');
@@ -6860,16 +6860,16 @@ window.renderSoalLatihanSiswa = function() {
         let opsiArr = Array.isArray(q.options) ? q.options : [];
 
         let btnBuangSoal = isAdmin
-            ? '<button type="button" class="btn-delete-q" onclick="window.buangSoalLatihanAdmin(' + idx + ')" title="Buang Soal Ini">🗑️ Buang Soal</button>'
+            ? '<button type="button" style="display:block !important; position:absolute; top:15px; right:15px; background:#e74c3c; color:white; border:none; border-radius:4px; padding:6px 10px; font-size:11px; font-weight:bold; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.2); z-index:10;" onclick="window.buangSoalLatihanAdmin(' + idx + ')" title="Buang Soal Ini">🗑️ Buang Soal</button>'
             : '';
 
         let qEditAttr = isAdmin
-            ? 'contenteditable="true" style="outline:none; cursor:text; background:#fffdf9; padding:4px 6px; border-radius:4px;" onblur="window.simpanEditanLatihanAdmin(' + idx + ', \'question\', null, this.innerHTML)"'
+            ? 'contenteditable="true" style="outline:none; cursor:text; background:#fffdf9; padding:4px 6px; border-radius:4px; border-bottom:1px dashed #e67e22;" onblur="window.simpanEditanLatihanAdmin(' + idx + ', \'question\', null, this.innerHTML)"'
             : '';
 
         html += '<div class="quiz-question-card" id="card-latihan-' + idx + '" style="margin-bottom:25px; box-shadow:0 4px 12px rgba(0,0,0,0.05); border-radius:10px; background:white; padding:22px 20px 20px 20px; border:1px solid #e1e8ed; border-left:4px solid #3498db; position:relative;">' +
             btnBuangSoal +
-            '<div class="quiz-question-text" style="font-size:15px; color:#2c3e50; margin-bottom:15px; line-height:1.5; border-bottom:1px dashed #3498db; padding-bottom:8px; padding-right:' + (isAdmin ? '95px' : '0') + ';">' +
+            '<div class="quiz-question-text" style="font-size:15px; color:#2c3e50; margin-bottom:15px; line-height:1.5; padding-bottom:8px; padding-right:' + (isAdmin ? '100px' : '0') + ';">' +
                 '<span>' + (idx+1) + '. </span><span ' + qEditAttr + '>' + (q.question || '') + '</span>' +
             '</div>';
 
@@ -6879,7 +6879,7 @@ window.renderSoalLatihanSiswa = function() {
             html += '<div class="quiz-options" style="display:flex; flex-direction:column; gap:8px;">';
             opsiArr.forEach(function(opt, oIdx) {
                 let optEditSpan = isAdmin
-                    ? '<span contenteditable="true" style="flex:1; outline:none; border-bottom:1px dashed #cbd5e1; cursor:text; padding:2px 4px;" onclick="event.stopPropagation();" onblur="window.simpanEditanLatihanAdmin(' + idx + ', \'option\', ' + oIdx + ', this.innerText)">' + opt.text + '</span>'
+                    ? '<span contenteditable="true" style="flex:1; outline:none; border-bottom:1px dashed #e67e22; background:#fffdf9; cursor:text; padding:2px 4px;" onclick="event.stopPropagation();" onblur="window.simpanEditanLatihanAdmin(' + idx + ', \'option\', ' + oIdx + ', this.innerText)">' + opt.text + '</span>'
                     : '<span>' + opt.text + '</span>';
 
                 if(q.type === 'PGK') {
@@ -6896,96 +6896,6 @@ window.renderSoalLatihanSiswa = function() {
             html += '</div>';
         }
 
-        // Untuk Admin: Pembahasan langsung muncul & bisa diedit (termasuk Kunci Jawaban)
-        let bahasDisplay = isAdmin ? 'block' : 'none';
-        let kunciEditAttr = isAdmin
-            ? 'contenteditable="true" style="outline:none; border-bottom:1px dashed #2980b9; padding:1px 4px; cursor:text; background:white; border-radius:3px;" onblur="window.simpanEditanLatihanAdmin(' + idx + ', \'correct\', null, this.innerText)"'
-            : '';
-        let bahasEditAttr = isAdmin
-            ? 'contenteditable="true" style="outline:none; border-bottom:1px dashed #2980b9; padding:2px 4px; cursor:text; background:white; border-radius:3px; display:inline-block; min-width:60%;" onblur="window.simpanEditanLatihanAdmin(' + idx + ', \'explanation\', null, this.innerHTML)"'
-            : '';
-
-        html += '<div id="bahas-' + idx + '" style="display:' + bahasDisplay + '; margin-top:15px; padding:12px 15px; background:#ebf5fb; border-left:4px solid #2980b9; border-radius:6px; font-size:13px; color:#2c3e50;">' +
-                    '<strong style="color:#2980b9;">Kunci: <span ' + kunciEditAttr + '>' + (kunciArr.join(', ') || '-') + '</span></strong><br>' +
-                    '<div style="margin-top:6px; color:#34495e;"><strong>Pembahasan:</strong> <span ' + bahasEditAttr + '>' + (q.explanation || 'Tidak ada pembahasan.') + '</span></div>' +
-                 '</div>';
-        html += '</div>';
-    });
-
-    html += '</div>';
-    container.innerHTML = html;
-
-    let defaultCloseBtn = document.getElementById('btn-close-strict');
-    if(defaultCloseBtn) defaultCloseBtn.style.display = 'none';
-};
-
-// ---------------------------------------------------------
-// MESIN UI LATIHAN, AUTO-CHECK, & EXPORT UNIVERSAL
-// ---------------------------------------------------------
-window.renderSoalLatihanSiswa = function() {
-    let container = document.getElementById('ujian-strict-container');
-    if(!container) return;
-
-    let isAdmin = sessionStorage.getItem("statusLogin") === "admin";
-    let soalArr = (window.sesiLatihanSiswa && window.sesiLatihanSiswa.soal) ? window.sesiLatihanSiswa.soal : [];
-    window.sesiLatihanSiswa.statusJawab = new Array(soalArr.length).fill(false);
-    window.sesiLatihanSiswa.skorTotal = 0;
-
-    let judulCetak = ('Latihan Mandiri - ' + (window.sesiLatihanSiswa.bab || '') + ' (' + (window.sesiLatihanSiswa.kesulitan || '') + ')').replace(/'/g, "\\'");
-
-    let html = '<div style="max-width:800px; margin:0 auto;">';
-
-    html += '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:25px; background:white; padding:12px 16px; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.06); border:1px solid #e1e8ed; flex-wrap:wrap; gap:10px;">' +
-        '<div style="display:flex; gap:10px; flex-wrap:wrap;">' +
-            '<button class="btn-action" style="background:#2c3e50; padding:8px 16px; font-size:12px; border-radius:30px;" onclick="window.cetakDokumenUniversal(\'pdf\', \'' + judulCetak + '\', window.sesiLatihanSiswa.soal)">🖨️ Print PDF</button>' +
-            '<button class="btn-action" style="background:#2c3e50; padding:8px 16px; font-size:12px; border-radius:30px;" onclick="window.cetakDokumenUniversal(\'word\', \'' + judulCetak + '\', window.sesiLatihanSiswa.soal)">📄 Export Word</button>' +
-        '</div>' +
-        '<button class="btn-action" style="background:#e74c3c; padding:8px 18px; font-size:12px; border-radius:30px;" onclick="window.keluarRuangLatihanSiswa()">✕ Keluar Ruang</button>' +
-    '</div>';
-
-    soalArr.forEach(function(q, idx) {
-        let kunciArr = Array.isArray(q.correct) ? q.correct : [];
-        let opsiArr = Array.isArray(q.options) ? q.options : [];
-
-        // PAKSA MUNCULKAN TOMBOL DELETE (Gunakan style inline agar tidak disembunyikan CSS class)
-        let btnBuangSoal = isAdmin
-            ? '<button type="button" style="display:block !important; position:absolute; top:15px; right:15px; background:#e74c3c; color:white; border:none; border-radius:4px; padding:6px 10px; font-size:11px; font-weight:bold; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.2); z-index:10;" onclick="window.buangSoalLatihanAdmin(' + idx + ')" title="Buang Soal Ini">🗑️ Buang Soal</button>'
-            : '';
-
-        let qEditAttr = isAdmin
-            ? 'contenteditable="true" style="outline:none; cursor:text; background:#fffdf9; padding:4px 6px; border-radius:4px; border-bottom:1px dashed #e67e22;" onblur="window.simpanEditanLatihanAdmin(' + idx + ', \'question\', null, this.innerHTML)"'
-            : '';
-
-        html += '<div class="quiz-question-card" id="card-latihan-' + idx + '" style="margin-bottom:25px; box-shadow:0 4px 12px rgba(0,0,0,0.05); border-radius:10px; background:white; padding:22px 20px 20px 20px; border:1px solid #e1e8ed; border-left:4px solid #3498db; position:relative;">' +
-            btnBuangSoal +
-            '<div class="quiz-question-text" style="font-size:15px; color:#2c3e50; margin-bottom:15px; line-height:1.5; padding-bottom:8px; padding-right:' + (isAdmin ? '100px' : '0') + ';">' +
-                '<span>' + (idx+1) + '. </span><span ' + qEditAttr + '>' + (q.question || '') + '</span>' +
-            '</div>';
-
-        if(q.type === 'IS' || q.type === 'Essay' || opsiArr.length === 0) {
-            html += '<input type="text" id="input-latihan-' + idx + '" class="input-box" placeholder="Ketik jawaban Anda lalu tekan Enter..." style="font-size:14px; padding:11px 14px; border:1px solid #cbd5e1; border-radius:8px; width:100%; box-sizing:border-box; margin-bottom:0;" onchange="window.simpanJawabanLatihan(' + idx + ', this)">';
-        } else {
-            html += '<div class="quiz-options" style="display:flex; flex-direction:column; gap:8px;">';
-            opsiArr.forEach(function(opt, oIdx) {
-                let optEditSpan = isAdmin
-                    ? '<span contenteditable="true" style="flex:1; outline:none; border-bottom:1px dashed #e67e22; background:#fffdf9; cursor:text; padding:2px 4px;" onclick="event.stopPropagation();" onblur="window.simpanEditanLatihanAdmin(' + idx + ', \'option\', ' + oIdx + ', this.innerText)">' + opt.text + '</span>'
-                    : '<span>' + opt.text + '</span>';
-
-                if(q.type === 'PGK') {
-                    html += '<label class="quiz-option-btn" style="display:flex; align-items:center; gap:10px; background:white; border:1px solid #e1e8ed; padding:12px 15px; border-radius:6px; font-size:14px; color:#34495e;">' +
-                                '<input type="checkbox" id="chk-latihan-' + idx + '-' + opt.label + '" style="width:16px; height:16px; cursor:pointer;" onchange="window.pilihJawabanLatihanPGK(' + idx + ', \'' + opt.label + '\', this.checked)">' +
-                                '<b>' + opt.label + '.</b> ' + optEditSpan +
-                             '</label>';
-                } else {
-                    html += '<div class="quiz-option-btn" style="display:flex; align-items:center; gap:6px; text-align:left; background:white; border:1px solid #e1e8ed; padding:12px 15px; border-radius:6px; font-size:14px; color:#34495e;">' +
-                                '<b>' + opt.label + '.</b> ' + optEditSpan +
-                             '</div>';
-                }
-            });
-            html += '</div>';
-        }
-
-        // Pembahasan & Kunci Jawaban Editable
         let bahasDisplay = isAdmin ? 'block' : 'none';
         let kunciEditAttr = isAdmin
             ? 'contenteditable="true" style="outline:none; border-bottom:1px dashed #e74c3c; padding:1px 4px; cursor:text; background:#fdf2e9; border-radius:3px;" onblur="window.simpanEditanLatihanAdmin(' + idx + ', \'correct\', null, this.innerText)"'
