@@ -316,6 +316,8 @@ let navCloseTimer = null;
 window.closeDropdowns = function() {
     document.querySelectorAll("#dynamic-navbar ul.sub-menu-nav.open-sub").forEach(function(ul) {
         ul.classList.remove("open-sub", "flyout-left", "align-right-edge");
+        // Hapus jejak posisi fixed saat ditutup
+        ul.style.position = ''; ul.style.top = ''; ul.style.left = ''; ul.style.right = '';
     });
 };
 
@@ -323,14 +325,32 @@ function aturPosisiSubMenu(ulElement) {
     if (!ulElement) return;
     ulElement.classList.add("open-sub");
     let parentLi = ulElement.parentElement;
+    let rect = parentLi.getBoundingClientRect();
     let isTopLevelDropdown = parentLi && parentLi.parentElement && (parentLi.parentElement.id === "dynamic-pages-container" || parentLi.parentElement.id === "dynamic-navbar");
 
+    // KUNCI: Gunakan Fixed Position agar menu turun tidak terpotong oleh kotak Navbar yang bisa di-scroll
+    ulElement.style.position = 'fixed';
+    ulElement.style.zIndex = '999999';
+
     if (isTopLevelDropdown) {
-        ulElement.classList.remove("align-right-edge");
-        if (ulElement.getBoundingClientRect().right > window.innerWidth - 10) ulElement.classList.add("align-right-edge");
+        ulElement.style.top = rect.bottom + 'px';
+        ulElement.style.left = rect.left + 'px';
+        ulElement.style.right = 'auto'; // Reset right
+        
+        // Jika melewati batas kanan layar
+        if (rect.left + 220 > window.innerWidth) { // 220px adalah min-width menu
+            ulElement.style.left = 'auto';
+            ulElement.style.right = '10px';
+        }
     } else {
-        ulElement.classList.remove("flyout-left");
-        if (ulElement.getBoundingClientRect().right > window.innerWidth - 10) ulElement.classList.add("flyout-left");
+        ulElement.style.top = rect.top + 'px';
+        ulElement.style.left = rect.right + 'px';
+        ulElement.style.right = 'auto';
+        
+        // Jika melewati batas kanan layar
+        if (rect.right + 220 > window.innerWidth) {
+            ulElement.style.left = (rect.left - 220) + 'px';
+        }
     }
 }
 
@@ -346,7 +366,10 @@ function bukaJalurSubMenu(liElement) {
     if (directSubUl) activeUls.add(directSubUl);
 
     document.querySelectorAll("#dynamic-navbar ul.sub-menu-nav.open-sub").forEach(function(ul) {
-        if (!activeUls.has(ul)) ul.classList.remove("open-sub", "flyout-left", "align-right-edge");
+        if (!activeUls.has(ul)) {
+            ul.classList.remove("open-sub", "flyout-left", "align-right-edge");
+            ul.style.position = ''; ul.style.top = ''; ul.style.left = ''; ul.style.right = '';
+        }
     });
     if (directSubUl) aturPosisiSubMenu(directSubUl);
 }
