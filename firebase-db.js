@@ -190,8 +190,6 @@ window.simpanCatatanGuruKeDB = function() {
     if(stat) stat.innerHTML = "<span style='color:#f1c40f;'>☁️ Menyimpan...</span>";
     
     try {
-        // UBAH ARRAY JADI OBJECT MURNI: Firebase sangat benci struktur Array yang berubah-ubah.
-        // Kita paksa konversi jadi Object murni agar 100% diterima oleh server RTDB.
         let payload = {};
         let sourceData = Array.isArray(window.adminCatatanGuruData) ? window.adminCatatanGuruData : Object.values(window.adminCatatanGuruData);
         
@@ -210,13 +208,11 @@ window.simpanCatatanGuruKeDB = function() {
             window.isTypingCG = false; 
         }).catch(err => {
             console.error("Gagal simpan Catatan Guru:", err);
-            if(stat) stat.innerHTML = "<span style='color:#e74c3c;'>❌ Gagal</span>";
-            // Memunculkan pesan asli dari Firebase agar kita tahu penyebab pastinya
-            alert("⚠️ Firebase menolak penyimpanan!\nPesan Error: " + err.message + "\n\nSolusi: Pastikan 'Rules' di menu Realtime Database Firebase Anda sudah disetting menjadi \".write\": true");
+            if(stat) stat.innerHTML = "<span style='color:#e74c3c;' title='" + err.message + "'>❌ Gagal Simpan</span>";
         });
     } catch(e) {
         console.error("Data error:", e);
-        if(stat) stat.innerHTML = "<span style='color:#e74c3c;'>❌ Error Data</span>";
+        if(stat) stat.innerHTML = "<span style='color:#e74c3c;'>❌ Error Data Format</span>";
     }
 };
 
