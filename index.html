@@ -6,7 +6,7 @@
     <title>Sistem Belajar Mahardika</title>
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Fredoka:wght@400;500;600&family=Quicksand:wght@400;600;700&family=Lora:ital,wght@0,400;0,700;1,400&family=Merriweather:wght@400;700&family=Montserrat:wght@400;600;700&family=Open+Sans:wght@400;600&family=Oswald:wght@400;500&family=Playfair+Display:wght@400;700&family=Poppins:wght@400;600&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
     
-    <link rel="stylesheet" href="./style.css">
+    <link rel="stylesheet" href="css/style.css">
     <style id="dynamic-theme-styles"></style>
     
     <!-- ENGINE MATHJAX UNTUK LATEX RENDERING -->
@@ -450,7 +450,7 @@
                     <select id="filter-manajer-kelas" class="input-box" style="margin-bottom:0; width:200px; font-weight:bold; cursor:pointer;" onchange="window.renderManajerSoal()">
                         <option value="Semua">Semua Kelas</option>
                     </select>
-                    <button class="btn-action" style="background:#8e44ad; width:auto; padding:8px 12px; font-size:12px;" onclick="window.bukaModal('modal-admin-bank-soal')">📥 Bank Latihan</button>
+                    <button class="btn-action" style="background:#8e44ad; width:auto; padding:8px 12px; font-size:12px;" onclick="window.bukaModalBankLatihanBaru()">📥 Bank Latihan</button>
                 </div>
                 <ul id="list-manajer-soal" class="soal-manager-list" style="flex:1;"></ul>
             </div>
@@ -520,26 +520,30 @@
     </div>
 
 
-    <!-- MODAL MULTIMEDIA -->
+    <!-- MODAL MULTIMEDIA (VIDEO PINTAR & PDF SLIDE) -->
     <div id="modal-multimedia" class="modal-overlay" onclick="if(event.target===this)tutupModal('modal-multimedia')">
         <div class="modal-box" style="max-width: 450px;">
-            <div class="modal-header">
-                <h3>🖼️ Sisipkan Video / PDF</h3>
-                <button class="close-btn" onclick="tutupModal('modal-multimedia')">✕</button>
+            <div class="modal-header" style="background:#0b3954; color:white;">
+                <h3 style="margin:0;">🎞️ Sisipkan Video / PDF</h3>
+                <button class="close-btn" style="color:white;" onclick="tutupModal('modal-multimedia')">✕</button>
             </div>
-            <div class="modal-body" style="display:flex; flex-direction:column; gap:15px;">
-                <div>
-                    <label style="font-size:13px; font-weight:bold; margin-bottom:5px; display:block;">1. Menggunakan Link (G-Drive / YouTube):</label>
-                    <input type="text" id="input-link-media" class="input-box" placeholder="Paste link di sini..." style="margin:0;">
+            <div class="modal-body" style="display:flex; flex-direction:column; gap:15px; background:#f4f6f6; padding:20px;">
+                
+                <!-- OPSI 1: VIDEO G-DRIVE / YOUTUBE (NATIVE PLAYER) -->
+                <div style="background:#ffffff; border:1px solid #ddd; padding:15px; border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,0.05);">
+                    <label style="font-size:13px; font-weight:bold; margin-bottom:8px; display:block; color:#2c3e50;">🎥 1. Sisipkan Video (YouTube / G-Drive)</label>
+                    <input type="text" id="input-link-media" class="input-box" placeholder="Paste link YouTube atau G-Drive di sini..." style="margin:0; border:2px solid #3498db;">
+                    <p style="font-size:11px; color:#7f8c8d; margin:6px 0 0 0; font-weight:600;">*Tampilan akan dikonversi menjadi media player asli (layar hitam bersih).</p>
+                    <button class="btn-action" style="margin-top:12px; font-size: 13px; padding: 10px; background:#3498db; width:100%;" onclick="window.prosesSisipanVideo()">Sisipkan Video 🚀</button>
                 </div>
-                <div style="text-align:center; font-size:12px; font-weight:bold; color:#7f8c8d;">-- ATAU --</div>
-                <div>
-                    <label style="font-size:13px; font-weight:bold; margin-bottom:5px; display:block;">2. Upload File Lokal (Video / PDF):</label>
-                    <button class="btn-action" style="background:#2c3e50; width:100%; font-size:13px;" onclick="document.getElementById('input-file-media').click()">Pilih File dari Perangkat</button>
-                    <input type="file" id="input-file-media" accept="video/mp4,application/pdf" style="display:none" onchange="window.previewNamaFileMedia(this)">
-                    <div id="nama-file-terpilih" style="font-size:12px; color:#27ae60; margin-top:5px; font-weight:bold; text-align:center;"></div>
+
+                <!-- OPSI 2: PDF SLIDE & CORETAN -->
+                <div style="background:#ffffff; border:1px solid #ddd; padding:15px; border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,0.05);">
+                    <label style="font-size:13px; font-weight:bold; margin-bottom:8px; display:block; color:#2c3e50;">📄 2. Sisipkan PDF (Mode Slide Interaktif)</label>
+                    <p style="font-size:11px; color:#7f8c8d; margin:0 0 12px 0; font-weight:600;">*Pilih file PDF dari laptop. Sistem akan otomatis mengubahnya menjadi slide kanvas permanen yang bisa digeser, dicoret, dan dicetak.</p>
+                    <button class="btn-action" style="background:#27ae60; width:100%; font-size:13px; padding:10px;" onclick="document.getElementById('pdf-materi-upload').click(); tutupModal('modal-multimedia');">Pilih File PDF dari Laptop 📁</button>
                 </div>
-                <button class="btn-action" style="margin-top:5px;" onclick="window.prosesSisipanMedia()">Sisipkan ke Materi</button>
+                
             </div>
         </div>
     </div>
@@ -943,7 +947,7 @@
     </div>
 
     <!-- SCRIPT REFERENCES -->
-    <script src="./main.js"></script>
-    <script type="module" src="./firebase-db.js"></script>
+    <script src="js/main.js"></script>
+    <script type="module" src="js/firebase-db.js"></script>
 </body>
 </html>

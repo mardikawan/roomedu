@@ -1913,12 +1913,11 @@ document.addEventListener("DOMContentLoaded", function() {
     if (cont) obsLocalMedia.observe(cont, { childList: true, subtree: true });
 });
 
-// Modal Multimedia (PDF & Video Pintar)
+// Modal Multimedia (Video Pintar & PDF Slide)
 window.bukaModalMultimedia = function() {
     window.simpanSeleksiTeks();
-    document.getElementById("input-link-media").value = "";
-    document.getElementById("input-file-media").value = "";
-    document.getElementById("nama-file-terpilih").innerText = "";
+    let inputLink = document.getElementById("input-link-media");
+    if (inputLink) inputLink.value = "";
     window.bukaModal("modal-multimedia");
 };
 
@@ -1929,69 +1928,55 @@ window.previewNamaFileMedia = function(input) {
     }
 };
 
-window.prosesSisipanMedia = async function() {
+/* =========================================
+   SISTEM SISIPAN VIDEO (YOUTUBE & G-DRIVE NATIVE PLAYER)
+   ========================================= */
+window.prosesSisipanVideo = function() {
     let link = document.getElementById("input-link-media").value.trim();
-    let fileInput = document.getElementById("input-file-media");
-    let file = fileInput.files[0];
-    
+
+    if (!link) {
+        return alert("⚠️ Silakan paste link video Google Drive atau YouTube terlebih dahulu!");
+    }
+
     let finalUrl = "";
-    let isPdf = false;
     let htmlSisipan = "";
-    let localId = "";
 
-    if (link) {
-        let ytMatch = link.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
-        let driveMatch = link.match(/drive\.google\.com\/file\/d\/([^\/]+)/);
-        
-        if (ytMatch) {
-            finalUrl = "https://www.youtube.com/embed/" + ytMatch[1];
-        } else if (driveMatch) {
-            finalUrl = "https://drive.google.com/file/d/" + driveMatch[1] + "/preview";
-        } else {
-            finalUrl = link;
-        }
-        isPdf = finalUrl.toLowerCase().indexOf("pdf") !== -1 || finalUrl.indexOf("preview") !== -1;
-        
-    } else if (file) {
-        // SIMPAN KE MEMORI BROWSER LOKAL (ANTI-RUSAK REFRESH, 0 BEBAN FIREBASE)
-        localId = "local_media_" + Date.now();
-        let st = document.getElementById('save-status-bar');
-        if (st) st.innerHTML = "<span style='color:#f39c12;'>⏳ Menyimpan ke memori perangkat...</span>";
-        await window.simpanFileLokalIdb(localId, file);
-        if (st) st.innerHTML = "<span style='color:#2ecc71;'>✓ Tersimpan lokal!</span>";
-
-        finalUrl = URL.createObjectURL(file); 
-        isPdf = file.type === "application/pdf";
-    } else {
-        return alert("Masukkan link pintar atau pilih file lokal terlebih dahulu!");
-    }
-
-    if (isPdf || finalUrl.indexOf("preview") !== -1) {
-        let attrLocal = localId ? ' data-local-id="' + localId + '"' : '';
-        // G-Drive PDF Full A4 Portrait
-        htmlSisipan = '<div contenteditable="false" class="gdrive-pdf-a4">' +
-            '<iframe src="' + finalUrl + '"' + attrLocal + ' allowfullscreen></iframe>' +
-            '</div><p><br></p>';
-    } else if (finalUrl.indexOf("youtube.com") !== -1) {
-        htmlSisipan = '<div contenteditable="false" style="margin: 15px 0; border-radius: 8px; overflow: hidden; position: relative; padding-top: 56.25%; box-shadow:0 4px 10px rgba(0,0,0,0.1);">' +
-            '<iframe src="' + finalUrl + '" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>' +
-            '</div><p><br></p>';
-    } else {
-        let attrLocal = localId ? ' data-local-id="' + localId + '"' : '';
-        htmlSisipan = '<div contenteditable="false" style="margin: 15px 0; text-align: center;">' +
-            '<video controls' + attrLocal + ' style="max-width: 100%; max-height: 500px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); background:black;">' +
-            '<source src="' + finalUrl + '" type="video/mp4">' +
-            'Browser Anda tidak mendukung tag video.' +
-            '</video></div><p><br></p>';
-    }
+    // 1. Ekstrak ID YouTube (Mencegah error "Video tidak tersedia")
+    let ytMatch = link.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))([\w-]{11})/);
+    // 2. Ekstrak ID Google Drive
+    let driveMatch = link.match(/\/d\/([a-zA-Z0-9_-]+)/) || link.match(/id=([a-zA-Z0-9_-]+)/);
 
     window.kembalikanSeleksiTeks();
+
+    if (ytMatch) {
+        let ytId = ytMatch[1];
+        // Susun ulang URL embed murni YouTube tanpa cookie agar tampil rapi
+        finalUrl = "https://www.youtube-nocookie.com/embed/" + ytId + "?rel=0&modestbranding=1&playsinline=1";
+        
+        htmlSisipan = '<div contenteditable="false" style="margin: 20px auto; border-radius: 8px; overflow: hidden; position: relative; width: 100%; max-width: 800px; aspect-ratio: 16/9; box-shadow:0 6px 15px rgba(0,0,0,0.15); background:black;">' +
+            '<iframe src="' + finalUrl + '" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>' +
+            '</div><p><br></p>';
+            
+    } else if (driveMatch) {
+        let fileId = driveMatch[1];
+        // Konversi link G-Drive menjadi Direct Stream Link untuk dimasukkan ke Tag <video> asli
+        finalUrl = "https://drive.google.com/uc?export=download&id=" + fileId;
+        
+        htmlSisipan = '<div contenteditable="false" style="margin: 20px auto; text-align: center; width: 100%; max-width: 800px;">' +
+            '<video controls controlsList="nodownload" style="width: 100%; max-height: 550px; border-radius: 8px; box-shadow: 0 6px 15px rgba(0,0,0,0.15); background:black; outline:none;" preload="metadata">' +
+            '<source src="' + finalUrl + '" type="video/mp4">' +
+            'Browser Anda tidak mendukung tag video HTML5.' +
+            '</video>' +
+            '</div><p><br></p>';
+            
+    } else {
+        return alert("❌ Format link tidak dikenali! Pastikan Anda memasukkan link YouTube atau Google Drive yang valid.");
+    }
+
     window.formatTeks("insertHTML", htmlSisipan);
     window.tutupModal("modal-multimedia");
-
-    if (localId) {
-        alert("✅ File lokal berhasil disisipkan dan disimpan di memori perangkat Anda.\n\n⚠️ PENTING: Karena file ini tidak dikirim ke database untuk menghemat kuota server, file ini HANYA BISA DILIHAT DARI PERANGKAT INI SAJA. Jika ingin siswa bisa melihatnya, harap gunakan link Google Drive.");
-    }
+    document.getElementById("input-link-media").value = "";
+    triggerInput();
 };
 
 // Fungsi Kuis Inline di Materi (🧩 Kuis) & Tambah Blok Tengah
@@ -4866,9 +4851,92 @@ window.editPaketUjian = function(namaPaket) {
 };
 
 /* =========================================
-   LOGIKA MANAJER LATIHAN & BANK SOAL (C1, C2, HOTS + FILTER KELAS AKTIF)
+   LOGIKA MANAJER LATIHAN & BANK SOAL (EDIT & TAMBAH SOAL)
    ========================================= */
 window.adminBankLatihanData = window.adminBankLatihanData || {};
+window.modeSimpanBankLatihan = 'new';
+window.kunciEditBankLatihan = null;
+
+window.bukaModalBankLatihanBaru = function() {
+    document.getElementById('admin-bs-kelas').disabled = false;
+    document.getElementById('admin-bs-mapel').disabled = false;
+    document.getElementById('admin-bs-bab').disabled = false;
+    document.getElementById('admin-bs-kesulitan').disabled = false;
+    document.getElementById('admin-bs-text').value = "";
+
+    window.modeSimpanBankLatihan = 'new';
+    window.kunciEditBankLatihan = null;
+
+    document.querySelector('#modal-admin-bank-soal .modal-header h3').innerHTML = '📥 Arsip Latihan Mandiri';
+    let btn = document.querySelector('#modal-admin-bank-soal .btn-action');
+    btn.innerHTML = 'Arsipkan 💾';
+    btn.style.background = '#8e44ad';
+
+    window.tutupModal('modal-manajer-soal');
+    window.bukaModal('modal-admin-bank-soal');
+};
+
+window.editBankLatihan = function(key) {
+    let item = window.adminBankLatihanData[key];
+    if(!item) return;
+
+    document.getElementById('admin-bs-kelas').value = item.kelas;
+    document.getElementById('admin-bs-mapel').value = item.mapel;
+    document.getElementById('admin-bs-bab').value = item.bab;
+    document.getElementById('admin-bs-kesulitan').value = item.kesulitan;
+
+    document.getElementById('admin-bs-kelas').disabled = true;
+    document.getElementById('admin-bs-mapel').disabled = true;
+    document.getElementById('admin-bs-bab').disabled = true;
+    document.getElementById('admin-bs-kesulitan').disabled = true;
+
+    // Pastikan fungsi konversiSoalKeTeksMentah sudah ada di file Anda (biasanya tergabung di fitur ujian)
+    if(typeof window.konversiSoalKeTeksMentah === "function") {
+        document.getElementById('admin-bs-text').value = window.konversiSoalKeTeksMentah(item.soal || []);
+    } else {
+        document.getElementById('admin-bs-text').value = "Error: Sistem teks formatter tidak ditemukan.";
+    }
+
+    window.modeSimpanBankLatihan = 'edit';
+    window.kunciEditBankLatihan = key;
+
+    document.querySelector('#modal-admin-bank-soal .modal-header h3').innerHTML = '✏️ Edit Arsip Latihan';
+    let btn = document.querySelector('#modal-admin-bank-soal .btn-action');
+    btn.innerHTML = 'Simpan Perubahan 💾';
+    btn.style.background = '#27ae60';
+
+    window.tutupModal('modal-manajer-soal');
+    window.bukaModal('modal-admin-bank-soal');
+};
+
+window.tambahSoalBankLatihan = function(key) {
+    let item = window.adminBankLatihanData[key];
+    if(!item) return;
+
+    document.getElementById('admin-bs-kelas').value = item.kelas;
+    document.getElementById('admin-bs-mapel').value = item.mapel;
+    document.getElementById('admin-bs-bab').value = item.bab;
+    document.getElementById('admin-bs-kesulitan').value = item.kesulitan;
+
+    document.getElementById('admin-bs-kelas').disabled = true;
+    document.getElementById('admin-bs-mapel').disabled = true;
+    document.getElementById('admin-bs-bab').disabled = true;
+    document.getElementById('admin-bs-kesulitan').disabled = true;
+
+    document.getElementById('admin-bs-text').value = "";
+
+    window.modeSimpanBankLatihan = 'append';
+    window.kunciEditBankLatihan = key;
+
+    document.querySelector('#modal-admin-bank-soal .modal-header h3').innerHTML = '➕ Tambah Soal Baru';
+    let btn = document.querySelector('#modal-admin-bank-soal .btn-action');
+    btn.innerHTML = 'Tambahkan Soal 💾';
+    btn.style.background = '#f1c40f';
+    btn.style.color = '#2c3e50';
+
+    window.tutupModal('modal-manajer-soal');
+    window.bukaModal('modal-admin-bank-soal');
+};
 
 window.simpanKeBankSoalPusat = function() {
     let kelas = document.getElementById('admin-bs-kelas').value;
@@ -4933,11 +5001,18 @@ window.simpanKeBankSoalPusat = function() {
 
     if(questions.length === 0) return alert("Gagal mengekstrak soal. Pastikan format teks benar!");
 
-    let key = kelas + '_' + mapel + '_' + bab + '_' + kesulitan;
+    let key = window.kunciEditBankLatihan || (kelas + '_' + mapel + '_' + bab + '_' + kesulitan);
     if(!window.adminBankLatihanData[key]) {
         window.adminBankLatihanData[key] = { kelas: kelas, mapel: mapel, bab: bab, kesulitan: kesulitan, soal: [] };
     }
-    window.adminBankLatihanData[key].soal.push(...questions);
+
+    if (window.modeSimpanBankLatihan === 'edit') {
+        window.adminBankLatihanData[key].soal = questions; 
+        alert("✅ Perubahan soal berhasil disimpan!");
+    } else {
+        window.adminBankLatihanData[key].soal.push(...questions); 
+        alert("✅ " + questions.length + " Soal berhasil ditambahkan!");
+    }
 
     document.getElementById('admin-bs-text').value = "";
     window.tutupModal('modal-admin-bank-soal');
@@ -4947,7 +5022,6 @@ window.simpanKeBankSoalPusat = function() {
     if(typeof window.simpanBankLatihanKeDB === "function") window.simpanBankLatihanKeDB();
 };
 
-// Render Manajer Latihan sekaligus Menghidupkan Dropdown Filter Kelas (Gambar 3)
 window.renderManajerSoal = function() {
     let listEl = document.getElementById('list-manajer-soal');
     let selFilter = document.getElementById('filter-manajer-kelas');
@@ -4955,9 +5029,8 @@ window.renderManajerSoal = function() {
 
     let currentFilter = selFilter.value || "Semua";
     let keys = Object.keys(window.adminBankLatihanData || {});
-
-    // Kumpulkan semua nama kelas yang ada di Bank Latihan agar dropdown berfungsi penuh
     let kelasSet = new Set();
+    
     keys.forEach(function(k) {
         let item = window.adminBankLatihanData[k];
         if (item && item.kelas) kelasSet.add(item.kelas);
@@ -4970,7 +5043,6 @@ window.renderManajerSoal = function() {
     });
     selFilter.innerHTML = htmlOpt;
 
-    // Jika kelas yang dipilih sebelumnya sudah dihapus, kembalikan ke Semua
     if (currentFilter !== "Semua" && !kelasSet.has(currentFilter)) {
         currentFilter = "Semua";
         selFilter.value = "Semua";
@@ -4989,16 +5061,20 @@ window.renderManajerSoal = function() {
     filteredKeys.sort().forEach(function(k) {
         let item = window.adminBankLatihanData[k];
         let badgeDiffColor = item.kesulitan === 'C1' ? '#27ae60' : (item.kesulitan === 'C2' ? '#f39c12' : '#c0392b');
-        html += '<li class="soal-manager-item" style="display:flex; justify-content:space-between; align-items:center; background:#f8f9fa; border:1px solid #eee; margin-bottom:8px; padding:12px; border-radius:6px;">' +
+        html += '<li class="soal-manager-item" style="display:flex; justify-content:space-between; align-items:center; background:#f8f9fa; border:1px solid #eee; margin-bottom:8px; padding:12px; border-radius:6px; flex-wrap:wrap; gap:10px;">' +
             '<div class="soal-manager-info">' +
                 '<div style="font-weight:bold; color:#2c3e50; font-size:13px; margin-bottom:4px;">🚀 ' + item.bab + ' <span style="font-size:11px; color:#7f8c8d; font-weight:normal;">(' + item.mapel + ')</span></div>' +
-                '<div style="font-size:11px; color:#7f8c8d; display:flex; gap:6px; align-items:center;">' +
+                '<div style="font-size:11px; color:#7f8c8d; display:flex; gap:6px; align-items:center; flex-wrap:wrap;">' +
                     '<span class="soal-manager-tag" style="background:#8e44ad; padding:2px 6px;">' + item.kelas + '</span>' +
                     '<span class="soal-manager-tag" style="background:' + badgeDiffColor + '; padding:2px 6px;">' + item.kesulitan + '</span>' +
                     '<span style="font-weight:bold; color:#27ae60;">' + item.soal.length + ' Soal Tersimpan</span>' +
                 '</div>' +
             '</div>' +
-            '<button style="background:#e74c3c; color:white; border:none; padding:5px 10px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;" onclick="hapusBankLatihan(\'' + k + '\')">🗑️ Hapus</button>' +
+            '<div style="display:flex; gap:6px;">' +
+                '<button style="background:#2ecc71; color:white; border:none; padding:5px 10px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;" onclick="window.editBankLatihan(\'' + k + '\')">✏️ Edit</button>' +
+                '<button style="background:#f1c40f; color:#2c3e50; border:none; padding:5px 10px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;" onclick="window.tambahSoalBankLatihan(\'' + k + '\')">➕ Tambah</button>' +
+                '<button style="background:#e74c3c; color:white; border:none; padding:5px 10px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;" onclick="window.hapusBankLatihan(\'' + k + '\')">🗑️ Hapus</button>' +
+            '</div>' +
         '</li>';
     });
     listEl.innerHTML = html;

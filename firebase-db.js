@@ -1,17 +1,43 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-app.js";
 import { getDatabase, ref, set, get, child, onValue, remove, goOffline, goOnline } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-database.js";
 import { getAuth, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-auth.js";
+// IMPORT FIREBASE STORAGE
+import { getStorage, ref as sRef, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-storage.js";
 
-// Konfigurasi Database Mahardika
+// Konfigurasi Database Mahardika (Ditambah URL Storage Bucket)
 const firebaseConfig = { 
     apiKey: "AIzaSyCD2-v7vgvgAgOlvkn_tzOHpAtZZEP6B0w", 
     databaseURL: "https://mardikawan-project-default-rtdb.firebaseio.com", 
-    projectId: "mardikawan-project" 
+    projectId: "mardikawan-project",
+    storageBucket: "mardikawan-project.appspot.com" 
 };
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const auth = getAuth(app);
+const storage = getStorage(app); 
+
+// ==========================================
+// FUNGSI BARU: UPLOAD MEDIA KE FIREBASE STORAGE
+// ==========================================
+window.uploadMediaKeFirebaseStorage = function(file, onProgress, onSuccess, onError) {
+    let uniqueName = Date.now() + '_' + file.name.replace(/[^a-zA-Z0-9.]/g, '_');
+    let fileRef = sRef(storage, 'media_guru/' + (window.guruAktif || 'mahardika') + '/' + uniqueName);
+    let uploadTask = uploadBytesResumable(fileRef, file);
+
+    uploadTask.on('state_changed',
+        (snapshot) => {
+            let progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+            if(onProgress) onProgress(progress);
+        },
+        (error) => { if(onError) onError(error); },
+        () => {
+            getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
+                if(onSuccess) onSuccess(downloadURL);
+            });
+        }
+    );
+};
 
 // Mesin Bayangan untuk membuat akun Guru tanpa me-logout Admin Utama
 const secondaryApp = initializeApp(firebaseConfig, "SecondaryApp");
