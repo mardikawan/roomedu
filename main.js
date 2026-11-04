@@ -213,6 +213,16 @@ window.navigasiHalaman = function(e, slug) {
 
 // Deteksi jika user menekan tombol Back/Forward di browser
 window.addEventListener('popstate', function(e) {
+    
+    // PENAHAN UJIAN KETAT: Jika siswa menekan tombol Back saat ujian berlangsung
+    if (window.isStrictUjianActive) {
+        // Tembak kembali jebakannya agar posisi user tidak mundur
+        window.history.pushState({ inExam: true }, null, window.location.href);
+        // Munculkan notifikasi tanpa memicu pelanggaran
+        window.alertAmanUjian("⚠️ Tombol KEMBALI (Back) dikunci selama ujian!\nSilakan selesaikan ujian Anda terlebih dahulu.");
+        return; 
+    }
+
     let currentRoom = window.babAktif || babAktif;
     let container = document.getElementById('blocks-container');
     let domRoom = container ? container.getAttribute('data-active-room') : '';
@@ -5822,16 +5832,37 @@ window.renderIsiLiveMonitor = function() {
                 ? '<span style="color:#c0392b; font-weight:700;">❌ Dikeluarkan (' + row.pelanggaran + 'x)</span>'
                 : '<span style="color:#2c3e50; font-weight:700;">⚠️ Melanggar (' + row.pelanggaran + 'x)</span>');
 
+        // Tambahkan Tombol Hapus per Siswa (Tanda Silang Merah)
+        let btnHapusSiswa = '<button type="button" style="background:none; border:none; color:#e74c3c; cursor:pointer; font-size:16px; margin-left:12px; font-weight:bold; transition:0.2s;" title="Hapus dari Live Monitor (Izinkan Ujian Ulang)" onclick="window.hapusSiswaLiveMonitor(\'' + paket.replace(/'/g, "\\'") + '\', \'' + row.kelas.replace(/'/g, "\\'") + '\', \'' + row.nama.replace(/'/g, "\\'") + '\')" onmouseover="this.style.transform=\'scale(1.2)\'" onmouseout="this.style.transform=\'scale(1)\'">✕</button>';
+
         html += '<div style="display:flex; justify-content:space-between; align-items:center; background:' + bgCard + '; border:1px solid ' + borderCard + '; padding:12px 16px; border-radius:8px;">' +
             '<div>' +
                 '<div style="font-weight:700; font-size:15px; color:#1e272e; margin-bottom:2px;">' + row.kelas + ' - ' + row.nama + '</div>' +
                 '<div style="font-size:12px; color:#485460;">' + row.status + '</div>' +
             '</div>' +
-            '<div style="font-size:14px;">' + statusRight + '</div>' +
+            '<div style="font-size:14px; display:flex; align-items:center;">' + statusRight + btnHapusSiswa + '</div>' +
         '</div>';
     });
 
     listEl.innerHTML = html;
+};
+
+// Fungsi Baru: Hapus Siswa Satuan (Mereset Status & Mengizinkan Login Ulang)
+window.hapusSiswaLiveMonitor = function(paket, kelas, nama) {
+    if(confirm('Hapus siswa "' + nama + '" dari pantauan ujian "' + paket + '"?\n\nIni akan mereset statusnya dan MENGIZINKAN siswa tersebut untuk masuk/login ulang ke dalam ujian.')) {
+        if(window.adminLiveMonitorData && window.adminLiveMonitorData[paket] && window.adminLiveMonitorData[paket][kelas]) {
+            delete window.adminLiveMonitorData[paket][kelas][nama];
+            
+            // Bersihkan sisa struktur map jika kosong
+            if (Object.keys(window.adminLiveMonitorData[paket][kelas]).length === 0) delete window.adminLiveMonitorData[paket][kelas];
+            if (Object.keys(window.adminLiveMonitorData[paket]).length === 0) delete window.adminLiveMonitorData[paket];
+        }
+        if(typeof window.hapusDataLiveMonitorDiDB === "function") {
+            window.hapusDataLiveMonitorDiDB(paket, kelas, nama);
+        }
+        window.renderIsiLiveMonitor();
+        window.perbaruiBadgeNotifMonitor();
+    }
 };
 
 window.hapusLiveMonitorData = function() {
@@ -5857,7 +5888,7 @@ window.hapusLiveMonitorData = function() {
             }
         }
         if(typeof window.hapusDataLiveMonitorDiDB === "function") {
-            window.hapusDataLiveMonitorDiDB(paket, kelas);
+            window.hapusDataLiveMonitorDiDB(paket, kelas, null); // Kirim null agar menghapus tingkat paket/kelas secara masal
         }
         window.renderIsiLiveMonitor();
         window.perbaruiBadgeNotifMonitor();
@@ -6189,31 +6220,26 @@ window.updateDropdownNamaUjian = function() {
 
 // Fungsi Deteksi Apakah Layar Bersih & Penuh (Tidak Sedang Split-Screen / Floating Window)
 window.cekKondisiLayarPenuhDanBersih = function() {
-    // 1. Cek apakah fokus diambil oleh aplikasi melayang (Floating App)
     if (!document.hasFocus() || document.hidden) {
         return { aman: false, alasan: "Terdapat aplikasi melayang (Floating App) yang aktif di atas layar." };
     }
 
-    // 2. Bandingkan ukuran layar browser dengan ukuran layar fisik perangkat
     let sw = window.screen.availWidth || window.screen.width || window.innerWidth;
     let sh = window.screen.availHeight || window.screen.height || window.innerHeight;
     let uw = window.outerWidth || window.innerWidth;
     let uh = window.outerHeight || window.innerHeight;
 
-    // Deteksi apakah orientasi layar fisik dan browser berbeda (tanda Split-Screen di HP/Tablet)
     let isMobileDevice = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
     if (isMobileDevice) {
-        // Di HP/Tablet, jika lebar atau tinggi browser kurang dari 72% layar fisik, berarti sedang Split-Screen atau Pop-up View!
+        // PERBAIKAN: Hanya cek perubahan LEBAR untuk mendeteksi Split-Screen.
+        // Abaikan perubahan TINGGI agar saat Keyboard naik/turun tidak memicu pelanggaran.
         let minDimScreen = Math.min(sw, sh);
-        let maxDimScreen = Math.max(sw, sh);
         let minDimWin = Math.min(window.innerWidth, window.innerHeight);
-        let maxDimWin = Math.max(window.innerWidth, window.innerHeight);
 
-        if (minDimWin < minDimScreen * 0.72 || maxDimWin < maxDimScreen * 0.65) {
-            return { aman: false, alasan: "Layar terdeteksi tidak penuh (sedang membuka Split-Screen atau Layar Melayang)." };
+        if (minDimWin < minDimScreen * 0.72) {
+            return { aman: false, alasan: "Layar terdeteksi terbelah (sedang membuka Split-Screen atau Layar Melayang)." };
         }
     } else {
-        // Di Laptop/PC, jendela browser harus memenuhi minimal 85% lebar dan 78% tinggi layar monitor
         if (uw < sw * 0.85 || uh < sh * 0.78 || window.innerWidth < sw * 0.80) {
             return { aman: false, alasan: "Jendela browser belum layar penuh (Maximize). Tutup aplikasi samping dan perbesar jendela browser Anda." };
         }
@@ -6251,12 +6277,18 @@ window.verifikasiMasukUjian = function() {
     }
 
     let namaPaket = ujianAktif.paket;
-    let paketData = window.adminBankUjianData[namaPaket];
-    if(!paketData) {
-        return alert("❌ Terjadi kesalahan sistem: Paket soal tidak ditemukan.");
-    }
+        
+        // PENCEGAHAN LOGIN GANDA: Cek apakah nama siswa sudah ada di Live Monitor untuk paket ini
+        if (window.adminLiveMonitorData && window.adminLiveMonitorData[namaPaket] && window.adminLiveMonitorData[namaPaket][kelas] && window.adminLiveMonitorData[namaPaket][kelas][nama]) {
+            return alert("⚠️ AKSES DITOLAK!\n\nNama Anda sudah tercatat sedang atau telah mengikuti ujian ini.\nJika ini adalah sebuah kesalahan atau Anda ter-kick dari sistem, harap hubungi Guru agar data Anda di-reset di Live Monitor.");
+        }
 
-    // CEK LAYAR BERSIH & PENUH SEBELUM MASUK UJIAN
+        let paketData = window.adminBankUjianData[namaPaket];
+        if(!paketData) {
+            return alert("❌ Terjadi kesalahan sistem: Paket soal tidak ditemukan.");
+        }
+
+        // CEK LAYAR BERSIH & PENUH SEBELUM MASUK UJIAN
     let cekLayar = window.cekKondisiLayarPenuhDanBersih();
     if (!cekLayar.aman) {
         return alert("⚠️ TIDAK DAPAT MEMULAI UJIAN!\n\n" + cekLayar.alasan + "\n\nPastikan layar Anda bersih, penuh (Full Screen), dan tidak membuka aplikasi tambahan sebelum menekan tombol Mulai Ujian.");
@@ -6380,6 +6412,9 @@ window.bukaRuangUjianStrict = function() {
     window.initUjianWidth = window.innerWidth;
     window.initUjianHeight = window.innerHeight;
     window.isStrictUjianActive = true;
+
+    // PASANG JEBAKAN RIWAYAT: Mencegah tombol Back di HP mengeluarkan siswa secara tidak sengaja
+    window.history.pushState({ inExam: true }, null, window.location.href);
 
     // Pemantau Layar Berkala (Mendeteksi Layar Melayang / Split-Screen yang Dibuka Sebelum/Saat Ujian)
     clearInterval(window.screenGuardInterval);
@@ -7006,16 +7041,16 @@ window.addEventListener("resize", function() {
     let activeTag = document.activeElement ? document.activeElement.tagName : '';
     let isTypingInput = (activeTag === 'INPUT' || activeTag === 'TEXTAREA');
 
+    // HANYA memicu pelanggaran jika LEBAR layar berubah drastis (Tanda fix Split-Screen)
     if(Math.abs(window.innerWidth - window.initUjianWidth) > 45) {
         window.initUjianWidth = window.innerWidth;
         window.triggerPelanggaran("Mengubah ukuran layar atau membuka Split-Screen");
         return;
     }
 
-    if (!isTypingInput && window.initUjianHeight && (window.initUjianHeight - window.innerHeight > window.initUjianHeight * 0.35)) {
-        window.initUjianHeight = window.innerHeight;
-        window.triggerPelanggaran("Membagi layar (Split-Screen)");
-    }
+    // PERBAIKAN: Jika tinggi layar berubah (misal karena keyboard naik), 
+    // update ukuran diam-diam tanpa memicu pelanggaran sama sekali.
+    window.initUjianHeight = window.innerHeight;
 });
 
 /* =========================================

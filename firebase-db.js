@@ -485,15 +485,20 @@ window.simpanStatusLiveMonitorKeDB = function(paket, kelas, nama, payload) {
     });
 };
 
-// Fungsi Hapus History Live Monitor di Firebase
-window.hapusDataLiveMonitorDiDB = function(paket, kelas) {
+// Fungsi Hapus History Live Monitor di Firebase (Mendukung Hapus Masal & Hapus Per-Siswa)
+window.hapusDataLiveMonitorDiDB = function(paket, kelas, nama) {
     if (sessionStorage.getItem("statusLogin") !== "admin") return;
     let targetPath = basePath + '/admin_live_monitor';
-    if (paket && kelas && kelas !== "Semua") {
-        targetPath += '/' + paket + '/' + kelas;
+    
+    // Rute Tembakan Firebase:
+    if (paket && kelas && kelas !== "Semua" && nama) {
+        targetPath += '/' + paket + '/' + kelas + '/' + nama; // Hapus spesifik 1 anak
+    } else if (paket && kelas && kelas !== "Semua") {
+        targetPath += '/' + paket + '/' + kelas; // Hapus masal 1 kelas
     } else if (paket) {
-        targetPath += '/' + paket;
+        targetPath += '/' + paket; // Hapus masal 1 angkatan paket ujian
     }
+    
     remove(ref(db, targetPath)).then(function() {
         if(typeof window.showSaveToast === "function") window.showSaveToast();
     }).catch(function(err) {
