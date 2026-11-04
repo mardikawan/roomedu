@@ -2454,11 +2454,32 @@ document.addEventListener('paste', function(e) {
 /* =========================================
    PENCEGAHAN KECURANGAN (STRICT MODE)
    ========================================= */
-document.addEventListener('contextmenu', e => { if(window.isStrictUjianActive) e.preventDefault(); });
-document.addEventListener('copy', e => { if(window.isStrictUjianActive) { e.preventDefault(); alert("⚠️ Dilarang menyalin soal ujian!"); } });
-document.addEventListener('cut', e => { if(window.isStrictUjianActive) e.preventDefault(); });
-document.addEventListener('paste', e => { if(window.isStrictUjianActive) e.preventDefault(); });
-document.addEventListener('selectstart', e => { if(window.isStrictUjianActive) e.preventDefault(); });
+document.addEventListener('contextmenu', e => { 
+    if(window.isStrictUjianActive && sessionStorage.getItem("statusLogin") !== "admin") e.preventDefault(); 
+});
+document.addEventListener('copy', e => { 
+    if(window.isStrictUjianActive && sessionStorage.getItem("statusLogin") !== "admin") { 
+        e.preventDefault(); 
+        window.alertAmanUjian("⚠️ Dilarang menyalin (copy) soal ujian!"); 
+    } 
+});
+document.addEventListener('cut', e => { 
+    if(window.isStrictUjianActive && sessionStorage.getItem("statusLogin") !== "admin") e.preventDefault(); 
+});
+document.addEventListener('paste', e => { 
+    if(window.isStrictUjianActive && sessionStorage.getItem("statusLogin") !== "admin") {
+        e.preventDefault();
+        window.alertAmanUjian("⚠️ Dilarang menempel (paste) contekan dari luar!"); 
+    }
+});
+document.addEventListener('selectstart', e => { 
+    // Izinkan siswa mem-blok teks HANYA di dalam kolom input agar mereka bisa mengedit jawaban isian mereka sendiri
+    let activeTag = e.target ? e.target.tagName : '';
+    let isInput = (activeTag === 'INPUT' || activeTag === 'TEXTAREA');
+    if(window.isStrictUjianActive && sessionStorage.getItem("statusLogin") !== "admin" && !isInput) {
+        e.preventDefault(); 
+    }
+});
 
 /* =========================================
    KONTROL GAMBAR DALAM BLOK (IMAGE SETTINGS)
@@ -6220,8 +6241,10 @@ window.updateDropdownNamaUjian = function() {
 
 // Fungsi Deteksi Apakah Layar Bersih & Penuh (Tidak Sedang Split-Screen / Floating Window)
 window.cekKondisiLayarPenuhDanBersih = function() {
-    if (!document.hasFocus() || document.hidden) {
-        return { aman: false, alasan: "Terdapat aplikasi melayang (Floating App) yang aktif di atas layar." };
+    // PERBAIKAN: Hapus pengecekan !document.hasFocus() dari sini agar tidak bentrok 
+    // dengan animasi turunnya keyboard iOS. Kehilangan fokus akan ditangani oleh event 'blur' di bawah.
+    if (document.hidden) {
+        return { aman: false, alasan: "Aplikasi berjalan di latar belakang (Background)." };
     }
 
     let sw = window.screen.availWidth || window.screen.width || window.innerWidth;
@@ -6999,11 +7022,14 @@ document.addEventListener("visibilitychange", function() {
 window.addEventListener("blur", function() {
     if (!window.isStrictUjianActive || window.sedangDialogSistem) return;
     clearTimeout(window.blurCheckTimer);
+    
+    // PERBAIKAN: Perpanjang delay menjadi 1500ms agar saat siswa menekan tombol "Turunkan Keyboard",
+    // sistem memberikan waktu bagi OS untuk menutup keyboard dan mengembalikan fokus tanpa memicu pelanggaran.
     window.blurCheckTimer = setTimeout(function() {
         if (window.isStrictUjianActive && !window.sedangDialogSistem && (!document.hasFocus() || document.hidden)) {
             window.triggerPelanggaran("Membuka aplikasi pihak ketiga atau layar melayang");
         }
-    }, 350);
+    }, 1500);
 });
 
 window.addEventListener("focus", function() {
