@@ -3927,7 +3927,7 @@ window.renderLedgerSiswa = function() {
     let kls = window.kelasAktifAdmin;
     if (!kls) {
         label.innerHTML = '<span style="color:#e74c3c;">Belum Dipilih</span>';
-        tbody.innerHTML = '<tr><td colspan="6" style="padding:20px; color:#7f8c8d; font-weight:bold;">Pilih kelas di sebelah kiri terlebih dahulu.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="padding:20px; color:#7f8c8d; font-weight:bold;">Pilih kelas di sebelah kiri terlebih dahulu.</td></tr>';
         return;
     }
 
@@ -3936,7 +3936,7 @@ window.renderLedgerSiswa = function() {
     let siswaArr = (window.adminData[kls] || []).slice().sort();
 
     if (siswaArr.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="padding:20px; color:#e67e22; font-weight:bold;">Kelas ini belum memiliki daftar siswa.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="padding:20px; color:#e67e22; font-weight:bold;">Kelas ini belum memiliki daftar siswa.</td></tr>';
         return;
     }
 
@@ -3951,34 +3951,63 @@ window.renderLedgerSiswa = function() {
         statArr.forEach(s => {
             if(s==='H') cH++; else if(s==='S') cS++; else if(s==='I') cI++; else if(s==='A') cA++;
         });
-        let strKehadiran = `<span style="color:#27ae60;">${cH}</span> / <span style="color:#f39c12;">${cS}</span> / <span style="color:#2980b9;">${cI}</span> / <span style="color:#c0392b;">${cA}</span>`;
+        
+        let cellH = `<td style="font-weight:bold; color:#27ae60;">${cH}</td>`;
+        let cellS = `<td style="font-weight:bold; color:#f39c12;">${cS}</td>`;
+        let cellI = `<td style="font-weight:bold; color:#2980b9;">${cI}</td>`;
+        let cellA = `<td style="font-weight:bold; color:#c0392b;">${cA}</td>`;
 
-        // Tarik Data Nilai Akhir
-        let totalNilai = 0;
-        let jumlahUjian = 0;
+        // Tarik Data Nilai Proporsional (PH 35%, Kuis 25%, SAS 40%)
+        let totalPH = 0, countPH = 0;
+        let totalKuis = 0, countKuis = 0;
+        let totalSAS = 0, countSAS = 0;
+
         Object.keys(rekapData).forEach(paket => {
             if (rekapData[paket][nama]) {
-                totalNilai += rekapData[paket][nama].nilaiAkhir || 0;
-                jumlahUjian++;
+                let nAktual = rekapData[paket][nama].nilaiAkhir || 0;
+                let namaPktLow = paket.toLowerCase();
+                
+                // Deteksi Otomatis Kategori Ujian
+                if (namaPktLow.includes('sas') || namaPktLow.includes('pas') || namaPktLow.includes('pat') || namaPktLow.includes('ujian semester')) {
+                    totalSAS += nAktual; countSAS++;
+                } else if (namaPktLow.includes('kuis') || namaPktLow.includes('quiz')) {
+                    totalKuis += nAktual; countKuis++;
+                } else {
+                    // Default dianggap sebagai PH (Penilaian Harian) atau tugas biasa
+                    totalPH += nAktual; countPH++;
+                }
             }
         });
         
-        let rataRata = jumlahUjian > 0 ? (totalNilai / jumlahUjian).toFixed(1) : 0;
-        let isDiBawahKKM = rataRata < kkm;
+        let rataPH = countPH > 0 ? (totalPH / countPH) : 0;
+        let rataKuis = countKuis > 0 ? (totalKuis / countKuis) : 0;
+        let rataSAS = countSAS > 0 ? (totalSAS / countSAS) : 0;
         
+        // Pembagian bobot: PH (35%) + Kuis (25%) + SAS (40%)
+        // Jika salah satu kategori ujian belum ada (0), proporsinya akan disesuaikan otomatis agar tidak merugikan siswa
+        let bobotTotal = 0;
+        if (countPH > 0) bobotTotal += 35;
+        if (countKuis > 0) bobotTotal += 25;
+        if (countSAS > 0) bobotTotal += 40;
+        
+        let nilaiAkhirProporsional = 0;
+        if (bobotTotal > 0) {
+            let akumulasiHitung = (rataPH * 35) + (rataKuis * 25) + (rataSAS * 40);
+            nilaiAkhirProporsional = (akumulasiHitung / bobotTotal); // Skala dinamis
+        }
+        
+        let isDiBawahKKM = nilaiAkhirProporsional > 0 && nilaiAkhirProporsional < kkm;
         let warnaNilai = isDiBawahKKM ? '#c0392b' : '#16a085';
-        let statusKKM = isDiBawahKKM ? `<span style="background:#fadbd8; color:#c0392b; padding:4px 8px; border-radius:4px; font-size:11px; font-weight:bold;">Di Bawah KKM (< ${kkm})</span>` : `<span style="background:#d5f5e3; color:#27ae60; padding:4px 8px; border-radius:4px; font-size:11px; font-weight:bold;">Tuntas (≥ ${kkm})</span>`;
-
+        
         let safeKlsAttr = kls.replace(/'/g, "\\'");
         let safeNamaAttr = nama.replace(/'/g, "\\'");
 
         html += `
-        <tr style="border-bottom:1px solid #eee;">
+        <tr style="border-bottom:1px solid #eee; background:${isDiBawahKKM ? '#fdf2f2' : '#ffffff'}">
             <td style="color:#7f8c8d; font-weight:bold;">${idx+1}</td>
             <td style="text-align:left; font-weight:bold; color:#2c3e50;">${nama}</td>
-            <td style="font-weight:bold; font-size:12px;">${strKehadiran}</td>
-            <td style="font-size:18px; font-weight:900; color:${warnaNilai};">${rataRata}</td>
-            <td>${statusKKM}</td>
+            ${cellH} ${cellS} ${cellI} ${cellA}
+            <td style="font-size:18px; font-weight:900; color:${warnaNilai};" title="PH (35%), Kuis (25%), SAS (40%)">${nilaiAkhirProporsional.toFixed(1)}</td>
             <td>
                 <button style="background:#f1c40f; color:#2c3e50; border:none; padding:5px 10px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.1);" onclick="window.catatanSiswaBuka('${safeKlsAttr}', '${safeNamaAttr}')">📝 Catatan</button>
             </td>
@@ -3997,21 +4026,47 @@ window.exportExcelLedgerSiswa = function() {
     let rekapData = window.adminRekapNilaiData[kls] || {};
     let kkm = window.dapatkanKKMKelas(kls);
 
-    let csv = "No,Nama Siswa,Hadir (H),Sakit (S),Izin (I),Alfa (A),Rata-rata Nilai,Status KKM\n";
+    let csv = "No,Nama Siswa,Hadir (H),Sakit (S),Izin (I),Alfa (A),Rata-rata PH (35%),Rata-rata Kuis (25%),Rata-rata SAS (40%),Nilai Akhir\n";
 
     siswaArr.forEach((nama, idx) => {
         let statArr = absData.status[nama] || [];
         let cH = 0, cS = 0, cI = 0, cA = 0;
         statArr.forEach(s => { if(s==='H') cH++; else if(s==='S') cS++; else if(s==='I') cI++; else if(s==='A') cA++; });
 
-        let totalNilai = 0, jumlahUjian = 0;
-        Object.keys(rekapData).forEach(paket => {
-            if (rekapData[paket][nama]) { totalNilai += rekapData[paket][nama].nilaiAkhir || 0; jumlahUjian++; }
-        });
-        let rataRata = jumlahUjian > 0 ? (totalNilai / jumlahUjian).toFixed(1) : 0;
-        let status = rataRata < kkm ? "Di Bawah KKM" : "Tuntas";
+        let totalPH = 0, countPH = 0;
+        let totalKuis = 0, countKuis = 0;
+        let totalSAS = 0, countSAS = 0;
 
-        csv += `${idx+1},"${nama}",${cH},${cS},${cI},${cA},${rataRata},${status}\n`;
+        Object.keys(rekapData).forEach(paket => {
+            if (rekapData[paket][nama]) {
+                let nAktual = rekapData[paket][nama].nilaiAkhir || 0;
+                let namaPktLow = paket.toLowerCase();
+                
+                if (namaPktLow.includes('sas') || namaPktLow.includes('pas') || namaPktLow.includes('pat') || namaPktLow.includes('ujian semester')) {
+                    totalSAS += nAktual; countSAS++;
+                } else if (namaPktLow.includes('kuis') || namaPktLow.includes('quiz')) {
+                    totalKuis += nAktual; countKuis++;
+                } else {
+                    totalPH += nAktual; countPH++;
+                }
+            }
+        });
+        
+        let rataPH = countPH > 0 ? (totalPH / countPH) : 0;
+        let rataKuis = countKuis > 0 ? (totalKuis / countKuis) : 0;
+        let rataSAS = countSAS > 0 ? (totalSAS / countSAS) : 0;
+        
+        let bobotTotal = 0;
+        if (countPH > 0) bobotTotal += 35;
+        if (countKuis > 0) bobotTotal += 25;
+        if (countSAS > 0) bobotTotal += 40;
+        
+        let nilaiAkhirProporsional = 0;
+        if (bobotTotal > 0) {
+            nilaiAkhirProporsional = ((rataPH * 35) + (rataKuis * 25) + (rataSAS * 40)) / bobotTotal;
+        }
+
+        csv += `${idx+1},"${nama}",${cH},${cS},${cI},${cA},${rataPH.toFixed(1)},${rataKuis.toFixed(1)},${rataSAS.toFixed(1)},${nilaiAkhirProporsional.toFixed(1)}\n`;
     });
 
     let blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -6241,32 +6296,27 @@ window.updateDropdownNamaUjian = function() {
 
 // Fungsi Deteksi Apakah Layar Bersih & Penuh (Tidak Sedang Split-Screen / Floating Window)
 window.cekKondisiLayarPenuhDanBersih = function() {
-    // PERBAIKAN: Hapus pengecekan !document.hasFocus() dari sini agar tidak bentrok 
-    // dengan animasi turunnya keyboard iOS. Kehilangan fokus akan ditangani oleh event 'blur' di bawah.
     if (document.hidden) {
-        return { aman: false, alasan: "Aplikasi berjalan di latar belakang (Background)." };
+        return { aman: false, alasan: "Aplikasi berjalan di latar belakang (Keluar Aplikasi / Minimize)." };
     }
-
-    let sw = window.screen.availWidth || window.screen.width || window.innerWidth;
-    let sh = window.screen.availHeight || window.screen.height || window.innerHeight;
-    let uw = window.outerWidth || window.innerWidth;
-    let uh = window.outerHeight || window.innerHeight;
 
     let isMobileDevice = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-    if (isMobileDevice) {
-        // PERBAIKAN: Hanya cek perubahan LEBAR untuk mendeteksi Split-Screen.
-        // Abaikan perubahan TINGGI agar saat Keyboard naik/turun tidak memicu pelanggaran.
-        let minDimScreen = Math.min(sw, sh);
-        let minDimWin = Math.min(window.innerWidth, window.innerHeight);
-
-        if (minDimWin < minDimScreen * 0.72) {
-            return { aman: false, alasan: "Layar terdeteksi terbelah (sedang membuka Split-Screen atau Layar Melayang)." };
-        }
-    } else {
-        if (uw < sw * 0.85 || uh < sh * 0.78 || window.innerWidth < sw * 0.80) {
-            return { aman: false, alasan: "Jendela browser belum layar penuh (Maximize). Tutup aplikasi samping dan perbesar jendela browser Anda." };
+    
+    if (!isMobileDevice) {
+        // DI LAPTOP/PC: Gunakan outerWidth. 
+        // outerWidth menghitung ukuran fisik bingkai peramban, sehingga KEBAL terhadap Zoom In/Zoom Out (Ctrl +/-).
+        let sw = window.screen.availWidth || window.screen.width;
+        let uw = window.outerWidth;
+        
+        // Jika bingkai peramban kurang dari 75% layar fisik monitor, itu indikasi kuat Split-Screen
+        if (uw > 0 && uw < sw * 0.75) {
+            return { aman: false, alasan: "Jendela browser tidak layar penuh (Split-Screen). Maksimalkan jendela Anda." };
         }
     }
+    
+    // DI HP/TABLET: Kita TIDAK mengecek resolusi layar sama sekali!
+    // Keyboard, rotasi, dan zoom in/out di Safari/Chrome iOS akan selalu mengacaukan innerWidth.
+    // Pelanggaran di HP/Tablet sepenuhnya kita bebankan pada sensor 'Keluar Aplikasi' (VisibilityChange).
 
     return { aman: true, alasan: "" };
 };
@@ -7019,22 +7069,9 @@ document.addEventListener("visibilitychange", function() {
     }
 });
 
-window.addEventListener("blur", function() {
-    if (!window.isStrictUjianActive || window.sedangDialogSistem) return;
-    clearTimeout(window.blurCheckTimer);
-    
-    // PERBAIKAN: Perpanjang delay menjadi 1500ms agar saat siswa menekan tombol "Turunkan Keyboard",
-    // sistem memberikan waktu bagi OS untuk menutup keyboard dan mengembalikan fokus tanpa memicu pelanggaran.
-    window.blurCheckTimer = setTimeout(function() {
-        if (window.isStrictUjianActive && !window.sedangDialogSistem && (!document.hasFocus() || document.hidden)) {
-            window.triggerPelanggaran("Membuka aplikasi pihak ketiga atau layar melayang");
-        }
-    }, 1500);
-});
-
-window.addEventListener("focus", function() {
-    clearTimeout(window.blurCheckTimer);
-});
+// SENSOR BLUR DAN FOCUS DIHAPUS SEPENUHNYA!
+// iOS (iPhone/iPad) mencabut fokus layar tiap kali tombol "Turunkan Keyboard" ditekan.
+// Pengecekan kecurangan (pindah tab/minimize) kini murni mengandalkan sensor "visibilitychange" di bawah.
 
 window.addEventListener("orientationchange", function() {
     window.graceOrientationTime = Date.now() + 1200;
@@ -7048,34 +7085,18 @@ window.addEventListener("orientationchange", function() {
 window.addEventListener("resize", function() {
     if(!window.isStrictUjianActive || window.sedangDialogSistem) return;
     
-    if (Date.now() < window.graceOrientationTime) {
-        window.lastOrientation = window.innerWidth > window.innerHeight ? 'landscape' : 'portrait';
-        window.initUjianWidth = window.innerWidth;
-        window.initUjianHeight = window.innerHeight;
-        return;
-    }
-
+    // HAPUS SEMUA PELANGGARAN TERKAIT RESIZE (REKAM DIAM-DIAM SAJA)!
+    // Fitur "Zoom In / Zoom Out" di browser mengubah innerWidth.
+    // Membuka/Tutup Keyboard di Android/iOS mengubah innerHeight.
+    // Jika kita jatuhkan hukuman di sini, sistem akan penuh false-positive.
+    
     let currentOrientation = window.innerWidth > window.innerHeight ? 'landscape' : 'portrait';
     if(currentOrientation !== window.lastOrientation) {
         window.graceOrientationTime = Date.now() + 1000;
         window.lastOrientation = currentOrientation; 
-        window.initUjianWidth = window.innerWidth;
-        window.initUjianHeight = window.innerHeight;
-        return; 
     }
     
-    let activeTag = document.activeElement ? document.activeElement.tagName : '';
-    let isTypingInput = (activeTag === 'INPUT' || activeTag === 'TEXTAREA');
-
-    // HANYA memicu pelanggaran jika LEBAR layar berubah drastis (Tanda fix Split-Screen)
-    if(Math.abs(window.innerWidth - window.initUjianWidth) > 45) {
-        window.initUjianWidth = window.innerWidth;
-        window.triggerPelanggaran("Mengubah ukuran layar atau membuka Split-Screen");
-        return;
-    }
-
-    // PERBAIKAN: Jika tinggi layar berubah (misal karena keyboard naik), 
-    // update ukuran diam-diam tanpa memicu pelanggaran sama sekali.
+    window.initUjianWidth = window.innerWidth;
     window.initUjianHeight = window.innerHeight;
 });
 

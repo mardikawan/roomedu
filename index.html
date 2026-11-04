@@ -6,7 +6,7 @@
     <title>Sistem Belajar Mahardika</title>
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Fredoka:wght@400;500;600&family=Quicksand:wght@400;600;700&family=Lora:ital,wght@0,400;0,700;1,400&family=Merriweather:wght@400;700&family=Montserrat:wght@400;600;700&family=Open+Sans:wght@400;600&family=Oswald:wght@400;500&family=Playfair+Display:wght@400;700&family=Poppins:wght@400;600&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
     
-    <link rel="stylesheet" href="./style.css">
+    <link rel="stylesheet" href="css/style.css">
     <style id="dynamic-theme-styles"></style>
     
     <!-- ENGINE MATHJAX UNTUK LATEX RENDERING -->
@@ -803,16 +803,21 @@
                             <table class="excel-table" style="min-width:100%; text-align:center;">
                                 <thead>
                                     <tr>
-                                        <th style="width:40px; background:#2c3e50;">No</th>
-                                        <th style="text-align:left; background:#2c3e50; min-width:180px;">Nama Siswa</th>
-                                        <th style="background:#2c3e50;">Kehadiran (H/S/I/A)</th>
-                                        <th style="background:#2c3e50;">Rata-rata Nilai</th>
-                                        <th style="background:#2c3e50; width:100px;">Status KKM</th>
-                                        <th style="background:#2c3e50; width:90px;">Aksi</th>
+                                        <th rowspan="2" style="width:40px; background:#2c3e50;">No</th>
+                                        <th rowspan="2" style="text-align:left; background:#2c3e50; min-width:180px;">Nama Siswa</th>
+                                        <th colspan="4" style="background:#2c3e50;">Kehadiran</th>
+                                        <th rowspan="2" style="background:#2c3e50;">Nilai Akhir (Proporsional)</th>
+                                        <th rowspan="2" style="background:#2c3e50; width:90px;">Aksi</th>
+                                    </tr>
+                                    <tr>
+                                        <th style="background:#27ae60; width:45px; min-width:45px;">H</th>
+                                        <th style="background:#f39c12; width:45px; min-width:45px;">S</th>
+                                        <th style="background:#2980b9; width:45px; min-width:45px;">I</th>
+                                        <th style="background:#c0392b; width:45px; min-width:45px;">A</th>
                                     </tr>
                                 </thead>
                                 <tbody id="body-ledger-siswa">
-                                    <tr><td colspan="6" style="padding:20px; color:#7f8c8d; font-weight:bold;">Pilih kelas di header atas terlebih dahulu.</td></tr>
+                                    <tr><td colspan="8" style="padding:20px; color:#7f8c8d; font-weight:bold;">Pilih kelas di header atas terlebih dahulu.</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -1100,7 +1105,7 @@
     </div>
 
     <!-- SCRIPT REFERENCES -->
-    <script src="./main.js"></script>
-    <script type="module" src="./firebase-db.js"></script>
+    <script src="js/main.js"></script>
+    <script type="module" src="js/firebase-db.js"></script>
 </body>
 </html>
