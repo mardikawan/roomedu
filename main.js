@@ -7069,9 +7069,32 @@ document.addEventListener("visibilitychange", function() {
     }
 });
 
-// SENSOR BLUR DAN FOCUS DIHAPUS SEPENUHNYA!
-// iOS (iPhone/iPad) mencabut fokus layar tiap kali tombol "Turunkan Keyboard" ditekan.
-// Pengecekan kecurangan (pindah tab/minimize) kini murni mengandalkan sensor "visibilitychange" di bawah.
+// SENSOR BLUR CERDAS (Mendeteksi Floating App tanpa terganggu Animasi Keyboard)
+window.addEventListener("blur", function() {
+    if (!window.isStrictUjianActive || window.sedangDialogSistem) return;
+    clearTimeout(window.blurCheckTimer);
+    
+    // Cek apakah kursor siswa sedang berada di dalam kolom input (Isian/Essay)
+    let activeTag = document.activeElement ? document.activeElement.tagName : '';
+    let isTyping = (activeTag === 'INPUT' || activeTag === 'TEXTAREA');
+
+    // Jika siswa kehilangan fokus saat sedang mengetik, kemungkinan besar itu animasi 
+    // keyboard turun atau menekan 'Done'. Beri waktu 2 detik agar browser kembali fokus.
+    // Jika tidak sedang mengetik, toleransi lebih cepat (1 detik) untuk menyergap Floating App!
+    let toleransiDelay = isTyping ? 2000 : 1000;
+
+    window.blurCheckTimer = setTimeout(function() {
+        // Setelah waktu toleransi habis, jika browser MASIH belum punya fokus, 
+        // PASTI ada aplikasi melayang (Floating UI/AI) yang merebut layar!
+        if (window.isStrictUjianActive && !window.sedangDialogSistem && !document.hasFocus()) {
+            window.triggerPelanggaran("Fokus layar direbut oleh Aplikasi Melayang (Floating App/Overlay)!");
+        }
+    }, toleransiDelay);
+});
+
+window.addEventListener("focus", function() {
+    clearTimeout(window.blurCheckTimer);
+});
 
 window.addEventListener("orientationchange", function() {
     window.graceOrientationTime = Date.now() + 1200;
