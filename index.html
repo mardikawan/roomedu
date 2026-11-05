@@ -6,7 +6,7 @@
     <title>Sistem Belajar Mahardika</title>
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Fredoka:wght@400;500;600&family=Quicksand:wght@400;600;700&family=Lora:ital,wght@0,400;0,700;1,400&family=Merriweather:wght@400;700&family=Montserrat:wght@400;600;700&family=Open+Sans:wght@400;600&family=Oswald:wght@400;500&family=Playfair+Display:wght@400;700&family=Poppins:wght@400;600&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
     
-    <link rel="stylesheet" href="./style.css">
+    <link rel="stylesheet" href="css/style.css">
     <style id="dynamic-theme-styles"></style>
     
     <!-- ENGINE MATHJAX UNTUK LATEX RENDERING -->
@@ -510,40 +510,50 @@
                     <!-- Checkbox Bab akan dirender di sini -->
                 </div>
 
-                <label style="font-weight:bold; font-size:12px; margin-top:5px;">Centang Kesulitan & Atur Proporsi (%):</label>
-                <div style="display:flex; gap:15px; background:#f8f9fa; border:1px solid #ddd; padding:10px; border-radius:6px;">
-                    <label style="display:flex; align-items:center; gap:5px; font-size:13px; font-weight:bold;">
-                        <input type="checkbox" id="chk-ambil-c1" value="C1" onchange="window.toggleAmbilSoalKesulitan()"> C1
-                        <input type="number" id="pct-ambil-c1" class="input-box" style="width:55px; height:25px; margin:0; padding:2px; text-align:center;" disabled oninput="window.kalkulasiPersentaseAmbilSoal('C1')">%
-                    </label>
-                    <label style="display:flex; align-items:center; gap:5px; font-size:13px; font-weight:bold;">
-                        <input type="checkbox" id="chk-ambil-c2" value="C2" onchange="window.toggleAmbilSoalKesulitan()"> C2
-                        <input type="number" id="pct-ambil-c2" class="input-box" style="width:55px; height:25px; margin:0; padding:2px; text-align:center;" disabled oninput="window.kalkulasiPersentaseAmbilSoal('C2')">%
-                    </label>
-                    <label style="display:flex; align-items:center; gap:5px; font-size:13px; font-weight:bold;">
-                        <input type="checkbox" id="chk-ambil-hots" value="HOTS" onchange="window.toggleAmbilSoalKesulitan()"> HOTS
-                        <input type="number" id="pct-ambil-hots" class="input-box" style="width:55px; height:25px; margin:0; padding:2px; text-align:center;" disabled oninput="window.kalkulasiPersentaseAmbilSoal('HOTS')">%
-                    </label>
+                <label style="font-weight:bold; font-size:12px; margin-top:5px;">Atur Jumlah Tarik Soal (Isi 0 jika tidak ditarik):</label>
+                <div style="background:#f8f9fa; border:1px solid #ddd; padding:10px; border-radius:6px; margin-bottom:10px; overflow-x:auto;">
+                    <table style="width:100%; text-align:center; border-collapse:collapse; font-size:12px;">
+                        <thead>
+                            <tr style="background:#e9ecef;">
+                                <th style="padding:6px; border:1px solid #ccc;">Tipe</th>
+                                <th style="padding:6px; border:1px solid #ccc; color:#27ae60;">C1</th>
+                                <th style="padding:6px; border:1px solid #ccc; color:#f39c12;">C2</th>
+                                <th style="padding:6px; border:1px solid #ccc; color:#c0392b;">HOTS</th>
+                                <th style="padding:6px; border:1px solid #ccc; background:#d4edda;">Stok Tersedia di Bank</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="padding:6px; border:1px solid #ccc; font-weight:bold;">PG</td>
+                                <td style="padding:6px; border:1px solid #ccc;"><input type="number" id="tarik-pg-c1" min="0" value="0" class="input-box" style="width:45px; margin:0; padding:4px; text-align:center;"></td>
+                                <td style="padding:6px; border:1px solid #ccc;"><input type="number" id="tarik-pg-c2" min="0" value="0" class="input-box" style="width:45px; margin:0; padding:4px; text-align:center;"></td>
+                                <td style="padding:6px; border:1px solid #ccc;"><input type="number" id="tarik-pg-hots" min="0" value="0" class="input-box" style="width:45px; margin:0; padding:4px; text-align:center;"></td>
+                                <td style="padding:6px; border:1px solid #ccc; font-size:11px;" id="stok-pg">0 C1 | 0 C2 | 0 HOTS</td>
+                            </tr>
+                            <tr>
+                                <td style="padding:6px; border:1px solid #ccc; font-weight:bold;">PGK</td>
+                                <td style="padding:6px; border:1px solid #ccc;"><input type="number" id="tarik-pgk-c1" min="0" value="0" class="input-box" style="width:45px; margin:0; padding:4px; text-align:center;"></td>
+                                <td style="padding:6px; border:1px solid #ccc;"><input type="number" id="tarik-pgk-c2" min="0" value="0" class="input-box" style="width:45px; margin:0; padding:4px; text-align:center;"></td>
+                                <td style="padding:6px; border:1px solid #ccc;"><input type="number" id="tarik-pgk-hots" min="0" value="0" class="input-box" style="width:45px; margin:0; padding:4px; text-align:center;"></td>
+                                <td style="padding:6px; border:1px solid #ccc; font-size:11px;" id="stok-pgk">0 C1 | 0 C2 | 0 HOTS</td>
+                            </tr>
+                            <tr>
+                                <td style="padding:6px; border:1px solid #ccc; font-weight:bold;">Isian</td>
+                                <td style="padding:6px; border:1px solid #ccc;"><input type="number" id="tarik-is-c1" min="0" value="0" class="input-box" style="width:45px; margin:0; padding:4px; text-align:center;"></td>
+                                <td style="padding:6px; border:1px solid #ccc;"><input type="number" id="tarik-is-c2" min="0" value="0" class="input-box" style="width:45px; margin:0; padding:4px; text-align:center;"></td>
+                                <td style="padding:6px; border:1px solid #ccc;"><input type="number" id="tarik-is-hots" min="0" value="0" class="input-box" style="width:45px; margin:0; padding:4px; text-align:center;"></td>
+                                <td style="padding:6px; border:1px solid #ccc; font-size:11px;" id="stok-is">0 C1 | 0 C2 | 0 HOTS</td>
+                            </tr>
+                            <tr>
+                                <td style="padding:6px; border:1px solid #ccc; font-weight:bold;">Essay</td>
+                                <td style="padding:6px; border:1px solid #ccc;"><input type="number" id="tarik-es-c1" min="0" value="0" class="input-box" style="width:45px; margin:0; padding:4px; text-align:center;"></td>
+                                <td style="padding:6px; border:1px solid #ccc;"><input type="number" id="tarik-es-c2" min="0" value="0" class="input-box" style="width:45px; margin:0; padding:4px; text-align:center;"></td>
+                                <td style="padding:6px; border:1px solid #ccc;"><input type="number" id="tarik-es-hots" min="0" value="0" class="input-box" style="width:45px; margin:0; padding:4px; text-align:center;"></td>
+                                <td style="padding:6px; border:1px solid #ccc; font-size:11px;" id="stok-es">0 C1 | 0 C2 | 0 HOTS</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
-
-                <label style="font-weight:bold; font-size:12px; margin-top:5px;">Centang Tipe Soal (Bisa lebih dari 1):</label>
-                <div style="display:flex; gap:15px; background:#f8f9fa; border:1px solid #ddd; padding:10px; border-radius:6px; margin-bottom:5px;">
-                    <label style="display:flex; align-items:center; gap:5px; font-size:13px; font-weight:bold; cursor:pointer;">
-                        <input type="checkbox" class="chk-ambil-tipe" value="PG" checked style="accent-color:#8e44ad;"> PG
-                    </label>
-                    <label style="display:flex; align-items:center; gap:5px; font-size:13px; font-weight:bold; cursor:pointer;">
-                        <input type="checkbox" class="chk-ambil-tipe" value="PGK" checked style="accent-color:#8e44ad;"> PGK
-                    </label>
-                    <label style="display:flex; align-items:center; gap:5px; font-size:13px; font-weight:bold; cursor:pointer;">
-                        <input type="checkbox" class="chk-ambil-tipe" value="IS" checked style="accent-color:#8e44ad;"> IS
-                    </label>
-                    <label style="display:flex; align-items:center; gap:5px; font-size:13px; font-weight:bold; cursor:pointer;">
-                        <input type="checkbox" class="chk-ambil-tipe" value="Essay" checked style="accent-color:#8e44ad;"> Essay
-                    </label>
-                </div>
-
-                <label style="font-weight:bold; font-size:12px; margin-top:5px;">Total Soal yang Diambil (Jika Stok Tersedia):</label>
-                <input type="number" id="ambil-soal-jumlah" class="input-box" value="20" min="1" max="200" style="width:100%; margin-bottom:10px; font-weight:bold;">
 
                 <button class="btn-action" style="background:#8e44ad;" onclick="window.eksekusiTarikSoalKeUjian()">Tarik Soal ke Editor 🚀</button>
             </div>
@@ -997,23 +1007,23 @@
         </div>
     </div>
 
-    <!-- MODAL GENERATOR KISI-KISI SOAL OLEH AI -->
+    <!-- MODAL GENERATOR KISI-KISI SOAL MESIN CERDAS LOKAL -->
     <div id="modal-kisi-kisi" class="modal-overlay" onclick="if(event.target===this)tutupModal('modal-kisi-kisi')">
         <div class="modal-box" style="width: 550px;">
             <div class="modal-header" style="background:#fef5e7;">
-                <h3 style="color:#d35400; margin:0;">📋 Generator Kisi-Kisi (AI)</h3>
+                <h3 style="color:#d35400; margin:0;">📋 Generator Kisi-Kisi (Otomatis)</h3>
                 <button class="close-btn" onclick="tutupModal('modal-kisi-kisi')">✕</button>
             </div>
             <div class="modal-body" style="display:flex; flex-direction:column; gap:12px; padding:20px;">
-                <p style="font-size:12px; color:#7f8c8d; margin-top:0;">Pastikan soal di Manajer Ujian sudah diisi dan disimpan. AI akan merumuskan indikator dan level kognitif secara otomatis.</p>
+                <p style="font-size:12px; color:#7f8c8d; margin-top:0;">Isian di bawah akan otomatis tersimpan di memori browser Anda.</p>
                 
                 <div style="display:flex; gap:10px;">
                     <div style="flex:1;">
                         <label style="font-weight:bold; font-size:12px;">Jenis Ujian:</label>
                         <select id="kisi-jenis-ujian" class="input-box" onchange="window.simpanPreferensiKisiKisi()">
-                            <option value="Sumatif Akhir Semester (SAS)">Sumatif Akhir Semester (SAS)</option>
-                            <option value="Sumatif Tengah Semester (STS)">Sumatif Tengah Semester (STS)</option>
-                            <option value="Ujian Akhir Sekolah (UAS)">Ujian Akhir Sekolah (UAS)</option>
+                            <option value="SUMATIF AKHIR SEMESTER (SAS)">Sumatif Akhir Semester (SAS)</option>
+                            <option value="SUMATIF TENGAH SEMESTER (STS)">Sumatif Tengah Semester (STS)</option>
+                            <option value="UJIAN AKHIR SEKOLAH (UAS)">Ujian Akhir Sekolah (UAS)</option>
                         </select>
                     </div>
                     <div style="flex:1;">
@@ -1038,11 +1048,11 @@
                 </div>
 
                 <div>
-                    <label style="font-weight:bold; font-size:12px;">Capaian Pembelajaran (CP) - Bisa disalin dari Kurikulum Merdeka:</label>
-                    <textarea id="kisi-cp" class="input-box" rows="4" placeholder="Misal: Peserta didik mampu menerapkan konsep besaran, satuan, dan dimensi..." oninput="window.simpanPreferensiKisiKisi()"></textarea>
+                    <label style="font-weight:bold; font-size:12px;">Capaian Pembelajaran (CP):</label>
+                    <textarea id="kisi-cp" class="input-box" rows="4" placeholder="Misal: Peserta didik mampu menerapkan konsep besaran..." oninput="window.simpanPreferensiKisiKisi()"></textarea>
                 </div>
 
-                <button class="btn-action" id="btn-generate-kisi" style="background:#e67e22;" onclick="window.mulaiGenerateKisiKisi()">✨ Buat Kisi-kisi Soal (AI) 🚀</button>
+                <button class="btn-action" id="btn-generate-kisi" style="background:#e67e22;" onclick="window.mulaiGenerateKisiKisi()">✨ Buat Kisi-kisi Soal (Cetak) 🖨️</button>
             </div>
         </div>
     </div>
@@ -1094,14 +1104,10 @@
                     <option value="Verdana, sans-serif">Verdana</option>
                     <option value="Tahoma, sans-serif">Tahoma</option>
                 </select>
-                <select onchange="aturUkuranFont(this.value);this.selectedIndex=0;" style="width:55px;">
-                    <option value="" disabled selected>Size</option>
-                    <option value="1">10pt</option>
-                    <option value="3">16pt</option>
-                    <option value="4">18pt</option>
-                    <option value="5">24pt</option>
-                    <option value="7">48pt</option>
-                </select>
+                <input type="number" id="input-font-size" list="font-sizes-list" style="width:55px; height:22px; font-size:11px; text-align:center; border: 1px solid #e0e0e0; border-radius:3px; margin:0 1px; outline:none; background:#fdfdfd; color:#555;" placeholder="Size" onchange="aturUkuranFont(this.value)" onkeydown="if(event.key==='Enter'){aturUkuranFont(this.value); this.blur();}">
+                <datalist id="font-sizes-list">
+                    <option value="8"><option value="12"><option value="16"><option value="20"><option value="24"><option value="28"><option value="32"><option value="36">
+                </datalist>
                 <select onchange="formatTeks('formatBlock', this.value);this.selectedIndex=0;" style="width:65px;"><option value="" disabled selected>Style</option><option value="P">Normal</option><option value="H1">Title</option><option value="H2">Sub</option><option value="BLOCKQUOTE">Quote</option></select>
                 <select onchange="aturSpasiParagraf(this.value);this.selectedIndex=0;" style="width:70px;">
                     <option value="" disabled selected>Space</option>
@@ -1109,9 +1115,9 @@
                     <option value="line-1.15">1.15</option>
                     <option value="line-1.5">1.5</option>
                     <option value="line-2.0">2.0 (Double)</option>
-                    <option value="add-before">+Before</option>
-                    <option value="add-after">+After</option>
-                    <option value="remove-space">-Space</option>
+                    <option value="add-before">+Before (12pt)</option>
+                    <option value="add-after">+After (8pt)</option>
+                    <option value="remove-space">-Remove Spacing</option>
                 </select>
             </div>
             
@@ -1203,7 +1209,7 @@
     </div>
 
     <!-- SCRIPT REFERENCES -->
-    <script src="./main.js"></script>
-    <script type="module" src="./firebase-db.js"></script>
+    <script src="js/main.js"></script>
+    <script type="module" src="js/firebase-db.js"></script>
 </body>
 </html>

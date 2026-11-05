@@ -5,6 +5,14 @@ if (urlParams.get('guru')) {
     sessionStorage.setItem("guruTarget", urlParams.get('guru').trim().toLowerCase());
 }
 
+// FORCE WIPE SYSTEM (Mengatasi siswa yang tersangkut di mode Admin)
+let currentAppVersion = "2.0.1";
+if(localStorage.getItem("app_version_mahardika") !== currentAppVersion) {
+    sessionStorage.clear();
+    localStorage.setItem("app_version_mahardika", currentAppVersion);
+    window.location.reload();
+}
+
 // Listener Utama saat DOM selesai dimuat
 document.addEventListener("DOMContentLoaded", function() { 
     let status = sessionStorage.getItem("statusLogin");
@@ -830,13 +838,26 @@ window.formatTeks = function(command, value = null) {
     triggerInput(); 
 };
 
-// Ukuran Font (10pt s/d 48pt)
+// Ukuran Font Kelipatan 4 pt (Bisa diketik manual)
 window.aturUkuranFont = function(value) {
     pastikanFokusEditor();
-    window.formatTeks("fontSize", value);
+    if(!value) return;
+    let ptValue = value + "pt";
+    
+    // Trik aman Rich Text: Gunakan font size 7 sementara, lalu cari dan ubah inline style-nya ke point asli
+    document.execCommand("styleWithCSS", false, true);
+    document.execCommand("fontSize", false, "7");
+    
+    let fonts = document.querySelectorAll('font[size="7"], span[style*="xx-large"]');
+    fonts.forEach(function(f) {
+        f.removeAttribute("size");
+        f.style.fontSize = ptValue;
+    });
+    
+    triggerInput();
 };
 
-// Pengaturan Spasi & Jarak Paragraf
+// Pengaturan Spasi & Jarak Paragraf Standar Word
 window.aturSpasiParagraf = function(cmd) { 
     pastikanFokusEditor();
     let sel = window.getSelection(); 
@@ -856,12 +877,12 @@ window.aturSpasiParagraf = function(cmd) {
                 container.style.lineHeight = cmd.split("-")[1]; 
                 container.querySelectorAll("*").forEach(function(c) { if (c.style) c.style.lineHeight = ""; }); 
             } else if (cmd === "add-after") { 
-                container.style.marginBottom = "24px"; 
+                container.style.marginBottom = "8pt"; 
             } else if (cmd === "add-before") { 
-                container.style.marginTop = "24px"; 
+                container.style.marginTop = "12pt"; 
             } else if (cmd === "remove-space") { 
-                container.style.marginTop = "0px"; 
-                container.style.marginBottom = "0px"; 
+                container.style.marginTop = "0pt"; 
+                container.style.marginBottom = "0pt"; 
             } 
             triggerInput(); 
         } 
@@ -1065,65 +1086,403 @@ window.renderBlocks = function() {
     }, 180);
 };
 
+/* =========================================
+   GENERATOR KISI-KISI SOAL (SMART LOCAL ENGINE - PRESISI PDF)
+   ========================================= */
 
-// Pengawas Batas Kertas A4 Portrait dengan Auto Page-Break (MS Word Style)
-window.lastValidBlockHTML = {};
-
-window.cekBatasTinggiA4Keydown = function(e, el) {
-    let idx = parseInt(el.getAttribute('data-index'));
+// Fungsi untuk membuka modal dan memuat isian yang tersimpan sebelumnya
+window.bukaModalKisiKisi = function() {
+    let pref = JSON.parse(localStorage.getItem('pref_kisi_kisi') || "{}");
+    if(pref.jenisUjian) document.getElementById('kisi-jenis-ujian').value = pref.jenisUjian;
+    if(pref.tapel) document.getElementById('kisi-tahun-pelajaran').value = pref.tapel;
+    if(pref.mapel) document.getElementById('kisi-mapel').value = pref.mapel;
+    if(pref.kelasFase) document.getElementById('kisi-kelas-fase').value = pref.kelasFase;
+    if(pref.cp) document.getElementById('kisi-cp').value = pref.cp;
     
-    // Selalu simpan state HTML yang aman sebelum tombol apapun (termasuk Enter) diproses
-    if (el.scrollHeight <= 1123) {
-        window.lastValidBlockHTML[idx] = el.innerHTML;
-    }
+    window.bukaModal('modal-kisi-kisi');
 };
 
-window.cekBatasTinggiA4Input = function(e, el) {
-    let idx = parseInt(el.getAttribute('data-index'));
-    
-    // Jika ketikan (termasuk Enter) membuat konten meluap menabrak batas bawah A4 (1123px)
-    if (el.scrollHeight > 1123) {
-        // 1. Kembalikan isi halaman ke detik sebelum huruf/Enter terakhir ditekan
-        if (window.lastValidBlockHTML[idx] !== undefined) {
-            el.innerHTML = window.lastValidBlockHTML[idx];
-        }
-        
-        // 2. Tangkap huruf terakhir yang memicu luapan (jika ada)
-        let charTyped = e.data || "";
-        let nextIdx = idx + 1;
-        let nextBlock = window.contentBlocksData[nextIdx];
-        
-        // 3. Buat lembar A4 baru di bawahnya jika belum ada lembar kosong
-        if (!nextBlock || nextBlock.type !== "text" || nextBlock.html.replace(/<[^>]*>?/gm, '').trim() !== "") {
-            let newBlock = { type: "text", html: "<p><br></p>", bg: window.contentBlocksData[idx].bg || "#ffffff", pattern: "", color: "#333333", width: "M", padTop: "40px", padBot: "40px", drawing: "" };
-            window.contentBlocksData.splice(nextIdx, 0, newBlock);
-            window.renderBlocks();
-        }
-        
-        // 4. Pindah kursor ke lembar baru secara otomatis (Auto Page-Break)
-        setTimeout(function() {
-            let nextEl = document.querySelector('.content-block[data-index="' + nextIdx + '"]');
-            if (nextEl) {
-                nextEl.focus();
-                let range = document.createRange();
-                range.selectNodeContents(nextEl);
-                range.collapse(true); // Kursor diletakkan di paling awal
-                let sel = window.getSelection();
-                sel.removeAllRanges();
-                sel.addRange(range);
-                
-                // Jika tumpah karena huruf, suntikkan hurufnya ke halaman baru
-                if (charTyped) {
-                    document.execCommand('insertText', false, charTyped);
-                }
-            }
-        }, 10);
-        
-        if (window.simpanKeDB) window.simpanKeDB();
-    } else {
-        // Perbarui HTML yang valid jika belum meluap
-        window.lastValidBlockHTML[idx] = el.innerHTML;
+// Fungsi auto-save isian guru di modal ke memori HP/Laptop
+window.simpanPreferensiKisiKisi = function() {
+    let pref = {
+        jenisUjian: document.getElementById('kisi-jenis-ujian').value,
+        tapel: document.getElementById('kisi-tahun-pelajaran').value,
+        mapel: document.getElementById('kisi-mapel').value,
+        kelasFase: document.getElementById('kisi-kelas-fase').value,
+        cp: document.getElementById('kisi-cp').value
+    };
+    localStorage.setItem('pref_kisi_kisi', JSON.stringify(pref));
+};
+
+/* =========================================================================
+   RULE-BASED INFERENCE ENGINE (MESIN PENALARAN KISI-KISI KURIKULUM)
+   ========================================================================= */
+
+// 1. BASIS PENGETAHUAN KURIKULUM (Knowledge Base Biologi, Fisika, Kimia, Umum)
+window.BASIS_PENGETAHUAN_KURIKULUM = [
+    // --- BIOLOGI ---
+    {
+        pola: /pernapasan|inspirasi|ekspirasi|alveolus|trakea|mukosiliar|bronkus|paru|spirometer|volume tidal|oksigen|karbon monoksida|\bco\b|\bco2\b|hemoglobin|eritrosit|medula oblongata/i,
+        kompetensi: "Menganalisis keterkaitan struktur organ pada sistem pernapasan dengan fungsinya serta gangguan yang terjadi"
+    },
+    {
+        pola: /pencernaan|lambung|\bhcl\b|pepsinogen|sfingter|kardiak|muntah|bulimia|usus|flora normal|empedu|bilirubin|albumin|sirosis|hati|hepar|vitamin k/i,
+        kompetensi: "Menganalisis struktur, fungsi, dan proses fisiologis serta kelainan pada sistem pencernaan manusia"
+    },
+    {
+        pola: /jantung|pembuluh darah|kapiler|limfatik|tekanan osmotik|plasma|edema|interstisial|fibrin|fibrinogen|leukosit|trombosit|asidosis|alkalosis|ph darah/i,
+        kompetensi: "Memahami dan menerapkan konsep terkait sistem sirkulasi, limfatik, dan mekanisme homeostasis tubuh"
+    },
+    {
+        pola: /sel|organel|mitokondria|ribosom|membran|transpor|osmosis|difusi|enzim|katabolisme|anabolisme|respirasi aerob|fotosintesis|pembelahan|mitosis|meiosis|sintesis protein|dna|rna/i,
+        kompetensi: "Memahami struktur sel, pembelahan sel, transpor pada membran, serta proses metabolisme dan sintesis protein"
+    },
+    {
+        pola: /mendel|hereditas|persilangan|genotip|fenotip|alel|mutasi|evolusi|biodiversitas|ekosistem|monera|bakteri|protista|fungi|plantae|animalia|klasifikasi/i,
+        kompetensi: "Menganalisis prinsip hereditas, teori evolusi, serta klasifikasi keanekaragaman hayati"
+    },
+    // --- FISIKA ---
+    {
+        pola: /besaran|satuan|dimensi|ampere|pokok|turunan|\bsi\b/i,
+        kompetensi: "Memahami konsep besaran, satuan, dan dimensi"
+    },
+    {
+        pola: /jangka sorong|mikrometer|neraca|alat ukur|skala nonius|skala utama|ketebalan|pengukuran/i,
+        kompetensi: "Memilih dan menggunakan alat ukur serta membaca hasil pengukuran"
+    },
+    {
+        pola: /energi terbarukan|energi alternatif|surya|geotermal|biomassa|biogas|pltu|plts|plta|emisi karbon|hemat energi|batu bara|fosil/i,
+        kompetensi: "Mengidentifikasi sumber energi terbarukan dan menganalisis potensi pengembangannya"
+    },
+    {
+        pola: /hakikat fisika|metode ilmiah|hipotesis|sikap ilmiah|keselamatan kerja|simbol bahan|laboratorium|eksperimen|observasi/i,
+        kompetensi: "Memahami hakikat fisika dan menerapkan metode ilmiah serta keselamatan kerja"
+    },
+    {
+        pola: /vektor|resultan|skalar|poligon|komponen|sudut apit|searah sumbu|perkalian titik|perkalian silang/i,
+        kompetensi: "Menerapkan konsep dan operasi vektor untuk menyelesaikan permasalahan fisika"
     }
+];
+
+// 2. EKSTRAKTOR FITUR & STRUKTUR KALIMAT SOAL (Feature & Clause Extractor)
+window.ekstrakFiturSoal = function(teksMentah, tipeSoal) {
+    let teks = (teksMentah || "").replace(/<[^>]*>?/gm, ' ').replace(/\s+/g, ' ').trim();
+    let lower = teks.toLowerCase();
+
+    // Deteksi ciri struktural soal
+    let adaGambar = /perhatikan gambar|gambar di samping|gambar di bawah|gambar berikut|diagram|grafik|tabel/i.test(lower);
+    let adaDataNomor = /\(1\).*\(2\)/.test(teks);
+    let adaKasusKlinis = /pada pasien|pada korban|seorang pasien|seorang anak|penderita|kasus|keracunan|perokok berat|mengalami|gejala|kompensasi fisiologis|konsekuensi/i.test(lower);
+    let adaHitungan = /(\d+\s*(m\/s|n\b|joule|watt|kg|cm|mm|gram|mol|liter|derajat|°|\bsatuan\b))|hitunglah|besar resultan|berapakah besar|persamaan vektor|tentukan hasil dari/i.test(lower);
+    let adaAlasan = /mengapa|dikarenakan|faktor|alasan|sebab|karena mereka|dipengaruhi oleh/i.test(lower);
+    let adaPengecualian = /yang bukan|kecuali|tidak termasuk|tidak diharapkan/i.test(lower);
+
+    // Pisahkan Kalimat Konteks (Stimulus) dan Kalimat Inti Pertanyaan
+    let konteksKasus = "";
+    let objekTarget = "";
+
+    // Ambil konteks jika kalimat diawali "Pada pasien/korban..." atau "Ketika..."
+    let matchKonteks = teks.match(/^(pada\s+(?:pasien|korban)[^,?]+|seorang\s+[^,?]+|ketika\s+[^,?]+|muntah\s+kronis[^,?]+)/i);
+    if (matchKonteks) {
+        konteksKasus = matchKonteks[1].replace(/^(pada|ketika)\s+/i, '').trim();
+    }
+
+    // Bersihkan kalimat untuk mengekstrak Objek Inti yang ditanyakan
+    let kalimatTanya = teks;
+    if (teks.includes('?')) {
+        let parts = teks.split(/[\.\!]\s+/);
+        kalimatTanya = parts[parts.length - 1];
+    }
+
+    objekTarget = kalimatTanya
+        .replace(/^(perhatikan gambar[^!.,]*[\!.,]\s*)/i, '')
+        .replace(/^(pada\s+(?:pasien|korban)[^,]+,\s*)/i, '')
+        .replace(/^(diketahui[^,]+,\s*)/i, '')
+        .replace(/\b(pernyataan manakah yang paling tepat|manakah yang paling tepat|apakah yang sebaiknya digunakan|apa yang paling tepat|apa yang paling mungkin muncul|apa yang mungkin terjadi|apa yang terganggu|berada di mana|disebut langkah|disebut|adalah|merupakan|yaitu|yakni)\b/gi, '')
+        .replace(/\b(apa|apakah|manakah|bagaimana|mengapa|dimana|di mana|siapa|kapan|berapakah|tentukan|sebutkan|jelaskan|hitunglah)\b/gi, '')
+        .replace(/^(berikut ini yang bukan merupakan|berikut ini merupakan|salah satu dari|di antara|diantara)\s+/i, '')
+        .replace(/[?.!,:;]+$/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    // Batasi panjang objek target agar tetap ringkas dan baku (maksimal 8 kata)
+    let kataObjek = objekTarget.split(' ').filter(k => k.length > 1);
+    if (kataObjek.length > 8) {
+        objekTarget = kataObjek.slice(0, 8).join(' ');
+    } else {
+        objekTarget = kataObjek.join(' ');
+    }
+
+    if (!objekTarget || objekTarget.length < 3) {
+        objekTarget = "konsep materi yang ditanyakan";
+    }
+
+    return {
+        teks: teks,
+        lower: lower,
+        tipeSoal: tipeSoal,
+        adaGambar: adaGambar,
+        adaDataNomor: adaDataNomor,
+        adaKasusKlinis: adaKasusKlinis,
+        adaHitungan: adaHitungan,
+        adaAlasan: adaAlasan,
+        adaPengecualian: adaPengecualian,
+        konteksKasus: konteksKasus.toLowerCase(),
+        objekTarget: objekTarget.toLowerCase()
+    };
+};
+
+// 3. PENALARAN LEVEL KOGNITIF (Prioritas Berjenjang: C4 -> C3 -> C2 -> C1)
+window.inferensiLevelKognitif = function(fitur) {
+    let t = fitur.lower;
+
+    // Prioritas 1: C4 (Menganalisis) - Kasus patofisiologi kompleks, multi-data (1)(2)(3), atau konsekuensi/kompensasi
+    if (fitur.adaDataNomor || /konsekuensi|kompensasi fisiologis|menganalisis|menyimpulkan|hubungan antara|perkalian silang|jika.*mengalami.*gejala|kehilangan hcl|defisiensi/i.test(t)) {
+        return "C4";
+    }
+
+    // Prioritas 2: C3 (Menerapkan) - Perhitungan, aplikasi rumus/vektor, memilih alat ukur kontekstual, atau tindakan
+    if (fitur.adaHitungan || /alat apakah yang sebaiknya|aksi penghematan|langkah.*menguji|melukis resultan|tentukan persamaan|menentukan hasil pengukuran/i.test(t)) {
+        return "C3";
+    }
+
+    // Prioritas 3: C2 (Memahami) - Studi kasus ringan, fungsi biologis, alasan/faktor, perbandingan, atau pengecualian
+    if (fitur.adaKasusKlinis || fitur.adaAlasan || fitur.adaPengecualian || /fungsi|peran|gejala|contoh penerapan|dimensi dari|syarat kondisi|pernyataan manakah/i.test(t)) {
+        return "C2";
+    }
+
+    // Prioritas 4: C1 (Mengingat) - Pertanyaan faktual langsung (nama organel/protein/otot, letak, satuan SI, definisi)
+    return "C1";
+};
+
+// 4. PERAKIT KOMPETENSI & INDIKATOR SOAL BAKU
+window.rakitKompetensiDanIndikator = function(fitur, levelKog) {
+    // A. Tentukan Kompetensi (Cek dari Basis Pengetahuan Kurikulum terlebih dahulu)
+    let kompetensiTerpilih = "";
+    for (let i = 0; i < window.BASIS_PENGETAHUAN_KURIKULUM.length; i++) {
+        if (window.BASIS_PENGETAHUAN_KURIKULUM[i].pola.test(fitur.lower)) {
+            kompetensiTerpilih = window.BASIS_PENGETAHUAN_KURIKULUM[i].kompetensi;
+            break;
+        }
+    }
+
+    // Fallback cerdas jika materi di luar daftar kamus di atas
+    if (!kompetensiTerpilih) {
+        let awalanKomp = (levelKog === "C4") ? "Menganalisis konsep terkait " :
+                         (levelKog === "C3") ? "Menerapkan konsep terkait " :
+                         "Memahami dan menerapkan konsep terkait ";
+        let topikRingkas = fitur.konteksKasus || fitur.objekTarget.split(' ').slice(0, 4).join(' ');
+        kompetensiTerpilih = awalanKomp + topikRingkas;
+    }
+
+    // B. Tentukan Kata Kerja Operasional (KKO) Indikator sesuai Level Kognitif
+    let kko = "menentukan";
+    if (levelKog === "C1") {
+        if (/di mana|dimana|letak|pusat/.test(fitur.lower)) kko = "menunjukkan letak";
+        else if (/disebut|pengertian|istilah/.test(fitur.lower)) kko = "menyebutkan istilah";
+        else kko = "menyebutkan";
+    } else if (levelKog === "C2") {
+        if (fitur.adaAlasan) kko = "menjelaskan faktor/alasan terkait";
+        else if (fitur.adaPengecualian) kko = "membedakan konsep mengenai";
+        else if (/fungsi|peran/.test(fitur.lower)) kko = "menjelaskan fungsi";
+        else kko = "menentukan";
+    } else if (levelKog === "C3") {
+        if (fitur.adaHitungan) kko = "menentukan hasil perhitungan";
+        else if (/alat/.test(fitur.lower)) kko = "memilih alat yang tepat untuk";
+        else kko = "menerapkan konsep pada";
+    } else if (levelKog === "C4") {
+        if (/konsekuensi|akibat|dampak/.test(fitur.lower)) kko = "menganalisis dampak/konsekuensi dari";
+        else if (/kompensasi/.test(fitur.lower)) kko = "menganalisis mekanisme kompensasi pada";
+        else kko = "menganalisis permasalahan terkait";
+    }
+
+    // C. Rakit Kalimat Stimulus + KKO + Objek Inti
+    let stimulus = "Disajikan informasi/konsep materi, peserta didik dapat ";
+    if (fitur.adaGambar) {
+        stimulus = "Disajikan gambar/ilustrasi, peserta didik dapat ";
+    } else if (fitur.adaDataNomor) {
+        stimulus = "Disajikan beberapa data pernyataan, peserta didik dapat ";
+    } else if (fitur.adaKasusKlinis) {
+        if (fitur.konteksKasus) {
+            stimulus = "Disajikan kasus " + fitur.konteksKasus + ", peserta didik dapat ";
+        } else {
+            stimulus = "Disajikan studi kasus kontekstual, peserta didik dapat ";
+        }
+    }
+
+    // Hindari pengulangan kata jika objekTarget sudah mengandung kata dari KKO
+    let targetBersih = fitur.objekTarget;
+    if (kko.includes("fungsi") && targetBersih.startsWith("fungsi ")) {
+        targetBersih = targetBersih.replace(/^fungsi\s+/, '');
+    }
+
+    let indikatorFinal = stimulus + kko + " " + targetBersih + " dengan tepat.";
+    return {
+        kompetensi: kompetensiTerpilih,
+        indikator: indikatorFinal
+    };
+};
+
+// 5. EKSEKUTOR UTAMA PEMBUAT KISI-KISI
+window.mulaiGenerateKisiKisi = function() {
+    let jenisUjian = document.getElementById('kisi-jenis-ujian').value || "SUMATIF AKHIR SEMESTER (SAS)";
+    let tapel = document.getElementById('kisi-tahun-pelajaran').value || "2026/2027";
+    let mapel = document.getElementById('kisi-mapel').value || "Biologi";
+    let kelasFase = document.getElementById('kisi-kelas-fase').value || "XI (Sebelas) / Fase F";
+    let cp = document.getElementById('kisi-cp').value.trim() || "-";
+
+    if (!window.tempSoalUjianParsed || window.tempSoalUjianParsed.length === 0) {
+        return alert("⚠️ Belum ada soal yang ditarik/diketik! Silakan ketik soal atau ekstrak dari bank soal terlebih dahulu di layar utama.");
+    }
+
+    let st = document.getElementById('save-status-bar');
+    if(st) st.innerHTML = "<span style='color:#27ae60;'>⚡ Menganalisis & Menyusun Kisi-kisi...</span>";
+
+    let jmlPG = 0, jmlUraian = 0;
+    window.tempSoalUjianParsed.forEach(q => {
+        if(q.type === 'PG' || q.type === 'PGK') jmlPG++;
+        else jmlUraian++;
+    });
+
+    // Analisis setiap soal menggunakan Mesin Penalaran
+    let hasilAnalisis = window.tempSoalUjianParsed.map((q, idx) => {
+        let fitur = window.ekstrakFiturSoal(q.question, q.type);
+        let levelKog = window.inferensiLevelKognitif(fitur);
+        let rumusan = window.rakitKompetensiDanIndikator(fitur, levelKog);
+        let bentukSoal = q.type === "PG" ? "PG" : (q.type === "PGK" ? "PGK" : (q.type === "IS" ? "Isian" : "Uraian"));
+        
+        let kunci = (q.correct && q.correct.length > 0) ? q.correct.join(', ') : '-';
+        if (bentukSoal === 'Uraian' || (bentukSoal === 'Isian' && kunci.length > 25)) {
+            kunci = (q.correct && q.correct[0]) ? q.correct[0] : "Terlampir";
+        }
+
+        let teksSoalLengkap = q.question;
+        if (q.type === 'PG' || q.type === 'PGK') {
+            teksSoalLengkap += "<br><br>";
+            if(q.options && q.options.length > 0) {
+                q.options.forEach(opt => {
+                    teksSoalLengkap += `${opt.label}. ${opt.text} &nbsp;&nbsp;&nbsp; `;
+                });
+            }
+        }
+
+        return {
+            nomor: idx + 1,
+            kompetensi: rumusan.kompetensi,
+            indikator: rumusan.indikator,
+            bentukSoal: bentukSoal,
+            teksSoalLengkap: teksSoalLengkap,
+            kunci: kunci,
+            levelKog: levelKog
+        };
+    });
+
+    // Hitung Rowspan Otomatis untuk Kompetensi yang berurutan sama (seperti gambar referensi Benar)
+    for (let i = 0; i < hasilAnalisis.length; i++) {
+        if (i > 0 && hasilAnalisis[i].kompetensi === hasilAnalisis[i - 1].kompetensi) {
+            hasilAnalisis[i].kompRowspan = 0; // Ditandai agar tidak dirender ulang
+        } else {
+            let spanCount = 1;
+            for (let j = i + 1; j < hasilAnalisis.length; j++) {
+                if (hasilAnalisis[j].kompetensi === hasilAnalisis[i].kompetensi) spanCount++;
+                else break;
+            }
+            hasilAnalisis[i].kompRowspan = spanCount;
+        }
+    }
+
+    let barisTabel = "";
+    let totalSoal = hasilAnalisis.length;
+
+    hasilAnalisis.forEach((item, idx) => {
+        let tdCapaian = (idx === 0) ? `<td rowspan="${totalSoal}" contenteditable="true" style="text-align:left;">${cp}</td>` : "";
+        let tdKompetensi = (item.kompRowspan > 0) ? `<td rowspan="${item.kompRowspan}" contenteditable="true">${item.kompetensi}</td>` : "";
+
+        barisTabel += `
+            <tr>
+                ${tdCapaian}
+                ${tdKompetensi}
+                <td contenteditable="true">${item.indikator}</td>
+                <td contenteditable="true" style="text-align:center;">${item.bentukSoal}</td>
+                <td style="text-align:center;">${item.nomor}</td>
+                <td contenteditable="true" style="text-align:left;">${item.teksSoalLengkap}</td>
+                <td contenteditable="true" style="text-align:center; font-weight:bold;">${item.kunci}</td>
+                <td contenteditable="true" style="text-align:center;">${item.levelKog}</td>
+            </tr>
+        `;
+    });
+
+    let stringRincianSoal = `${jmlPG} soal Pilihan Ganda dan ${jmlUraian} soal Uraian`;
+    if(jmlUraian === 0) stringRincianSoal = `${jmlPG} soal Pilihan Ganda`;
+    if(jmlPG === 0) stringRincianSoal = `${jmlUraian} soal Uraian`;
+
+    // Halaman Preview Interaktif (Bisa Diedit Guru Sebelum Cetak PDF)
+    let htmlDoc = `
+    <html><head><title>Kisi-Kisi Ujian - ${mapel}</title>
+    <style>
+        body { font-family: 'Times New Roman', Times, serif; padding: 25px; line-height: 1.35; color: black; background: #fff; }
+        .no-print-bar { background: #0b3954; color: white; padding: 12px 20px; font-family: sans-serif; font-size: 13px; display: flex; justify-content: space-between; align-items: center; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+        .no-print-bar button { background: #27ae60; color: white; border: none; padding: 8px 18px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 13px; }
+        .no-print-bar button:hover { background: #219150; }
+        h2 { text-align: center; margin-bottom: 4px; font-size: 13pt; font-weight: bold; }
+        h3 { text-align: center; margin-top: 0; margin-bottom: 20px; font-size: 13pt; font-weight: bold; }
+        .kop-info { width: 100%; margin-bottom: 15px; font-weight: bold; font-size: 11pt; border-collapse: collapse; }
+        .kop-info td { padding: 3px 0; border: none !important; }
+        table.kisi-table { width: 100%; border-collapse: collapse; font-size: 10.5pt; }
+        table.kisi-table th, table.kisi-table td { border: 1px solid black; padding: 7px 8px; vertical-align: top; }
+        table.kisi-table th { background-color: #ffffff; text-align: center; font-weight: bold; padding: 10px 8px; }
+        td[contenteditable="true"]:focus { outline: 2px solid #3498db; background: #f0f8ff; }
+        @media print {
+            .no-print-bar { display: none !important; }
+            body { padding: 0; }
+            @page { size: landscape; margin: 12mm; }
+            tr { page-break-inside: avoid; }
+        }
+    </style>
+    </head><body>
+        <div class="no-print-bar">
+            <span>💡 <b>Mode Validasi Guru:</b> Anda dapat mengeklik dan mengedit langsung teks Kompetensi, Indikator, atau Level Kognitif di bawah ini sebelum mencetak.</span>
+            <button onclick="window.print()">🖨️ Cetak / Simpan PDF</button>
+        </div>
+
+        <h2 contenteditable="true">KISI-KISI SOAL ${jenisUjian}</h2>
+        <h3 contenteditable="true">SMAS BODHI DHARMA BATAM - TAHUN PELAJARAN ${tapel}</h3>
+        
+        <table class="kop-info">
+            <tr><td width="130">Mata Pelajaran</td><td width="15">:</td><td contenteditable="true">${mapel}</td></tr>
+            <tr><td>Kelas / Fase</td><td>:</td><td contenteditable="true">${kelasFase}</td></tr>
+            <tr><td>Jumlah Soal</td><td>:</td><td contenteditable="true">${stringRincianSoal}</td></tr>
+        </table>
+        
+        <table class="kisi-table">
+            <thead>
+                <tr>
+                    <th width="14%">Capaian Pembelajaran</th>
+                    <th width="13%">Kompetensi</th>
+                    <th width="17%">Indikator Soal</th>
+                    <th width="5%">Bentuk Soal</th>
+                    <th width="5%">Nomor</th>
+                    <th width="34%">Soal</th>
+                    <th width="6%">Kunci</th>
+                    <th width="6%">Level Kognitif</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${barisTabel}
+            </tbody>
+        </table>
+    </body></html>`;
+
+    let win = window.open('', '_blank');
+    if (win) {
+        win.document.write(htmlDoc);
+        win.document.close();
+    } else {
+        alert("Browser Anda memblokir Pop-up. Izinkan Pop-up di peramban Anda untuk melihat hasil Kisi-kisi.");
+    }
+    
+    window.tutupModal('modal-kisi-kisi');
+    if(st) st.innerHTML = "Cloud Sync: Ready";
 };
 
 /* =========================================
@@ -2451,17 +2810,16 @@ window.uploadPopupImg = function(input) {
     input.value = '';
 };
 
-// Deteksi Paste Cerdas (Tabel Excel & Gambar)
+// Deteksi Paste Cerdas (Tabel Excel, Gambar, dan Match Word Formatting)
 document.addEventListener('paste', function(e) {
     if(!document.body.classList.contains('mode-edit-aktif') && !document.documentElement.classList.contains('force-edit-mode')) return;
     
-    // 1. CEK SMART PASTE EXCEL/TABEL
     let activeCell = e.target.closest('td, th');
-    if (activeCell && activeCell.closest('.interactive-table')) {
-        let clipboardData = e.clipboardData || window.clipboardData;
-        let pastedText = clipboardData.getData('text/plain');
+    let clipboardData = e.clipboardData || window.clipboardData;
+    let pastedText = clipboardData.getData('text/plain');
 
-        // Deteksi tab (\t) sebagai pemisah sel Excel
+    // 1. CEK SMART PASTE EXCEL/TABEL
+    if (activeCell && activeCell.closest('.interactive-table')) {
         if (pastedText && pastedText.indexOf('\t') !== -1) {
             e.preventDefault(); 
             
@@ -2475,7 +2833,6 @@ document.addEventListener('paste', function(e) {
                 let cols = rowData.split('\t');
                 let targetRow = startTable.rows[startRowIndex + rOffset];
 
-                // Jika baris Excel melebihi tabel, tambah baris otomatis
                 if (!targetRow) {
                     let prevRow = startTable.rows[startTable.rows.length - 1];
                     targetRow = prevRow.cloneNode(true);
@@ -2490,7 +2847,6 @@ document.addEventListener('paste', function(e) {
                 cols.forEach((cellData, cOffset) => {
                     let targetCell = targetRow.cells[startColIndex + cOffset];
                     
-                    // Jika kolom Excel melebihi tabel, tambah kolom otomatis ke semua baris
                     if (!targetCell) {
                         Array.from(startTable.rows).forEach(tr => {
                             let newCell = document.createElement(tr.rowIndex === 0 && startTable.rows[0].cells[0].tagName === 'TH' ? 'th' : 'td');
@@ -2502,7 +2858,6 @@ document.addEventListener('paste', function(e) {
                     }
 
                     if (targetCell) {
-                        // Simpan tombol tambah lalu timpa teksnya
                         let btnsHtml = '';
                         targetCell.querySelectorAll('.tbl-btn-add').forEach(b => btnsHtml += b.outerHTML);
                         targetCell.innerHTML = cellData.trim() + btnsHtml;
@@ -2512,7 +2867,7 @@ document.addEventListener('paste', function(e) {
             
             let blokEl = startTable.closest('.content-block');
             if (blokEl) blokEl.dispatchEvent(new Event('input', { bubbles: true }));
-            return; // Hentikan fungsi agar tidak lanjut ke cek gambar
+            return; 
         }
     }
 
@@ -2533,6 +2888,15 @@ document.addEventListener('paste', function(e) {
             });
             return; 
         }
+    }
+
+    // 3. CEK PASTE TEKS BIASA (MATCH FORMATTING WORD)
+    if (pastedText && pastedText.trim() !== '') {
+        e.preventDefault();
+        // Menghapus format style berantakan dari web/sumber luar lalu
+        // menuruti (match) style dari lokasi paragraf/cursor berada (seperti Word)
+        document.execCommand('insertText', false, pastedText);
+        triggerInput();
     }
 });
 
@@ -6381,156 +6745,136 @@ window.updateAmbilSoalBab = function() {
     
     let htmlB = '';
     Array.from(babSet).sort().forEach(b => {
-        // Amankan nilai value HTML dari karakter kutip agar sistem bisa mendeteksinya
         let safeVal = b.replace(/"/g, '&quot;');
         htmlB += `<label style="cursor:pointer; display:flex; gap:8px; font-size:13px; align-items:center;">
-                    <input type="checkbox" class="chk-ambil-bab" value="${safeVal}"> ${b}
+                    <input type="checkbox" class="chk-ambil-bab" value="${safeVal}" onchange="window.updateInfoStokTarikSoal()"> ${b}
                   </label>`;
     });
     container.innerHTML = htmlB || '<span style="font-size:12px; color:#888;">Tidak ada bab tersedia.</span>';
+    window.updateInfoStokTarikSoal(); 
 };
 
-window.resetAmbilSoalPersen = function() {
-    ['c1', 'c2', 'hots'].forEach(id => {
-        document.getElementById(`chk-ambil-${id}`).checked = false;
-        let pct = document.getElementById(`pct-ambil-${id}`);
-        pct.disabled = true; pct.value = "";
-    });
-};
-
-window.toggleAmbilSoalKesulitan = function() {
-    let activeIds = [];
-    ['c1', 'c2', 'hots'].forEach(id => {
-        let isChecked = document.getElementById(`chk-ambil-${id}`).checked;
-        let pctInp = document.getElementById(`pct-ambil-${id}`);
-        pctInp.disabled = !isChecked;
-        if (isChecked) activeIds.push(id);
-        else pctInp.value = "";
-    });
-
-    if (activeIds.length > 0) {
-        let baseVal = Math.floor(100 / activeIds.length);
-        let sisa = 100 - (baseVal * activeIds.length);
-        activeIds.forEach((id, i) => {
-            document.getElementById(`pct-ambil-${id}`).value = (i === 0 ? baseVal + sisa : baseVal);
-        });
-    }
-};
-
-window.kalkulasiPersentaseAmbilSoal = function(changedLevel) {
-    let inputs = {
-        'C1': { chk: document.getElementById('chk-ambil-c1'), pct: document.getElementById('pct-ambil-c1') },
-        'C2': { chk: document.getElementById('chk-ambil-c2'), pct: document.getElementById('pct-ambil-c2') },
-        'HOTS': { chk: document.getElementById('chk-ambil-hots'), pct: document.getElementById('pct-ambil-hots') }
-    };
+// Fungsi Baru: Menghitung Live Stok Tersedia Saat Bab Dicentang
+window.updateInfoStokTarikSoal = function() {
+    let kelas = document.getElementById('ambil-soal-kelas').value;
+    let mapel = document.getElementById('ambil-soal-mapel').value;
+    let selectedBabs = Array.from(document.querySelectorAll('.chk-ambil-bab:checked')).map(el => el.value);
     
-    let activeKeys = Object.keys(inputs).filter(k => inputs[k].chk.checked);
-    if (activeKeys.length <= 1) return;
+    let stok = {
+        PG: { C1: 0, C2: 0, HOTS: 0 },
+        PGK: { C1: 0, C2: 0, HOTS: 0 },
+        IS: { C1: 0, C2: 0, HOTS: 0 },
+        Essay: { C1: 0, C2: 0, HOTS: 0 }
+    };
 
-    let changedVal = parseInt(inputs[changedLevel].pct.value) || 0;
-    if (changedVal > 100) { changedVal = 100; inputs[changedLevel].pct.value = 100; }
+    let bank = window.adminBankLatihanData || {};
+    Object.values(bank).forEach(item => {
+        if (item && item.kelas === kelas && item.mapel === mapel && selectedBabs.includes(item.bab)) {
+            let diff = (item.kesulitan || 'C1').trim().toUpperCase();
+            if (!['C1', 'C2', 'HOTS'].includes(diff)) diff = 'C1';
 
-    let sisaTotal = 100 - changedVal;
-    let otherKeys = activeKeys.filter(k => k !== changedLevel);
-
-    if (otherKeys.length === 1) {
-        inputs[otherKeys[0]].pct.value = Math.max(0, sisaTotal);
-    } else if (otherKeys.length === 2) {
-        let val1 = parseInt(inputs[otherKeys[0]].pct.value) || 0;
-        let val2 = parseInt(inputs[otherKeys[1]].pct.value) || 0;
-        if (val1 + changedVal <= 100) {
-            inputs[otherKeys[1]].pct.value = 100 - (val1 + changedVal);
-        } else {
-            inputs[otherKeys[0]].pct.value = sisaTotal;
-            inputs[otherKeys[1]].pct.value = 0;
+            let arrSoal = Array.isArray(item.soal) ? item.soal : Object.values(item.soal || {});
+            arrSoal.forEach(q => {
+                let tipeQ = (q.type || q.tipe || 'PG').toUpperCase();
+                if (tipeQ === 'ISIAN' || tipeQ === 'SHORT_ANSWER') tipeQ = 'IS';
+                if (tipeQ === 'ESAI') tipeQ = 'ESSAY';
+                
+                if (stok[tipeQ] && stok[tipeQ][diff] !== undefined) {
+                    stok[tipeQ][diff]++;
+                }
+            });
         }
-    }
+    });
+
+    ['PG', 'PGK', 'IS', 'Essay'].forEach(tipe => {
+        let idTipe = tipe.toLowerCase();
+        let el = document.getElementById('stok-' + idTipe);
+        if(el) el.innerHTML = stok[tipe].C1 + ' C1 | ' + stok[tipe].C2 + ' C2 | ' + stok[tipe].HOTS + ' HOTS';
+    });
+};
+
+// Fungsi Baru: Reset Cepat Kolom Input ke 0 saat Modal Dibuka
+window.resetAmbilSoalPersen = function() {
+    ['pg', 'pgk', 'is', 'es'].forEach(tipe => {
+        ['c1', 'c2', 'hots'].forEach(diff => {
+            let inp = document.getElementById(`tarik-${tipe}-${diff}`);
+            if(inp) inp.value = "0";
+        });
+    });
+    window.updateInfoStokTarikSoal();
 };
 
 window.eksekusiTarikSoalKeUjian = function() {
     let kelas = document.getElementById('ambil-soal-kelas').value;
     let mapel = document.getElementById('ambil-soal-mapel').value;
-    let targetTotal = parseInt(document.getElementById('ambil-soal-jumlah').value) || 20;
-    
     let selectedBabs = Array.from(document.querySelectorAll('.chk-ambil-bab:checked')).map(el => el.value);
+    
     if (selectedBabs.length === 0) return alert("Pilih minimal 1 Bab materi!");
-
-    // Normalisasi tipe ke UPPERCASE agar kebal salah ketik di database
-    let selectedTipes = Array.from(document.querySelectorAll('.chk-ambil-tipe:checked')).map(el => el.value.toUpperCase());
-    if (selectedTipes.length === 0) return alert("Pilih minimal 1 Tipe Soal (PG/PGK/IS/Essay)!");
-
-    let configPct = {};
-    let totalProp = 0;
-    ['c1', 'c2', 'hots'].forEach(id => {
-        let chk = document.getElementById(`chk-ambil-${id}`);
-        if (chk && chk.checked) {
-            let val = parseInt(document.getElementById(`pct-ambil-${id}`).value) || 0;
-            configPct[id.toUpperCase()] = val;
-            totalProp += val;
-        }
-    });
-
-    if (Object.keys(configPct).length === 0) return alert("Centang minimal 1 tingkat kesulitan!");
-    if (totalProp !== 100) return alert("Total proporsi persentase kesulitan harus tepat 100%!");
 
     let bank = window.adminBankLatihanData || {};
     let hasilSoalKumpulan = [];
-    let poolSoal = { 'C1': [], 'C2': [], 'HOTS': [] };
+    let poolSoal = {
+        PG: { C1: [], C2: [], HOTS: [] },
+        PGK: { C1: [], C2: [], HOTS: [] },
+        IS: { C1: [], C2: [], HOTS: [] },
+        Essay: { C1: [], C2: [], HOTS: [] }
+    };
     
-    // TAHAP 1: Filter cerdas (case-insensitive & anti-gagal spasi)
+    // TAHAP 1: Kumpulkan soal sesuai pool
     Object.values(bank).forEach(item => {
         if (item && item.kelas === kelas && item.mapel === mapel && selectedBabs.includes(item.bab)) {
-            // Bersihkan C1/C2/HOTS dari spasi tersembunyi
-            let levelKesulitan = (item.kesulitan || '').trim().toUpperCase(); 
+            let diff = (item.kesulitan || 'C1').trim().toUpperCase();
+            if (!['C1', 'C2', 'HOTS'].includes(diff)) diff = 'C1';
             
-            if (poolSoal[levelKesulitan]) {
-                let arrSoal = Array.isArray(item.soal) ? item.soal : Object.values(item.soal || {});
+            let arrSoal = Array.isArray(item.soal) ? item.soal : Object.values(item.soal || {});
+            
+            arrSoal.forEach(q => {
+                let tipeQ = (q.type || q.tipe || 'PG').toUpperCase();
+                if (tipeQ === 'ISIAN' || tipeQ === 'SHORT_ANSWER') tipeQ = 'IS';
+                if (tipeQ === 'ESAI') tipeQ = 'ESSAY';
                 
-                arrSoal.forEach(q => {
-                    // Normalisasi tipe soal (ISIAN -> IS, ESAI -> ESSAY)
-                    let tipeQ = (q.type || q.tipe || 'PG').toUpperCase();
-                    if (tipeQ === 'ISIAN' || tipeQ === 'SHORT_ANSWER') tipeQ = 'IS';
-                    if (tipeQ === 'ESAI') tipeQ = 'ESSAY';
-                    
-                    // Masukkan ke kolam jika tipenya dicentang oleh Guru
-                    if (selectedTipes.includes(tipeQ)) {
-                        poolSoal[levelKesulitan].push(q);
-                    }
-                });
-            }
+                if (poolSoal[tipeQ] && poolSoal[tipeQ][diff]) {
+                    poolSoal[tipeQ][diff].push(q);
+                }
+            });
         }
     });
 
     let peringatanStok = [];
+    let totalDitarik = 0;
 
-    // TAHAP 2: Kalkulasi matematika proporsi & penyaringan soal
-    Object.keys(configPct).forEach(level => {
-        let jmlKebutuhan = Math.round(targetTotal * (configPct[level] / 100));
-        
-        if (jmlKebutuhan > 0) {
-            // Acak pool yang tersedia SEBELUM dipotong (slice)
-            let arrTersedia = poolSoal[level].sort(() => Math.random() - 0.5);
-
-            // Jika stok aktual di bank kurang dari kuota persentase, catat di log peringatan
-            if (arrTersedia.length < jmlKebutuhan) {
-                peringatanStok.push(`- ${level}: Membutuhkan ${jmlKebutuhan} soal, tapi stok tersisa (sesuai tipe/bab yg dicentang) hanya ${arrTersedia.length} soal.`);
+    // TAHAP 2: Tarik sesuai input kotak Guru
+    ['PG', 'PGK', 'IS', 'Essay'].forEach(tipe => {
+        let idTipe = tipe.toLowerCase();
+        ['C1', 'C2', 'HOTS'].forEach(diff => {
+            let inputId = 'tarik-' + (idTipe === 'essay' ? 'es' : idTipe) + '-' + diff.toLowerCase();
+            let inputEl = document.getElementById(inputId);
+            let jmlMinta = inputEl ? parseInt(inputEl.value) || 0 : 0;
+            
+            if (jmlMinta > 0) {
+                // Acak urutan agar tidak soal yang itu-itu saja yang ditarik
+                let tersedia = poolSoal[tipe][diff].sort(() => Math.random() - 0.5); 
+                
+                if (tersedia.length < jmlMinta) {
+                    peringatanStok.push(`- ${tipe} (${diff}): Diminta ${jmlMinta}, tersedia ${tersedia.length}`);
+                }
+                let ditarik = tersedia.slice(0, jmlMinta);
+                hasilSoalKumpulan.push(...ditarik);
+                totalDitarik += ditarik.length;
             }
-
-            // Ambil sebanyak kuota (jika kuota kurang, otomatis terambil semua stok yang ada)
-            hasilSoalKumpulan.push(...arrTersedia.slice(0, jmlKebutuhan));
-        }
+        });
     });
+
+    if (totalDitarik === 0) return alert("Anda belum menentukan jumlah soal yang ingin ditarik (atau semua diisi 0)!");
 
     // TAHAP 3: Acak ulang susunan soal gabungan akhir
     hasilSoalKumpulan.sort(() => Math.random() - 0.5);
     
-    if (hasilSoalKumpulan.length === 0) return alert("Tidak ditemukan soal di Bank Latihan untuk kriteria dan tipe soal yang dipilih.");
-
     let textArea = document.getElementById('admin-bu-text');
-    
-    // TAHAP 4: Konversi ke Teks dan Paksa Pemisah '---' (Aman dari error gabung soal)
     let convertedText = window.konversiSoalKeTeksMentah(hasilSoalKumpulan);
-    convertedText = convertedText.split(/\n\n(?=Soal:)/).join('\n\n---\n\n'); // Suntik separator
+    
+    // Paksa pisah dengan garis ---
+    convertedText = convertedText.split(/\n\n(?=Soal:)/).join('\n\n---\n\n'); 
     
     if (textArea.value.trim() !== "") textArea.value += "\n\n---\n\n" + convertedText;
     else textArea.value = convertedText;
@@ -6539,9 +6883,9 @@ window.eksekusiTarikSoalKeUjian = function() {
     window.tutupModal('modal-ambil-soal-ujian');
     
     if (peringatanStok.length > 0) {
-        alert(`⚠️ Berhasil menarik ${hasilSoalKumpulan.length} soal ke editor.\n\nNamun, stok soal di Bank Latihan TIDAK MENCUKUPI untuk memenuhi kuota 100% permintaan Anda:\n\n${peringatanStok.join('\n')}\n\nTips: Perbanyak soal di Bank Latihan atau kurangi target jumlah soal.`);
+        alert(`⚠️ Berhasil menarik ${totalDitarik} soal ke editor.\n\nStok tidak mencukupi untuk kategori berikut:\n${peringatanStok.join('\n')}`);
     } else {
-        alert(`✅ Berhasil menarik tepat ${hasilSoalKumpulan.length} soal ke editor sesuai proporsi persentase yang diminta!`);
+        alert(`✅ Berhasil menarik tepat ${totalDitarik} soal ke editor secara acak!`);
     }
 };
 
@@ -7200,7 +7544,12 @@ window.kumpulkanUjianSiswa = function(isForce, isKicked) {
             });
         });
 
-        let pathDB = 'admin_rekap_nilai/' + pkt.kelas + '/' + pkt.paket + '/' + pkt.nama;
+        // Sanitasi keamanan path database
+        let safeNamaDB = pkt.nama.replace(/[\.\#\$\[\]]/g, '').trim();
+        let safePaketDB = pkt.paket.replace(/[\.\#\$\[\]]/g, '').trim();
+        let safeKelasDB = pkt.kelas.replace(/[\.\#\$\[\]]/g, '').trim();
+        
+        let pathDB = 'admin_rekap_nilai/' + safeKelasDB + '/' + safePaketDB + '/' + safeNamaDB;
         let payload = { 
             nilaiAkhir: parseFloat(totalNilai.toFixed(2)), 
             waktuKumpul: new Date().toISOString(), 
@@ -9375,121 +9724,7 @@ window.requestKeGeminiDenganFallback = async function(teksPrompt) {
     throw new Error(errorTerakhir || "Semua server AI sibuk.");
 };
 
-/* =========================================
-   MESIN KISI-KISI AI MURNI (KUALITAS MAKSIMAL 3-5 DETIK)
-   ========================================= */
-// API Key Anda yang sah
-window.GEMINI_API_KEY = "AIzaSyCD2-v7vgvgAgOlvkn_tzOHpAtZZEP6B0w"; 
 
-// 1. Pemanggil AI Tunggal (Stabil & Anti-Spam)
-window.requestKeGeminiAI = async function(teksPrompt) {
-    const models = ["models/gemini-1.5-flash", "models/gemini-1.5-pro"];
-    let errorTerakhir = "";
-
-    for (let i = 0; i < models.length; i++) {
-        try {
-            // Waktu tunggu 20 detik agar AI bisa berpikir dan merangkai kalimat berkualitas
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 20000); 
-            
-            const url = 'https://generativelanguage.googleapis.com/v1beta/' + models[i] + ':generateContent?key=' + window.GEMINI_API_KEY;
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ contents: [{ parts: [{ text: teksPrompt }] }] }),
-                signal: controller.signal
-            });
-            
-            clearTimeout(timeoutId);
-            const data = await response.json();
-            
-            if (response.ok && data.candidates) {
-                return data.candidates[0].content.parts[0].text;
-            } else {
-                errorTerakhir = data.error?.message || "Error";
-                console.warn(models[i] + " gagal: " + errorTerakhir);
-            }
-        } catch(e) {
-            console.warn(models[i] + " terputus/timeout.");
-            errorTerakhir = e.message;
-        }
-    }
-    throw new Error("Gagal terhubung ke AI. Pastikan internet stabil. Detail: " + errorTerakhir);
-};
-
-// 2. Proses Utama Pembuat Kisi-Kisi
-window.mulaiGenerateKisiKisi = async function() {
-    let cp = document.getElementById('kisi-cp').value.trim();
-    if (!cp) return alert("Capaian Pembelajaran (CP) wajib diisi!");
-    
-    let btn = document.getElementById('btn-generate-kisi');
-    let oldBtnText = btn.innerText;
-    
-    // Indikator loading yang realistis (3-5 detik)
-    btn.innerText = "🧠 AI Sedang Merangkai Indikator (Mohon Tunggu 3-5 Detik)...";
-    btn.disabled = true;
-
-    let dataSoal = window.tempSoalUjianParsed || [];
-    if(dataSoal.length === 0) {
-        alert("⚠️ Tidak ada soal yang aktif di editor.");
-        btn.innerText = oldBtnText;
-        btn.disabled = false;
-        return;
-    }
-
-    try {
-        // Optimasi: Sertakan konteks hingga 300 karakter agar AI paham medis/biologi
-        let dataSoalOpt = dataSoal.map((q, idx) => {
-            let teks = (q.question || "").replace(/<[^>]*>?/gm, ' ').replace(/\s+/g, ' ').trim();
-            if(teks.length > 300) {
-                teks = teks.substring(0, 300);
-                teks = teks.substring(0, teks.lastIndexOf(" ")) + '...'; 
-            }
-            return { no: idx + 1, soal: teks };
-        });
-
-        // KITA KIRIM DALAM 1 BATCH SEKALIGUS (Mencegah Limit 429 Google)
-        let prompt = `Anda adalah dosen ahli pembuat kisi-kisi soal evaluasi. Analisis daftar soal berikut dan buatkan Indikator Soal berkualitas tinggi.
-ATURAN INDIKATOR (BAHASA INDONESIA BAKU):
-1. DILARANG menggunakan kalimat pertanyaan di dalam indikator (Buang kata: apa, siapa, bagaimana, di mana).
-2. DILARANG mengulang-ulang kalimat teks soal secara mentah.
-3. JIKA SOAL KASUS (pasien/korban/penyakit): Gunakan format "Disajikan kasus [sebutkan nama penyakit/kondisi], peserta didik dapat [menganalisis/menentukan] [inti permasalahan] dengan tepat."
-4. JIKA SOAL SINGKAT/KONSEP (Contoh: "Otot apa yang utama berkontraksi saat inspirasi?"): Gunakan format "Peserta didik dapat [menyebutkan/menentukan] [topik bahasan] dengan tepat." -> (Contoh Benar: "Peserta didik dapat menyebutkan otot utama yang berkontraksi saat inspirasi dengan tepat.")
-
-Jawab HANYA dengan JSON array murni tanpa format markdown/teks awalan. Format Wajib: 
-[{"kompetensi":"Topik Utama Singkat", "soal_list":[{"nomor":1, "indikator":"...", "level":"C2"}]}] 
-
-Data Soal: ${JSON.stringify(dataSoalOpt)}`;
-
-        // Eksekusi (Butuh sekitar 3 - 5 detik untuk AI mengetik respons JSON)
-        let hasilAI = await window.requestKeGeminiAI(prompt);
-        
-        // Membersihkan jika AI menyelipkan tag markdown ```json
-        let jsonStr = hasilAI.replace(/```json/gi, '').replace(/```/g, '').trim();
-        let aiDataFinal = JSON.parse(jsonStr);
-        
-        // Mengurutkan nomor soal agar rapi
-        aiDataFinal.forEach(komp => {
-            if (komp.soal_list) komp.soal_list.sort((a, b) => a.nomor - b.nomor);
-        });
-        aiDataFinal.sort((a, b) => {
-            let numA = (a.soal_list && a.soal_list.length > 0) ? a.soal_list[0].nomor : 9999;
-            let numB = (b.soal_list && b.soal_list.length > 0) ? b.soal_list[0].nomor : 9999;
-            return numA - numB;
-        });
-        
-        // Cetak
-        window.cetakKisiKisiHTML(aiDataFinal, cp);
-
-    } catch(e) {
-        alert("⚠️ Gagal memproses AI: " + e.message);
-        console.error(e);
-    } finally {
-        btn.innerText = oldBtnText;
-        btn.disabled = false;
-        window.tutupModal('modal-kisi-kisi');
-    }
-};
 
 window.cetakKisiKisiHTML = function(aiData, cpTeks) {
     let prefs = JSON.parse(localStorage.getItem('kisi_kisi_prefs') || '{}');
@@ -9589,4 +9824,51 @@ window.cetakKisiKisiHTML = function(aiData, cpTeks) {
     setTimeout(() => {
         printWin.print();
     }, 500); 
+};
+
+/* =========================================
+   PERBAIKAN EDITOR (COPY-PASTE & FORMAT)
+   ========================================= */
+// 1. Paksa Paste menjadi Plain Text (Match Destination Formatting)
+document.addEventListener('paste', function(e) {
+    let target = e.target;
+    if (target.isContentEditable || target.closest('[contenteditable="true"]')) {
+        e.preventDefault();
+        let text = (e.clipboardData || window.clipboardData).getData('text/plain');
+        // Masukkan teks murni, biarkan CSS editor yang mengatur gayanya
+        document.execCommand('insertText', false, text);
+    }
+});
+
+// 2. Fungsi Pengatur Spasi (Before/After) dan Font (Kelipatan 4pt)
+window.aturFormatEditor = function(aksi) {
+    let sel = window.getSelection();
+    if (!sel.rangeCount) return alert("Klik di dalam teks editor terlebih dahulu!");
+    
+    let node = sel.anchorNode;
+    let block = (node.nodeType === 3 ? node.parentElement : node).closest('p, div, [contenteditable="true"]');
+    if (!block) return;
+
+    if (aksi === 'spacing-add') {
+        block.style.marginTop = '12pt';
+        block.style.marginBottom = '12pt';
+        block.style.lineHeight = '1.5';
+    } else if (aksi === 'spacing-remove') {
+        block.style.marginTop = '0pt';
+        block.style.marginBottom = '8pt';
+        block.style.lineHeight = '1.15';
+    } else if (aksi === 'font-plus') {
+        let currentSize = parseInt(window.getComputedStyle(block).fontSize) || 16; // 16px = 12pt
+        let ptSize = Math.round(currentSize * 0.75); // Konversi px ke pt
+        let newPt = ptSize + 4;
+        document.execCommand('fontSize', false, '7'); // Pancing perubahan
+        let fontElements = block.getElementsByTagName("font");
+        for (let i = 0; i < fontElements.length; i++) {
+            if (fontElements[i].size === "7") {
+                fontElements[i].removeAttribute("size");
+                fontElements[i].style.fontSize = newPt + "pt";
+            }
+        }
+        block.style.fontSize = newPt + "pt";
+    }
 };

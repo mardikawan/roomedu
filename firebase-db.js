@@ -546,7 +546,12 @@ if (statusSistem === "admin" || statusSistem === "siswa") {
 // Fungsi Kirim Status Siswa ke Live Monitor (Mulai, Melanggar, Selesai)
 window.simpanStatusLiveMonitorKeDB = function(paket, kelas, nama, payload) {
     if(!paket || !kelas || !nama) return;
-    let pathLM = basePath + '/admin_live_monitor/' + paket + '/' + kelas + '/' + nama;
+    // Sanitasi Path: Hapus karakter terlarang Firebase (. # $ [ ]) yang membuat sistem gagal menyimpan data (Kasus Jason Mario)
+    let safeNama = nama.replace(/[\.\#\$\[\]]/g, '').trim();
+    let safePaket = paket.replace(/[\.\#\$\[\]]/g, '').trim();
+    let safeKelas = kelas.replace(/[\.\#\$\[\]]/g, '').trim();
+    
+    let pathLM = basePath + '/admin_live_monitor/' + safePaket + '/' + safeKelas + '/' + safeNama;
     set(ref(db, pathLM), payload).catch(function(err) {
         console.error("Gagal memperbarui Live Monitor:", err);
     });

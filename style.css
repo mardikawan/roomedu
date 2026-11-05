@@ -89,8 +89,7 @@ html.ios-fullscreen-lock, body.ios-fullscreen-lock {
 .mode-edit-aktif .draw-float-img-item:hover .draw-float-img-resize, .drawing-mode-active .draw-float-img-item:hover .draw-float-img-resize { display: flex; }
 
 /* UKURAN CONTENT BLOCK: KERTAS A4 PORTRAIT (MAKSIMAL 794px x 1123px) */
-.content-block { background: transparent; min-height: 120px; font-size: 17px; width: 100%; max-width: 794px !important; transition: 0.2s; position: relative; line-height: 1.5; z-index: 2; outline: none; box-sizing: border-box; }
-.content-block.a4-portrait-block { max-width: 794px !important; max-height: 1123px !important; overflow: hidden !important; padding: 30px 40px !important; background: rgba(255,255,255,0.92); box-shadow: 0 4px 18px rgba(0,0,0,0.06); border-radius: 6px; }
+.content-block { background: transparent; min-height: 120px; font-size: 12pt; width: 100%; max-width: 794px !important; transition: 0.2s; position: relative; line-height: 1.15; z-index: 2; outline: none; box-sizing: border-box; }.content-block.a4-portrait-block { max-width: 794px !important; max-height: 1123px !important; overflow: hidden !important; padding: 30px 40px !important; background: rgba(255,255,255,0.92); box-shadow: 0 4px 18px rgba(0,0,0,0.06); border-radius: 6px; }
 .content-block.a4-limit-reached { border-bottom: 4px solid #e74c3c !important; }
 
 /* UKURAN SLIDE PDF: KERTAS A4 LANDSCAPE (BISA DIGESER KANAN-KIRI & DICORET) */
@@ -451,17 +450,19 @@ html, body {
 .color-picker-wrapper { display: flex; align-items: center; gap: 1px; padding: 2px; border-radius: 3px; cursor: pointer; } .color-picker-wrapper input[type="color"] { width: 14px; height: 14px; padding: 0; border: none; background: transparent; cursor: pointer; }
 
 /* UKURAN CONTENT BLOCK: KERTAS A4 PORTRAIT PRESISI (Gaya Layar Normal) */
-.content-block { background: transparent; min-height: 120px; font-size: 17px; width: 100%; max-width: 794px !important; transition: 0.2s; position: relative; line-height: 1.5; z-index: 2; outline: none; box-sizing: border-box; }
+.content-block { background: transparent; min-height: 120px; font-size: 12pt; width: 100%; max-width: 794px !important; transition: 0.2s; position: relative; line-height: 1.15; z-index: 2; outline: none; box-sizing: border-box; }
 .content-block.a4-portrait-block { 
     width: 100% !important;
     max-width: 794px !important; 
-    height: 1123px !important; 
-    max-height: 1123px !important; 
-    overflow: hidden !important; 
+    min-height: 1123px !important; 
+    height: auto !important; 
+    overflow: visible !important; 
     padding: 40px 45px !important; 
     background: rgba(255,255,255,0.98); 
     box-shadow: 0 4px 18px rgba(0,0,0,0.06); 
-    border-radius: 6px; 
+    border-radius: 6px;
+    /* Menambahkan Garis Putus-putus Biru Tipis sebagai penanda Page Break A4 (1123px) */
+    background-image: repeating-linear-gradient(to bottom, transparent, transparent 1121px, rgba(52, 152, 219, 0.4) 1121px, rgba(52, 152, 219, 0.4) 1123px);
 }
 .content-block.a4-limit-reached { border-bottom: none !important; }
 
