@@ -216,6 +216,64 @@ window.simpanCatatanGuruKeDB = function() {
     }
 };
 
+/* =========================================
+   TARIK & SIMPAN DATA CATATAN KELAS
+   ========================================= */
+onValue(ref(db, basePath + '/admin_catatan_kelas'), function(snap) {
+    if (snap.exists()) {
+        window.adminCatatanKelasData = snap.val();
+        for (let kls in window.adminCatatanKelasData) {
+            if (!Array.isArray(window.adminCatatanKelasData[kls])) {
+                window.adminCatatanKelasData[kls] = Object.values(window.adminCatatanKelasData[kls]);
+            }
+        }
+    } else {
+        window.adminCatatanKelasData = {};
+    }
+    
+    let modalCK = document.getElementById('modal-catatan-kelas');
+    if (modalCK && modalCK.style.display === 'flex' && typeof window.renderSheetsCK === "function") {
+        if (!window.isTypingCK) {
+            window.renderSheetsCK();
+            window.muatKontenSheetAktifCK();
+        }
+    }
+});
+
+window.simpanCatatanKelasKeDB = function() {
+    if (sessionStorage.getItem("statusLogin") !== "admin") return;
+    
+    let stat = document.getElementById('ck-sync-status');
+    if(stat) stat.innerHTML = "<span style='color:#f1c40f;'>☁️ Menyimpan...</span>";
+    
+    try {
+        let payload = {};
+        for (let kls in window.adminCatatanKelasData) {
+            payload[kls] = {};
+            let sourceData = Array.isArray(window.adminCatatanKelasData[kls]) ? window.adminCatatanKelasData[kls] : Object.values(window.adminCatatanKelasData[kls]);
+            sourceData.forEach((sheet, idx) => {
+                if (sheet) {
+                    payload[kls]['sheet_' + idx] = {
+                        id: sheet.id || ('sheet_' + Date.now()),
+                        nama: sheet.nama || ('Sheet ' + (idx + 1)),
+                        html: sheet.html || ''
+                    };
+                }
+            });
+        }
+        
+        set(ref(db, basePath + '/admin_catatan_kelas'), payload).then(() => {
+            if(stat) stat.innerHTML = "<span style='color:#2ecc71;'>✓ Tersimpan</span>";
+            window.isTypingCK = false; 
+        }).catch(err => {
+            console.error("Gagal simpan Catatan Kelas:", err);
+            if(stat) stat.innerHTML = "<span style='color:#e74c3c;'>❌ Gagal Simpan</span>";
+        });
+    } catch(e) {
+        if(stat) stat.innerHTML = "<span style='color:#e74c3c;'>❌ Error Format</span>";
+    }
+};
+
 onValue(ref(db, basePath + '/popup_pengumuman'), function(snap) {
     let box = document.getElementById('popup-content-box');
     if(snap.exists()) {
@@ -350,8 +408,17 @@ window.muatKontenHalaman = function(slugBab) {
     }
     
     // 2. SINKRONISASI DIAM-DIAM DARI FIREBASE (Latar Belakang)
+    let timeoutFirebase = setTimeout(function() {
+        window.isLoadingRoom = false; // Buka kunci layar jika sinyal macet
+        if (st) st.innerHTML = "<span style='color:#e74c3c;'>⚠️ Koneksi Lambat</span>";
+    }, 8000);
+
     get(child(ref(db), basePath + '/materi_koleksi/' + targetRoom)).then(function(snap) {
-        if (window.babAktif !== targetRoom) return;
+        clearTimeout(timeoutFirebase);
+        if (window.babAktif !== targetRoom) {
+            window.isLoadingRoom = false; // Wajib dibuka agar bisa mengetik di room baru
+            return;
+        }
 
         let dataDariServer = (snap.exists() && snap.val().blocksObj) ? snap.val() : null;
         
@@ -619,13 +686,13 @@ window.simpanKeDB = function(slugTujuan) {
     // Pengaman Mutlak: Jika room di layar berbeda dengan target simpan, batalkan!
     if (domRoom && domRoom !== targetBab) return;
 
-    // Hanya ambil .content-block yang berada di dalam #blocks-container (abaikan popup pengumuman)
+    // PENGAMANAN PAYLOAD: Kecualikan tipe quiz dan pdf_slides agar kode UI HTML-nya tidak membebani database
     document.querySelectorAll('#blocks-container .content-block').forEach(function(b) {
         let i = b.getAttribute('data-index');
-        if(window.contentBlocksData[i] && window.contentBlocksData[i].type !== 'quiz') {
+        if(window.contentBlocksData[i] && window.contentBlocksData[i].type !== 'quiz' && window.contentBlocksData[i].type !== 'pdf_slides') {
             window.contentBlocksData[i].html = b.innerHTML;
         }
-    }); 
+    });
     
     document.querySelectorAll('#floating-boxes-container .fb-content').forEach(function(fb) {
         let i = fb.getAttribute('data-fb-index');
@@ -634,20 +701,58 @@ window.simpanKeDB = function(slugTujuan) {
         }
     });
     
-    // Bekukan salinan data saat ini sebelum dikirim ke Firebase
-    let payloadBlocks = JSON.parse(JSON.stringify(window.contentBlocksData || []));
-    let payloadFloating = JSON.parse(JSON.stringify(window.floatingBoxesData || []));
-    sessionStorage.setItem('cache_room_' + (window.guruAktif || 'mahardika') + '_' + targetBab, JSON.stringify({ blocksObj: payloadBlocks, floatingBoxesObj: payloadFloating }));
+    // PENGAMANAN PAYLOAD PDF: Jangan ikutkan array 'slides' yang masif ke dalam stringify utama
+    let payloadBlocks = window.contentBlocksData.map(function(block) {
+        if (block.type === 'pdf_slides') {
+            // Salin blok, tapi kosongkan array slides-nya sementara agar tidak membuat payload macet
+            let safeBlock = Object.assign({}, block);
+            safeBlock.slides = []; 
+            return safeBlock;
+        }
+        return block;
+    });
+    
+    let payloadFloating = window.floatingBoxesData || [];
+
+    try {
+        sessionStorage.setItem('cache_room_' + (window.guruAktif || 'mahardika') + '_' + targetBab, JSON.stringify({ blocksObj: payloadBlocks, floatingBoxesObj: payloadFloating }));
+    } catch (cacheError) {
+        console.warn("Memori cache lokal penuh. Data tetap diamankan di Firebase.");
+        sessionStorage.clear();
+    }
 
     let st = document.getElementById('save-status-bar');
     if(st) st.innerHTML = "<span style='color:#3498db;'>☁️ Syncing (" + targetBab + ")...</span>"; 
     
+    // Simpan struktur dasar (tanpa array slides yang besar)
     set(ref(db, basePath + '/materi_koleksi/' + targetBab), {
         blocksObj: payloadBlocks, 
         floatingBoxesObj: payloadFloating
     }).then(function() {
-        if(typeof window.showSaveToast === "function") window.showSaveToast();
-    }); 
+        // SETELAH struktur utama aman, barulah kita tembakkan array slides PDF secara spesifik per indeks
+        let janjiSimpanSlides = [];
+        window.contentBlocksData.forEach(function(block, index) {
+            if (block.type === 'pdf_slides' && Array.isArray(block.slides)) {
+                // Tembak langsung ke path spesifik indeksnya
+                let pathSlides = basePath + '/materi_koleksi/' + targetBab + '/blocksObj/' + index + '/slides';
+                janjiSimpanSlides.push(set(ref(db, pathSlides), block.slides));
+            }
+        });
+
+        if (janjiSimpanSlides.length > 0) {
+            Promise.all(janjiSimpanSlides).then(function() {
+                if(typeof window.showSaveToast === "function") window.showSaveToast();
+            }).catch(function(err) {
+                console.error("Gagal sinkron array PDF:", err);
+                if (st) st.innerHTML = "<span style='color:#e74c3c;'>⚠️ Sebagian PDF Gagal Sync</span>";
+            });
+        } else {
+            if(typeof window.showSaveToast === "function") window.showSaveToast();
+        }
+    }).catch(function(err) {
+        console.error("Gagal sinkron utama:", err);
+        if (st) st.innerHTML = "<span style='color:#e74c3c;'>❌ Gagal Sync</span>";
+    });
 };
 
 // Event Listener untuk mendeteksi ketikan (Auto-save 0.4 detik terkunci per room)

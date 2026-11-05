@@ -6,7 +6,7 @@
     <title>Sistem Belajar Mahardika</title>
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Fredoka:wght@400;500;600&family=Quicksand:wght@400;600;700&family=Lora:ital,wght@0,400;0,700;1,400&family=Merriweather:wght@400;700&family=Montserrat:wght@400;600;700&family=Open+Sans:wght@400;600&family=Oswald:wght@400;500&family=Playfair+Display:wght@400;700&family=Poppins:wght@400;600&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
     
-    <link rel="stylesheet" href="./style.css">
+    <link rel="stylesheet" href="css/style.css">
     <style id="dynamic-theme-styles"></style>
     
     <!-- ENGINE MATHJAX UNTUK LATEX RENDERING -->
@@ -27,6 +27,8 @@
     </script>
     <!-- ENGINE MAMMOTH.JS UNTUK MEMBACA FILE DOCX -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+    <!-- ENGINE TESSERACT.JS UNTUK SCANNER LJK & TULISAN TANGAN (OCR/OMR) -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 </head>
 <body>
     <canvas id="laser-canvas"></canvas>
@@ -96,8 +98,8 @@
             </div>
             <div class="modal-body">
                 <p style="font-size:12px; color:#7f8c8d; margin-top:0;">Gunakan akun Universal (Siswa) atau Admin (Guru)</p>
-                <input type="text" id="input-username-login" class="input-box" placeholder="Username" style="text-align:center; font-weight:bold; font-size:16px;">
-                <input type="password" id="input-password-login" class="input-box" placeholder="Password" style="text-align:center; font-weight:bold; font-size:16px; margin-top:10px;">
+                <input type="text" id="input-username-login" class="input-box" placeholder="Username" style="text-align:center; font-weight:bold; font-size:16px;" onkeydown="if(event.key==='Enter'){document.getElementById('input-password-login').focus();}">
+                <input type="password" id="input-password-login" class="input-box" placeholder="Password" style="text-align:center; font-weight:bold; font-size:16px; margin-top:10px;" onkeydown="if(event.key==='Enter'){window.prosesLoginSistem();}">
                 <button class="btn-action" style="background:#2980b9; width:100%; margin-top:15px;" onclick="window.prosesLoginSistem()">Masuk 🚀</button>
             </div>
         </div>
@@ -200,8 +202,10 @@
                         </select>
                     </div>
                     <div style="display:flex; gap:8px;">
+                        <!-- Input disembunyikan, capture="environment" untuk memaksa kamera belakang HP -->
+                        <input type="file" id="input-file-ljk" accept="image/*" capture="environment" style="display:none;" onchange="window.prosesUploadLJK(this)">
                         <button class="btn-action" style="background:#e74c3c; width:auto; padding:8px 15px;" onclick="window.bukaModalRemedial()">🔥 Remedial</button>
-                        <button class="btn-action" style="background:#27ae60; width:auto; padding:8px 15px;" onclick="window.exportExcelRekapNilai()">📥 Export Ledger (Excel)</button>
+                        <button class="btn-action" style="background:#27ae60; width:auto; padding:8px 15px;" onclick="window.exportExcelRekapNilai()">📥 Export Rekap Nilai (Excel)</button>
                     </div>
                 </div>
 
@@ -319,7 +323,8 @@
                         <input type="file" id="file-upload-lokal" accept=".pdf,.docx" style="display:none;" onchange="window.prosesUploadSoalLokal(this)">
                         <button class="btn-action" style="background:#27ae60; width:auto; padding:6px 12px; font-size:11px;" onclick="document.getElementById('file-upload-lokal').click()">📄 Upload Soal (Docx/PDF)</button>
                         <button class="btn-action" style="background:#8e44ad; width:auto; padding:6px 12px; font-size:11px;" onclick="window.bukaModalAmbilSoal()">📥 Ambil Soal (Latihan)</button>
-                        
+                        <button class="btn-action" style="background:#e67e22; width:auto; padding:6px 12px; font-size:11px;" onclick="window.bukaModalKisiKisi()">📋 Kisi-kisi Soal</button>
+
                         <div style="font-size:12px; color:#2c3e50; font-weight:bold; background:white; padding:6px 14px; border-radius:20px; border:1px solid #e1e8ed;">
                             📦 <span id="info-total-bank-ujian" style="color:#e67e22;">0</span> Bank Ujian Tersimpan | 🔴 <span id="info-total-ujian-aktif" style="color:#c0392b;">0</span> Ujian Aktif
                         </div>
@@ -521,10 +526,26 @@
                     </label>
                 </div>
 
-                <label style="font-weight:bold; font-size:12px; margin-top:5px;">Total Soal yang Diambil:</label>
-                <input type="number" id="ambil-soal-jumlah" class="input-box" value="20" min="1" max="200" style="width:100%;">
+                <label style="font-weight:bold; font-size:12px; margin-top:5px;">Centang Tipe Soal (Bisa lebih dari 1):</label>
+                <div style="display:flex; gap:15px; background:#f8f9fa; border:1px solid #ddd; padding:10px; border-radius:6px; margin-bottom:5px;">
+                    <label style="display:flex; align-items:center; gap:5px; font-size:13px; font-weight:bold; cursor:pointer;">
+                        <input type="checkbox" class="chk-ambil-tipe" value="PG" checked style="accent-color:#8e44ad;"> PG
+                    </label>
+                    <label style="display:flex; align-items:center; gap:5px; font-size:13px; font-weight:bold; cursor:pointer;">
+                        <input type="checkbox" class="chk-ambil-tipe" value="PGK" checked style="accent-color:#8e44ad;"> PGK
+                    </label>
+                    <label style="display:flex; align-items:center; gap:5px; font-size:13px; font-weight:bold; cursor:pointer;">
+                        <input type="checkbox" class="chk-ambil-tipe" value="IS" checked style="accent-color:#8e44ad;"> IS
+                    </label>
+                    <label style="display:flex; align-items:center; gap:5px; font-size:13px; font-weight:bold; cursor:pointer;">
+                        <input type="checkbox" class="chk-ambil-tipe" value="Essay" checked style="accent-color:#8e44ad;"> Essay
+                    </label>
+                </div>
 
-                <button class="btn-action" style="background:#8e44ad; margin-top:10px;" onclick="window.eksekusiTarikSoalKeUjian()">Tarik Soal ke Editor 🚀</button>
+                <label style="font-weight:bold; font-size:12px; margin-top:5px;">Total Soal yang Diambil (Jika Stok Tersedia):</label>
+                <input type="number" id="ambil-soal-jumlah" class="input-box" value="20" min="1" max="200" style="width:100%; margin-bottom:10px; font-weight:bold;">
+
+                <button class="btn-action" style="background:#8e44ad;" onclick="window.eksekusiTarikSoalKeUjian()">Tarik Soal ke Editor 🚀</button>
             </div>
         </div>
     </div>
@@ -619,24 +640,31 @@
     <div id="modal-multimedia" class="modal-overlay" onclick="if(event.target===this)tutupModal('modal-multimedia')">
         <div class="modal-box" style="max-width: 450px;">
             <div class="modal-header" style="background:#0b3954; color:white;">
-                <h3 style="margin:0;">🎞️ Sisipkan Video / PDF</h3>
+                <h3 style="margin:0;">📤 Sisipkan Media</h3>
                 <button class="close-btn" style="color:white;" onclick="tutupModal('modal-multimedia')">✕</button>
             </div>
             <div class="modal-body" style="display:flex; flex-direction:column; gap:15px; background:#f4f6f6; padding:20px;">
                 
-                <!-- OPSI 1: VIDEO G-DRIVE / YOUTUBE (NATIVE PLAYER) -->
+                <!-- OPSI 1: UPLOAD LANGSUNG (PDF -> Slide & Video -> Cloudinary) -->
                 <div style="background:#ffffff; border:1px solid #ddd; padding:15px; border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,0.05);">
-                    <label style="font-size:13px; font-weight:bold; margin-bottom:8px; display:block; color:#2c3e50;">🎥 1. Sisipkan Video (YouTube / G-Drive)</label>
-                    <input type="text" id="input-link-media" class="input-box" placeholder="Paste link YouTube atau G-Drive di sini..." style="margin:0; border:2px solid #3498db;">
-                    <p style="font-size:11px; color:#7f8c8d; margin:6px 0 0 0; font-weight:600;">*Tampilan akan dikonversi menjadi media player asli (layar hitam bersih).</p>
-                    <button class="btn-action" style="margin-top:12px; font-size: 13px; padding: 10px; background:#3498db; width:100%;" onclick="window.prosesSisipanVideo()">Sisipkan Video 🚀</button>
+                    <label style="font-size:13px; font-weight:bold; margin-bottom:8px; display:block; color:#2c3e50;">1. Upload File Lokal (Permanen)</label>
+                    <p style="font-size:11px; color:#7f8c8d; margin:0 0 12px 0; font-weight:600;">*PDF akan diubah menjadi slide interaktif. Video akan diunggah ke *cloud*.</p>
+                    
+                    <div style="display:flex; gap:10px;">
+                        <input type="file" id="pdf-materi-upload" accept="application/pdf" style="display:none" onchange="window.prosesUploadPDFMateri(this); tutupModal('modal-multimedia');">
+                        <button class="btn-action" style="background:#27ae60; flex:1; font-size:12px; padding:10px;" onclick="document.getElementById('pdf-materi-upload').click();">📄 Upload PDF</button>
+                        
+                        <input type="file" id="input-upload-video" accept="video/mp4,video/webm" style="display:none;" onchange="window.uploadVideoLangsung(this)">
+                        <button class="btn-action" id="btn-upload-vid" style="background:#8e44ad; flex:1; font-size:12px; padding:10px;" onclick="document.getElementById('input-upload-video').click()">🎞️ Upload Video</button>
+                    </div>
                 </div>
 
-                <!-- OPSI 2: PDF SLIDE & CORETAN -->
+                <!-- OPSI 2: SISIPKAN LINK (YOUTUBE / G-DRIVE) -->
                 <div style="background:#ffffff; border:1px solid #ddd; padding:15px; border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,0.05);">
-                    <label style="font-size:13px; font-weight:bold; margin-bottom:8px; display:block; color:#2c3e50;">📄 2. Sisipkan PDF (Mode Slide Interaktif)</label>
-                    <p style="font-size:11px; color:#7f8c8d; margin:0 0 12px 0; font-weight:600;">*Pilih file PDF dari laptop. Sistem akan otomatis mengubahnya menjadi slide kanvas permanen yang bisa digeser, dicoret, dan dicetak.</p>
-                    <button class="btn-action" style="background:#27ae60; width:100%; font-size:13px; padding:10px;" onclick="document.getElementById('pdf-materi-upload').click(); tutupModal('modal-multimedia');">Pilih File PDF dari Laptop 📁</button>
+                    <label style="font-size:13px; font-weight:bold; margin-bottom:8px; display:block; color:#2c3e50;">2. Sisipkan Tautan Luar</label>
+                    <input type="text" id="input-link-media" class="input-box" placeholder="Paste link YouTube / G-Drive..." style="margin:0 0 8px 0; border:2px solid #3498db;">
+                    <p style="font-size:11px; color:#7f8c8d; margin:6px 0 0 0; font-weight:600;">*Hanya menampilkan player dari link referensi.</p>
+                    <button class="btn-action" style="margin-top:12px; font-size: 13px; padding: 10px; background:#3498db; width:100%;" onclick="window.prosesSisipanVideo()">Sisipkan Link 🚀</button>
                 </div>
                 
             </div>
@@ -713,6 +741,7 @@
                     <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
                         <label style="font-weight:bold; font-size:13px; color:#2c3e50;">🏫 Pilih Kelas Terlebih Dahulu:</label>
                         <select id="admin-select-kelas" class="input-box" style="width:200px; margin:0; padding:6px; font-weight:bold;" onchange="window.pilihKelasAdmin(this.value)"></select>
+                        <button class="btn-action" style="background:#e67e22; width:auto; padding:6px 12px; font-size:12px; border-radius:6px; display:flex; align-items:center; gap:6px;" onclick="window.bukaCatatanKelas()">📝 Catatan Kelas</button>
                     </div>
                     <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
                         <div style="font-size:12px; color:#7f8c8d; font-weight:bold;">
@@ -948,6 +977,76 @@
         </div>
     </div>
 
+    <!-- MODAL CATATAN KELAS (FLOATING EXCEL-STYLE DINAMIS) -->
+    <div id="modal-catatan-kelas" class="floating-cg" style="display:none;">
+        <div class="cg-header" id="ck-header" style="background:#e67e22;">
+            <div style="font-weight:bold; font-size:13px; display:flex; align-items:center; gap:6px;">
+                📝 Catatan <span id="ck-kelas-title">Kelas</span> <span id="ck-sync-status" style="font-size:10px; font-weight:normal; color:#fdfefe;">(Tersimpan)</span>
+            </div>
+            <div style="display:flex; gap:10px;">
+                <button onclick="window.toggleSizeCatatanKelas()" title="Perbesar/Perkecil">🗗</button>
+                <button onclick="window.tutupCatatanKelas()" title="Tutup">✕</button>
+            </div>
+        </div>
+        <div class="cg-body">
+            <div id="ck-editor-area" contenteditable="true" oninput="window.simpanCatatanKelasDelay()"></div>
+        </div>
+        <div class="cg-sheet-bar">
+            <div id="ck-sheet-list"></div>
+            <button class="cg-add-sheet" onclick="window.tambahSheetCK()" title="Tambah Sheet Baru">+</button>
+        </div>
+    </div>
+
+    <!-- MODAL GENERATOR KISI-KISI SOAL OLEH AI -->
+    <div id="modal-kisi-kisi" class="modal-overlay" onclick="if(event.target===this)tutupModal('modal-kisi-kisi')">
+        <div class="modal-box" style="width: 550px;">
+            <div class="modal-header" style="background:#fef5e7;">
+                <h3 style="color:#d35400; margin:0;">📋 Generator Kisi-Kisi (AI)</h3>
+                <button class="close-btn" onclick="tutupModal('modal-kisi-kisi')">✕</button>
+            </div>
+            <div class="modal-body" style="display:flex; flex-direction:column; gap:12px; padding:20px;">
+                <p style="font-size:12px; color:#7f8c8d; margin-top:0;">Pastikan soal di Manajer Ujian sudah diisi dan disimpan. AI akan merumuskan indikator dan level kognitif secara otomatis.</p>
+                
+                <div style="display:flex; gap:10px;">
+                    <div style="flex:1;">
+                        <label style="font-weight:bold; font-size:12px;">Jenis Ujian:</label>
+                        <select id="kisi-jenis-ujian" class="input-box" onchange="window.simpanPreferensiKisiKisi()">
+                            <option value="Sumatif Akhir Semester (SAS)">Sumatif Akhir Semester (SAS)</option>
+                            <option value="Sumatif Tengah Semester (STS)">Sumatif Tengah Semester (STS)</option>
+                            <option value="Ujian Akhir Sekolah (UAS)">Ujian Akhir Sekolah (UAS)</option>
+                        </select>
+                    </div>
+                    <div style="flex:1;">
+                        <label style="font-weight:bold; font-size:12px;">Tahun Pelajaran:</label>
+                        <input type="text" id="kisi-tahun-pelajaran" class="input-box" placeholder="Mis: 2026/2027" oninput="window.simpanPreferensiKisiKisi()">
+                    </div>
+                </div>
+
+                <div style="display:flex; gap:10px;">
+                    <div style="flex:1;">
+                        <label style="font-weight:bold; font-size:12px;">Mata Pelajaran:</label>
+                        <input type="text" id="kisi-mapel" class="input-box" placeholder="Mis: Fisika" oninput="window.simpanPreferensiKisiKisi()">
+                    </div>
+                    <div style="flex:1;">
+                        <label style="font-weight:bold; font-size:12px;">Kelas / Fase:</label>
+                        <select id="kisi-kelas-fase" class="input-box" onchange="window.simpanPreferensiKisiKisi()">
+                            <option value="X (Sepuluh) / Fase E">X (Sepuluh) / Fase E</option>
+                            <option value="XI (Sebelas) / Fase F">XI (Sebelas) / Fase F</option>
+                            <option value="XII (Dua Belas) / Fase F">XII (Dua Belas) / Fase F</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label style="font-weight:bold; font-size:12px;">Capaian Pembelajaran (CP) - Bisa disalin dari Kurikulum Merdeka:</label>
+                    <textarea id="kisi-cp" class="input-box" rows="4" placeholder="Misal: Peserta didik mampu menerapkan konsep besaran, satuan, dan dimensi..." oninput="window.simpanPreferensiKisiKisi()"></textarea>
+                </div>
+
+                <button class="btn-action" id="btn-generate-kisi" style="background:#e67e22;" onclick="window.mulaiGenerateKisiKisi()">✨ Buat Kisi-kisi Soal (AI) 🚀</button>
+            </div>
+        </div>
+    </div>
+
     <!-- ALAT GAMBAR -->
     <div id="pen-tools">
         <div style="display:flex; gap:8px;">
@@ -1032,10 +1131,9 @@
                 <button onclick="bukaModalCustomButton()">🔘 Btn</button>
                 <button onclick="bukaModalHyperlink()">🔗</button>
                 <button onclick="document.getElementById('image-upload-input').click()" title="Sisipkan Gambar">🖼️</button>
-                <button onclick="document.getElementById('pdf-materi-upload').click()" title="Sisipkan Slide PDF">📄 PDF</button>
-                    <input type="file" id="pdf-materi-upload" accept="application/pdf" style="display:none" onchange="window.prosesUploadPDFMateri(this)">
+                <!-- Tombol PDF lama dihapus, fungsi disatukan ke tombol Media -->
                 <button onclick="sisipkanTabel()">▦</button>
-                <button onclick="window.bukaModalMultimedia()" style="background:#e8f4f8; color:#2980b9; border:1px solid #aed6f1; font-weight:bold; margin-left:2px;" title="Sisipkan Video / PDF">🎞️ Media</button>
+                <button onclick="window.bukaModalMultimedia()" style="background:#e8f4f8; color:#2980b9; border:1px solid #aed6f1; font-weight:bold; margin-left:2px;" title="Upload PDF/Video & Sisipkan Link">📤 Media</button>
                 <button onclick="tanyaAIText()" style="background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7;font-weight:bold;margin-left:2px;">🤖 AI</button>
                 <button onclick="sisipkanBlokKuis()" style="background:#fdedec;color:#c0392b;border:1px solid #fadbd8;font-weight:bold;margin-left:2px;">🧩 Kuis</button>
                 <button onclick="bukaModalSimbol()" style="background:#e8f4f8;color:#2980b9;border:1px solid #aed6f1;font-weight:bold;margin-left:2px;">Σ Simbol</button>
@@ -1105,7 +1203,7 @@
     </div>
 
     <!-- SCRIPT REFERENCES -->
-    <script src="./main.js"></script>
-    <script type="module" src="./firebase-db.js"></script>
+    <script src="js/main.js"></script>
+    <script type="module" src="js/firebase-db.js"></script>
 </body>
 </html>

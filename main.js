@@ -453,6 +453,7 @@ window.renderModalPages = function() {
         html += '    <span class="page-drag-handle" title="' + (isLockedHidden ? "Terkunci" : "Tarik titik ini untuk geser") + '" ' + dragGrip + '>' + (isLockedHidden ? "🔒" : "⋮⋮") + '</span>';
         html += '    <input type="text" class="page-title-input" value="' + (page.title || "").replace(/"/g, "&quot;") + '" ' + (isLockedHidden ? "readonly" : "") + ' onchange="window.ubahNamaHalaman(' + idx + ', this.value)">';
         html += '    <span class="page-level-badge">' + levelLabel + '</span>';
+        html += '    <button class="page-btn-icon" style="background:#27ae60; color:white; margin-left:8px; font-size:11px; padding:2px 8px; border-radius:12px;" onclick="window.navigasiHalaman(event, \'' + page.slug + '\'); window.tutupModal(\'modal-pages\');" title="Langsung Buka Halaman Ini">GO 🚀</button>';
         html += '  </div>';
         html += '  <div class="page-item-actions">';
         if (!isLockedHidden) {
@@ -925,17 +926,22 @@ window.renderBlocks = function() {
                     '<button onclick="hapusBlok(' + index + ')">🗑️ Delete</button>' +
                 '</div>' +
                 '<div class="content-block pdf-landscape-block" data-index="' + index + '" data-block-type="pdf_slides">' +
-                    '<div class="pdf-slide-nav-bar">' +
-                        '<div style="display:flex; align-items:center; gap:8px;">' +
+                    '<div class="pdf-slide-nav-bar" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:nowrap; overflow-x:auto;">' +
+                        '<div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">' +
                             '<button onclick="window.gantiSlidePDF(' + index + ', -1)" ' + (sIdx <= 0 ? 'disabled' : '') + '>◀ Prev</button>' +
-                            '<span style="font-weight:bold; color:#f1c40f; min-width:95px; text-align:center;">Halaman ' + (sIdx + 1) + ' / ' + slides.length + '</span>' +
+                            '<span style="font-weight:bold; color:#f1c40f; display:flex; align-items:center; gap:4px; font-size:11px;">Hal ' +
+                                '<input type="number" min="1" max="' + slides.length + '" value="' + (sIdx + 1) + '" ' +
+                                'style="width:35px; text-align:center; font-weight:bold; background:rgba(255,255,255,0.2); color:#f1c40f; border:1px solid rgba(255,255,255,0.3); border-radius:4px; padding:2px;" ' +
+                                'onchange="window.lompatKeSlidePDF(' + index + ', this.value)" ' +
+                                'onkeydown="if(event.key===\'Enter\'){ this.blur(); window.lompatKeSlidePDF(' + index + ', this.value); }"> / ' + slides.length +
+                            '</span>' +
                             '<button onclick="window.gantiSlidePDF(' + index + ', 1)" ' + (sIdx >= slides.length - 1 ? 'disabled' : '') + '>Next ▶</button>' +
                         '</div>' +
-                        '<div style="font-weight:700; color:#ecf0f1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:260px;">📄 ' + (blok.title || 'Slide Materi PDF') + '</div>' +
-                        '<div style="display:flex; align-items:center; gap:6px;">' +
+                        '<div style="font-weight:700; color:#ecf0f1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; text-align:center; margin:0 10px; font-size:11px;" title="' + (blok.title || 'Slide Materi PDF') + '">📄 ' + (blok.title || 'Slide Materi PDF') + '</div>' +
+                        '<div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">' +
                             '<button onclick="window.toggleDrawingMode()" style="background:#ffeaa7; color:#2c3e50; border-color:#fdcb6e;">🖍️ Draw</button>' +
                             '<button onclick="window.toggleFokusSlidePDF(' + index + ')" style="background:#2980b9;">' + (isFocus ? '🗗 Tutup Fokus' : '🔍 Mode Fokus') + '</button>' +
-                            '<button onclick="window.exportSlidePDFKeA4(' + index + ')" style="background:#27ae60;">📥 Export PDF (A4)</button>' +
+                            '<button onclick="window.exportSlidePDFKeA4(' + index + ')" style="background:#27ae60;">📥 Export PDF</button>' +
                         '</div>' +
                     '</div>' +
                     '<div class="pdf-slide-stage" data-index="' + index + '" data-slide-index="' + sIdx + '" onpointerdown="window.mulaiSwipeSlidePDF(event, ' + index + ')" onpointerup="window.akhirSwipeSlidePDF(event, ' + index + ')">' +
@@ -1672,13 +1678,15 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 });
 
-// Konversi File PDF Menjadi Blok Slide A4 Landscape Permanen (Tersimpan di Firebase & Tidak Rusak Saat Refresh)
+// Konversi File PDF Menjadi Blok Slide A4 Landscape Permanen & Ringan (Cloudinary Image Hosting)
 window.prosesUploadPDFMateri = async function(input) {
     let file = input.files && input.files[0];
     if (!file) return;
-    if (!window.pdfjsLib) {
-        return alert("Mesin PDF.js sedang dimuat, silakan tunggu 2 detik lalu coba lagi.");
-    }
+    if (!window.pdfjsLib) return alert("Mesin PDF.js sedang dimuat, silakan tunggu 2 detik lalu coba lagi.");
+
+    // KONFIGURASI CLOUDINARY
+    let cloudName = "rtkfvwvg"; // Cloud Name Anda
+    let uploadPreset = "studykawan_video"; // Preset Unsigned Anda
 
     let st = document.getElementById('save-status-bar');
     if (st) st.innerHTML = "<span style='color:#f39c12; font-weight:bold;'>⏳ Mengonversi PDF ke Slide A4 Landscape...</span>";
@@ -1690,63 +1698,68 @@ window.prosesUploadPDFMateri = async function(input) {
         let slidesArr = [];
 
         for (let pageNum = 1; pageNum <= numPages; pageNum++) {
-            if (st) st.innerHTML = "<span style='color:#f39c12; font-weight:bold;'>⏳ Memproses Slide PDF " + pageNum + " / " + numPages + "...</span>";
+            if (st) st.innerHTML = "<span style='color:#f39c12; font-weight:bold;'>⏳ Memproses & Mengunggah Slide " + pageNum + " / " + numPages + "...</span>";
             let page = await pdfDoc.getPage(pageNum);
             let unscaledViewport = page.getViewport({ scale: 1 });
 
-            // Render ke kanvas A4 Landscape (1123 x 794 px) agar tajam & ringan di database
-            let targetW = 1123;
-            let targetH = 794;
+            let targetW = 1123, targetH = 794;
             let scale = Math.min(targetW / unscaledViewport.width, targetH / unscaledViewport.height);
             let viewport = page.getViewport({ scale: scale });
 
             let offCanvas = document.createElement('canvas');
-            offCanvas.width = targetW;
-            offCanvas.height = targetH;
-            let offCtx = offCanvas.getContext('2d');
+            offCanvas.width = targetW; offCanvas.height = targetH;
+            
+            // Tambahkan willReadFrequently: true untuk mencegah peringatan performa memori di konsol
+            let offCtx = offCanvas.getContext('2d', { willReadFrequently: true });
 
-            // Latar putih bersih A4 Landscape
-            offCtx.fillStyle = '#ffffff';
-            offCtx.fillRect(0, 0, targetW, targetH);
-
-            // Posisikan halaman PDF tepat di tengah kertas A4 Landscape
+            offCtx.fillStyle = '#ffffff'; offCtx.fillRect(0, 0, targetW, targetH);
             let offsetX = (targetW - viewport.width) / 2;
             let offsetY = (targetH - viewport.height) / 2;
+            
             offCtx.save();
             offCtx.translate(offsetX, offsetY);
             await page.render({ canvasContext: offCtx, viewport: viewport }).promise;
             offCtx.restore();
 
-            let dataUrl = offCanvas.toDataURL('image/jpeg', 0.78);
-            slidesArr.push({
-                bg: dataUrl,
-                drawing: "",
-                floatImages: []
+            // Ubah kanvas menjadi gambar base64
+            let base64Image = offCanvas.toDataURL('image/jpeg', 0.8);
+            
+            // Tembak gambar langsung ke server Cloudinary
+            let formData = new FormData();
+            formData.append("file", base64Image);
+            formData.append("upload_preset", uploadPreset);
+
+            let response = await fetch("https://api.cloudinary.com/v1_1/" + cloudName + "/image/upload", { 
+                method: "POST", body: formData 
             });
+            let data = await response.json();
+            
+            if (data.secure_url) {
+                // Firebase & Local Cache HANYA menyimpan URL Cloudinary saja
+                slidesArr.push({ bg: data.secure_url, drawing: "", floatImages: [] });
+            } else {
+                throw new Error(data.error ? data.error.message : "Gagal mengunggah slide ke Cloudinary");
+            }
+            
+            // Bersihkan memori kanvas secara agresif setiap kali selesai 1 halaman
+            offCanvas.width = 0; 
+            offCanvas.height = 0;
+            offCtx = null;
+            base64Image = null; 
         }
 
         let pdfBlockObj = {
-            type: 'pdf_slides',
-            title: file.name.replace(/\.pdf$/i, ''),
-            activeSlide: 0,
-            slides: slidesArr,
-            bg: '#ffffff',
-            pattern: '',
-            color: '#333333',
-            width: 'L',
-            padTop: '25px',
-            padBot: '25px',
-            drawing: '',
-            floatImages: []
+            type: 'pdf_slides', title: file.name.replace(/\.pdf$/i, ''), activeSlide: 0, slides: slidesArr, bg: '#ffffff', pattern: '', color: '#333333', width: 'L', padTop: '25px', padBot: '25px', drawing: '', floatImages: []
         };
 
         window.contentBlocksData.push(pdfBlockObj);
         window.renderBlocks();
+        
         if (typeof window.simpanKeDB === 'function') window.simpanKeDB();
-        if (st) st.innerHTML = "<span style='color:#2ecc71; font-weight:bold;'>✓ " + numPages + " Slide PDF Berhasil Disimpan Permanen!</span>";
+        
+        if (st) st.innerHTML = "<span style='color:#2ecc71; font-weight:bold;'>✓ PDF Berhasil Disimpan Permanen!</span>";
     } catch (err) {
-        console.error("Gagal memproses PDF:", err);
-        alert("Gagal memproses file PDF: " + err.message);
+        console.error("Gagal memproses PDF:", err); alert("Gagal memproses PDF: " + err.message);
     }
     input.value = "";
 };
@@ -1819,6 +1832,32 @@ window.gantiSlidePDF = function(blockIdx, arah) {
     if (nextIdx < 0 || nextIdx >= blok.slides.length) return;
 
     blok.activeSlide = nextIdx;
+    window.renderBlocks();
+    if (typeof window.simpanKeDB === 'function') window.simpanKeDB();
+};
+
+// Lompat langsung ke Halaman Slide PDF yang diketik pengguna
+window.lompatKeSlidePDF = function(blockIdx, nilaiInput) {
+    let blok = window.contentBlocksData[blockIdx];
+    if (!blok || blok.type !== 'pdf_slides' || !Array.isArray(blok.slides)) return;
+
+    let targetIdx = parseInt(nilaiInput) - 1; 
+    
+    if (isNaN(targetIdx) || targetIdx < 0) {
+        targetIdx = 0;
+    } else if (targetIdx >= blok.slides.length) {
+        targetIdx = blok.slides.length - 1;
+    }
+
+    if (targetIdx === blok.activeSlide) return;
+
+    // Pastikan coretan pada slide saat ini tersimpan sebelum melompat
+    let curCvs = document.querySelector('.drawing-layer[data-index="' + blockIdx + '"][data-slide-index="' + blok.activeSlide + '"]');
+    if (curCvs && blok.slides[blok.activeSlide]) {
+        blok.slides[blok.activeSlide].drawing = curCvs.toDataURL('image/png');
+    }
+
+    blok.activeSlide = targetIdx;
     window.renderBlocks();
     if (typeof window.simpanKeDB === 'function') window.simpanKeDB();
 };
@@ -2016,51 +2055,97 @@ window.previewNamaFileMedia = function(input) {
    SISTEM SISIPAN VIDEO (YOUTUBE & G-DRIVE NATIVE PLAYER)
    ========================================= */
 window.prosesSisipanVideo = function() {
-    let link = document.getElementById("input-link-media").value.trim();
-
-    if (!link) {
-        return alert("⚠️ Silakan paste link video Google Drive atau YouTube terlebih dahulu!");
-    }
+    let linkInput = document.getElementById("input-link-media");
+    if (!linkInput) return;
+    
+    let link = linkInput.value.trim();
+    if (!link) return alert("⚠️ Silakan paste link video YouTube, G-Drive, atau Cloudinary terlebih dahulu!");
 
     let finalUrl = "";
     let htmlSisipan = "";
 
-    // 1. Ekstrak ID YouTube (Mencegah error "Video tidak tersedia")
-    let ytMatch = link.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))([\w-]{11})/);
-    // 2. Ekstrak ID Google Drive
+    // Deteksi Cerdas Format Link (Diperkuat untuk menangkap semua variasi URL Mobile/Desktop & Parameter)
+    let ytMatch = link.match(/(?:https?:\/\/)?(?:www\.|m\.)?(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|shorts\/|watch\?.*v=))([\w-]{11})/i);
     let driveMatch = link.match(/\/d\/([a-zA-Z0-9_-]+)/) || link.match(/id=([a-zA-Z0-9_-]+)/);
+    let directMp4Match = link.match(/^https?:\/\/.*\.mp4/i) || link.indexOf('cloudinary.com') !== -1;
 
     window.kembalikanSeleksiTeks();
 
     if (ytMatch) {
         let ytId = ytMatch[1];
-        // Susun ulang URL embed murni YouTube tanpa cookie agar tampil rapi
-        finalUrl = "https://www.youtube-nocookie.com/embed/" + ytId + "?rel=0&modestbranding=1&playsinline=1";
+        // Menggunakan standar youtube.com (Domain nocookie sering diblokir oleh video berlisensi musik)
+        finalUrl = "https://www.youtube.com/embed/" + ytId + "?rel=0&modestbranding=1&playsinline=1";
         
         htmlSisipan = '<div contenteditable="false" style="margin: 20px auto; border-radius: 8px; overflow: hidden; position: relative; width: 100%; max-width: 800px; aspect-ratio: 16/9; box-shadow:0 6px 15px rgba(0,0,0,0.15); background:black;">' +
             '<iframe src="' + finalUrl + '" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>' +
             '</div><p><br></p>';
             
-    } else if (driveMatch) {
-        let fileId = driveMatch[1];
-        // Konversi link G-Drive menjadi Direct Stream Link untuk dimasukkan ke Tag <video> asli
-        finalUrl = "https://drive.google.com/uc?export=download&id=" + fileId;
+    } else if (driveMatch || directMp4Match) {
+        if (driveMatch) {
+            finalUrl = "https://drive.google.com/uc?export=download&id=" + driveMatch[1];
+        } else {
+            finalUrl = link;
+        }
         
         htmlSisipan = '<div contenteditable="false" style="margin: 20px auto; text-align: center; width: 100%; max-width: 800px;">' +
             '<video controls controlsList="nodownload" style="width: 100%; max-height: 550px; border-radius: 8px; box-shadow: 0 6px 15px rgba(0,0,0,0.15); background:black; outline:none;" preload="metadata">' +
             '<source src="' + finalUrl + '" type="video/mp4">' +
-            'Browser Anda tidak mendukung tag video HTML5.' +
             '</video>' +
             '</div><p><br></p>';
-            
     } else {
-        return alert("❌ Format link tidak dikenali! Pastikan Anda memasukkan link YouTube atau Google Drive yang valid.");
+        return alert("❌ Format link tidak dikenali! Gunakan link YouTube, G-Drive, atau Cloudinary.");
     }
 
     window.formatTeks("insertHTML", htmlSisipan);
     window.tutupModal("modal-multimedia");
-    document.getElementById("input-link-media").value = "";
-    triggerInput();
+    linkInput.value = "";
+    if (typeof triggerInput === 'function') triggerInput();
+};
+
+/* =========================================
+   UPLOAD VIDEO LANGSUNG KE CLOUDINARY (BEBAN 0% FIREBASE)
+   ========================================= */
+window.uploadVideoLangsung = async function(inputElem) {
+    let file = inputElem.files[0];
+    if (!file) return;
+
+    let btnUpload = document.getElementById('btn-upload-vid');
+    let oldText = btnUpload.innerText;
+    btnUpload.innerText = "⏳ Mengunggah (" + (file.size / (1024*1024)).toFixed(1) + " MB)...";
+    btnUpload.disabled = true;
+
+    // TODO: Buat akun di Cloudinary.com, dan masukkan "Cloud Name" serta "Upload Preset" Unsigned Anda di sini.
+    let cloudName = "rtkfvwvg"; // Ganti dengan Cloud Name Anda
+    let uploadPreset = "studykawan_video"; // Ganti dengan Upload Preset Unsigned Anda
+    let urlCloudinary = "https://api.cloudinary.com/v1_1/" + cloudName + "/video/upload";
+
+    let formData = new FormData();
+    formData.append("file", file);
+    formData.append("upload_preset", uploadPreset);
+
+    try {
+        let response = await fetch(urlCloudinary, {
+            method: "POST",
+            body: formData
+        });
+        
+        let data = await response.json();
+        if (data.secure_url) {
+            // Langsung panggil fungsi sisipkan video secara otomatis!
+            document.getElementById("input-link-media").value = data.secure_url;
+            window.prosesSisipanVideo(); 
+            // Fungsi prosesSisipanVideo akan otomatis menutup modal dan memanggil triggerInput()
+        } else {
+            throw new Error(data.error ? data.error.message : "Gagal mengunggah video.");
+        }
+    } catch (err) {
+        console.error("Upload Error:", err);
+        alert("❌ Gagal mengunggah video: " + err.message);
+    } finally {
+        btnUpload.innerText = oldText;
+        btnUpload.disabled = false;
+        inputElem.value = "";
+    }
 };
 
 // Fungsi Kuis Inline di Materi (🧩 Kuis) & Tambah Blok Tengah
@@ -2864,17 +2949,6 @@ let laserLastActiveTime = 0;
 let lassoPath = [], isFloating = false, lassoTargetCanvas = null, lassoSavedImageData = null, floatUI = null;
 window.lassoClipboardDataUrl = null;
 
-function updateToolbarPosition() {
-    if(!window.isDrawingMode || !window.visualViewport) return;
-    const tools = document.getElementById('pen-tools'); const vv = window.visualViewport;
-    tools.style.position = 'fixed'; tools.style.top = '0px'; tools.style.left = '0px'; tools.style.width = window.innerWidth + 'px';
-    tools.style.transform = 'translate(' + vv.offsetLeft + 'px, ' + vv.offsetTop + 'px) scale(' + (1 / vv.scale) + ')';
-    tools.style.transformOrigin = 'top left';
-}
-if(window.visualViewport) { 
-    window.visualViewport.addEventListener('scroll', updateToolbarPosition); 
-    window.visualViewport.addEventListener('resize', updateToolbarPosition); 
-}
 
 // Helper mengambil dan menyimpan data coretan kanvas (mendukung blok biasa, slide PDF, & floating box)
 window.ambilDataDrawingTarget = function(cvs) {
@@ -2926,7 +3000,7 @@ window.toggleDrawingMode = function() {
         if (window.pencilOnly) document.body.classList.add('palm-reject-on');
         document.querySelectorAll('.content-block, .fb-content').forEach(function(el) { el.removeAttribute('contenteditable'); });
         inisialisasiSemuaCanvas(); resizeLaserCanvas(); 
-        if(window.visualViewport) updateToolbarPosition();
+        if(window.updateToolbarPosition) window.updateToolbarPosition(); // Panggil update posisi visual
     } else {
         document.body.classList.remove('drawing-mode-active', 'palm-reject-on'); 
         window.tutupMenuKonteksDraw();
@@ -2936,9 +3010,30 @@ window.toggleDrawingMode = function() {
         stampLasso(); 
         if(window.simpanKeDB) window.simpanKeDB(); 
         let pt = document.getElementById('pen-tools');
-        if(pt) pt.style.transform = 'none';
+        if(pt) pt.style.transform = 'none'; // Reset posisi saat keluar
     } 
 };
+
+// MESIN STICKY TOOLBAR DRAW (ANTI-LAG 60FPS)
+window.isUpdatingToolbar = false;
+window.updateToolbarPosition = function() {
+    if(!window.isDrawingMode || !window.visualViewport) return;
+    if(window.isUpdatingToolbar) return; // Kunci sementara agar tidak tumpang tindih perintah
+    
+    window.isUpdatingToolbar = true;
+    window.requestAnimationFrame(function() {
+        const tools = document.getElementById('pen-tools'); 
+        const vv = window.visualViewport;
+        // Hanya manipulasi properti Transform (GPU Accelerated), hilangkan modifikasi width/left/top
+        tools.style.transform = 'translate(' + vv.offsetLeft + 'px, ' + vv.offsetTop + 'px) scale(' + (1 / vv.scale) + ')';
+        window.isUpdatingToolbar = false;
+    });
+};
+
+if(window.visualViewport) { 
+    window.visualViewport.addEventListener('scroll', window.updateToolbarPosition, { passive: true }); 
+    window.visualViewport.addEventListener('resize', window.updateToolbarPosition, { passive: true }); 
+}
 
 window.setDrawingTool = function(t) { 
     stampLasso(); 
@@ -3176,9 +3271,26 @@ document.addEventListener('pointerdown', function(e) {
     
     if(e.target.classList.contains('drawing-layer')) { 
         clearTimeout(window.longPressDrawTimer);
+        let c = e.target;
+        let r = c.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top; 
+
+        // Deteksi apakah klik mengenai titik kontrol dari Smart Shape yang sedang aktif
+        if (window.activeSmartShape && window.activeSmartShape.ctx.canvas === c) {
+            let hit = -1;
+            window.activeSmartShape.vertices.forEach((v, idx) => {
+                if (Math.hypot(x - v.x, y - v.y) < 18) hit = idx;
+            });
+            if (hit !== -1) {
+                window.draggingSmartVertex = hit; // Aktifkan mode geser titik (drag)
+                return; // Batalkan tarikan garis pena baru
+            } else {
+                window.burnActiveSmartShape(); // Klik tempat lain = permanenkan shape
+            }
+        }
+
         isPenDown = true; window.isShapeRecognized = false; clearTimeout(window.shapeHoldTimer);
         
-        if(activeTool === 'laser') { 
+        if(activeTool === 'laser') {
             laserLastActiveTime = Date.now(); 
             currentLaserStroke = {points: [{x: e.clientX, y: e.clientY}]}; 
             laserStrokes.push(currentLaserStroke); 
@@ -3210,42 +3322,275 @@ document.addEventListener('pointerdown', function(e) {
     } 
 });
 
+/* =========================================
+   MESIN SMART SHAPE & PENGEDITAN VEKTOR
+   ========================================= */
+window.getPerpendicularDist = function(p, p1, p2) {
+    let A = p.x - p1.x, B = p.y - p1.y, C = p2.x - p1.x, D = p2.y - p1.y;
+    let dot = A * C + B * D, len_sq = C * C + D * D, param = -1, xx, yy;
+    if (len_sq !== 0) param = dot / len_sq;
+    if (param < 0) { xx = p1.x; yy = p1.y; } else if (param > 1) { xx = p2.x; yy = p2.y; } else { xx = p1.x + param * C; yy = p1.y + param * D; }
+    let dx = p.x - xx, dy = p.y - yy;
+    return Math.sqrt(dx * dx + dy * dy);
+};
+
+window.simplifyDouglasPeucker = function(points, epsilon) {
+    let maxDist = 0, index = 0, end = points.length - 1;
+    for (let i = 1; i < end; i++) {
+        let d = window.getPerpendicularDist(points[i], points[0], points[end]);
+        if (d > maxDist) { maxDist = d; index = i; }
+    }
+    if (maxDist > epsilon) {
+        let left = window.simplifyDouglasPeucker(points.slice(0, index + 1), epsilon);
+        let right = window.simplifyDouglasPeucker(points.slice(index), epsilon);
+        return left.slice(0, left.length - 1).concat(right);
+    } else {
+        return [points[0], points[end]];
+    }
+};
+
+/* =========================================
+   FUNGSI BANTUAN MATEMATIKA SHAPE
+   ========================================= */
+window.jarakAntarTitik = function(p1, p2) {
+    return Math.hypot(p2.x - p1.x, p2.y - p1.y);
+};
+window.sudutAntarTigaTitik = function(p1, p2, p3) { // p2 adalah titik sudut
+    let a = window.jarakAntarTitik(p2, p3);
+    let b = window.jarakAntarTitik(p1, p2);
+    let c = window.jarakAntarTitik(p1, p3);
+    if(a === 0 || b === 0) return 0;
+    let cosVal = (a*a + b*b - c*c) / (2 * a * b);
+    return Math.acos(Math.max(-1, Math.min(1, cosVal))) * (180 / Math.PI);
+};
+
 window.recognizeShape = function() {
     if(!isPenDown || !currentDrawCtx || window.isShapeRecognized || window.drawPoints.length < 10) return;
     let pts = window.drawPoints;
+    let start = pts[0], end = pts[pts.length - 1];
+    let isClosed = window.jarakAntarTitik(start, end) < 40;
+
     let minX = pts[0].x, maxX = pts[0].x, minY = pts[0].y, maxY = pts[0].y;
-    pts.forEach(function(p) { if(p.x < minX) minX = p.x; if(p.x > maxX) maxX = p.x; if(p.y < minY) minY = p.y; if(p.y > maxY) maxY = p.y; });
-    
-    let w = maxX - minX; let h = maxY - minY;
-    let start = pts[0]; let end = pts[pts.length - 1];
-    let dist = Math.hypot(end.x - start.x, end.y - start.y);
-    
-    currentDrawCtx.putImageData(window.drawSnapshot, 0, 0);
-    currentDrawCtx.globalCompositeOperation = 'source-over';
-    currentDrawCtx.beginPath();
-    currentDrawCtx.strokeStyle = window.penColor;
-    currentDrawCtx.lineWidth = window.penSize;
-    
-    if(dist < (Math.max(w,h) * 0.4)) { 
-        let centerX = minX + (w/2); let centerY = minY + (h/2);
-        if(Math.abs(w-h) < Math.max(w,h) * 0.3) {
-            currentDrawCtx.arc(centerX, centerY, Math.max(w,h)/2, 0, 2 * Math.PI);
-        } else {
-            currentDrawCtx.rect(minX, minY, w, h);
-        }
-    } else {
-        currentDrawCtx.moveTo(start.x, start.y);
-        currentDrawCtx.lineTo(end.x, end.y);
+    pts.forEach(p => { if(p.x<minX) minX=p.x; if(p.x>maxX) maxX=p.x; if(p.y<minY) minY=p.y; if(p.y>maxY) maxY=p.y; });
+    let w = maxX - minX, h = maxY - minY;
+
+    let epsilon = Math.max(w, h) * 0.08; 
+    if (epsilon < 15) epsilon = 15;
+    let simplified = window.simplifyDouglasPeucker(pts, epsilon);
+
+    if (isClosed && simplified.length > 2) {
+        simplified[simplified.length - 1] = {x: simplified[0].x, y: simplified[0].y}; 
     }
-    currentDrawCtx.stroke();
+
+    let type = 'polygon';
+    let vertices = simplified;
+
+    // DETEKSI LINGKARAN & OVAL
+    if (isClosed && simplified.length > 6) {
+        let rasio = Math.max(w, h) / Math.min(w, h);
+        if (rasio < 1.15) {
+            type = 'circle';
+            let radius = Math.max(w, h) / 2;
+            let cx = minX + w/2, cy = minY + h/2;
+            vertices = [ {x: cx, y: cy - radius}, {x: cx + radius, y: cy}, {x: cx, y: cy + radius}, {x: cx - radius, y: cy} ];
+        } else {
+            type = 'oval';
+            vertices = [ {x: minX + w/2, y: minY}, {x: maxX, y: minY + h/2}, {x: minX + w/2, y: maxY}, {x: minX, y: minY + h/2} ];
+        }
+    } 
+    // DETEKSI BENTUK TERTUTUP (SEGITIGA & SEGIEMPAT)
+    else if (isClosed && simplified.length >= 4 && simplified.length <= 5) {
+        let nPoints = simplified.length - 1; // Jumlah sudut sebenarnya (titik terakhir = titik pertama)
+        let cx = minX + w/2;
+        let cy = minY + h/2;
+
+        if (nPoints === 3) {
+            // Evaluasi Segitiga
+            let s1 = window.jarakAntarTitik(simplified[0], simplified[1]);
+            let s2 = window.jarakAntarTitik(simplified[1], simplified[2]);
+            let s3 = window.jarakAntarTitik(simplified[2], simplified[0]);
+            let a1 = window.sudutAntarTigaTitik(simplified[2], simplified[0], simplified[1]);
+            let a2 = window.sudutAntarTigaTitik(simplified[0], simplified[1], simplified[2]);
+            let a3 = window.sudutAntarTigaTitik(simplified[1], simplified[2], simplified[0]);
+            
+            let sisiUrut = [s1, s2, s3].sort((a,b) => a-b);
+            let sudutUrut = [a1, a2, a3].sort((a,b) => a-b);
+
+            // Segitiga Sama Sisi (Sisi hampir sama)
+            if (sisiUrut[2] / sisiUrut[0] < 1.15) {
+                let r = Math.max(w, h) / 2;
+                vertices = [
+                    {x: cx, y: cy - r},
+                    {x: cx + r * Math.cos(30 * Math.PI/180), y: cy + r * Math.sin(30 * Math.PI/180)},
+                    {x: cx - r * Math.cos(30 * Math.PI/180), y: cy + r * Math.sin(30 * Math.PI/180)},
+                    {x: cx, y: cy - r}
+                ];
+            } 
+            // Segitiga Siku-siku (Ada sudut ~90 derajat)
+            else if (Math.abs(sudutUrut[2] - 90) < 15) {
+                // Tentukan letak siku-sikunya di bounding box
+                let pSiku = {x: minX, y: maxY}; 
+                let pH1 = {x: minX, y: minY}; 
+                let pH2 = {x: maxX, y: maxY};
+                // Sesuaikan posisi siku-siku berdasarkan titik mana yang paling dekat dengan sudut 90 deg aslinya (Sederhanakan dengan memaksa ke Kiri Bawah)
+                if (Math.abs(a1 - 90) < 15 || Math.abs(a2 - 90) < 15 || Math.abs(a3 - 90) < 15) {
+                    vertices = [ {x: minX, y: minY}, {x: maxX, y: maxY}, {x: minX, y: maxY}, {x: minX, y: minY} ];
+                }
+            }
+            // Segitiga Sama Kaki (Dua sisi hampir sama)
+            else if ((sisiUrut[1] / sisiUrut[0] < 1.15) || (sisiUrut[2] / sisiUrut[1] < 1.15)) {
+                vertices = [ {x: cx, y: minY}, {x: maxX, y: maxY}, {x: minX, y: maxY}, {x: cx, y: minY} ];
+            }
+        } 
+        else if (nPoints === 4) {
+            // Evaluasi Segiempat
+            let s1 = window.jarakAntarTitik(simplified[0], simplified[1]);
+            let s2 = window.jarakAntarTitik(simplified[1], simplified[2]);
+            let s3 = window.jarakAntarTitik(simplified[2], simplified[3]);
+            let s4 = window.jarakAntarTitik(simplified[3], simplified[0]);
+            
+            let d1 = window.jarakAntarTitik(simplified[0], simplified[2]);
+            let d2 = window.jarakAntarTitik(simplified[1], simplified[3]);
+
+            let isPersegiPanjang = (Math.abs(s1 - s3)/s1 < 0.2) && (Math.abs(s2 - s4)/s2 < 0.2) && (Math.abs(d1 - d2)/d1 < 0.2);
+            let isJajargenjang = (Math.abs(s1 - s3)/s1 < 0.2) && (Math.abs(s2 - s4)/s2 < 0.2) && (Math.abs(d1 - d2)/d1 >= 0.2);
+            let isLayangLayang = ((Math.abs(s1 - s2)/s1 < 0.15) && (Math.abs(s3 - s4)/s3 < 0.15)) || ((Math.abs(s1 - s4)/s1 < 0.15) && (Math.abs(s2 - s3)/s2 < 0.15));
+
+            if (isPersegiPanjang) {
+                let rasio = Math.max(w, h) / Math.min(w, h);
+                // Persegi Sempurna
+                if (rasio < 1.15) {
+                    let s = Math.max(w, h);
+                    vertices = [ {x: cx - s/2, y: cy - s/2}, {x: cx + s/2, y: cy - s/2}, {x: cx + s/2, y: cy + s/2}, {x: cx - s/2, y: cy + s/2}, {x: cx - s/2, y: cy - s/2} ];
+                } 
+                // Persegi Panjang Sempurna
+                else {
+                    vertices = [ {x: minX, y: minY}, {x: maxX, y: minY}, {x: maxX, y: maxY}, {x: minX, y: maxY}, {x: minX, y: minY} ];
+                }
+            } 
+            else if (isJajargenjang) {
+                let miring = w * 0.2;
+                vertices = [ {x: minX + miring, y: minY}, {x: maxX, y: minY}, {x: maxX - miring, y: maxY}, {x: minX, y: maxY}, {x: minX + miring, y: minY} ];
+            }
+            else if (isLayangLayang) {
+                vertices = [ {x: cx, y: minY}, {x: maxX, y: cy}, {x: cx, y: maxY}, {x: minX, y: cy}, {x: cx, y: minY} ];
+            }
+        }
+    }
+
+    window.activeSmartShape = {
+        type: type,
+        isClosed: isClosed,
+        vertices: vertices,
+        color: window.penColor,
+        size: window.penSize,
+        ctx: currentDrawCtx
+    };
+
     window.isShapeRecognized = true;
+    window.renderActiveSmartShape();
+};
+
+window.renderActiveSmartShape = function() {
+    let shape = window.activeSmartShape;
+    if (!shape) return;
+    let ctx = shape.ctx;
+    
+    // Kembalikan kanvas ke kondisi bersih sebelum bentuk digambar
+    ctx.putImageData(window.drawSnapshot, 0, 0);
+    ctx.globalCompositeOperation = 'source-over';
+    
+    // Gambar Bentuk Lurus
+    ctx.beginPath();
+    ctx.strokeStyle = shape.color;
+    ctx.lineWidth = shape.size;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    if (shape.type === 'oval' || shape.type === 'circle') {
+        let v = shape.vertices;
+        let cx = (v[3].x + v[1].x) / 2, cy = (v[0].y + v[2].y) / 2;
+        let rx = Math.abs(v[1].x - v[3].x) / 2, ry = Math.abs(v[2].y - v[0].y) / 2;
+        ctx.ellipse(cx, cy, rx, ry, 0, 0, 2 * Math.PI);
+    } else {
+        ctx.moveTo(shape.vertices[0].x, shape.vertices[0].y);
+        for (let i = 1; i < shape.vertices.length; i++) {
+            ctx.lineTo(shape.vertices[i].x, shape.vertices[i].y);
+        }
+    }
+    ctx.stroke();
+
+    // Render Titik Kontrol Tarik (Handles) berwarna biru seperti GoodNotes
+    ctx.fillStyle = '#3498db';
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#ffffff';
+    shape.vertices.forEach(v => {
+        ctx.beginPath();
+        ctx.arc(v.x, v.y, 6, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.stroke();
+    });
+};
+
+// Fungsi membakar (menyimpan) shape permanen saat klik di luar
+window.burnActiveSmartShape = function() {
+    if (!window.activeSmartShape) return;
+    let shape = window.activeSmartShape;
+    let ctx = shape.ctx;
+    ctx.putImageData(window.drawSnapshot, 0, 0); 
+
+    ctx.beginPath();
+    ctx.strokeStyle = shape.color;
+    ctx.lineWidth = shape.size;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    
+    if (shape.type === 'oval' || shape.type === 'circle') {
+        let v = shape.vertices;
+        let cx = (v[3].x + v[1].x) / 2, cy = (v[0].y + v[2].y) / 2;
+        let rx = Math.abs(v[1].x - v[3].x) / 2, ry = Math.abs(v[2].y - v[0].y) / 2;
+        ctx.ellipse(cx, cy, rx, ry, 0, 0, 2 * Math.PI);
+    } else {
+        ctx.moveTo(shape.vertices[0].x, shape.vertices[0].y);
+        for (let i = 1; i < shape.vertices.length; i++) {
+            ctx.lineTo(shape.vertices[i].x, shape.vertices[i].y);
+        }
+    }
+    ctx.stroke();
+
+    let dataToSave = ctx.canvas.toDataURL("image/png");
+    window.simpanDataDrawingTarget(ctx.canvas, dataToSave);
+    if(window.simpanKeDB) window.simpanKeDB();
+
+    window.activeSmartShape = null;
+    currentDrawCtx = null;
 };
 
 document.addEventListener('pointermove', function(e) { 
-    if(!window.isDrawingMode || !isPenDown) return; 
+    if(!window.isDrawingMode) return; 
+    
+    // Perbarui posisi titik kontrol shape yang sedang diseret (di-drag)
+    if (window.draggingSmartVertex !== undefined && window.activeSmartShape) {
+        let r = window.activeSmartShape.ctx.canvas.getBoundingClientRect();
+        let x = e.clientX - r.left, y = e.clientY - r.top;
+        window.activeSmartShape.vertices[window.draggingSmartVertex] = {x, y};
+        
+        // Jika bentuknya tertutup (segiempat, segitiga), pastikan ujung awal & akhir tetap tersambung
+        if (window.activeSmartShape.type === 'polygon' && window.activeSmartShape.isClosed) {
+            if (window.draggingSmartVertex === 0) {
+                window.activeSmartShape.vertices[window.activeSmartShape.vertices.length - 1] = {x, y};
+            } else if (window.draggingSmartVertex === window.activeSmartShape.vertices.length - 1) {
+                window.activeSmartShape.vertices[0] = {x, y};
+            }
+        }
+        window.renderActiveSmartShape();
+        return;
+    }
+
+    if(!isPenDown) return;
     if(e.pointerType === 'touch' && (window.pencilOnly || window.activeTouches > 1)) { isPenDown = false; return; }
 
-    if(activeTool === 'laser' && currentLaserStroke) { 
+    if(activeTool === 'laser' && currentLaserStroke) {
         laserLastActiveTime = Date.now(); currentLaserStroke.points.push({x: e.clientX, y: e.clientY}); 
     } else if(currentDrawCtx) { 
         let r = currentDrawCtx.canvas.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top; 
@@ -3282,11 +3627,19 @@ document.addEventListener('pointermove', function(e) {
 });
 
 document.addEventListener('pointerup', function() { 
-    if(!window.isDrawingMode || !isPenDown) return; 
+    if(!window.isDrawingMode) return; 
+    
+    // Hentikan mode tarik titik kontrol saat jari/pena dilepas
+    if (window.draggingSmartVertex !== undefined) {
+        window.draggingSmartVertex = undefined;
+        return;
+    }
+
+    if(!isPenDown) return;
     isPenDown = false; clearTimeout(window.shapeHoldTimer);
     if(isFloating) return; 
     
-    if(activeTool === 'laser' && currentLaserStroke) { 
+    if(activeTool === 'laser' && currentLaserStroke) {
         laserLastActiveTime = Date.now(); currentLaserStroke = null; 
     } else if((activeTool === 'lasso' || activeTool === 'lasso-box') && currentDrawCtx && lassoPath.length > 0) { 
         currentDrawCtx.putImageData(lassoSavedImageData,0,0); 
@@ -3304,15 +3657,20 @@ document.addEventListener('pointerup', function() {
             createFloatingLasso(currentDrawCtx.canvas); 
         }
     } else if(activeTool !== 'laser' && activeTool !== 'lasso' && activeTool !== 'lasso-box' && currentDrawCtx) { 
-        currentDrawCtx.globalCompositeOperation = 'source-over';
-        let dataToSave = currentDrawCtx.canvas.toDataURL("image/png");
-        window.simpanDataDrawingTarget(currentDrawCtx.canvas, dataToSave);
-        
-        let st = document.getElementById('save-status-bar');
-        if(st) st.innerHTML = "<span style='color:#e67e22;'>✍️ Saving Draw...</span>"; 
-        if(window.simpanKeDB) window.simpanKeDB();
+        // Jika sedang mode edit Smart Shape, TUNDA penyimpanan. Biarkan pengguna menyesuaikan bentuknya.
+        if (window.isShapeRecognized && window.activeSmartShape) {
+            // (Disimpan saat user klik area lain / menggambar garis baru)
+        } else {
+            currentDrawCtx.globalCompositeOperation = 'source-over';
+            let dataToSave = currentDrawCtx.canvas.toDataURL("image/png");
+            window.simpanDataDrawingTarget(currentDrawCtx.canvas, dataToSave);
+            
+            let st = document.getElementById('save-status-bar');
+            if(st) st.innerHTML = "<span style='color:#e67e22;'>✍️ Saving Draw...</span>"; 
+            if(window.simpanKeDB) window.simpanKeDB();
+        }
     } 
-    if(activeTool !== 'laser') currentDrawCtx = null; 
+    if(activeTool !== 'laser' && !window.activeSmartShape) currentDrawCtx = null; 
 });
 
 // --- FITUR LASO PRO (COPY, PASTE, RESIZE, HAPUS, & MATH AI) ---
@@ -3655,24 +4013,30 @@ window.toggleUniversalFullscreen = function() {
     let btn = document.getElementById('btn-fullscreen-global');
     let elem = document.documentElement;
     let isCurrentlyFull = Boolean(document.fullscreenElement || document.webkitFullscreenElement || window.isManualFullscreenLocked);
+    let isTouchDevice = navigator.maxTouchPoints > 0 || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
     if (!isCurrentlyFull) {
         window.isManualFullscreenLocked = true;
+        document.documentElement.classList.add('ios-fullscreen-lock');
         document.body.classList.add('ios-fullscreen-lock');
         if (btn) {
             btn.classList.add('is-fullscreen-active');
             btn.innerHTML = '🗗';
         }
-        try {
-            if (elem.requestFullscreen) {
-                elem.requestFullscreen().catch(function() {});
-            } else if (elem.webkitRequestFullscreen) {
-                elem.webkitRequestFullscreen();
-            }
-        } catch (e) {}
+        // Jangan gunakan native fullscreen pada perangkat sentuh agar fitur Pinch-to-Zoom peramban tidak dimatikan
+        if (!isTouchDevice) {
+            try {
+                if (elem.requestFullscreen) {
+                    elem.requestFullscreen().catch(function() {});
+                } else if (elem.webkitRequestFullscreen) {
+                    elem.webkitRequestFullscreen();
+                }
+            } catch (e) {}
+        }
         window.scrollTo(0, 1);
     } else {
         window.isManualFullscreenLocked = false;
+        document.documentElement.classList.remove('ios-fullscreen-lock');
         document.body.classList.remove('ios-fullscreen-lock');
         if (btn) {
             btn.classList.remove('is-fullscreen-active');
@@ -6017,8 +6381,10 @@ window.updateAmbilSoalBab = function() {
     
     let htmlB = '';
     Array.from(babSet).sort().forEach(b => {
+        // Amankan nilai value HTML dari karakter kutip agar sistem bisa mendeteksinya
+        let safeVal = b.replace(/"/g, '&quot;');
         htmlB += `<label style="cursor:pointer; display:flex; gap:8px; font-size:13px; align-items:center;">
-                    <input type="checkbox" class="chk-ambil-bab" value="${b}"> ${b}
+                    <input type="checkbox" class="chk-ambil-bab" value="${safeVal}"> ${b}
                   </label>`;
     });
     container.innerHTML = htmlB || '<span style="font-size:12px; color:#888;">Tidak ada bab tersedia.</span>';
@@ -6089,10 +6455,15 @@ window.eksekusiTarikSoalKeUjian = function() {
     let selectedBabs = Array.from(document.querySelectorAll('.chk-ambil-bab:checked')).map(el => el.value);
     if (selectedBabs.length === 0) return alert("Pilih minimal 1 Bab materi!");
 
+    // Normalisasi tipe ke UPPERCASE agar kebal salah ketik di database
+    let selectedTipes = Array.from(document.querySelectorAll('.chk-ambil-tipe:checked')).map(el => el.value.toUpperCase());
+    if (selectedTipes.length === 0) return alert("Pilih minimal 1 Tipe Soal (PG/PGK/IS/Essay)!");
+
     let configPct = {};
     let totalProp = 0;
     ['c1', 'c2', 'hots'].forEach(id => {
-        if (document.getElementById(`chk-ambil-${id}`).checked) {
+        let chk = document.getElementById(`chk-ambil-${id}`);
+        if (chk && chk.checked) {
             let val = parseInt(document.getElementById(`pct-ambil-${id}`).value) || 0;
             configPct[id.toUpperCase()] = val;
             totalProp += val;
@@ -6106,31 +6477,72 @@ window.eksekusiTarikSoalKeUjian = function() {
     let hasilSoalKumpulan = [];
     let poolSoal = { 'C1': [], 'C2': [], 'HOTS': [] };
     
+    // TAHAP 1: Filter cerdas (case-insensitive & anti-gagal spasi)
     Object.values(bank).forEach(item => {
-        if (item.kelas === kelas && item.mapel === mapel && selectedBabs.includes(item.bab) && poolSoal[item.kesulitan]) {
-            let arrSoal = Array.isArray(item.soal) ? item.soal : Object.values(item.soal || {});
-            poolSoal[item.kesulitan].push(...arrSoal);
+        if (item && item.kelas === kelas && item.mapel === mapel && selectedBabs.includes(item.bab)) {
+            // Bersihkan C1/C2/HOTS dari spasi tersembunyi
+            let levelKesulitan = (item.kesulitan || '').trim().toUpperCase(); 
+            
+            if (poolSoal[levelKesulitan]) {
+                let arrSoal = Array.isArray(item.soal) ? item.soal : Object.values(item.soal || {});
+                
+                arrSoal.forEach(q => {
+                    // Normalisasi tipe soal (ISIAN -> IS, ESAI -> ESSAY)
+                    let tipeQ = (q.type || q.tipe || 'PG').toUpperCase();
+                    if (tipeQ === 'ISIAN' || tipeQ === 'SHORT_ANSWER') tipeQ = 'IS';
+                    if (tipeQ === 'ESAI') tipeQ = 'ESSAY';
+                    
+                    // Masukkan ke kolam jika tipenya dicentang oleh Guru
+                    if (selectedTipes.includes(tipeQ)) {
+                        poolSoal[levelKesulitan].push(q);
+                    }
+                });
+            }
         }
     });
 
+    let peringatanStok = [];
+
+    // TAHAP 2: Kalkulasi matematika proporsi & penyaringan soal
     Object.keys(configPct).forEach(level => {
         let jmlKebutuhan = Math.round(targetTotal * (configPct[level] / 100));
-        let arrTersedia = poolSoal[level].sort(() => Math.random() - 0.5);
-        hasilSoalKumpulan.push(...arrTersedia.slice(0, jmlKebutuhan));
+        
+        if (jmlKebutuhan > 0) {
+            // Acak pool yang tersedia SEBELUM dipotong (slice)
+            let arrTersedia = poolSoal[level].sort(() => Math.random() - 0.5);
+
+            // Jika stok aktual di bank kurang dari kuota persentase, catat di log peringatan
+            if (arrTersedia.length < jmlKebutuhan) {
+                peringatanStok.push(`- ${level}: Membutuhkan ${jmlKebutuhan} soal, tapi stok tersisa (sesuai tipe/bab yg dicentang) hanya ${arrTersedia.length} soal.`);
+            }
+
+            // Ambil sebanyak kuota (jika kuota kurang, otomatis terambil semua stok yang ada)
+            hasilSoalKumpulan.push(...arrTersedia.slice(0, jmlKebutuhan));
+        }
     });
 
+    // TAHAP 3: Acak ulang susunan soal gabungan akhir
     hasilSoalKumpulan.sort(() => Math.random() - 0.5);
-    if (hasilSoalKumpulan.length === 0) return alert("Tidak ditemukan soal di bank latihan untuk kriteria yang dipilih.");
+    
+    if (hasilSoalKumpulan.length === 0) return alert("Tidak ditemukan soal di Bank Latihan untuk kriteria dan tipe soal yang dipilih.");
 
     let textArea = document.getElementById('admin-bu-text');
+    
+    // TAHAP 4: Konversi ke Teks dan Paksa Pemisah '---' (Aman dari error gabung soal)
     let convertedText = window.konversiSoalKeTeksMentah(hasilSoalKumpulan);
+    convertedText = convertedText.split(/\n\n(?=Soal:)/).join('\n\n---\n\n'); // Suntik separator
     
     if (textArea.value.trim() !== "") textArea.value += "\n\n---\n\n" + convertedText;
     else textArea.value = convertedText;
 
     window.analisisSoalOtomatis();
     window.tutupModal('modal-ambil-soal-ujian');
-    alert(`✅ Berhasil menarik ${hasilSoalKumpulan.length} soal ke dalam form ujian!`);
+    
+    if (peringatanStok.length > 0) {
+        alert(`⚠️ Berhasil menarik ${hasilSoalKumpulan.length} soal ke editor.\n\nNamun, stok soal di Bank Latihan TIDAK MENCUKUPI untuk memenuhi kuota 100% permintaan Anda:\n\n${peringatanStok.join('\n')}\n\nTips: Perbanyak soal di Bank Latihan atau kurangi target jumlah soal.`);
+    } else {
+        alert(`✅ Berhasil menarik tepat ${hasilSoalKumpulan.length} soal ke editor sesuai proporsi persentase yang diminta!`);
+    }
 };
 
 /* =========================================
@@ -7215,27 +7627,230 @@ window.renderRekapNilai = function() {
         '</tr>';
     });
 
-    // Fitur Tracker: Tampilkan siswa yang belum ujian jika > 50% kelas sudah mengumpulkan
-    if (namaSiswaArr.length > (semuaSiswaKelas.length / 2)) {
-        let siswaBelumUjian = semuaSiswaKelas.filter(function(n) { return !namaSiswaArr.includes(n); }).sort();
+    // Tampilkan SELURUH siswa yang belum ujian (untuk input manual atau upload kamera)
+    let siswaBelumUjian = semuaSiswaKelas.filter(function(n) { return !namaSiswaArr.includes(n); }).sort();
+    
+    if (siswaBelumUjian.length > 0) {
+        html += '<tr><td colspan="6" style="background:#f4f6f6; padding:8px; font-size:11px; font-weight:bold; color:#7f8c8d; text-transform:uppercase; letter-spacing:1px; border-top:2px dashed #cbd5e1; border-bottom:2px dashed #cbd5e1;">Belum Ujian / Input Manual (' + siswaBelumUjian.length + ' Siswa)</td></tr>';
         
-        if (siswaBelumUjian.length > 0) {
-            html += '<tr><td colspan="6" style="background:#f4f6f6; padding:8px; font-size:11px; font-weight:bold; color:#7f8c8d; text-transform:uppercase; letter-spacing:1px; border-top:2px dashed #cbd5e1; border-bottom:2px dashed #cbd5e1;">Menunggu Pengumpulan (' + siswaBelumUjian.length + ' Siswa)</td></tr>';
-            
-            siswaBelumUjian.forEach(function(namaBelum) {
-                html += '<tr style="border-bottom:1px solid #eee; background:#fdfdfd; opacity:0.8;">' +
-                    '<td style="color:#7f8c8d; font-weight:bold;">' + (noUrut++) + '</td>' +
-                    '<td style="text-align:left; font-weight:bold; color:#7f8c8d;">' + namaBelum + ' <span style="font-size:10px; color:#e74c3c; font-style:italic;">(Belum Ujian)</span></td>' +
-                    '<td style="font-weight:bold; color:#bdc3c7;">-</td>' +
-                    '<td style="font-weight:bold; color:#bdc3c7;">-</td>' +
-                    '<td style="font-weight:bold; color:#bdc3c7;">-</td>' +
-                    '<td style="font-weight:bold; color:#bdc3c7;">-</td>' +
-                '</tr>';
-            });
-        }
+        siswaBelumUjian.forEach(function(namaBelum) {
+            let safeNama = namaBelum.replace(/'/g, "\\'");
+            let safeKelas = selKelas.replace(/'/g, "\\'");
+            let safePaket = selPaket.replace(/'/g, "\\'");
+            let idInput = 'input-manual-' + namaBelum.replace(/[^a-zA-Z0-9]/g, '');
+
+            html += '<tr style="border-bottom:1px solid #eee; background:#fdfdfd;">' +
+                '<td style="color:#7f8c8d; font-weight:bold;">' + (noUrut++) + '</td>' +
+                '<td style="text-align:left; font-weight:bold; color:#7f8c8d;">' + namaBelum + ' <span style="font-size:10px; color:#e74c3c; font-style:italic;">(Belum Ujian)</span></td>' +
+                '<td style="font-weight:bold; color:#bdc3c7;">-</td>' +
+                '<td style="font-weight:bold; color:#bdc3c7;">-</td>' +
+                '<td>' +
+                    '<input type="number" id="' + idInput + '" min="0" max="100" class="input-box" placeholder="Skor" style="width:70px; margin:0; padding:6px; text-align:center; font-weight:bold; color:#2980b9; border:2px solid #3498db;" onchange="window.simpanNilaiManual(\'' + safeKelas + '\', \'' + safePaket + '\', \'' + safeNama + '\', this.value, \'' + idInput + '\')">' +
+                '</td>' +
+                '<td>' +
+                    '<button style="background:#8e44ad; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; font-size:11px; font-weight:bold; display:flex; align-items:center; gap:5px; margin:0 auto; box-shadow:0 2px 4px rgba(0,0,0,0.15);" onclick="window.triggerUploadLJK(\'' + safeKelas + '\', \'' + safePaket + '\', \'' + safeNama + '\')">📷 Kamera / Upload</button>' +
+                '</td>' +
+            '</tr>';
+        });
     }
 
     tbody.innerHTML = html;
+};
+
+// =========================================
+// FUNGSI INPUT MANUAL & UPLOAD LEMBAR JAWABAN
+// =========================================
+window.simpanNilaiManual = function(kelas, paket, nama, nilaiRaw, inputId) {
+    let nilai = parseFloat(nilaiRaw);
+    if(isNaN(nilai) || nilai < 0 || nilai > 100) {
+        alert("Masukkan angka yang valid antara 0 - 100.");
+        document.getElementById(inputId).value = "";
+        return;
+    }
+
+    if(!confirm("Simpan nilai akhir " + nilai + " untuk " + nama + "?\n\n(Catatan: Detail jawaban per butir soal akan diisi tanda strip (-) di Excel Rekap Nilai)")) {
+        document.getElementById(inputId).value = "";
+        return;
+    }
+
+    // Detail dibiarkan kosong [], mesin export Excel otomatis akan mengisinya dengan strip (-)
+    let payload = {
+        nilaiAkhir: nilai,
+        waktuKumpul: new Date().toISOString(),
+        detail: [], 
+        pelanggaran: 0,
+        sudahDikoreksi: true
+    };
+
+    let pathDB = 'admin_rekap_nilai/' + kelas + '/' + paket + '/' + nama;
+    
+    // Tembak Firebase
+    if(typeof window.kirimNilaiUjianAmanKeDB === "function") {
+        window.kirimNilaiUjianAmanKeDB(pathDB, payload, function() {
+            if(!window.adminRekapNilaiData[kelas]) window.adminRekapNilaiData[kelas] = {};
+            if(!window.adminRekapNilaiData[kelas][paket]) window.adminRekapNilaiData[kelas][paket] = {};
+            window.adminRekapNilaiData[kelas][paket][nama] = payload;
+            
+            window.renderRekapNilai(); // Tabel otomatis memindahkan siswa ini ke daftar atas
+            
+            // Pop-up Toast Cepat
+            let toast = document.createElement('div');
+            toast.innerText = "✅ Nilai manual tersimpan!";
+            toast.style.cssText = "position:fixed; top:20px; left:50%; transform:translateX(-50%); background:#27ae60; color:white; padding:10px 20px; border-radius:30px; font-family:'Poppins', sans-serif; font-size:13px; font-weight:bold; box-shadow:0 4px 12px rgba(0,0,0,0.15); z-index:9999999; opacity:0; transition:opacity 0.3s;";
+            document.body.appendChild(toast);
+            setTimeout(() => { toast.style.opacity = '1'; }, 10);
+            setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 1500);
+            
+        }, function(err) {
+            alert("❌ Gagal menyimpan nilai: " + err.message);
+        });
+    }
+};
+
+window.triggerUploadLJK = function(kelas, paket, nama) {
+    window.targetUploadLJK = { kelas: kelas, paket: paket, nama: nama };
+    let inputLJK = document.getElementById('input-file-ljk');
+    if(inputLJK) inputLJK.click(); // Otomatis trigger file explorer atau kamera HP
+};
+
+window.prosesUploadLJK = async function(inputElem) {
+    let file = inputElem.files[0];
+    if(!file) return;
+    
+    let t = window.targetUploadLJK;
+    inputElem.value = ""; 
+
+    // UI Toast Loading Melayang
+    let toast = document.createElement('div');
+    toast.style.cssText = "position:fixed; top:20px; left:50%; transform:translateX(-50%); background:#e67e22; color:white; padding:12px 25px; border-radius:30px; font-family:'Poppins', sans-serif; font-size:13px; font-weight:bold; box-shadow:0 4px 15px rgba(0,0,0,0.2); z-index:9999999; text-align:center;";
+    toast.innerHTML = "⏳ Mengaktifkan AI Scanner...<br><span style='font-size:11px; font-weight:normal;'>Memindai LJK & Tulisan Tangan: " + t.nama + "</span>";
+    document.body.appendChild(toast);
+
+    try {
+        let paketData = window.adminBankUjianData[t.paket];
+        if(!paketData || !paketData.soal) throw new Error("Data bank soal tidak ditemukan untuk paket ini.");
+
+        if (!window.Tesseract) throw new Error("Mesin Tesseract OCR sedang dimuat, tunggu beberapa detik.");
+
+        // EKSTRAKSI GAMBAR KE TEKS MENGGUNAKAN TESSERACT.JS
+        toast.innerHTML = "🔍 Membaca LJK...<br><span style='font-size:11px; font-weight:normal;'>Mengekstrak teks & pola jawaban...</span>";
+        let worker = await Tesseract.createWorker('ind');
+        let ocrResult = await worker.recognize(file);
+        await worker.terminate();
+        
+        let extractedText = ocrResult.data.text;
+        
+        toast.innerHTML = "⚙️ Mencocokkan Kunci Jawaban...<br><span style='font-size:11px; font-weight:normal;'>Sinkronisasi nilai ke Ledger...</span>";
+
+        let totalNilai = 0;
+        let hasilDetail = [];
+        let bobot = paketData.bobot || {PG:0, PGK:0, IS:0, Essay:0};
+
+        // PARSER CERDAS (OMR & OCR) BERDASARKAN FORMAT SOAL
+        paketData.soal.forEach((q, idx) => {
+            let ansSiswa = "";
+            let poin = 0;
+            let status = "Salah";
+            let noSoal = idx + 1;
+
+            if (q.type === 'PG') {
+                // Mencari pola jawaban PG yang dihitamkan (Contoh terdeteksi OCR: "1. A" atau "1 A")
+                let regexPG = new RegExp(noSoal + "\\s*[\\.\\)]\\s*([A-E])", "i");
+                let match = extractedText.match(regexPG);
+                ansSiswa = match ? match[1].toUpperCase() : "-";
+                
+                if (ansSiswa === (q.correct[0] || '').toUpperCase()) { 
+                    poin = bobot.PG; 
+                    status = "Benar"; 
+                }
+            } else if (q.type === 'PGK') {
+                // Mencari pola PGK (Pernyataan Benar/Salah)
+                // Deteksi OCR baris tabel: "1 Benar" atau "1 B"
+                let ansArray = [];
+                let correctCount = 0;
+                let totalOps = (q.options || []).length;
+                
+                (q.options || []).forEach((opt, oIdx) => {
+                    let regexPGK = new RegExp((oIdx + 1) + "\\s+(Benar|Salah|B|S)", "i");
+                    let match = extractedText.match(regexPGK);
+                    if (match) {
+                        let isCentangBenar = match[1].toUpperCase().startsWith('B');
+                        if (isCentangBenar) ansArray.push(opt.label);
+                    }
+                });
+                ansSiswa = ansArray;
+                
+                if(totalOps > 0 && ansArray.length > 0) {
+                    (q.options || []).forEach(opt => {
+                        let isExpected = (q.correct || []).includes(opt.label);
+                        let isAnswered = ansArray.includes(opt.label);
+                        if (isExpected === isAnswered) correctCount++;
+                    });
+                    poin = (bobot.PGK / totalOps) * correctCount;
+                    if (correctCount === totalOps) status = "Benar Sempurna";
+                    else if (correctCount > 0) status = "Benar Parsial";
+                }
+            } else if (q.type === 'IS' || q.type === 'Essay') {
+                // Membaca tulisan tangan di sebelah nomor soal
+                let regexIS = new RegExp(noSoal + "\\s*[\\.\\)]\\s*(.+)", "i");
+                let matchIS = extractedText.match(regexIS);
+                ansSiswa = matchIS ? matchIS[1].trim() : "-";
+
+                if (q.type === 'IS' && ansSiswa !== "-") {
+                    let isBenar = (q.correct || []).some(k => ansSiswa.toLowerCase().includes(k.toLowerCase().trim()));
+                    if(isBenar) { 
+                        poin = bobot.IS; 
+                        status = "Benar"; 
+                    }
+                } else if (q.type === 'Essay') {
+                    poin = 0; 
+                    status = "Menunggu Guru";
+                }
+            }
+
+            totalNilai += poin;
+            hasilDetail.push({
+                soal: q.question,
+                tipe: q.type,
+                kunci: q.correct || [],
+                jawabSiswa: ansSiswa,
+                pembahasan: q.explanation || "Tidak ada pembahasan.",
+                poinDidapat: poin,
+                status: status
+            });
+        });
+
+        // SIMPAN KE FIREBASE & LEDGER
+        let payload = {
+            nilaiAkhir: parseFloat(totalNilai.toFixed(2)),
+            waktuKumpul: new Date().toISOString(),
+            detail: hasilDetail,
+            pelanggaran: 0,
+            sudahDikoreksi: false // Menyisakan status untuk di-review ulang oleh guru di tabel koreksi
+        };
+
+        let pathDB = 'admin_rekap_nilai/' + t.kelas + '/' + t.paket + '/' + t.nama;
+        
+        window.kirimNilaiUjianAmanKeDB(pathDB, payload, function() {
+            if(!window.adminRekapNilaiData[t.kelas]) window.adminRekapNilaiData[t.kelas] = {};
+            if(!window.adminRekapNilaiData[t.kelas][t.paket]) window.adminRekapNilaiData[t.kelas][t.paket] = {};
+            window.adminRekapNilaiData[t.kelas][t.paket][t.nama] = payload;
+            
+            window.renderRekapNilai();
+            
+            toast.style.background = "#27ae60";
+            toast.innerHTML = "✅ LJK Berhasil Dipindai!<br><span style='font-size:18px;'>Nilai: " + payload.nilaiAkhir + "</span>";
+            setTimeout(() => toast.remove(), 3500);
+        }, function(err) {
+            throw new Error(err.message);
+        });
+
+    } catch (err) {
+        console.error(err);
+        toast.style.background = "#c0392b";
+        toast.innerHTML = "❌ Gagal memindai: " + err.message;
+        setTimeout(() => toast.remove(), 4000);
+    }
 };
 
 window.exportExcelRekapNilai = function() {
@@ -7252,23 +7867,28 @@ window.exportExcelRekapNilai = function() {
     let bobot = bankPaket.bobot || {PG:0, PGK:0, IS:0, Essay:0};
     if(bankSoal.length === 0 && namaSiswaArr.length > 0) bankSoal = dataSiswa[namaSiswaArr[0]].detail; 
 
+    // 1. Hitung jumlah total setiap tipe soal
     let pgCount = 0, pgkCount = 0, isCount = 0, esCount = 0;
     bankSoal.forEach(function(q) {
-        let tipe = q.tipe || q.type;
-        if(tipe === 'PG') pgCount++;
-        else if(tipe === 'PGK') pgkCount++;
-        else if(tipe === 'IS' || tipe === 'Isian') isCount++;
-        else if(tipe === 'Essay') esCount++;
+        let tipeStr = (q.tipe || q.type || '').toUpperCase();
+        if(tipeStr === 'ISIAN' || tipeStr === 'SHORT_ANSWER') tipeStr = 'IS';
+        if(tipeStr === 'ESAI') tipeStr = 'ESSAY';
+
+        if(tipeStr === 'PG') pgCount++;
+        else if(tipeStr === 'PGK') pgkCount++;
+        else if(tipeStr === 'IS') isCount++;
+        else if(tipeStr === 'ESSAY') esCount++;
     });
 
     let offsetTabelBobot = 2 + pgCount + pgkCount - 1;
     if(offsetTabelBobot < 2) offsetTabelBobot = 2;
 
-    let bPG = Number(bobot.PG.toFixed(2));
-    let bPGK = Number(bobot.PGK.toFixed(2));
-    let bIS = Number(bobot.IS.toFixed(2));
-    let bESS = Number(bobot.Essay.toFixed(2));
+    let bPG = Number((bobot.PG || 0).toFixed(2));
+    let bPGK = Number((bobot.PGK || 0).toFixed(2));
+    let bIS = Number((bobot.IS || 0).toFixed(2));
+    let bESS = Number((bobot.Essay || 0).toFixed(2));
 
+    // 2. Susun Header HTML untuk Excel
     let html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">' +
     '<head><meta charset="utf-8"><style>' +
         'table { border-collapse: collapse; font-family: Calibri, sans-serif; font-size: 12px; }' +
@@ -7278,15 +7898,16 @@ window.exportExcelRekapNilai = function() {
         '.bg-title { font-size: 16px; font-weight: bold; border: none; text-align: center; }' +
         '.no-border { border: none; }' +
     '</style></head><body><table>' +
-        '<tr><td colspan="' + (2 + pgCount + pgkCount + isCount + esCount + 1) + '" class="bg-title">Ledger Siswa</td></tr>' +
+        '<tr><td colspan="' + (2 + pgCount + pgkCount + isCount + esCount + 1) + '" class="bg-title">Rekapitulasi Ujian Siswa</td></tr>' +
         '<tr><td colspan="' + (2 + pgCount + pgkCount + isCount + esCount + 1) + '" class="no-border"></td></tr>' +
         '<tr><td colspan="2" class="text-left no-border" style="font-weight:bold;">Kelas: ' + selKelas + '</td>';
     for(let i=0; i<offsetTabelBobot - 2; i++) html += '<td class="no-border"></td>';
+    
+    // Tulis Bobot Soal di Header
     if(pgCount > 0) html += '<td class="bg-header">PG</td>';
     if(pgkCount > 0) html += '<td class="bg-header">PGK</td>';
     if(isCount > 0) html += '<td class="bg-header">IS</td>';
     if(esCount > 0) html += '<td class="bg-header">ESS</td>';
-    
     html += '</tr><tr><td colspan="2" class="text-left no-border" style="font-weight:bold;">Ujian: ' + selPaket + '</td>';
     for(let i=0; i<offsetTabelBobot - 2; i++) html += '<td class="no-border"></td>';
     if(pgCount > 0) html += '<td>' + bPG + '</td>';
@@ -7308,24 +7929,51 @@ window.exportExcelRekapNilai = function() {
     for(let i=1; i<=esCount; i++) html += '<td class="bg-header">' + i + '</td>';
     html += '</tr>';
 
+    // 3. Susun Baris Siswa Secara Terstruktur (Grouping per Tipe)
     namaSiswaArr.forEach(function(nama, idx) {
         let d = dataSiswa[nama];
         html += '<tr><td>' + (idx+1) + '</td><td class="text-left">' + nama + '</td>';
-        d.detail.forEach(function(h) {
-            if(h.tipe === 'PG') {
-                let ans = Array.isArray(h.jawabSiswa) ? h.jawabSiswa[0] : h.jawabSiswa;
-                html += '<td>' + (ans||'').toLowerCase() + '</td>';
-            } else if(h.tipe === 'PGK') {
-                let frac = bobot.PGK > 0 ? (h.poinDidapat / bobot.PGK) : 0;
-                html += '<td>' + Number(frac.toFixed(2)) + '</td>';
-            } else if(h.tipe === 'IS' || h.tipe === 'Isian') {
-                html += '<td>' + (h.poinDidapat > 0 ? 1 : 0) + '</td>';
-            } else if(h.tipe === 'Essay') {
-                let frac = bobot.Essay > 0 ? (h.poinDidapat / bobot.Essay) : 0;
-                html += '<td>' + Number(frac.toFixed(2)) + '</td>';
-            }
-        });
-        html += '<td style="font-weight:bold;">' + d.nilaiAkhir + '</td></tr>';
+        
+        let colsPG = [];
+        let colsPGK = [];
+        let colsIS = [];
+        let colsEssay = [];
+
+        if (d.detail && d.detail.length > 0) {
+            d.detail.forEach(function(h) {
+                let tipeStr = (h.tipe || h.type || '').toUpperCase();
+                if (tipeStr === 'ISIAN' || tipeStr === 'SHORT_ANSWER') tipeStr = 'IS';
+                if (tipeStr === 'ESAI') tipeStr = 'ESSAY';
+
+                if (tipeStr === 'PG') {
+                    let ans = Array.isArray(h.jawabSiswa) ? h.jawabSiswa[0] : h.jawabSiswa;
+                    colsPG.push('<td>' + (ans||'-').toLowerCase() + '</td>');
+                } else if (tipeStr === 'PGK') {
+                    let maxBobot = bobot.PGK > 0 ? bobot.PGK : 1; 
+                    let frac = h.poinDidapat / maxBobot;
+                    colsPGK.push('<td>' + Number(frac.toFixed(2)) + '</td>');
+                } else if (tipeStr === 'IS') {
+                    let maxBobot = bobot.IS > 0 ? bobot.IS : 1;
+                    // Jika poin yang didapat nyaris penuh atau penuh, berikan nilai 1. Jika tidak, 0.
+                    let isBenar = (h.poinDidapat >= (maxBobot * 0.99));
+                    colsIS.push('<td>' + (isBenar ? 1 : 0) + '</td>');
+                } else if (tipeStr === 'ESSAY') {
+                    let maxBobot = bobot.Essay > 0 ? bobot.Essay : 1;
+                    let frac = h.poinDidapat / maxBobot;
+                    colsEssay.push('<td>' + Number(frac.toFixed(2)) + '</td>');
+                }
+            });
+        }
+
+        // Amankan jika ada soal kosong / error, pastikan tabel tidak berantakan
+        while(colsPG.length < pgCount) colsPG.push('<td>-</td>');
+        while(colsPGK.length < pgkCount) colsPGK.push('<td>-</td>');
+        while(colsIS.length < isCount) colsIS.push('<td>-</td>');
+        while(colsEssay.length < esCount) colsEssay.push('<td>-</td>');
+
+        // Cetak dengan urutan kaku: PG -> PGK -> IS -> Essay
+        html += colsPG.join('') + colsPGK.join('') + colsIS.join('') + colsEssay.join('');
+        html += '<td style="font-weight:bold;">' + (d.nilaiAkhir || 0) + '</td></tr>';
     });
 
     html += '</table></body></html>';
@@ -7333,7 +7981,7 @@ window.exportExcelRekapNilai = function() {
     let blob = new Blob([html], { type: 'application/vnd.ms-excel' });
     let link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = 'Ledger_' + selKelas + '_' + selPaket.replace(/\s+/g, '_') + '.xls';
+    link.download = 'Rekap_Nilai_' + selKelas + '_' + selPaket.replace(/\s+/g, '_') + '.xls';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -8514,4 +9162,431 @@ window.tandaiTuntasRemedial = function(kelas, paket, nama, batasKKM, idRow) {
     // Sinkronisasi tabel Ledger Utama dan Rekap Nilai secara senyap di background
     if (typeof window.renderRekapNilai === "function") window.renderRekapNilai();
     if (typeof window.renderLedgerSiswa === "function") window.renderLedgerSiswa();
+};
+
+/* =========================================
+   MESIN CATATAN KELAS (DINAMIS PER KELAS)
+   ========================================= */
+window.adminCatatanKelasData = {}; 
+window.ckActiveIndex = 0;
+window.isTypingCK = false;
+
+window.bukaCatatanKelas = function() {
+    let kls = window.kelasAktifAdmin;
+    if(!kls) return alert("Silakan pilih kelas terlebih dahulu di dropdown Administrasi!");
+    
+    document.getElementById('ck-kelas-title').innerText = kls;
+    
+    if(!window.adminCatatanKelasData[kls] || window.adminCatatanKelasData[kls].length === 0) {
+        window.adminCatatanKelasData[kls] = [{ id: 'sheet_1', nama: 'Sheet 1', html: '' }];
+    }
+    
+    window.ckActiveIndex = 0;
+    document.getElementById('modal-catatan-kelas').style.display = 'flex';
+    window.renderSheetsCK();
+    window.muatKontenSheetAktifCK();
+};
+
+window.tutupCatatanKelas = function() {
+    document.getElementById('modal-catatan-kelas').style.display = 'none';
+};
+
+window.toggleSizeCatatanKelas = function() {
+    document.getElementById('modal-catatan-kelas').classList.toggle('cg-maximized');
+};
+
+window.renderSheetsCK = function() {
+    let kls = window.kelasAktifAdmin;
+    let container = document.getElementById('ck-sheet-list');
+    if(!container || !kls || !window.adminCatatanKelasData[kls]) return;
+    
+    let html = '';
+    window.adminCatatanKelasData[kls].forEach((sheet, idx) => {
+        let isActive = (idx === window.ckActiveIndex) ? 'active' : '';
+        html += `<div class="cg-sheet-item ${isActive}" onclick="window.pindahSheetCK(${idx})">
+                    <span contenteditable="true" onblur="window.ubahNamaSheetCK(${idx}, this.innerText)" onclick="event.stopPropagation()">${sheet.nama}</span>
+                    <button class="cg-del-sheet" onclick="event.stopPropagation(); window.hapusSheetCK(${idx})" title="Hapus Sheet">✕</button>
+                 </div>`;
+    });
+    container.innerHTML = html;
+};
+
+window.pindahSheetCK = function(idx) {
+    window.ckActiveIndex = idx;
+    window.renderSheetsCK();
+    window.muatKontenSheetAktifCK();
+};
+
+window.muatKontenSheetAktifCK = function() {
+    let kls = window.kelasAktifAdmin;
+    let area = document.getElementById('ck-editor-area');
+    if(area && kls && window.adminCatatanKelasData[kls][window.ckActiveIndex]) {
+        area.innerHTML = window.adminCatatanKelasData[kls][window.ckActiveIndex].html || '';
+    }
+};
+
+window.tambahSheetCK = function() {
+    let kls = window.kelasAktifAdmin;
+    if(!kls) return;
+    let newIdx = window.adminCatatanKelasData[kls].length + 1;
+    window.adminCatatanKelasData[kls].push({ id: 'sheet_' + Date.now(), nama: 'Sheet ' + newIdx, html: '' });
+    window.ckActiveIndex = window.adminCatatanKelasData[kls].length - 1;
+    window.renderSheetsCK();
+    window.muatKontenSheetAktifCK();
+    if(typeof window.simpanCatatanKelasKeDB === "function") window.simpanCatatanKelasKeDB();
+};
+
+window.ubahNamaSheetCK = function(idx, namaBaru) {
+    let kls = window.kelasAktifAdmin;
+    if(kls && window.adminCatatanKelasData[kls][idx]) {
+        window.adminCatatanKelasData[kls][idx].nama = namaBaru.trim() || 'Sheet ' + (idx+1);
+        if(typeof window.simpanCatatanKelasKeDB === "function") window.simpanCatatanKelasKeDB();
+    }
+};
+
+window.hapusSheetCK = function(idx) {
+    let kls = window.kelasAktifAdmin;
+    if(!kls || window.adminCatatanKelasData[kls].length <= 1) return alert("Minimal harus ada 1 sheet!");
+    if(confirm("Hapus sheet ini?")) {
+        window.adminCatatanKelasData[kls].splice(idx, 1);
+        window.ckActiveIndex = 0;
+        window.renderSheetsCK();
+        window.muatKontenSheetAktifCK();
+        if(typeof window.simpanCatatanKelasKeDB === "function") window.simpanCatatanKelasKeDB();
+    }
+};
+
+window.ckTypingTimer = null;
+window.simpanCatatanKelasDelay = function() {
+    window.isTypingCK = true;
+    let stat = document.getElementById('ck-sync-status');
+    if(stat) stat.innerHTML = "<span style='color:#f1c40f;'>✍️ Mengetik...</span>";
+    
+    clearTimeout(window.ckTypingTimer);
+    window.ckTypingTimer = setTimeout(function() {
+        let kls = window.kelasAktifAdmin;
+        let area = document.getElementById('ck-editor-area');
+        if(kls && area && window.adminCatatanKelasData[kls][window.ckActiveIndex]) {
+            window.adminCatatanKelasData[kls][window.ckActiveIndex].html = area.innerHTML;
+            if(typeof window.simpanCatatanKelasKeDB === "function") window.simpanCatatanKelasKeDB();
+        }
+    }, 800);
+};
+
+/* =========================================
+   MESIN GENERATOR KISI-KISI SOAL (UI & PREFERENSI)
+   ========================================= */
+
+// Buka Modal & Muat Data Terakhir yang Diketik
+window.bukaModalKisiKisi = function() {
+    if (!window.tempSoalUjianParsed || window.tempSoalUjianParsed.length === 0) {
+        return alert("⚠️ Belum ada soal yang aktif di editor. Silakan pilih atau buat soal ujian terlebih dahulu.");
+    }
+    
+    // Muat data dari penyimpanan browser (jika ada)
+    let prefs = JSON.parse(localStorage.getItem('kisi_kisi_prefs') || '{}');
+    
+    if (prefs.jenis) document.getElementById('kisi-jenis-ujian').value = prefs.jenis;
+    if (prefs.tahun) document.getElementById('kisi-tahun-pelajaran').value = prefs.tahun;
+    if (prefs.mapel) document.getElementById('kisi-mapel').value = prefs.mapel;
+    if (prefs.kelas) document.getElementById('kisi-kelas-fase').value = prefs.kelas;
+    if (prefs.cp) document.getElementById('kisi-cp').value = prefs.cp;
+
+    window.bukaModal('modal-kisi-kisi');
+};
+
+// Simpan Ketikan agar Tidak Hilang Saat Tutup Modal
+window.simpanPreferensiKisiKisi = function() {
+    let prefs = {
+        jenis: document.getElementById('kisi-jenis-ujian').value,
+        tahun: document.getElementById('kisi-tahun-pelajaran').value,
+        mapel: document.getElementById('kisi-mapel').value,
+        kelas: document.getElementById('kisi-kelas-fase').value,
+        cp: document.getElementById('kisi-cp').value
+    };
+    localStorage.setItem('kisi_kisi_prefs', JSON.stringify(prefs));
+};
+
+/* =========================================
+   MESIN GEMINI AI (SUPER CEPAT & ANTI NYANGKUT)
+   ========================================= */
+const GEMINI_API_KEY = atob("QVEuQWI4Uk42THQzUk5mUDRqdEpzNXZkb3l3WndjWGJ2eVZTZjZtcWdfNzhXVnFqWlB6UXc");
+
+// 1. Hardcode model terstabil yang pasti tersedia
+window.daftarModelGemini = [
+    "models/gemini-1.5-flash", 
+    "models/gemini-1.5-pro",
+    "models/gemini-pro" 
+];
+
+// 2. Memori Blacklist
+window.modelGeminiBlacklist = [];
+
+// 3. Fungsi pemanggil cerdas dengan Timer Pemutus Arus (AbortController) yang lebih realistis
+window.requestKeGeminiDenganFallback = async function(teksPrompt) {
+    let errorTerakhir = "";
+    
+    let models = window.daftarModelGemini.filter(m => !window.modelGeminiBlacklist.includes(m));
+    if (models.length === 0) {
+        window.modelGeminiBlacklist = []; 
+        models = window.daftarModelGemini;
+    }
+
+    for (let i = 0; i < models.length; i++) {
+        const modelName = models[i];
+        
+        if (window.modelGeminiBlacklist.includes(modelName)) continue; 
+
+        const url = 'https://generativelanguage.googleapis.com/v1beta/' + modelName + ':generateContent?key=' + GEMINI_API_KEY;
+
+        try {
+            // Longgarkan Timer menjadi 15 detik. Analisis kompleks butuh waktu.
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ parts: [{ text: teksPrompt }] }] }),
+                signal: controller.signal
+            });
+            
+            clearTimeout(timeoutId);
+            const data = await response.json();
+
+            if (response.ok && data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
+                return data.candidates[0].content.parts[0].text;
+            } else {
+                errorTerakhir = data.error?.message || "Server sibuk";
+                console.warn(modelName + " gagal/sibuk: " + errorTerakhir);
+                
+                if (response.status === 503 || response.status === 429 || errorTerakhir.includes("high demand") || response.status === 404) {
+                    if (!window.modelGeminiBlacklist.includes(modelName)) window.modelGeminiBlacklist.push(modelName);
+                }
+            }
+        } catch (err) {
+            errorTerakhir = err.message;
+            if (err.name === 'AbortError') {
+                console.warn(modelName + " Terlalu lambat (Timeout > 15 detik). Blacklist dan pindah ke cadangan...");
+                if (!window.modelGeminiBlacklist.includes(modelName)) window.modelGeminiBlacklist.push(modelName);
+            }
+        }
+    }
+    throw new Error(errorTerakhir || "Semua server AI sibuk.");
+};
+
+/* =========================================
+   MESIN KISI-KISI AI MURNI (KUALITAS MAKSIMAL 3-5 DETIK)
+   ========================================= */
+// API Key Anda yang sah
+window.GEMINI_API_KEY = "AIzaSyCD2-v7vgvgAgOlvkn_tzOHpAtZZEP6B0w"; 
+
+// 1. Pemanggil AI Tunggal (Stabil & Anti-Spam)
+window.requestKeGeminiAI = async function(teksPrompt) {
+    const models = ["models/gemini-1.5-flash", "models/gemini-1.5-pro"];
+    let errorTerakhir = "";
+
+    for (let i = 0; i < models.length; i++) {
+        try {
+            // Waktu tunggu 20 detik agar AI bisa berpikir dan merangkai kalimat berkualitas
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 20000); 
+            
+            const url = 'https://generativelanguage.googleapis.com/v1beta/' + models[i] + ':generateContent?key=' + window.GEMINI_API_KEY;
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ parts: [{ text: teksPrompt }] }] }),
+                signal: controller.signal
+            });
+            
+            clearTimeout(timeoutId);
+            const data = await response.json();
+            
+            if (response.ok && data.candidates) {
+                return data.candidates[0].content.parts[0].text;
+            } else {
+                errorTerakhir = data.error?.message || "Error";
+                console.warn(models[i] + " gagal: " + errorTerakhir);
+            }
+        } catch(e) {
+            console.warn(models[i] + " terputus/timeout.");
+            errorTerakhir = e.message;
+        }
+    }
+    throw new Error("Gagal terhubung ke AI. Pastikan internet stabil. Detail: " + errorTerakhir);
+};
+
+// 2. Proses Utama Pembuat Kisi-Kisi
+window.mulaiGenerateKisiKisi = async function() {
+    let cp = document.getElementById('kisi-cp').value.trim();
+    if (!cp) return alert("Capaian Pembelajaran (CP) wajib diisi!");
+    
+    let btn = document.getElementById('btn-generate-kisi');
+    let oldBtnText = btn.innerText;
+    
+    // Indikator loading yang realistis (3-5 detik)
+    btn.innerText = "🧠 AI Sedang Merangkai Indikator (Mohon Tunggu 3-5 Detik)...";
+    btn.disabled = true;
+
+    let dataSoal = window.tempSoalUjianParsed || [];
+    if(dataSoal.length === 0) {
+        alert("⚠️ Tidak ada soal yang aktif di editor.");
+        btn.innerText = oldBtnText;
+        btn.disabled = false;
+        return;
+    }
+
+    try {
+        // Optimasi: Sertakan konteks hingga 300 karakter agar AI paham medis/biologi
+        let dataSoalOpt = dataSoal.map((q, idx) => {
+            let teks = (q.question || "").replace(/<[^>]*>?/gm, ' ').replace(/\s+/g, ' ').trim();
+            if(teks.length > 300) {
+                teks = teks.substring(0, 300);
+                teks = teks.substring(0, teks.lastIndexOf(" ")) + '...'; 
+            }
+            return { no: idx + 1, soal: teks };
+        });
+
+        // KITA KIRIM DALAM 1 BATCH SEKALIGUS (Mencegah Limit 429 Google)
+        let prompt = `Anda adalah dosen ahli pembuat kisi-kisi soal evaluasi. Analisis daftar soal berikut dan buatkan Indikator Soal berkualitas tinggi.
+ATURAN INDIKATOR (BAHASA INDONESIA BAKU):
+1. DILARANG menggunakan kalimat pertanyaan di dalam indikator (Buang kata: apa, siapa, bagaimana, di mana).
+2. DILARANG mengulang-ulang kalimat teks soal secara mentah.
+3. JIKA SOAL KASUS (pasien/korban/penyakit): Gunakan format "Disajikan kasus [sebutkan nama penyakit/kondisi], peserta didik dapat [menganalisis/menentukan] [inti permasalahan] dengan tepat."
+4. JIKA SOAL SINGKAT/KONSEP (Contoh: "Otot apa yang utama berkontraksi saat inspirasi?"): Gunakan format "Peserta didik dapat [menyebutkan/menentukan] [topik bahasan] dengan tepat." -> (Contoh Benar: "Peserta didik dapat menyebutkan otot utama yang berkontraksi saat inspirasi dengan tepat.")
+
+Jawab HANYA dengan JSON array murni tanpa format markdown/teks awalan. Format Wajib: 
+[{"kompetensi":"Topik Utama Singkat", "soal_list":[{"nomor":1, "indikator":"...", "level":"C2"}]}] 
+
+Data Soal: ${JSON.stringify(dataSoalOpt)}`;
+
+        // Eksekusi (Butuh sekitar 3 - 5 detik untuk AI mengetik respons JSON)
+        let hasilAI = await window.requestKeGeminiAI(prompt);
+        
+        // Membersihkan jika AI menyelipkan tag markdown ```json
+        let jsonStr = hasilAI.replace(/```json/gi, '').replace(/```/g, '').trim();
+        let aiDataFinal = JSON.parse(jsonStr);
+        
+        // Mengurutkan nomor soal agar rapi
+        aiDataFinal.forEach(komp => {
+            if (komp.soal_list) komp.soal_list.sort((a, b) => a.nomor - b.nomor);
+        });
+        aiDataFinal.sort((a, b) => {
+            let numA = (a.soal_list && a.soal_list.length > 0) ? a.soal_list[0].nomor : 9999;
+            let numB = (b.soal_list && b.soal_list.length > 0) ? b.soal_list[0].nomor : 9999;
+            return numA - numB;
+        });
+        
+        // Cetak
+        window.cetakKisiKisiHTML(aiDataFinal, cp);
+
+    } catch(e) {
+        alert("⚠️ Gagal memproses AI: " + e.message);
+        console.error(e);
+    } finally {
+        btn.innerText = oldBtnText;
+        btn.disabled = false;
+        window.tutupModal('modal-kisi-kisi');
+    }
+};
+
+window.cetakKisiKisiHTML = function(aiData, cpTeks) {
+    let prefs = JSON.parse(localStorage.getItem('kisi_kisi_prefs') || '{}');
+    
+    // Kalkulasi jumlah tipe soal
+    let jmlPG = 0, jmlUraian = 0, totalSoal = 0;
+    window.tempSoalUjianParsed.forEach(q => {
+        totalSoal++;
+        if (q.type === 'PG' || q.type === 'PGK') jmlPG++;
+        else jmlUraian++;
+    });
+
+    // Mulai rakit HTML dengan standar ukuran cetak A4 Landscape & Font Times New Roman
+    let html = `<html><head><title>Kisi-Kisi Soal</title>
+<style>
+    @page { size: A4 landscape; margin: 15mm; }
+    body { font-family: "Times New Roman", Times, serif; font-size: 11pt; color: #000; }
+    h2, h3, h4 { text-align: center; margin: 2px 0; }
+    .header-info { margin-bottom: 20px; font-weight: bold; margin-top: 15px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: auto; }
+    th, td { border: 1px solid black; padding: 6px; vertical-align: top; word-wrap: break-word; }
+    th { text-align: center; font-weight: bold; background: #f2f2f2; }
+    .text-center { text-align: center; }
+</style>
+</head><body>
+    <h2>KISI-KISI SOAL ${prefs.jenis ? prefs.jenis.toUpperCase() : 'SUMATIF'}</h2>
+    <h3>SMAS BODHI DHARMA BATAM - TAHUN PELAJARAN ${prefs.tahun || '-'}</h3>
+    <div class="header-info">
+        Mata Pelajaran &nbsp;&nbsp;&nbsp;: ${prefs.mapel || '-'}<br>
+        Kelas / Fase &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: ${prefs.kelas || '-'}<br>
+        Jumlah Soal &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: ${jmlPG} soal Pilihan Ganda dan ${jmlUraian} soal Uraian
+    </div>
+    <table>
+        <tr>
+            <th style="width: 12%;">Capaian Pembelajaran</th>
+            <th style="width: 13%;">Kompetensi</th>
+            <th style="width: 18%;">Indikator Soal</th>
+            <th style="width: 6%;">Bentuk Soal</th>
+            <th style="width: 5%;">Nomor</th>
+            <th style="width: 32%;">Soal</th>
+            <th style="width: 6%;">Kunci</th>
+            <th style="width: 8%;">Level Kognitif</th>
+        </tr>`;
+
+    let cpPrinted = false;
+
+    // Loop data dari AI untuk membangun baris (termasuk rowspan CP dan rowspan Kompetensi)
+    aiData.forEach((komp) => {
+        let isFirstInKomp = true;
+        komp.soal_list.forEach((item) => {
+            let soalAsli = window.tempSoalUjianParsed[item.nomor - 1];
+            if(!soalAsli) return;
+
+            html += `<tr>`;
+            
+            // Kolom CP digabung dari soal pertama hingga soal terakhir (rowspan = total)
+            if (!cpPrinted) {
+                html += `<td rowspan="${totalSoal}">${cpTeks.replace(/\n/g, '<br>')}</td>`;
+                cpPrinted = true;
+            }
+
+            // Kolom Kompetensi digabung sesuai jumlah soal dalam kelompok tersebut
+            if (isFirstInKomp) {
+                html += `<td rowspan="${komp.soal_list.length}">${komp.kompetensi}</td>`;
+                isFirstInKomp = false;
+            }
+
+            // Rapikan format cetak opsi (ABCD) agar setiap opsi berada di baris baru
+            let teksSoalLengkap = soalAsli.question;
+            if(soalAsli.options && soalAsli.options.length > 0) {
+                teksSoalLengkap += "<br>"; // Tambahkan 1 enter setelah teks soal utama
+                soalAsli.options.forEach(o => {
+                    // Tambahkan <br> di setiap awal opsi agar tersusun vertikal ke bawah
+                    teksSoalLengkap += `<br>${o.label}. ${o.text}`;
+                });
+            }
+
+            html += `<td>${item.indikator}</td>
+                     <td class="text-center">${soalAsli.type}</td>
+                     <td class="text-center">${item.nomor}</td>
+                     <td>${teksSoalLengkap}</td>
+                     <td class="text-center">${(soalAsli.correct||[]).join(', ')}</td>
+                     <td class="text-center">${item.level}</td>
+            </tr>`;
+        });
+    });
+
+    html += `</table></body></html>`;
+
+    // Buka Jendela Cetak
+    let printWin = window.open('', '', 'width=1100,height=800');
+    printWin.document.write(html);
+    printWin.document.close();
+    printWin.focus();
+    
+    // Beri jeda agar browser memuat HTML sepenuhnya sebelum memicu dialog Print
+    setTimeout(() => {
+        printWin.print();
+    }, 500); 
 };
