@@ -5,63 +5,110 @@ if (urlParams.get('guru')) {
     sessionStorage.setItem("guruTarget", urlParams.get('guru').trim().toLowerCase());
 }
 
-// FORCE WIPE SYSTEM (Mengatasi siswa yang tersangkut di mode Admin)
-let currentAppVersion = "2.0.1";
-if(localStorage.getItem("app_version_mahardika") !== currentAppVersion) {
+// FORCE WIPE SYSTEM (Reset sesi lama setelah perbaikan hak akses)
+let currentAppVersion = "2.0.2";
+if (localStorage.getItem("app_version_mahardika") !== currentAppVersion) {
     sessionStorage.clear();
     localStorage.setItem("app_version_mahardika", currentAppVersion);
     window.location.reload();
 }
 
-// Listener Utama saat DOM selesai dimuat
-document.addEventListener("DOMContentLoaded", function() { 
-    let status = sessionStorage.getItem("statusLogin");
-    let btnLogin = document.getElementById('btn-login-utama');
-    let btnLogout = document.getElementById('btn-logout-utama');
-    let btnPreview = document.getElementById('btn-preview'); // Definisi tombol preview
-    
-    // 1. Logika untuk Tamu (Belum Login)
-    if(!status) {
-        if(btnLogin) btnLogin.style.display = 'block';
-        if(btnLogout) btnLogout.style.display = 'none';
-        
-        // Pengaman Mutlak: Bersihkan semua sisa akses admin
-        document.body.classList.remove('mode-edit-aktif', 'has-login');
-        document.documentElement.classList.remove('force-edit-mode');
+// Satu sumber pemeriksaan hak akses admin untuk UI editor.
+// Username SBD selalu diperlakukan sebagai siswa.
+window.isAdminSession = function() {
+    const status = sessionStorage.getItem("statusLogin");
+    const username = (sessionStorage.getItem("username") || "").trim().toLowerCase();
+
+    return status === "admin" && username !== "sbd";
+};
+
+// Kunci editor untuk pengguna yang bukan admin.
+window.kunciEditorUntukNonAdmin = function() {
+    document.body.classList.remove("mode-edit-aktif");
+    document.documentElement.classList.remove("force-edit-mode");
+    sessionStorage.removeItem("previewMode");
+
+    const btnPreview = document.getElementById("btn-preview");
+
+    if (btnPreview) {
+        btnPreview.hidden = true;
+        btnPreview.style.setProperty("display", "none", "important");
+        btnPreview.setAttribute("aria-hidden", "true");
+    }
+
+    // Hapus atribut edit dari elemen yang sudah ada.
+    document.querySelectorAll("[contenteditable]").forEach(function(el) {
+        el.removeAttribute("contenteditable");
+    });
+};
+
+// Listener utama saat halaman selesai dimuat.
+document.addEventListener("DOMContentLoaded", function() {
+    const status = sessionStorage.getItem("statusLogin");
+    const isAdmin = window.isAdminSession();
+
+    const btnLogin = document.getElementById("btn-login-utama");
+    const btnLogout = document.getElementById("btn-logout-utama");
+    const btnPreview = document.getElementById("btn-preview");
+
+    if (btnLogin) {
+        btnLogin.style.display = status ? "none" : "block";
+    }
+
+    if (btnLogout) {
+        btnLogout.style.display = status ? "block" : "none";
+    }
+
+    if (status) {
+        document.body.classList.add("has-login");
     } else {
-        // 2. Jika sudah login (Siswa atau Admin/Guru)
-        if(btnLogin) btnLogin.style.display = 'none';
-        if(btnLogout) btnLogout.style.display = 'block';
-        
-        document.body.classList.add('has-login'); 
-        
-        // 3. Logika Khusus Admin / Guru
-        if(status === "admin") {
-            let titleEl = document.getElementById('web-title');
-            
-            // PENYELESAIAN MASALAH REFRESH: Sinkronisasi Class & Teks Tombol secara Sempurna
-            if(sessionStorage.getItem("previewMode") === "true") { 
-                document.body.classList.remove("mode-edit-aktif"); // WAJIB ADA
-                document.documentElement.classList.remove("force-edit-mode");
-                if(titleEl) titleEl.removeAttribute('contenteditable');
-                if(btnPreview) { 
-                    btnPreview.innerHTML = "✏️ Back to Edit"; 
-                    btnPreview.style.background = "#27ae60"; 
+        document.body.classList.remove("has-login");
+    }
+
+    // Tamu dan siswa tidak boleh menggunakan mode edit.
+    if (!isAdmin) {
+        window.kunciEditorUntukNonAdmin();
+        return;
+    }
+
+    // Hanya admin yang dapat melihat tombol preview.
+    if (btnPreview) {
+        btnPreview.hidden = false;
+        btnPreview.removeAttribute("aria-hidden");
+        btnPreview.style.removeProperty("display");
+    }
+
+    const titleEl = document.getElementById("web-title");
+
+    if (sessionStorage.getItem("previewMode") === "true") {
+        document.body.classList.remove("mode-edit-aktif");
+        document.documentElement.classList.remove("force-edit-mode");
+
+        document.querySelectorAll("[contenteditable]").forEach(function(el) {
+            el.removeAttribute("contenteditable");
+        });
+
+        if (btnPreview) {
+            btnPreview.innerHTML = "✏️ Back to Edit";
+            btnPreview.style.background = "#27ae60";
+        }
+    } else {
+        document.body.classList.add("mode-edit-aktif");
+        document.documentElement.classList.add("force-edit-mode");
+
+        if (titleEl) {
+            titleEl.setAttribute("contenteditable", "true");
+
+            titleEl.addEventListener("blur", function() {
+                if (typeof window.simpanTema === "function") {
+                    window.simpanTema();
                 }
-            } else { 
-                document.body.classList.add("mode-edit-aktif"); 
-                document.documentElement.classList.add("force-edit-mode");
-                if(titleEl) {
-                    titleEl.setAttribute('contenteditable', 'true');
-                    titleEl.addEventListener('blur', function() {
-                        if(typeof window.simpanTema === "function") window.simpanTema();
-                    });
-                }
-                if(btnPreview) { 
-                    btnPreview.innerHTML = "👁️ Preview as Student"; 
-                    btnPreview.style.background = "#e67e22"; 
-                }
-            }
+            });
+        }
+
+        if (btnPreview) {
+            btnPreview.innerHTML = "👁️ Preview as Student";
+            btnPreview.style.background = "#e67e22";
         }
     }
 });
@@ -838,22 +885,530 @@ window.formatTeks = function(command, value = null) {
     triggerInput(); 
 };
 
-// Ukuran Font Kelipatan 4 pt (Bisa diketik manual)
-window.aturUkuranFont = function(value) {
+/* =========================================
+   MESIN UKURAN FONT ALA MICROSOFT WORD, CASE, & SORTIR
+   ========================================= */
+window.DAFTAR_UKURAN_FONT_WORD = [5, 5.5, 6.5, 7.5, 8, 9, 10, 10.5, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 36, 48, 72];
+window.isFontSizeDropdownOpen = false;
+window.typedCustomFontSize = "";
+
+// 1. Membaca Ukuran Font (dalam satuan pt) dari Sebuah Node Teks / Elemen
+window.ambilUkuranFontNode = function(node) {
+    let el = (node && node.nodeType === 3) ? node.parentElement : node;
+    if (!el) return 10;
+
+    // Cek apakah ada style inline dalam satuan pt pada elemen atau induknya di dalam editor
+    let curr = el;
+    while (curr && curr !== document.body) {
+        if (curr.style && curr.style.fontSize) {
+            let fs = curr.style.fontSize.trim().toLowerCase();
+            if (fs.endsWith("pt")) {
+                let ptVal = parseFloat(fs);
+                if (!isNaN(ptVal)) return Math.round(ptVal * 10) / 10;
+            } else if (fs.endsWith("px")) {
+                let pxVal = parseFloat(fs);
+                if (!isNaN(pxVal)) return Math.round((pxVal * 0.75) * 2) / 2;
+            }
+        }
+        if (curr.classList && (curr.classList.contains("content-block") || curr.classList.contains("fb-content") || curr.id === "popup-content-box" || curr.id === "cg-editor-area" || curr.id === "ck-editor-area")) {
+            break;
+        }
+        curr = curr.parentElement;
+    }
+
+    // Fallback ke computed style jika belum ada inline style pt
+    let compPx = parseFloat(window.getComputedStyle(el).fontSize);
+    if (!isNaN(compPx) && compPx > 0) {
+        return Math.round((compPx * 0.75) * 2) / 2;
+    }
+    return 10;
+};
+
+// 2. Mengambil Semua Text Node yang Berada di Dalam Seleksi Range
+window.ambilTextNodesDalamRange = function(range, rootEditable) {
+    let nodes = [];
+    if (!range || !rootEditable) return nodes;
+
+    if (range.startContainer.nodeType === 3 && range.startContainer === range.endContainer) {
+        if (range.startContainer.nodeValue.length > 0) {
+            nodes.push(range.startContainer);
+        }
+        return nodes;
+    }
+
+    let walker = document.createTreeWalker(rootEditable, NodeFilter.SHOW_TEXT, null, false);
+    let currentNode = walker.nextNode();
+    while (currentNode) {
+        if (range.intersectsNode(currentNode) && currentNode.nodeValue.trim().length > 0) {
+            // Abaikan teks tombol internal tabel (+Row/+Col)
+            let parentEl = currentNode.parentElement;
+            if (!parentEl || !parentEl.classList.contains("tbl-btn-add")) {
+                nodes.push(currentNode);
+            }
+        }
+        currentNode = walker.nextNode();
+    }
+    return nodes;
+};
+
+// 3. Memperbarui Angka / Titik-Titik (....) di Kotak Ukuran Font Saat Memblok Teks
+window.perbaruiIndikatorFontSize = function() {
+    let inp = document.getElementById("input-font-size");
+    if (!inp) return;
+
+    let sel = window.getSelection();
+    let range = (sel && sel.rangeCount > 0) ? sel.getRangeAt(0) : window.savedEditorRange;
+    if (!range) return;
+
+    let container = range.commonAncestorContainer;
+    let el = container.nodeType === 3 ? container.parentElement : container;
+    let editable = (el && el.closest) ? el.closest(".content-block, .fb-content, #popup-content-box, #cg-editor-area, #ck-editor-area") : null;
+    if (!editable) return;
+
+    if (range.collapsed) {
+        let sz = window.ambilUkuranFontNode(range.startContainer);
+        inp.value = String(sz);
+    } else {
+        let textNodes = window.ambilTextNodesDalamRange(range, editable);
+        if (textNodes.length === 0) {
+            let sz = window.ambilUkuranFontNode(range.startContainer);
+            inp.value = String(sz);
+            return;
+        }
+        let ukuranSet = new Set();
+        textNodes.forEach(function(tn) {
+            ukuranSet.add(window.ambilUkuranFontNode(tn));
+        });
+        if (ukuranSet.size > 1) {
+            inp.value = "....";
+        } else {
+            let satuUkuran = Array.from(ukuranSet)[0];
+            inp.value = String(satuUkuran);
+        }
+    }
+};
+
+document.addEventListener("selectionchange", function() {
+    window.perbaruiIndikatorFontSize();
+});
+
+// 4. Memisahkan (Split) Batas Text Node Agar Hanya Teks yang Diblok yang Berubah Ukuran
+window.isolasiTextNodesDalamRange = function(range, editable) {
+    if (!range || range.collapsed) return [];
+
+    if (range.startContainer.nodeType === 3 && range.startContainer === range.endContainer) {
+        let textNode = range.startContainer;
+        let startOff = range.startOffset;
+        let endOff = range.endOffset;
+        if (endOff < textNode.nodeValue.length) {
+            textNode.splitText(endOff);
+        }
+        if (startOff > 0) {
+            textNode = textNode.splitText(startOff);
+        }
+        return [textNode];
+    }
+
+    if (range.endContainer.nodeType === 3 && range.endOffset > 0 && range.endOffset < range.endContainer.nodeValue.length) {
+        range.endContainer.splitText(range.endOffset);
+    }
+    if (range.startContainer.nodeType === 3 && range.startOffset > 0 && range.startOffset < range.startContainer.nodeValue.length) {
+        let newStartNode = range.startContainer.splitText(range.startOffset);
+        range.setStartBefore(newStartNode);
+    }
+
+    let hasilNodes = [];
+    let walker = document.createTreeWalker(editable, NodeFilter.SHOW_TEXT, null, false);
+    let curr = walker.nextNode();
+    while (curr) {
+        if (range.intersectsNode(curr) && curr.nodeValue.length > 0) {
+            let pEl = curr.parentElement;
+            if (!pEl || !pEl.classList.contains("tbl-btn-add")) {
+                // Pastikan benar-benar berada di dalam rentang awal-akhir
+                let nodeRange = document.createRange();
+                nodeRange.selectNodeContents(curr);
+                let afterStart = range.compareBoundaryPoints(Range.START_TO_START, nodeRange) <= 0;
+                let beforeEnd = range.compareBoundaryPoints(Range.END_TO_END, nodeRange) >= 0;
+                if (afterStart && beforeEnd) {
+                    hasilNodes.push(curr);
+                }
+            }
+        }
+        curr = walker.nextNode();
+    }
+    return hasilNodes;
+};
+
+// 5. Mesin Inti Pengubah Ukuran Font (Serentak maupun Relatif +/- Tanpa Menghilangkan Blok)
+window.terapkanPerubahanFontSize = function(mode, nilai) {
     pastikanFokusEditor();
-    if(!value) return;
-    let ptValue = value + "pt";
-    
-    // Trik aman Rich Text: Gunakan font size 7 sementara, lalu cari dan ubah inline style-nya ke point asli
-    document.execCommand("styleWithCSS", false, true);
-    document.execCommand("fontSize", false, "7");
-    
-    let fonts = document.querySelectorAll('font[size="7"], span[style*="xx-large"]');
-    fonts.forEach(function(f) {
-        f.removeAttribute("size");
-        f.style.fontSize = ptValue;
+
+    // Dukungan jika sedang memblok beberapa sel tabel sekaligus
+    if (window.activeTableCells && window.activeTableCells.length > 1) {
+        window.activeTableCells.forEach(function(cell) {
+            let r = document.createRange();
+            r.selectNodeContents(cell);
+            let nodes = window.ambilTextNodesDalamRange(r, cell);
+            nodes.forEach(function(tn) {
+                let curSize = window.ambilUkuranFontNode(tn);
+                let targetSize = (mode === "step") ? (curSize + nilai) : parseFloat(nilai);
+                if (targetSize < 1) targetSize = 1;
+                if (targetSize > 200) targetSize = 200;
+                targetSize = Math.round(targetSize * 10) / 10;
+                let p = tn.parentElement;
+                if (p && p.tagName === "SPAN" && p.childNodes.length === 1 && !p.classList.contains("glossary-term")) {
+                    p.style.fontSize = targetSize + "pt";
+                } else {
+                    let sp = document.createElement("span");
+                    sp.style.fontSize = targetSize + "pt";
+                    tn.parentNode.insertBefore(sp, tn);
+                    sp.appendChild(tn);
+                }
+            });
+        });
+        triggerInput();
+        return;
+    }
+
+    let sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+    let range = sel.getRangeAt(0);
+    if (range.collapsed) return;
+
+    let container = range.commonAncestorContainer;
+    let el = container.nodeType === 3 ? container.parentElement : container;
+    let editable = (el && el.closest) ? el.closest(".content-block, .fb-content, #popup-content-box, #cg-editor-area, #ck-editor-area") : window.lastActiveEditable;
+    if (!editable) return;
+
+    let selectedNodes = window.isolasiTextNodesDalamRange(range, editable);
+    if (selectedNodes.length === 0) return;
+
+    selectedNodes.forEach(function(tn) {
+        // Lewati spasi kosong antarelemen blok jika tidak memiliki teks nyata
+        if (tn.nodeValue.trim().length === 0 && selectedNodes.length > 1) return;
+
+        let curSize = window.ambilUkuranFontNode(tn);
+        let targetSize = (mode === "step") ? (curSize + nilai) : parseFloat(nilai);
+        if (isNaN(targetSize)) return;
+        if (targetSize < 1) targetSize = 1;
+        if (targetSize > 200) targetSize = 200;
+        targetSize = Math.round(targetSize * 10) / 10;
+
+        let parent = tn.parentElement;
+        if (parent && parent.tagName === "SPAN" && parent.childNodes.length === 1 && !parent.classList.contains("glossary-term")) {
+            parent.style.fontSize = targetSize + "pt";
+        } else {
+            let span = document.createElement("span");
+            span.style.fontSize = targetSize + "pt";
+            tn.parentNode.insertBefore(span, tn);
+            span.appendChild(tn);
+        }
     });
-    
+
+    // Pertahankan blok seleksi biru pada kalimat yang baru diubah ukurannya
+    let firstNode = selectedNodes[0];
+    let lastNode = selectedNodes[selectedNodes.length - 1];
+    let newRange = document.createRange();
+    newRange.setStart(firstNode, 0);
+    newRange.setEnd(lastNode, lastNode.nodeValue.length);
+
+    sel.removeAllRanges();
+    sel.addRange(newRange);
+    window.savedEditorRange = newRange.cloneRange();
+    window.globalSelectedRange = newRange.cloneRange();
+
+    window.perbaruiIndikatorFontSize();
+    triggerInput();
+};
+
+// Fungsi Tombol + dan - Ukuran Font
+window.ubahFontStep = function(step) {
+    window.tutupDropdownFontSize();
+    window.terapkanPerubahanFontSize("step", step);
+};
+
+// Fungsi Pilih / Atur Ukuran Font Serentak
+window.aturUkuranFont = function(value) {
+    window.tutupDropdownFontSize();
+    let numVal = parseFloat(value);
+    if (isNaN(numVal) || numVal <= 0) return;
+    window.terapkanPerubahanFontSize("set", numVal);
+};
+
+// 6. UI Dropdown Ukuran Font Ala Microsoft Word (5 s/d 72)
+window.pastikanDropdownFontSizeAda = function() {
+    let dd = document.getElementById("word-fontsize-dropdown");
+    if (dd) return dd;
+
+    dd = document.createElement("div");
+    dd.id = "word-fontsize-dropdown";
+    dd.className = "word-fontsize-dropdown";
+    document.body.appendChild(dd);
+    return dd;
+};
+
+window.toggleDropdownFontSize = function(e) {
+    if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    if (window.isFontSizeDropdownOpen) {
+        window.tutupDropdownFontSize();
+    } else {
+        window.bukaDropdownFontSize();
+    }
+};
+
+window.bukaDropdownFontSize = function() {
+    let box = document.getElementById("word-fontsize-box");
+    let inp = document.getElementById("input-font-size");
+    if (!box || !inp) return;
+
+    let dd = window.pastikanDropdownFontSizeAda();
+    let currentVal = inp.value.trim();
+    window.typedCustomFontSize = "";
+
+    let html = "";
+    window.DAFTAR_UKURAN_FONT_WORD.forEach(function(sz) {
+        let isActive = (String(sz) === currentVal) ? " active-size" : "";
+        html += '<div class="word-fontsize-item' + isActive + '" onmousedown="event.preventDefault(); event.stopPropagation(); window.aturUkuranFont(' + sz + ')">' + sz + '</div>';
+    });
+    dd.innerHTML = html;
+
+    let rect = box.getBoundingClientRect();
+    dd.style.display = "flex";
+    dd.style.top = (rect.bottom + 4) + "px";
+    dd.style.left = rect.left + "px";
+    window.isFontSizeDropdownOpen = true;
+
+    // Gulir otomatis ke ukuran yang sedang aktif
+    let activeEl = dd.querySelector(".active-size");
+    if (activeEl) {
+        activeEl.scrollIntoView({ block: "nearest" });
+    }
+};
+
+window.tutupDropdownFontSize = function() {
+    let dd = document.getElementById("word-fontsize-dropdown");
+    if (dd) dd.style.display = "none";
+    window.isFontSizeDropdownOpen = false;
+    window.typedCustomFontSize = "";
+};
+
+// Tutup dropdown saat klik di luar, dan izinkan ketik angka manual saat dropdown terbuka tanpa menghilangkan blok
+document.addEventListener("mousedown", function(e) {
+    if (window.isFontSizeDropdownOpen) {
+        if (!e.target.closest("#word-fontsize-box") && !e.target.closest("#word-fontsize-dropdown")) {
+            window.tutupDropdownFontSize();
+        }
+    }
+});
+
+document.addEventListener("keydown", function(e) {
+    if (!window.isFontSizeDropdownOpen) return;
+    let inp = document.getElementById("input-font-size");
+    if (!inp) return;
+
+    if ((e.key >= "0" && e.key <= "9") || e.key === ".") {
+        e.preventDefault();
+        window.typedCustomFontSize += e.key;
+        inp.value = window.typedCustomFontSize;
+    } else if (e.key === "Backspace") {
+        e.preventDefault();
+        window.typedCustomFontSize = window.typedCustomFontSize.slice(0, -1);
+        inp.value = window.typedCustomFontSize || "....";
+    } else if (e.key === "Enter") {
+        e.preventDefault();
+        if (window.typedCustomFontSize) {
+            window.aturUkuranFont(window.typedCustomFontSize);
+        } else {
+            window.tutupDropdownFontSize();
+        }
+    } else if (e.key === "Escape") {
+        e.preventDefault();
+        window.tutupDropdownFontSize();
+        window.perbaruiIndikatorFontSize();
+    }
+}, true);
+
+// 7. Fitur Tombol UPPERCASE dan lowercase (Tanpa Menghilangkan Blok & Format)
+window.ubahCaseTeks = function(mode) {
+    pastikanFokusEditor();
+
+    if (window.activeTableCells && window.activeTableCells.length > 1) {
+        window.activeTableCells.forEach(function(cell) {
+            let r = document.createRange();
+            r.selectNodeContents(cell);
+            let nodes = window.ambilTextNodesDalamRange(r, cell);
+            nodes.forEach(function(tn) {
+                tn.nodeValue = (mode === "upper") ? tn.nodeValue.toUpperCase() : tn.nodeValue.toLowerCase();
+            });
+        });
+        triggerInput();
+        return;
+    }
+
+    let sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
+        return alert("Blok kalimat yang ingin diubah huruf besar/kecilnya terlebih dahulu!");
+    }
+
+    let range = sel.getRangeAt(0);
+    let container = range.commonAncestorContainer;
+    let el = container.nodeType === 3 ? container.parentElement : container;
+    let editable = (el && el.closest) ? el.closest(".content-block, .fb-content, #popup-content-box, #cg-editor-area, #ck-editor-area") : window.lastActiveEditable;
+    if (!editable) return;
+
+    let selectedNodes = window.isolasiTextNodesDalamRange(range, editable);
+    if (selectedNodes.length === 0) return;
+
+    selectedNodes.forEach(function(tn) {
+        tn.nodeValue = (mode === "upper") ? tn.nodeValue.toUpperCase() : tn.nodeValue.toLowerCase();
+    });
+
+    let firstNode = selectedNodes[0];
+    let lastNode = selectedNodes[selectedNodes.length - 1];
+    let newRange = document.createRange();
+    newRange.setStart(firstNode, 0);
+    newRange.setEnd(lastNode, lastNode.nodeValue.length);
+
+    sel.removeAllRanges();
+    sel.addRange(newRange);
+    window.savedEditorRange = newRange.cloneRange();
+    window.globalSelectedRange = newRange.cloneRange();
+
+    triggerInput();
+};
+
+// 8. Fitur Sortir Kalimat / Baris / List (A-Z, Z-A, Angka 1-Seterusnya, Angka Besar ke 1)
+window.ekstrakKunciSortir = function(teks, tipeSortir) {
+    let bersih = (teks || "").trim();
+    if (tipeSortir === "num-asc" || tipeSortir === "num-desc") {
+        let matchNum = bersih.match(/-?\d+(?:[\.,]\d+)?/);
+        if (matchNum) {
+            return parseFloat(matchNum[0].replace(",", "."));
+        }
+        return tipeSortir === "num-asc" ? Number.MAX_SAFE_INTEGER : Number.MIN_SAFE_INTEGER;
+    }
+    // Untuk A-Z dan Z-A: abaikan nomor urut/simbol di awal baris jika ada huruf setelahnya
+    let tanpaNomorAwal = bersih.replace(/^[\d\.\)\-\•\*\s]+/, "").trim();
+    return (tanpaNomorAwal || bersih).toLowerCase();
+};
+
+window.bandingkanItemSortir = function(teksA, teksB, tipeSortir) {
+    if (tipeSortir === "num-asc" || tipeSortir === "num-desc") {
+        let numA = window.ekstrakKunciSortir(teksA, tipeSortir);
+        let numB = window.ekstrakKunciSortir(teksB, tipeSortir);
+        if (numA !== numB) {
+            return tipeSortir === "num-asc" ? (numA - numB) : (numB - numA);
+        }
+        return teksA.localeCompare(teksB, "id", { sensitivity: "base", numeric: true });
+    } else {
+        let keyA = window.ekstrakKunciSortir(teksA, tipeSortir);
+        let keyB = window.ekstrakKunciSortir(teksB, tipeSortir);
+        let cmp = keyA.localeCompare(keyB, "id", { sensitivity: "base", numeric: true });
+        return tipeSortir === "az" ? cmp : -cmp;
+    }
+};
+
+window.sortirTeksTerpilih = function(tipeSortir) {
+    pastikanFokusEditor();
+    let sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
+        return alert("Blok beberapa baris atau daftar kalimat yang ingin disortir terlebih dahulu!");
+    }
+
+    let range = sel.getRangeAt(0);
+    let container = range.commonAncestorContainer;
+    let el = container.nodeType === 3 ? container.parentElement : container;
+    let editable = (el && el.closest) ? el.closest(".content-block, .fb-content, #popup-content-box, #cg-editor-area, #ck-editor-area") : window.lastActiveEditable;
+    if (!editable) return;
+
+    // KASUS A: Cek apakah blok seleksi mencakup beberapa elemen blok sejajar (<li>, <p>, <div>, dll.)
+    let allBlockCandidates = Array.from(editable.querySelectorAll("li, p, div, h1, h2, h3, h4, h5, h6, blockquote")).filter(function(blk) {
+        if (!range.intersectsNode(blk)) return false;
+        // Ambil elemen blok terdalam yang tidak membungkus blok lain di daftar ini
+        let hasChildBlock = blk.querySelector("li, p, div, h1, h2, h3, h4, h5, h6, blockquote");
+        return !hasChildBlock && blk.innerText.trim().length > 0;
+    });
+
+    if (allBlockCandidates.length >= 2) {
+        let firstParent = allBlockCandidates[0].parentNode;
+        let sameParentBlocks = allBlockCandidates.filter(function(b) { return b.parentNode === firstParent; });
+
+        if (sameParentBlocks.length >= 2) {
+            // Jika hanya ada 1 blok tapi di dalamnya ada <br>, lewati ke Kasus B
+            let anchorMarker = document.createTextNode("");
+            firstParent.insertBefore(anchorMarker, sameParentBlocks[0]);
+
+            let sortedBlocks = sameParentBlocks.slice().sort(function(a, b) {
+                return window.bandingkanItemSortir(a.innerText, b.innerText, tipeSortir);
+            });
+
+            sortedBlocks.forEach(function(blk) {
+                firstParent.insertBefore(blk, anchorMarker);
+            });
+            anchorMarker.remove();
+
+            let newRange = document.createRange();
+            newRange.setStartBefore(sortedBlocks[0]);
+            newRange.setEndAfter(sortedBlocks[sortedBlocks.length - 1]);
+            sel.removeAllRanges();
+            sel.addRange(newRange);
+            window.savedEditorRange = newRange.cloneRange();
+            window.globalSelectedRange = newRange.cloneRange();
+
+            triggerInput();
+            return;
+        }
+    }
+
+    // KASUS B: Baris-baris yang dipisahkan oleh <br> atau Enter (\n) di dalam satu blok
+    let frag = range.cloneContents();
+    let tempDiv = document.createElement("div");
+    tempDiv.appendChild(frag);
+    let rawHtml = tempDiv.innerHTML;
+
+    let parts = [];
+    if (/<br\s*\/?>/i.test(rawHtml)) {
+        parts = rawHtml.split(/<br\s*\/?>/i);
+    } else {
+        parts = rawHtml.split(/\r?\n/);
+    }
+
+    let validParts = parts.map(function(p) { return p.trim(); }).filter(function(p) { return p.length > 0; });
+    if (validParts.length < 2) {
+        return alert("Blok minimal 2 baris kalimat atau daftar (list) untuk melakukan sortir!");
+    }
+
+    validParts.sort(function(htmlA, htmlB) {
+        let dA = document.createElement("div"); dA.innerHTML = htmlA;
+        let dB = document.createElement("div"); dB.innerHTML = htmlB;
+        return window.bandingkanItemSortir(dA.innerText, dB.innerText, tipeSortir);
+    });
+
+    let wrapperSpan = document.createElement("span");
+    wrapperSpan.innerHTML = validParts.join("<br>");
+
+    range.deleteContents();
+    let firstInserted = wrapperSpan.firstChild;
+    let lastInserted = wrapperSpan.lastChild;
+    let insertFrag = document.createDocumentFragment();
+    while (wrapperSpan.firstChild) {
+        insertFrag.appendChild(wrapperSpan.firstChild);
+    }
+    range.insertNode(insertFrag);
+
+    if (firstInserted && lastInserted) {
+        let newRange = document.createRange();
+        newRange.setStartBefore(firstInserted);
+        newRange.setEndAfter(lastInserted);
+        sel.removeAllRanges();
+        sel.addRange(newRange);
+        window.savedEditorRange = newRange.cloneRange();
+        window.globalSelectedRange = newRange.cloneRange();
+    }
+
     triggerInput();
 };
 
@@ -1054,11 +1609,13 @@ window.renderBlocks = function() {
             
             let floatImgsQuiz = window.renderFloatImagesHTML(index, -1, blok.floatImages || []);
             html += '<div class="block-wrapper ' + (blok.pattern||'') + '" data-index="' + index + '" style="background-color:' + blok.bg + ';padding-top:' + blok.padTop + ';padding-bottom:' + blok.padBot + ';">' +
-                '<div class="draw-float-layer" data-index="' + index + '">' + floatImgsQuiz + '</div>' +
-                '<canvas class="drawing-layer" data-index="' + index + '"></canvas>' +
                 '<div class="block-controls"><button onclick="geserBlok(' + index + ', -1)">⬆️</button><button onclick="geserBlok(' + index + ', 1)">⬇️</button><button onclick="bukaSidebarBlock(' + index + ')">⚙️ Setting</button><button onclick="hapusBlok(' + index + ')">🗑️ Delete</button></div>' +
-                '<div class="content-block" data-index="' + index + '" data-width="' + blok.width + '">' +
-                    qi +
+                '<div class="a4-paper-wrapper" style="position:relative; width:794px; max-width:100%; margin:0 auto;">' +
+                    '<div class="draw-float-layer" data-index="' + index + '">' + floatImgsQuiz + '</div>' +
+                    '<canvas class="drawing-layer" data-index="' + index + '"></canvas>' +
+                    '<div class="content-block" data-index="' + index + '" data-width="' + blok.width + '">' +
+                        qi +
+                    '</div>' +
                 '</div>' +
             '</div>';
         }
@@ -1067,11 +1624,13 @@ window.renderBlocks = function() {
         else {
             let floatImgsText = window.renderFloatImagesHTML(index, -1, blok.floatImages || []);
             html += '<div class="block-wrapper ' + (blok.pattern||'') + '" data-index="' + index + '" style="background-color:' + blok.bg + ';padding-top:' + blok.padTop + ';padding-bottom:' + blok.padBot + ';">' +
-                '<div class="draw-float-layer" data-index="' + index + '">' + floatImgsText + '</div>' +
-                '<canvas class="drawing-layer" data-index="' + index + '"></canvas>' +
                 '<div class="block-controls"><button onclick="geserBlok(' + index + ', -1)">⬆️</button><button onclick="geserBlok(' + index + ', 1)">⬇️</button><button onclick="bukaSidebarBlock(' + index + ')">⚙️ Setting</button><button onclick="hapusBlok(' + index + ')">🗑️ Delete</button></div>' +
-                '<div class="content-block a4-portrait-block" ' + (isEdit?'contenteditable="true"':'') + ' data-index="' + index + '" data-block-type="text" data-width="' + blok.width + '" style="color:' + blok.color + ';" onkeydown="window.cekBatasTinggiA4Keydown(event, this)" oninput="window.cekBatasTinggiA4Input(event, this)">' +
-                    blok.html +
+                '<div class="a4-paper-wrapper" style="position:relative; width:794px; max-width:100%; margin:0 auto;">' +
+                    '<div class="draw-float-layer" data-index="' + index + '">' + floatImgsText + '</div>' +
+                    '<canvas class="drawing-layer" data-index="' + index + '"></canvas>' +
+                    '<div class="content-block a4-portrait-block" ' + (isEdit?'contenteditable="true"':'') + ' data-index="' + index + '" data-block-type="text" data-width="' + blok.width + '" style="color:' + blok.color + ';" onkeydown="window.cekBatasTinggiA4Keydown(event, this)" oninput="window.cekBatasTinggiA4Input(event, this)">' +
+                        blok.html +
+                    '</div>' +
                 '</div>' +
             '</div>';
         }
@@ -1079,9 +1638,13 @@ window.renderBlocks = function() {
     
     document.getElementById('blocks-container').innerHTML = html; 
     
+    if (typeof window.rapikanSemuaBlokA4Word === 'function') {
+        window.rapikanSemuaBlokA4Word(true);
+    }
     if(window.renderMathJax) window.renderMathJax();
     // AKTIFKAN KEMBALI SEMUA CORETAN KANVAS SETELAH REFRESH AGAR TETAP MUNCUL & BISA DIHAPUS/DILASO
     setTimeout(function() {
+        if (typeof window.rapikanSemuaBlokA4Word === 'function') window.rapikanSemuaBlokA4Word(false);
         if (typeof inisialisasiSemuaCanvas === 'function') inisialisasiSemuaCanvas();
     }, 180);
 };
@@ -1115,215 +1678,30 @@ window.simpanPreferensiKisiKisi = function() {
 };
 
 /* =========================================================================
-   RULE-BASED INFERENCE ENGINE (MESIN PENALARAN KISI-KISI KURIKULUM)
+   UI MODAL KISI-KISI & LAZY LOADER MESIN PENALARAN
    ========================================================================= */
 
-// 1. BASIS PENGETAHUAN KURIKULUM (Knowledge Base Biologi, Fisika, Kimia, Umum)
-window.BASIS_PENGETAHUAN_KURIKULUM = [
-    // --- BIOLOGI ---
-    {
-        pola: /pernapasan|inspirasi|ekspirasi|alveolus|trakea|mukosiliar|bronkus|paru|spirometer|volume tidal|oksigen|karbon monoksida|\bco\b|\bco2\b|hemoglobin|eritrosit|medula oblongata/i,
-        kompetensi: "Menganalisis keterkaitan struktur organ pada sistem pernapasan dengan fungsinya serta gangguan yang terjadi"
-    },
-    {
-        pola: /pencernaan|lambung|\bhcl\b|pepsinogen|sfingter|kardiak|muntah|bulimia|usus|flora normal|empedu|bilirubin|albumin|sirosis|hati|hepar|vitamin k/i,
-        kompetensi: "Menganalisis struktur, fungsi, dan proses fisiologis serta kelainan pada sistem pencernaan manusia"
-    },
-    {
-        pola: /jantung|pembuluh darah|kapiler|limfatik|tekanan osmotik|plasma|edema|interstisial|fibrin|fibrinogen|leukosit|trombosit|asidosis|alkalosis|ph darah/i,
-        kompetensi: "Memahami dan menerapkan konsep terkait sistem sirkulasi, limfatik, dan mekanisme homeostasis tubuh"
-    },
-    {
-        pola: /sel|organel|mitokondria|ribosom|membran|transpor|osmosis|difusi|enzim|katabolisme|anabolisme|respirasi aerob|fotosintesis|pembelahan|mitosis|meiosis|sintesis protein|dna|rna/i,
-        kompetensi: "Memahami struktur sel, pembelahan sel, transpor pada membran, serta proses metabolisme dan sintesis protein"
-    },
-    {
-        pola: /mendel|hereditas|persilangan|genotip|fenotip|alel|mutasi|evolusi|biodiversitas|ekosistem|monera|bakteri|protista|fungi|plantae|animalia|klasifikasi/i,
-        kompetensi: "Menganalisis prinsip hereditas, teori evolusi, serta klasifikasi keanekaragaman hayati"
-    },
-    // --- FISIKA ---
-    {
-        pola: /besaran|satuan|dimensi|ampere|pokok|turunan|\bsi\b/i,
-        kompetensi: "Memahami konsep besaran, satuan, dan dimensi"
-    },
-    {
-        pola: /jangka sorong|mikrometer|neraca|alat ukur|skala nonius|skala utama|ketebalan|pengukuran/i,
-        kompetensi: "Memilih dan menggunakan alat ukur serta membaca hasil pengukuran"
-    },
-    {
-        pola: /energi terbarukan|energi alternatif|surya|geotermal|biomassa|biogas|pltu|plts|plta|emisi karbon|hemat energi|batu bara|fosil/i,
-        kompetensi: "Mengidentifikasi sumber energi terbarukan dan menganalisis potensi pengembangannya"
-    },
-    {
-        pola: /hakikat fisika|metode ilmiah|hipotesis|sikap ilmiah|keselamatan kerja|simbol bahan|laboratorium|eksperimen|observasi/i,
-        kompetensi: "Memahami hakikat fisika dan menerapkan metode ilmiah serta keselamatan kerja"
-    },
-    {
-        pola: /vektor|resultan|skalar|poligon|komponen|sudut apit|searah sumbu|perkalian titik|perkalian silang/i,
-        kompetensi: "Menerapkan konsep dan operasi vektor untuk menyelesaikan permasalahan fisika"
-    }
-];
+window.bukaModalKisiKisi = function() {
+    let pref = JSON.parse(localStorage.getItem('pref_kisi_kisi') || "{}");
+    if(pref.jenisUjian) document.getElementById('kisi-jenis-ujian').value = pref.jenisUjian;
+    if(pref.tapel) document.getElementById('kisi-tahun-pelajaran').value = pref.tapel;
+    if(pref.mapel) document.getElementById('kisi-mapel').value = pref.mapel;
+    if(pref.kelasFase) document.getElementById('kisi-kelas-fase').value = pref.kelasFase;
+    if(pref.cp) document.getElementById('kisi-cp').value = pref.cp;
+    window.bukaModal('modal-kisi-kisi');
+};
 
-// 2. EKSTRAKTOR FITUR & STRUKTUR KALIMAT SOAL (Feature & Clause Extractor)
-window.ekstrakFiturSoal = function(teksMentah, tipeSoal) {
-    let teks = (teksMentah || "").replace(/<[^>]*>?/gm, ' ').replace(/\s+/g, ' ').trim();
-    let lower = teks.toLowerCase();
-
-    // Deteksi ciri struktural soal
-    let adaGambar = /perhatikan gambar|gambar di samping|gambar di bawah|gambar berikut|diagram|grafik|tabel/i.test(lower);
-    let adaDataNomor = /\(1\).*\(2\)/.test(teks);
-    let adaKasusKlinis = /pada pasien|pada korban|seorang pasien|seorang anak|penderita|kasus|keracunan|perokok berat|mengalami|gejala|kompensasi fisiologis|konsekuensi/i.test(lower);
-    let adaHitungan = /(\d+\s*(m\/s|n\b|joule|watt|kg|cm|mm|gram|mol|liter|derajat|°|\bsatuan\b))|hitunglah|besar resultan|berapakah besar|persamaan vektor|tentukan hasil dari/i.test(lower);
-    let adaAlasan = /mengapa|dikarenakan|faktor|alasan|sebab|karena mereka|dipengaruhi oleh/i.test(lower);
-    let adaPengecualian = /yang bukan|kecuali|tidak termasuk|tidak diharapkan/i.test(lower);
-
-    // Pisahkan Kalimat Konteks (Stimulus) dan Kalimat Inti Pertanyaan
-    let konteksKasus = "";
-    let objekTarget = "";
-
-    // Ambil konteks jika kalimat diawali "Pada pasien/korban..." atau "Ketika..."
-    let matchKonteks = teks.match(/^(pada\s+(?:pasien|korban)[^,?]+|seorang\s+[^,?]+|ketika\s+[^,?]+|muntah\s+kronis[^,?]+)/i);
-    if (matchKonteks) {
-        konteksKasus = matchKonteks[1].replace(/^(pada|ketika)\s+/i, '').trim();
-    }
-
-    // Bersihkan kalimat untuk mengekstrak Objek Inti yang ditanyakan
-    let kalimatTanya = teks;
-    if (teks.includes('?')) {
-        let parts = teks.split(/[\.\!]\s+/);
-        kalimatTanya = parts[parts.length - 1];
-    }
-
-    objekTarget = kalimatTanya
-        .replace(/^(perhatikan gambar[^!.,]*[\!.,]\s*)/i, '')
-        .replace(/^(pada\s+(?:pasien|korban)[^,]+,\s*)/i, '')
-        .replace(/^(diketahui[^,]+,\s*)/i, '')
-        .replace(/\b(pernyataan manakah yang paling tepat|manakah yang paling tepat|apakah yang sebaiknya digunakan|apa yang paling tepat|apa yang paling mungkin muncul|apa yang mungkin terjadi|apa yang terganggu|berada di mana|disebut langkah|disebut|adalah|merupakan|yaitu|yakni)\b/gi, '')
-        .replace(/\b(apa|apakah|manakah|bagaimana|mengapa|dimana|di mana|siapa|kapan|berapakah|tentukan|sebutkan|jelaskan|hitunglah)\b/gi, '')
-        .replace(/^(berikut ini yang bukan merupakan|berikut ini merupakan|salah satu dari|di antara|diantara)\s+/i, '')
-        .replace(/[?.!,:;]+$/g, '')
-        .replace(/\s+/g, ' ')
-        .trim();
-
-    // Batasi panjang objek target agar tetap ringkas dan baku (maksimal 8 kata)
-    let kataObjek = objekTarget.split(' ').filter(k => k.length > 1);
-    if (kataObjek.length > 8) {
-        objekTarget = kataObjek.slice(0, 8).join(' ');
-    } else {
-        objekTarget = kataObjek.join(' ');
-    }
-
-    if (!objekTarget || objekTarget.length < 3) {
-        objekTarget = "konsep materi yang ditanyakan";
-    }
-
-    return {
-        teks: teks,
-        lower: lower,
-        tipeSoal: tipeSoal,
-        adaGambar: adaGambar,
-        adaDataNomor: adaDataNomor,
-        adaKasusKlinis: adaKasusKlinis,
-        adaHitungan: adaHitungan,
-        adaAlasan: adaAlasan,
-        adaPengecualian: adaPengecualian,
-        konteksKasus: konteksKasus.toLowerCase(),
-        objekTarget: objekTarget.toLowerCase()
+window.simpanPreferensiKisiKisi = function() {
+    let pref = {
+        jenisUjian: document.getElementById('kisi-jenis-ujian').value,
+        tapel: document.getElementById('kisi-tahun-pelajaran').value,
+        mapel: document.getElementById('kisi-mapel').value,
+        kelasFase: document.getElementById('kisi-kelas-fase').value,
+        cp: document.getElementById('kisi-cp').value
     };
+    localStorage.setItem('pref_kisi_kisi', JSON.stringify(pref));
 };
 
-// 3. PENALARAN LEVEL KOGNITIF (Prioritas Berjenjang: C4 -> C3 -> C2 -> C1)
-window.inferensiLevelKognitif = function(fitur) {
-    let t = fitur.lower;
-
-    // Prioritas 1: C4 (Menganalisis) - Kasus patofisiologi kompleks, multi-data (1)(2)(3), atau konsekuensi/kompensasi
-    if (fitur.adaDataNomor || /konsekuensi|kompensasi fisiologis|menganalisis|menyimpulkan|hubungan antara|perkalian silang|jika.*mengalami.*gejala|kehilangan hcl|defisiensi/i.test(t)) {
-        return "C4";
-    }
-
-    // Prioritas 2: C3 (Menerapkan) - Perhitungan, aplikasi rumus/vektor, memilih alat ukur kontekstual, atau tindakan
-    if (fitur.adaHitungan || /alat apakah yang sebaiknya|aksi penghematan|langkah.*menguji|melukis resultan|tentukan persamaan|menentukan hasil pengukuran/i.test(t)) {
-        return "C3";
-    }
-
-    // Prioritas 3: C2 (Memahami) - Studi kasus ringan, fungsi biologis, alasan/faktor, perbandingan, atau pengecualian
-    if (fitur.adaKasusKlinis || fitur.adaAlasan || fitur.adaPengecualian || /fungsi|peran|gejala|contoh penerapan|dimensi dari|syarat kondisi|pernyataan manakah/i.test(t)) {
-        return "C2";
-    }
-
-    // Prioritas 4: C1 (Mengingat) - Pertanyaan faktual langsung (nama organel/protein/otot, letak, satuan SI, definisi)
-    return "C1";
-};
-
-// 4. PERAKIT KOMPETENSI & INDIKATOR SOAL BAKU
-window.rakitKompetensiDanIndikator = function(fitur, levelKog) {
-    // A. Tentukan Kompetensi (Cek dari Basis Pengetahuan Kurikulum terlebih dahulu)
-    let kompetensiTerpilih = "";
-    for (let i = 0; i < window.BASIS_PENGETAHUAN_KURIKULUM.length; i++) {
-        if (window.BASIS_PENGETAHUAN_KURIKULUM[i].pola.test(fitur.lower)) {
-            kompetensiTerpilih = window.BASIS_PENGETAHUAN_KURIKULUM[i].kompetensi;
-            break;
-        }
-    }
-
-    // Fallback cerdas jika materi di luar daftar kamus di atas
-    if (!kompetensiTerpilih) {
-        let awalanKomp = (levelKog === "C4") ? "Menganalisis konsep terkait " :
-                         (levelKog === "C3") ? "Menerapkan konsep terkait " :
-                         "Memahami dan menerapkan konsep terkait ";
-        let topikRingkas = fitur.konteksKasus || fitur.objekTarget.split(' ').slice(0, 4).join(' ');
-        kompetensiTerpilih = awalanKomp + topikRingkas;
-    }
-
-    // B. Tentukan Kata Kerja Operasional (KKO) Indikator sesuai Level Kognitif
-    let kko = "menentukan";
-    if (levelKog === "C1") {
-        if (/di mana|dimana|letak|pusat/.test(fitur.lower)) kko = "menunjukkan letak";
-        else if (/disebut|pengertian|istilah/.test(fitur.lower)) kko = "menyebutkan istilah";
-        else kko = "menyebutkan";
-    } else if (levelKog === "C2") {
-        if (fitur.adaAlasan) kko = "menjelaskan faktor/alasan terkait";
-        else if (fitur.adaPengecualian) kko = "membedakan konsep mengenai";
-        else if (/fungsi|peran/.test(fitur.lower)) kko = "menjelaskan fungsi";
-        else kko = "menentukan";
-    } else if (levelKog === "C3") {
-        if (fitur.adaHitungan) kko = "menentukan hasil perhitungan";
-        else if (/alat/.test(fitur.lower)) kko = "memilih alat yang tepat untuk";
-        else kko = "menerapkan konsep pada";
-    } else if (levelKog === "C4") {
-        if (/konsekuensi|akibat|dampak/.test(fitur.lower)) kko = "menganalisis dampak/konsekuensi dari";
-        else if (/kompensasi/.test(fitur.lower)) kko = "menganalisis mekanisme kompensasi pada";
-        else kko = "menganalisis permasalahan terkait";
-    }
-
-    // C. Rakit Kalimat Stimulus + KKO + Objek Inti
-    let stimulus = "Disajikan informasi/konsep materi, peserta didik dapat ";
-    if (fitur.adaGambar) {
-        stimulus = "Disajikan gambar/ilustrasi, peserta didik dapat ";
-    } else if (fitur.adaDataNomor) {
-        stimulus = "Disajikan beberapa data pernyataan, peserta didik dapat ";
-    } else if (fitur.adaKasusKlinis) {
-        if (fitur.konteksKasus) {
-            stimulus = "Disajikan kasus " + fitur.konteksKasus + ", peserta didik dapat ";
-        } else {
-            stimulus = "Disajikan studi kasus kontekstual, peserta didik dapat ";
-        }
-    }
-
-    // Hindari pengulangan kata jika objekTarget sudah mengandung kata dari KKO
-    let targetBersih = fitur.objekTarget;
-    if (kko.includes("fungsi") && targetBersih.startsWith("fungsi ")) {
-        targetBersih = targetBersih.replace(/^fungsi\s+/, '');
-    }
-
-    let indikatorFinal = stimulus + kko + " " + targetBersih + " dengan tepat.";
-    return {
-        kompetensi: kompetensiTerpilih,
-        indikator: indikatorFinal
-    };
-};
-
-// 5. EKSEKUTOR UTAMA PEMBUAT KISI-KISI
 window.mulaiGenerateKisiKisi = function() {
     let jenisUjian = document.getElementById('kisi-jenis-ujian').value || "SUMATIF AKHIR SEMESTER (SAS)";
     let tapel = document.getElementById('kisi-tahun-pelajaran').value || "2026/2027";
@@ -1332,157 +1710,35 @@ window.mulaiGenerateKisiKisi = function() {
     let cp = document.getElementById('kisi-cp').value.trim() || "-";
 
     if (!window.tempSoalUjianParsed || window.tempSoalUjianParsed.length === 0) {
-        return alert("⚠️ Belum ada soal yang ditarik/diketik! Silakan ketik soal atau ekstrak dari bank soal terlebih dahulu di layar utama.");
+        return alert("⚠️ Belum ada soal yang ditarik/diketik!");
     }
 
-    let st = document.getElementById('save-status-bar');
-    if(st) st.innerHTML = "<span style='color:#27ae60;'>⚡ Menganalisis & Menyusun Kisi-kisi...</span>";
+    let btn = document.getElementById('btn-generate-kisi');
+    let oldBtnText = btn.innerHTML;
+    btn.innerHTML = "⏳ Memuat Mesin Cerdas...";
+    btn.disabled = true;
 
-    let jmlPG = 0, jmlUraian = 0;
-    window.tempSoalUjianParsed.forEach(q => {
-        if(q.type === 'PG' || q.type === 'PGK') jmlPG++;
-        else jmlUraian++;
-    });
-
-    // Analisis setiap soal menggunakan Mesin Penalaran
-    let hasilAnalisis = window.tempSoalUjianParsed.map((q, idx) => {
-        let fitur = window.ekstrakFiturSoal(q.question, q.type);
-        let levelKog = window.inferensiLevelKognitif(fitur);
-        let rumusan = window.rakitKompetensiDanIndikator(fitur, levelKog);
-        let bentukSoal = q.type === "PG" ? "PG" : (q.type === "PGK" ? "PGK" : (q.type === "IS" ? "Isian" : "Uraian"));
-        
-        let kunci = (q.correct && q.correct.length > 0) ? q.correct.join(', ') : '-';
-        if (bentukSoal === 'Uraian' || (bentukSoal === 'Isian' && kunci.length > 25)) {
-            kunci = (q.correct && q.correct[0]) ? q.correct[0] : "Terlampir";
-        }
-
-        let teksSoalLengkap = q.question;
-        if (q.type === 'PG' || q.type === 'PGK') {
-            teksSoalLengkap += "<br><br>";
-            if(q.options && q.options.length > 0) {
-                q.options.forEach(opt => {
-                    teksSoalLengkap += `${opt.label}. ${opt.text} &nbsp;&nbsp;&nbsp; `;
-                });
-            }
-        }
-
-        return {
-            nomor: idx + 1,
-            kompetensi: rumusan.kompetensi,
-            indikator: rumusan.indikator,
-            bentukSoal: bentukSoal,
-            teksSoalLengkap: teksSoalLengkap,
-            kunci: kunci,
-            levelKog: levelKog
-        };
-    });
-
-    // Hitung Rowspan Otomatis untuk Kompetensi yang berurutan sama (seperti gambar referensi Benar)
-    for (let i = 0; i < hasilAnalisis.length; i++) {
-        if (i > 0 && hasilAnalisis[i].kompetensi === hasilAnalisis[i - 1].kompetensi) {
-            hasilAnalisis[i].kompRowspan = 0; // Ditandai agar tidak dirender ulang
-        } else {
-            let spanCount = 1;
-            for (let j = i + 1; j < hasilAnalisis.length; j++) {
-                if (hasilAnalisis[j].kompetensi === hasilAnalisis[i].kompetensi) spanCount++;
-                else break;
-            }
-            hasilAnalisis[i].kompRowspan = spanCount;
-        }
-    }
-
-    let barisTabel = "";
-    let totalSoal = hasilAnalisis.length;
-
-    hasilAnalisis.forEach((item, idx) => {
-        let tdCapaian = (idx === 0) ? `<td rowspan="${totalSoal}" contenteditable="true" style="text-align:left;">${cp}</td>` : "";
-        let tdKompetensi = (item.kompRowspan > 0) ? `<td rowspan="${item.kompRowspan}" contenteditable="true">${item.kompetensi}</td>` : "";
-
-        barisTabel += `
-            <tr>
-                ${tdCapaian}
-                ${tdKompetensi}
-                <td contenteditable="true">${item.indikator}</td>
-                <td contenteditable="true" style="text-align:center;">${item.bentukSoal}</td>
-                <td style="text-align:center;">${item.nomor}</td>
-                <td contenteditable="true" style="text-align:left;">${item.teksSoalLengkap}</td>
-                <td contenteditable="true" style="text-align:center; font-weight:bold;">${item.kunci}</td>
-                <td contenteditable="true" style="text-align:center;">${item.levelKog}</td>
-            </tr>
-        `;
-    });
-
-    let stringRincianSoal = `${jmlPG} soal Pilihan Ganda dan ${jmlUraian} soal Uraian`;
-    if(jmlUraian === 0) stringRincianSoal = `${jmlPG} soal Pilihan Ganda`;
-    if(jmlPG === 0) stringRincianSoal = `${jmlUraian} soal Uraian`;
-
-    // Halaman Preview Interaktif (Bisa Diedit Guru Sebelum Cetak PDF)
-    let htmlDoc = `
-    <html><head><title>Kisi-Kisi Ujian - ${mapel}</title>
-    <style>
-        body { font-family: 'Times New Roman', Times, serif; padding: 25px; line-height: 1.35; color: black; background: #fff; }
-        .no-print-bar { background: #0b3954; color: white; padding: 12px 20px; font-family: sans-serif; font-size: 13px; display: flex; justify-content: space-between; align-items: center; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
-        .no-print-bar button { background: #27ae60; color: white; border: none; padding: 8px 18px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 13px; }
-        .no-print-bar button:hover { background: #219150; }
-        h2 { text-align: center; margin-bottom: 4px; font-size: 13pt; font-weight: bold; }
-        h3 { text-align: center; margin-top: 0; margin-bottom: 20px; font-size: 13pt; font-weight: bold; }
-        .kop-info { width: 100%; margin-bottom: 15px; font-weight: bold; font-size: 11pt; border-collapse: collapse; }
-        .kop-info td { padding: 3px 0; border: none !important; }
-        table.kisi-table { width: 100%; border-collapse: collapse; font-size: 10.5pt; }
-        table.kisi-table th, table.kisi-table td { border: 1px solid black; padding: 7px 8px; vertical-align: top; }
-        table.kisi-table th { background-color: #ffffff; text-align: center; font-weight: bold; padding: 10px 8px; }
-        td[contenteditable="true"]:focus { outline: 2px solid #3498db; background: #f0f8ff; }
-        @media print {
-            .no-print-bar { display: none !important; }
-            body { padding: 0; }
-            @page { size: landscape; margin: 12mm; }
-            tr { page-break-inside: avoid; }
-        }
-    </style>
-    </head><body>
-        <div class="no-print-bar">
-            <span>💡 <b>Mode Validasi Guru:</b> Anda dapat mengeklik dan mengedit langsung teks Kompetensi, Indikator, atau Level Kognitif di bawah ini sebelum mencetak.</span>
-            <button onclick="window.print()">🖨️ Cetak / Simpan PDF</button>
-        </div>
-
-        <h2 contenteditable="true">KISI-KISI SOAL ${jenisUjian}</h2>
-        <h3 contenteditable="true">SMAS BODHI DHARMA BATAM - TAHUN PELAJARAN ${tapel}</h3>
-        
-        <table class="kop-info">
-            <tr><td width="130">Mata Pelajaran</td><td width="15">:</td><td contenteditable="true">${mapel}</td></tr>
-            <tr><td>Kelas / Fase</td><td>:</td><td contenteditable="true">${kelasFase}</td></tr>
-            <tr><td>Jumlah Soal</td><td>:</td><td contenteditable="true">${stringRincianSoal}</td></tr>
-        </table>
-        
-        <table class="kisi-table">
-            <thead>
-                <tr>
-                    <th width="14%">Capaian Pembelajaran</th>
-                    <th width="13%">Kompetensi</th>
-                    <th width="17%">Indikator Soal</th>
-                    <th width="5%">Bentuk Soal</th>
-                    <th width="5%">Nomor</th>
-                    <th width="34%">Soal</th>
-                    <th width="6%">Kunci</th>
-                    <th width="6%">Level Kognitif</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${barisTabel}
-            </tbody>
-        </table>
-    </body></html>`;
-
-    let win = window.open('', '_blank');
-    if (win) {
-        win.document.write(htmlDoc);
-        win.document.close();
+    // LAZY LOADING: Cek apakah mesin cerdas sudah ada di memori
+    if (typeof window.eksekusiGenerateKisiKisi === "function") {
+        window.eksekusiGenerateKisiKisi(jenisUjian, tapel, mapel, kelasFase, cp);
+        btn.innerHTML = oldBtnText;
+        btn.disabled = false;
     } else {
-        alert("Browser Anda memblokir Pop-up. Izinkan Pop-up di peramban Anda untuk melihat hasil Kisi-kisi.");
+        // Jika belum ada, panggil file eksternal secara diam-diam
+        let script = document.createElement('script');
+        script.src = 'js/kisi-kisi-engine.js'; 
+        script.onload = function() {
+            window.eksekusiGenerateKisiKisi(jenisUjian, tapel, mapel, kelasFase, cp);
+            btn.innerHTML = oldBtnText;
+            btn.disabled = false;
+        };
+        script.onerror = function() {
+            alert("❌ Gagal memuat mesin kisi-kisi. Pastikan file js/kisi-kisi-engine.js sudah dibuat.");
+            btn.innerHTML = oldBtnText;
+            btn.disabled = false;
+        };
+        document.body.appendChild(script);
     }
-    
-    window.tutupModal('modal-kisi-kisi');
-    if(st) st.innerHTML = "Cloud Sync: Ready";
 };
 
 /* =========================================
@@ -1698,23 +1954,34 @@ window.prosesLoginSistem = function() {
     let roleTarget = "";
     let guruTarget = "";
 
-    // Pemetaan Username Lokal ke Email Firebase Auth
-    if (userKey === "mahardika") {
-        emailTarget = "mahardika@admin.com";
-        roleTarget = "admin";
-        guruTarget = "mahardika";
-    } else if (userKey === "sbd") {
+    // PENGAMAN MUTLAK: Pemetaan Username Lokal ke Hak Akses
+    if (userKey === "sbd") {
+        // SBD dikunci mati sebagai SISWA, tidak akan pernah bisa jadi admin
         emailTarget = "siswa@sbd.com";
         roleTarget = "siswa";
         guruTarget = sessionStorage.getItem("guruTarget") || "mahardika";
-    } else {
+    } else if (userKey === "mahardika") {
+        // Admin Utama
+        emailTarget = "mahardika@admin.com";
+        roleTarget = "admin";
+        guruTarget = "mahardika";
+    } else if (window.daftarAkunGuru && window.daftarAkunGuru[userKey]) {
+        // HANYA Guru/Admin yang terdaftar resmi di sistem yang bisa masuk sebagai Admin
         emailTarget = userKey + "@guru.com";
         roleTarget = "admin";
         guruTarget = userKey;
+    } else {
+        // AKUN LAINNYA (Semua yang diketik ngasal akan otomatis dilempar jadi siswa)
+        emailTarget = userKey + "@siswa.com";
+        roleTarget = "siswa";
+        guruTarget = sessionStorage.getItem("guruTarget") || "mahardika";
     }
 
     // Tembak ke Firebase Auth
     window.loginFirebase(emailTarget, pass, function() {
+        document.body.classList.remove("mode-edit-aktif");
+        document.documentElement.classList.remove("force-edit-mode");
+        sessionStorage.removeItem("previewMode");
         sessionStorage.setItem("statusLogin", roleTarget);
         sessionStorage.setItem("username", userKey === "sbd" ? "SBD" : userKey);
         sessionStorage.setItem("guruTarget", guruTarget);
@@ -1747,25 +2014,107 @@ window.prosesLogoutSistem = function() {
     }
 };
 
-window.togglePreviewMode = function() { 
-    const b = document.body, d = document.documentElement, btn = document.getElementById('btn-preview'); 
-    if(b.classList.contains('mode-edit-aktif') || d.classList.contains('force-edit-mode')) { 
-        b.classList.remove('mode-edit-aktif'); 
-        d.classList.remove('force-edit-mode'); 
-        sessionStorage.setItem("previewMode", "true"); 
-        document.querySelectorAll('.content-block, .fb-content, .header-title').forEach(function(el) { el.removeAttribute('contenteditable'); }); 
-        if(btn) { btn.innerHTML = "✏️ Back to Edit"; btn.style.background = "#27ae60"; }
-        if(window.renderMathJax) window.renderMathJax(); 
-    } else { 
-        b.classList.add('mode-edit-aktif'); 
-        d.classList.add('force-edit-mode'); 
-        sessionStorage.removeItem("previewMode"); 
-        document.querySelectorAll('.content-block, .fb-content, .header-title').forEach(function(el) { el.setAttribute('contenteditable', 'true'); }); 
-        if(btn) { btn.innerHTML = "👁️ Preview as Student"; btn.style.background = "#e67e22"; }
-        if(window.restoreMathJax) window.restoreMathJax(); 
-    } 
-    window.renderBlocks(); 
-    if(window.renderFloatingBoxes) window.renderFloatingBoxes(); 
+// MODE PREVIEW: KHUSUS ADMIN/GURU
+window.togglePreviewMode = function() {
+
+    // PENGAMAN: Tolak pengguna selain admin
+    if (
+        typeof window.isAdminSession !== "function" ||
+        !window.isAdminSession()
+    ) {
+        if (typeof window.kunciEditorUntukNonAdmin === "function") {
+            window.kunciEditorUntukNonAdmin();
+        } else {
+            document.body.classList.remove("mode-edit-aktif");
+            document.documentElement.classList.remove("force-edit-mode");
+            sessionStorage.removeItem("previewMode");
+
+            document.querySelectorAll(
+                ".content-block, .fb-content, .header-title, #web-title"
+            ).forEach(function(el) {
+                el.removeAttribute("contenteditable");
+            });
+
+            const btn = document.getElementById("btn-preview");
+
+            if (btn) {
+                btn.style.setProperty("display", "none", "important");
+            }
+        }
+
+        alert("🔒 Akses ditolak! Fitur ini hanya untuk admin/guru.");
+
+        if (typeof window.renderBlocks === "function") {
+            window.renderBlocks();
+        }
+
+        if (typeof window.renderFloatingBoxes === "function") {
+            window.renderFloatingBoxes();
+        }
+
+        return;
+    }
+
+    // Jika admin, jalankan fungsi preview seperti biasa
+    const b = document.body;
+    const d = document.documentElement;
+    const btn = document.getElementById("btn-preview");
+
+    if (
+        b.classList.contains("mode-edit-aktif") ||
+        d.classList.contains("force-edit-mode")
+    ) {
+        // ADMIN MASUK KE MODE PREVIEW SISWA
+        b.classList.remove("mode-edit-aktif");
+        d.classList.remove("force-edit-mode");
+
+        sessionStorage.setItem("previewMode", "true");
+
+        document.querySelectorAll(
+            ".content-block, .fb-content, .header-title"
+        ).forEach(function(el) {
+            el.removeAttribute("contenteditable");
+        });
+
+        if (btn) {
+            btn.innerHTML = "✏️ Back to Edit";
+            btn.style.background = "#27ae60";
+        }
+
+        if (window.renderMathJax) {
+            window.renderMathJax();
+        }
+
+    } else {
+        // ADMIN KEMBALI KE MODE EDIT
+        b.classList.add("mode-edit-aktif");
+        d.classList.add("force-edit-mode");
+
+        sessionStorage.removeItem("previewMode");
+
+        document.querySelectorAll(
+            ".content-block, .fb-content, .header-title"
+        ).forEach(function(el) {
+            el.setAttribute("contenteditable", "true");
+        });
+
+        if (btn) {
+            btn.innerHTML = "👁️ Preview as Student";
+            btn.style.background = "#e67e22";
+        }
+
+        if (window.restoreMathJax) {
+            window.restoreMathJax();
+        }
+    }
+
+    if (window.renderBlocks) {
+        window.renderBlocks();
+    }
+
+    if (window.renderFloatingBoxes) {
+        window.renderFloatingBoxes();
+    }
 };
 
 /* =========================================
@@ -2890,12 +3239,23 @@ document.addEventListener('paste', function(e) {
         }
     }
 
-    // 3. CEK PASTE TEKS BIASA (MATCH FORMATTING WORD)
+    // 3. CEK PASTE TEKS BIASA (MATCH FORMATTING WORD & AUTO-PAGINATION A4)
     if (pastedText && pastedText.trim() !== '') {
         e.preventDefault();
-        // Menghapus format style berantakan dari web/sumber luar lalu
-        // menuruti (match) style dari lokasi paragraf/cursor berada (seperti Word)
-        document.execCommand('insertText', false, pastedText);
+        let targetBlok = e.target.closest ? e.target.closest('.content-block.a4-portrait-block') : null;
+        if (targetBlok && pastedText.indexOf('\n') !== -1) {
+            let lines = pastedText.replace(/\r\n/g, '\n').split('\n');
+            let htmlLines = lines.map(function(line) {
+                let safe = line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                return '<p>' + (safe.trim() ? safe : '<br>') + '</p>';
+            }).join('');
+            document.execCommand('insertHTML', false, htmlLines);
+            setTimeout(function() {
+                if (typeof window.rapikanHalamanA4Word === 'function') window.rapikanHalamanA4Word(targetBlok, false);
+            }, 30);
+        } else {
+            document.execCommand('insertText', false, pastedText);
+        }
         triggerInput();
     }
 });
@@ -3302,8 +3662,59 @@ window.kirimPesanAI = function() {
    ========================================= */
 window.isDrawingMode = false; 
 let currentDrawCtx = null, isPenDown = false, activeTool = 'pen'; 
-window.penSize = 4; window.penColor = '#e74c3c'; window.pencilOnly = true; 
+window.penSize = 3.6; window.penColor = '#e74c3c'; window.pencilOnly = true; 
+window.drawUndoStack = []; window.drawRedoStack = [];
 window.shapeHoldTimer = null; window.isShapeRecognized = false;
+
+window.undoDraw = function() {
+    if (window.drawUndoStack.length === 0) return;
+    let action = window.drawUndoStack.pop();
+    let currentData = action.cvs.toDataURL("image/png");
+    window.drawRedoStack.push({ cvs: action.cvs, data: currentData });
+    
+    let ctx = action.cvs.getContext('2d', { willReadFrequently: true });
+    ctx.clearRect(0, 0, action.cvs.width, action.cvs.height);
+    
+    if(action.data) {
+        let img = new Image();
+        img.onload = function() {
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.globalAlpha = 1.0;
+            ctx.drawImage(img, 0, 0);
+            window.simpanDataDrawingTarget(action.cvs, action.data);
+            if(window.simpanKeDB) window.simpanKeDB();
+        };
+        img.src = action.data;
+    } else {
+        window.simpanDataDrawingTarget(action.cvs, "");
+        if(window.simpanKeDB) window.simpanKeDB();
+    }
+};
+
+window.redoDraw = function() {
+    if (window.drawRedoStack.length === 0) return;
+    let action = window.drawRedoStack.pop();
+    let currentData = action.cvs.toDataURL("image/png");
+    window.drawUndoStack.push({ cvs: action.cvs, data: currentData });
+
+    let ctx = action.cvs.getContext('2d', { willReadFrequently: true });
+    ctx.clearRect(0, 0, action.cvs.width, action.cvs.height);
+    
+    if(action.data) {
+        let img = new Image();
+        img.onload = function() {
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.globalAlpha = 1.0;
+            ctx.drawImage(img, 0, 0);
+            window.simpanDataDrawingTarget(action.cvs, action.data);
+            if(window.simpanKeDB) window.simpanKeDB();
+        };
+        img.src = action.data;
+    } else {
+        window.simpanDataDrawingTarget(action.cvs, "");
+        if(window.simpanKeDB) window.simpanKeDB();
+    }
+};
 
 let laserStrokes = [], currentLaserStroke = null;
 let globalLaserCvs = document.getElementById('laser-canvas'); 
@@ -3667,22 +4078,20 @@ document.addEventListener('pointerdown', function(e) {
                 currentDrawCtx.globalCompositeOperation = 'source-over';
                 lassoTargetCanvas = c; lassoPath = [{x: x, y: y}]; 
                 lassoSavedImageData = currentDrawCtx.getImageData(0,0,c.width,c.height); 
-            } else if (activeTool === 'highlighter' || activeTool === 'line' || activeTool === 'pen') {
-                currentDrawCtx.globalCompositeOperation = 'source-over';
+            } else if (activeTool === 'highlighter' || activeTool === 'line' || activeTool === 'pen' || activeTool === 'eraser') {
+                // Simpan history sebelum coretan dimulai (UNTUK UNDO/REDO)
+                window.drawUndoStack.push({ cvs: c, data: c.toDataURL("image/png") });
+                window.drawRedoStack = []; // Hapus masa depan jika ada aksi baru
+                
+                currentDrawCtx.globalCompositeOperation = activeTool === 'eraser' ? 'destination-out' : 'source-over';
                 currentDrawCtx.strokeStyle = window.penColor;
-                currentDrawCtx.lineWidth = window.penSize;
+                currentDrawCtx.lineWidth = activeTool === 'eraser' ? (window.penSize * 5) : window.penSize;
                 window.drawSnapshot = currentDrawCtx.getImageData(0,0,c.width,c.height);
                 window.drawPoints = [{x: x, y: y}];
                 currentDrawCtx.beginPath(); currentDrawCtx.moveTo(x,y); 
                 currentDrawCtx.lineCap = 'round'; currentDrawCtx.lineJoin = 'round'; 
-            } else if(activeTool === 'eraser') { 
-                currentDrawCtx.beginPath(); currentDrawCtx.moveTo(x,y); 
-                currentDrawCtx.lineCap = 'round'; currentDrawCtx.lineJoin = 'round'; 
-                currentDrawCtx.globalCompositeOperation = 'destination-out'; 
-                currentDrawCtx.lineWidth = window.penSize * 5; 
-                currentDrawCtx.strokeStyle = 'rgba(0,0,0,1)'; 
-            } 
-        } 
+            }
+        }
     } 
 });
 
@@ -4429,9 +4838,621 @@ document.addEventListener('keydown', function(e) {
     }
 });
 
-// Cetak Seluruh Content Block Materi Sesuai Ukuran Kertas A4
+/* ========================================================
+   MESIN PAGINASI KERTAS A4 ALA MICROSOFT WORD & CETAK PDF
+   (Margin 1 Inch = 96px di Keempat Sisi | Sinkron 1:1 Layar & PDF)
+   ======================================================== */
+window.A4_PAGE_HEIGHT = 1123; // Tinggi 1 lembar A4 (px)
+window.A4_PAGE_GAP = 28;      // Tinggi sekat abu-abu antar-halaman (px)
+window.A4_PAGE_CYCLE = 1151;  // 1123 + 28
+window.A4_MARGIN_TOP = 48;    // Margin atas 0.5 inch (48px)
+window.A4_MARGIN_BOTTOM = 48; // Margin bawah 0.5 inch (48px)
+window.A4_BOTTOM_LIMIT = 1075; // 1123px - 48px (Tepat di garis siku bawah └ ┘)
+window.isPaginatingWord = false;
+
+// 0. Pastikan CSS Lembar Kertas A4 Word Selalu Aktif (Termasuk SVG 0.5 Inch)
+window.pasangGayaKertasWordA4 = function() {
+    if (document.getElementById('ms-word-a4-override')) return;
+    let st = document.createElement('style');
+    st.id = 'ms-word-a4-override';
+    st.innerHTML = `
+        #main-editor-wrapper { background-color: #e2e8f0 !important; padding-top: 24px !important; padding-bottom: 60px !important; }
+        #blocks-container { gap: 28px !important; }
+        .block-wrapper { background-color: transparent !important; padding-top: 0 !important; padding-bottom: 0 !important; margin: 0 auto !important; }
+        .content-block.a4-portrait-block,
+        .mode-edit-aktif .content-block.a4-portrait-block,
+        .force-edit-mode .content-block.a4-portrait-block,
+        .mode-edit-aktif .content-block.a4-portrait-block:focus,
+        .force-edit-mode .content-block.a4-portrait-block:focus {
+            width: 794px !important; max-width: 794px !important;
+            min-height: 1123px !important; height: 1123px !important; max-height: 1123px !important;
+            padding: 48px 48px 48px 48px !important; box-sizing: border-box !important;
+            overflow: hidden !important; border-radius: 0 !important;
+            border: 1px solid #cbd5e1 !important; outline: none !important;
+            box-shadow: 0 6px 20px rgba(15, 23, 42, 0.12) !important;
+            background-color: #ffffff !important;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='794' height='1151' viewBox='0 0 794 1151'%3E%3Crect x='0' y='0' width='794' height='1123' fill='%23ffffff'/%3E%3Crect x='0.5' y='0.5' width='793' height='1122' fill='none' stroke='%23d0d7de' stroke-width='1'/%3E%3Cpath d='M 24 48 L 48 48 L 48 24' fill='none' stroke='%2394a3b8' stroke-width='1.2'/%3E%3Cpath d='M 770 48 L 746 48 L 746 24' fill='none' stroke='%2394a3b8' stroke-width='1.2'/%3E%3Cpath d='M 24 1075 L 48 1075 L 48 1099' fill='none' stroke='%2394a3b8' stroke-width='1.2'/%3E%3Cpath d='M 770 1075 L 746 1075 L 746 1099' fill='none' stroke='%2394a3b8' stroke-width='1.2'/%3E%3Crect x='0' y='1123' width='794' height='28' fill='%23cbd5e1'/%3E%3Cline x1='0' y1='1123.5' x2='794' y2='1123.5' stroke='%2394a3b8' stroke-width='1.5'/%3E%3Cline x1='0' y1='1150.5' x2='794' y2='1150.5' stroke='%2394a3b8' stroke-width='1.5'/%3E%3C/svg%3E") !important;
+            background-size: 794px 1151px !important; background-repeat: repeat-y !important; background-position: top center !important;
+        }
+        .content-block.a4-portrait-block img, .content-block.a4-portrait-block video, .content-block.a4-portrait-block iframe {
+            max-width: 100% !important;
+        }
+    `;
+    document.head.appendChild(st);
+};
+window.pasangGayaKertasWordA4();
+
+// 1. Penanda Kursor Sementara (Agar Kursor Ikut Pindah ke Halaman 2 Saat Mengetik)
+window.sisipkanMarkerKursorWord = function() {
+    let sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || !sel.isCollapsed) return null;
+    let range = sel.getRangeAt(0);
+    let container = range.commonAncestorContainer;
+    let el = container.nodeType === 3 ? container.parentElement : container;
+    if (!el || !el.closest || !el.closest('.content-block.a4-portrait-block')) return null;
+
+    let oldMarker = document.getElementById('word-cursor-marker');
+    if (oldMarker) oldMarker.remove();
+
+    let marker = document.createElement('span');
+    marker.id = 'word-cursor-marker';
+    marker.style.cssText = 'display:inline-block;width:0;height:0;overflow:hidden;line-height:0;pointer-events:none;';
+    marker.setAttribute('contenteditable', 'false');
+    range.insertNode(marker);
+    return marker;
+};
+
+window.pulihkanMarkerKursorWord = function() {
+    let marker = document.getElementById('word-cursor-marker');
+    if (!marker) return;
+    let pageEl = marker.closest('.content-block.a4-portrait-block');
+    if (pageEl && document.activeElement !== pageEl) {
+        pageEl.focus({ preventScroll: true });
+    }
+    let sel = window.getSelection();
+    let range = document.createRange();
+    range.setStartBefore(marker);
+    range.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(range);
+    window.savedEditorRange = range.cloneRange();
+    marker.remove();
+};
+
+// 2. Normalisasi Elemen di Dalam Lembar A4 (Bersihkan Sisa Margin Lama & Bungkus Teks Lepas)
+window.normalisasiIsiLembarA4 = function(pageEl) {
+    if (!pageEl) return;
+
+    pageEl.querySelectorAll('[data-a4-pushed], .a4-page-break-before').forEach(function(el) {
+        el.style.marginTop = el.getAttribute('data-orig-mt') || '';
+        el.removeAttribute('data-a4-pushed');
+        el.removeAttribute('data-orig-mt');
+        el.classList.remove('a4-page-break-before');
+    });
+
+    Array.from(pageEl.querySelectorAll('p, div')).forEach(function(cont) {
+        if (cont.closest('table, .quiz-container, .math-latex-block') || cont.getAttribute('contenteditable') === 'false') return;
+        let hasChildBlocks = cont.querySelector('p, div, ul, ol, table, blockquote, h1, h2, h3, h4, h5, h6, iframe, video');
+        if (!hasChildBlocks && cont.querySelectorAll('br').length > 0 && cont.innerText.trim().length > 0) {
+            let parts = cont.innerHTML.split(/<br\s*\/?>/i);
+            if (parts.length > 1) {
+                let frag = document.createDocumentFragment();
+                parts.forEach(function(partHtml) {
+                    let p = document.createElement('p');
+                    if (cont.getAttribute('style')) p.setAttribute('style', cont.getAttribute('style'));
+                    p.innerHTML = partHtml.trim() ? partHtml : '<br>';
+                    frag.appendChild(p);
+                });
+                cont.parentNode.replaceChild(frag, cont);
+            }
+        }
+    });
+
+    let needWrap = Array.from(pageEl.childNodes).some(function(n) {
+        return (n.nodeType === 3 && n.nodeValue.trim().length > 0) || (n.nodeType === 1 && n.tagName === 'BR');
+    });
+
+    if (needWrap) {
+        let nodes = Array.from(pageEl.childNodes);
+        let frag = document.createDocumentFragment();
+        let curP = null;
+        nodes.forEach(function(node) {
+            let isBlock = node.nodeType === 1 && /^(P|DIV|H1|H2|H3|H4|H5|H6|UL|OL|TABLE|BLOCKQUOTE|PRE|HR|SECTION|ARTICLE)$/i.test(node.tagName);
+            if (isBlock) {
+                curP = null;
+                frag.appendChild(node);
+            } else if (node.nodeType === 1 && node.tagName === 'BR') {
+                if (!curP) {
+                    curP = document.createElement('p');
+                    curP.innerHTML = '<br>';
+                    frag.appendChild(curP);
+                }
+                curP = null;
+            } else if (node.nodeType === 3 && node.nodeValue.trim() === '' && !curP) {
+                // lewati spasi kosong antar-blok
+            } else {
+                if (!curP) {
+                    curP = document.createElement('p');
+                    frag.appendChild(curP);
+                }
+                curP.appendChild(node);
+            }
+        });
+        pageEl.innerHTML = '';
+        pageEl.appendChild(frag);
+    }
+};
+
+// 3. Membelah Paragraf Panjang Tepat pada Kata Terakhir yang Muat di Atas Siku Margin Bawah (1075px)
+window.belahParagrafPadaBatasA4 = function(el, pageRect, scale, limitY) {
+    if (!el || el.getAttribute('contenteditable') === 'false') return null;
+    if (el.querySelector('img, iframe, video, table, .math-latex-block')) return null;
+
+    let walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null, false);
+    let splitPoints = [];
+    let tn = walker.nextNode();
+    while (tn) {
+        let text = tn.nodeValue || '';
+        let re = /\S+\s*/g;
+        let match;
+        while ((match = re.exec(text)) !== null) {
+            splitPoints.push({ node: tn, offset: match.index + match[0].length });
+        }
+        tn = walker.nextNode();
+    }
+
+    if (splitPoints.length <= 1) return null;
+
+    let testRange = document.createRange();
+    testRange.setStart(el, 0);
+    testRange.setEnd(splitPoints[0].node, splitPoints[0].offset);
+    let firstBottom = (testRange.getBoundingClientRect().bottom - pageRect.top) / scale;
+    if (firstBottom > limitY) return null;
+
+    let low = 0, high = splitPoints.length - 1, bestIdx = 0;
+    while (low <= high) {
+        let mid = Math.floor((low + high) / 2);
+        testRange.setStart(el, 0);
+        testRange.setEnd(splitPoints[mid].node, splitPoints[mid].offset);
+        let b = (testRange.getBoundingClientRect().bottom - pageRect.top) / scale;
+        if (b <= limitY) {
+            bestIdx = mid;
+            low = mid + 1;
+        } else {
+            high = mid - 1;
+        }
+    }
+
+    if (bestIdx >= splitPoints.length - 1) return null;
+
+    let splitPt = splitPoints[bestIdx];
+    let tailRange = document.createRange();
+    tailRange.setStart(splitPt.node, splitPt.offset);
+    tailRange.setEndAfter(el.lastChild);
+
+    let tailFrag = tailRange.extractContents();
+    let nextEl = el.cloneNode(false);
+    nextEl.appendChild(tailFrag);
+    nextEl.setAttribute('data-split-continuation', 'true');
+    return nextEl;
+};
+
+// 4. Membuat atau Mengambil Lembar Kertas A4 Berikutnya (Halaman Baru)
+window.dapatkanAtauBuatHalamanA4Berikutnya = function(currentPageIndex) {
+    let allWrappers = document.querySelectorAll('#blocks-container > .block-wrapper');
+    let nextWrapper = allWrappers[currentPageIndex + 1];
+
+    if (nextWrapper) {
+        let nextBlockEl = nextWrapper.querySelector('.content-block.a4-portrait-block');
+        if (nextBlockEl) {
+            let bersih = nextBlockEl.innerText.trim();
+            if (bersih === 'Ketik materi...' && !nextBlockEl.querySelector('img, iframe, video, table')) {
+                nextBlockEl.innerHTML = '';
+            }
+            return nextBlockEl;
+        }
+    }
+
+    let curData = window.contentBlocksData[currentPageIndex] || {};
+    let newBlockData = {
+        type: 'text', html: '', bg: curData.bg || '#ffffff', pattern: curData.pattern || '',
+        color: curData.color || '#333333', width: curData.width || 'M', padTop: '0px', padBot: '0px', drawing: '', floatImages: []
+    };
+
+    window.contentBlocksData.splice(currentPageIndex + 1, 0, newBlockData);
+
+    let isEdit = document.body.classList.contains('mode-edit-aktif') || document.documentElement.classList.contains('force-edit-mode');
+    let wrapper = document.createElement('div');
+    wrapper.className = 'block-wrapper ' + (newBlockData.pattern || '');
+    wrapper.setAttribute('data-index', currentPageIndex + 1);
+    wrapper.innerHTML =
+        '<div class="block-controls"><button onclick="geserBlok(' + (currentPageIndex + 1) + ', -1)">⬆️</button><button onclick="geserBlok(' + (currentPageIndex + 1) + ', 1)">⬇️</button><button onclick="bukaSidebarBlock(' + (currentPageIndex + 1) + ')">⚙️ Setting</button><button onclick="hapusBlok(' + (currentPageIndex + 1) + ')">🗑️ Delete</button></div>' +
+        '<div class="a4-paper-wrapper" style="position:relative; width:794px; max-width:100%; margin:0 auto;">' +
+            '<div class="draw-float-layer" data-index="' + (currentPageIndex + 1) + '"></div>' +
+            '<canvas class="drawing-layer" data-index="' + (currentPageIndex + 1) + '"></canvas>' +
+            '<div class="content-block a4-portrait-block" ' + (isEdit ? 'contenteditable="true"' : '') + ' data-index="' + (currentPageIndex + 1) + '" data-block-type="text" data-width="' + newBlockData.width + '" style="color:' + newBlockData.color + ';" onkeydown="window.cekBatasTinggiA4Keydown(event, this)" oninput="window.cekBatasTinggiA4Input(event, this)"></div>' +
+        '</div>';
+
+    let currentWrapper = allWrappers[currentPageIndex];
+    if (currentWrapper && currentWrapper.nextSibling) {
+        currentWrapper.parentNode.insertBefore(wrapper, currentWrapper.nextSibling);
+    } else {
+        document.getElementById('blocks-container').appendChild(wrapper);
+    }
+
+    window.perbaruiIndeksSemuaBlokDOM();
+    if (typeof inisialisasiSatuCanvas === 'function') {
+        let cvs = wrapper.querySelector('.drawing-layer');
+        if (cvs) inisialisasiSatuCanvas(cvs);
+    }
+
+    return wrapper.querySelector('.content-block.a4-portrait-block');
+};
+
+window.perbaruiIndeksSemuaBlokDOM = function() {
+    let wrappers = document.querySelectorAll('#blocks-container > .block-wrapper');
+    wrappers.forEach(function(w, idx) {
+        w.setAttribute('data-index', idx);
+        let fl = w.querySelector('.draw-float-layer');
+        if (fl) fl.setAttribute('data-index', idx);
+        let cv = w.querySelector('.drawing-layer');
+        if (cv) cv.setAttribute('data-index', idx);
+        let cb = w.querySelector('.content-block');
+        if (cb) cb.setAttribute('data-index', idx);
+        let btns = w.querySelectorAll('.block-controls button');
+        if (btns.length === 4) {
+            btns[0].setAttribute('onclick', 'geserBlok(' + idx + ', -1)');
+            btns[1].setAttribute('onclick', 'geserBlok(' + idx + ', 1)');
+            btns[2].setAttribute('onclick', 'bukaSidebarBlock(' + idx + ')');
+            btns[3].setAttribute('onclick', 'hapusBlok(' + idx + ')');
+        }
+    });
+};
+
+// 5. Mesin Inti Paginasi Otomatis (Mengukur Kertas, Mendorong Elemen, Menyisipkan Nomor Halaman 8pt)
+window.jalankanPaginasiWord = function(startIndex, syncDB) {
+    if (window.isPaginatingWord || window.isLoadingRoom || window.isDrawingMode) return;
+    window.isPaginatingWord = true;
+
+    let marker = window.sisipkanMarkerKursorWord();
+    let adaPerubahan = false;
+
+    try {
+        let idx = typeof startIndex === 'number' && startIndex >= 0 ? startIndex : 0;
+        let safetyCounter = 0;
+
+        while (safetyCounter < 60) {
+            safetyCounter++;
+            let wrappers = document.querySelectorAll('#blocks-container > .block-wrapper');
+            if (idx >= wrappers.length) break;
+
+            let pageEl = wrappers[idx].querySelector('.content-block.a4-portrait-block');
+            if (!pageEl) { idx++; continue; }
+
+            // Hapus nomor halaman lama sebelum mengukur ulang
+            let oldNumCont = pageEl.querySelector('.a4-page-numbers-container');
+            if (oldNumCont) oldNumCont.remove();
+
+            window.normalisasiIsiLembarA4(pageEl);
+
+            let pageRect = pageEl.getBoundingClientRect();
+            let scale = (pageEl.offsetWidth > 0 && pageRect.width > 0) ? (pageRect.width / pageEl.offsetWidth) : 1;
+            let limitY = window.A4_BOTTOM_LIMIT; // 1075px
+
+            let children = Array.from(pageEl.children).filter(function(c) {
+                return c.id !== 'word-cursor-marker' && c.tagName !== 'STYLE' && c.tagName !== 'SCRIPT' && !c.classList.contains('a4-page-numbers-container');
+            });
+
+            let overflowIndex = -1;
+            for (let i = 0; i < children.length; i++) {
+                let cRect = children[i].getBoundingClientRect();
+                let relBot = (cRect.bottom - pageRect.top) / scale;
+                if (relBot > limitY + 1) {
+                    overflowIndex = i; break;
+                }
+            }
+
+            if (overflowIndex !== -1) {
+                let firstOverEl = children[overflowIndex];
+                let nodesToMove = [];
+
+                if (overflowIndex === 0) {
+                    let mediaEl = firstOverEl.tagName === 'IMG' || firstOverEl.tagName === 'VIDEO' || firstOverEl.tagName === 'IFRAME'
+                        ? firstOverEl : firstOverEl.querySelector('img, video, iframe');
+                    if (mediaEl) {
+                        mediaEl.style.maxHeight = '860px'; mediaEl.style.width = 'auto';
+                    }
+                    let splitTail = window.belahParagrafPadaBatasA4(firstOverEl, pageRect, scale, limitY);
+                    if (splitTail) nodesToMove.push(splitTail);
+                    for (let j = 1; j < children.length; j++) nodesToMove.push(children[j]);
+                } else {
+                    let splitTail = null;
+                    if (/^(P|DIV|BLOCKQUOTE)$/i.test(firstOverEl.tagName)) {
+                        splitTail = window.belahParagrafPadaBatasA4(firstOverEl, pageRect, scale, limitY);
+                    } else if (firstOverEl.tagName === 'UL' || firstOverEl.tagName === 'OL') {
+                        let lis = Array.from(firstOverEl.children);
+                        let overLiIdx = -1;
+                        for (let k = 0; k < lis.length; k++) {
+                            let liBot = (lis[k].getBoundingClientRect().bottom - pageRect.top) / scale;
+                            if (liBot > limitY + 1) { overLiIdx = k; break; }
+                        }
+                        if (overLiIdx > 0) {
+                            splitTail = firstOverEl.cloneNode(false);
+                            if (firstOverEl.tagName === 'OL') {
+                                let startNum = parseInt(firstOverEl.getAttribute('start') || '1', 10) + overLiIdx;
+                                splitTail.setAttribute('start', startNum);
+                            }
+                            for (let k = overLiIdx; k < lis.length; k++) splitTail.appendChild(lis[k]);
+                        }
+                    }
+                    if (splitTail) nodesToMove.push(splitTail);
+                    else nodesToMove.push(firstOverEl);
+
+                    for (let j = overflowIndex + 1; j < children.length; j++) nodesToMove.push(children[j]);
+                }
+
+                if (nodesToMove.length > 0) {
+                    let nextPageEl = window.dapatkanAtauBuatHalamanA4Berikutnya(idx);
+                    if (nextPageEl) {
+                        let frag = document.createDocumentFragment();
+                        nodesToMove.forEach(function(n) { frag.appendChild(n); });
+                        nextPageEl.insertBefore(frag, nextPageEl.firstChild);
+                        adaPerubahan = true;
+                    }
+                }
+            } else if (idx + 1 < wrappers.length) {
+                let nextPageEl = wrappers[idx + 1].querySelector('.content-block.a4-portrait-block');
+                if (nextPageEl && nextPageEl.innerText.trim() !== 'Ketik materi...') {
+                    while (nextPageEl.firstElementChild) {
+                        let candidate = nextPageEl.firstElementChild;
+                        if (candidate.id === 'word-cursor-marker' || candidate.classList.contains('a4-page-numbers-container')) break;
+
+                        pageEl.appendChild(candidate);
+                        let cRect = candidate.getBoundingClientRect();
+                        let relBot = (cRect.bottom - pageRect.top) / scale;
+
+                        if (relBot <= limitY) {
+                            adaPerubahan = true;
+                        } else {
+                            nextPageEl.insertBefore(candidate, nextPageEl.firstChild);
+                            break;
+                        }
+                    }
+
+                    let nextHasMedia = nextPageEl.querySelector('img, iframe, video, table, .quiz-container');
+                    let nextHasCursor = nextPageEl.querySelector('#word-cursor-marker');
+                    if (!nextHasMedia && !nextHasCursor && nextPageEl.innerText.trim() === '' && window.contentBlocksData.length > 1) {
+                        wrappers[idx + 1].remove();
+                        window.contentBlocksData.splice(idx + 1, 1);
+                        window.perbaruiIndeksSemuaBlokDOM();
+                        adaPerubahan = true;
+                        continue;
+                    }
+                }
+            }
+
+            // Setelah semua elemen terukur dan didorong, hitung total halaman aktual
+            let finalBlockRect = pageEl.getBoundingClientRect();
+            let maxBottom = 0;
+            children.forEach(function(el) {
+                let r = el.getBoundingClientRect();
+                let b = (r.bottom - finalBlockRect.top) / scale;
+                if (b > maxBottom) maxBottom = b;
+            });
+
+            let totalPages = Math.max(1, Math.ceil(Math.max(1, maxBottom - 10) / window.A4_PAGE_CYCLE));
+            let exactHeight = (totalPages * window.A4_PAGE_CYCLE) - window.A4_PAGE_GAP;
+            pageEl.style.minHeight = exactHeight + 'px';
+            pageEl.setAttribute('data-total-a4-pages', String(totalPages));
+
+            // Sisipkan Nomor Halaman 8pt Di Pojok Kanan Bawah
+            let numCont = document.createElement('div');
+            numCont.className = 'a4-page-numbers-container';
+            numCont.setAttribute('contenteditable', 'false');
+            numCont.style.cssText = 'position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:10;';
+            for (let p = 0; p < totalPages; p++) {
+                let pageNum = document.createElement('div');
+                pageNum.innerText = (p + 1);
+                // Posisi: Rata kanan (right: 48px), di bawah (batas bawah 1123, margin bawah 48px, sekat 28)
+                pageNum.style.cssText = 'position:absolute; right:48px; top:' + ((p * window.A4_PAGE_CYCLE) + 1092) + 'px; font-size:8pt; font-family:"Open Sans", sans-serif; color:#000000; pointer-events:none; font-weight:bold; text-align:right;';
+                numCont.appendChild(pageNum);
+            }
+            pageEl.appendChild(numCont);
+
+            idx++;
+        }
+
+        if (adaPerubahan || syncDB) {
+            document.querySelectorAll('#blocks-container .content-block.a4-portrait-block').forEach(function(b) {
+                let i = parseInt(b.getAttribute('data-index'), 10);
+                if (!isNaN(i) && window.contentBlocksData[i]) {
+                    let clone = b.cloneNode(true);
+                    let m = clone.querySelector('#word-cursor-marker');
+                    if (m) m.remove();
+                    let nums = clone.querySelector('.a4-page-numbers-container');
+                    if (nums) nums.remove();
+                    window.contentBlocksData[i].html = clone.innerHTML;
+                }
+            });
+            if (syncDB && typeof window.simpanKeDB === 'function') window.simpanKeDB();
+        }
+    } finally {
+        window.pulihkanMarkerKursorWord();
+        window.isPaginatingWord = false;
+        window.perbaruiNomorHalamanGlobal();
+    }
+};
+
+// Fungsi Baru: Menghitung Nomor Halaman Secara Global Melintasi Semua Blok
+window.perbaruiNomorHalamanGlobal = function() {
+    let globalPage = 1;
+    document.querySelectorAll('#blocks-container > .block-wrapper').forEach(function(wrapper) {
+        let numCont = wrapper.querySelector('.a4-page-numbers-container');
+        if (numCont) {
+            Array.from(numCont.children).forEach(function(numEl) {
+                numEl.innerText = globalPage++;
+            });
+        }
+    });
+};
+
+window.rapikanSemuaBlokA4Word = function(runNormalize) {
+    window.pasangGayaKertasWordA4();
+    window.jalankanPaginasiWord(0, false);
+    document.querySelectorAll('.content-block.a4-portrait-block img').forEach(function(img) {
+        if (!img.complete && !img._a4LoadBound) {
+            img._a4LoadBound = true;
+            img.addEventListener('load', function() { window.jalankanPaginasiWord(0, false); });
+        }
+    });
+};
+
+window.rapikanHalamanA4Word = function(blokEl) {
+    let idx = blokEl ? parseInt(blokEl.getAttribute('data-index'), 10) : 0;
+    window.jalankanPaginasiWord(isNaN(idx) ? 0 : idx, false);
+};
+
+window.cekBatasTinggiA4Keydown = function(e, el) {
+    let idx = parseInt(el.getAttribute('data-index'), 10) || 0;
+    if (e.key === 'Backspace') {
+        let sel = window.getSelection();
+        if (sel && sel.rangeCount > 0 && sel.isCollapsed && idx > 0) {
+            let range = sel.getRangeAt(0);
+            let preRange = document.createRange();
+            preRange.selectNodeContents(el);
+            preRange.setEnd(range.startContainer, range.startOffset);
+            let isAtVeryStart = preRange.toString().trim().length === 0 && !el.querySelector('img, iframe, video, table');
+
+            if (isAtVeryStart) {
+                let wrappers = document.querySelectorAll('#blocks-container > .block-wrapper');
+                let prevPageEl = wrappers[idx - 1] ? wrappers[idx - 1].querySelector('.content-block.a4-portrait-block') : null;
+                if (prevPageEl) {
+                    e.preventDefault();
+                    let isCurrentEmpty = el.innerText.trim().length === 0;
+                    if (isCurrentEmpty && window.contentBlocksData.length > 1) {
+                        wrappers[idx].remove();
+                        window.contentBlocksData.splice(idx, 1);
+                        window.perbaruiIndeksSemuaBlokDOM();
+                    }
+                    prevPageEl.focus();
+                    let newR = document.createRange();
+                    newR.selectNodeContents(prevPageEl);
+                    newR.collapse(false);
+                    sel.removeAllRanges();
+                    sel.addRange(newR);
+                    if (typeof window.simpanKeDB === 'function') window.simpanKeDB();
+                    return;
+                }
+            }
+        }
+    }
+    if (e.key === 'Enter' || e.key === 'Backspace' || e.key === 'Delete') {
+        setTimeout(function() { window.jalankanPaginasiWord(Math.max(0, idx - 1), false); }, 15);
+    }
+};
+
+window.cekBatasTinggiA4Input = function(e, el) {
+    let idx = parseInt(el.getAttribute('data-index'), 10) || 0;
+    clearTimeout(el._a4Timer);
+    el._a4Timer = setTimeout(function() { window.jalankanPaginasiWord(Math.max(0, idx - 1), true); }, 40);
+};
+
+// 6. Mesin Pembangun Lembar Cetak Presisi 1:1 (Menyalin Nomor Halaman ke Sudut Kanan Bawah PDF & Reset Margin)
+window.bangunLembarCetakPresisiA4 = function() {
+    window.bersihkanLembarCetakPresisiA4();
+    window.rapikanSemuaBlokA4Word(true);
+
+    let globalPageNumber = 1; // Variabel global agar nomor halaman berlanjut lintas blok
+
+    document.querySelectorAll('#blocks-container > .block-wrapper').forEach(function(wrapper) {
+        let blokEl = wrapper.querySelector('.content-block.a4-portrait-block');
+        if (!blokEl) return;
+
+        let totalPages = parseInt(blokEl.getAttribute('data-total-a4-pages') || '1', 10);
+        if (isNaN(totalPages) || totalPages < 1) totalPages = 1;
+
+        let host = document.createElement('div');
+        host.className = 'a4-print-pages-host content-block';
+        host.style.color = blokEl.style.color || '#333';
+
+        let sheets = [];
+        for (let p = 0; p < totalPages; p++) {
+            let sheet = document.createElement('div');
+            sheet.className = 'a4-print-sheet';
+            
+            // Nomor Halaman Global di Sudut Kanan Bawah PDF (Ukuran 8pt)
+            let pageNum = document.createElement('div');
+            pageNum.innerText = globalPageNumber++; // Terus bertambah
+            pageNum.style.cssText = 'position:absolute; right:48px; bottom:20px; font-size:8pt; font-family:"Open Sans", sans-serif; color:#000000; pointer-events:none; font-weight:bold; text-align:right;';
+            sheet.appendChild(pageNum);
+            
+            sheets.push(sheet);
+            host.appendChild(sheet);
+        }
+
+        Array.from(blokEl.children).forEach(function(child) {
+            let tag = child.tagName;
+            // Abaikan skrip, style, dan wadah halaman dari versi layar agar tidak dobel
+            if (!tag || tag === 'STYLE' || tag === 'SCRIPT' || child.classList.contains('a4-page-numbers-container')) return;
+
+            if (tag === 'UL' || tag === 'OL') {
+                let listByPage = {};
+                let lis = Array.from(child.children);
+                lis.forEach(function(li, liIdx) {
+                    let pIdx = parseInt(li.getAttribute('data-a4-page-index') || '0', 10);
+                    if (isNaN(pIdx) || pIdx < 0) pIdx = 0;
+                    if (pIdx >= sheets.length) pIdx = sheets.length - 1;
+
+                    if (!listByPage[pIdx]) {
+                        let newList = child.cloneNode(false);
+                        newList.style.marginTop = '0px'; 
+                        newList.removeAttribute('data-a4-pushed');
+                        if (tag === 'OL') {
+                            let baseStart = parseInt(child.getAttribute('start') || '1', 10);
+                            newList.setAttribute('start', String(baseStart + liIdx));
+                        }
+                        listByPage[pIdx] = newList;
+                        sheets[pIdx].appendChild(newList);
+                    }
+
+                    let liClone = li.cloneNode(true);
+                    liClone.style.marginTop = liClone.getAttribute('data-orig-mt') || '0px';
+                    liClone.removeAttribute('data-a4-pushed');
+                    liClone.classList.remove('a4-page-break-before');
+                    listByPage[pIdx].appendChild(liClone);
+                });
+            } else {
+                let pIdx = parseInt(child.getAttribute('data-a4-page-index') || '0', 10);
+                if (isNaN(pIdx) || pIdx < 0) pIdx = 0;
+                if (pIdx >= sheets.length) pIdx = sheets.length - 1;
+
+                let clone = child.cloneNode(true);
+                clone.style.marginTop = clone.getAttribute('data-orig-mt') || '0px';
+                clone.removeAttribute('data-a4-pushed');
+                clone.classList.remove('a4-page-break-before');
+                
+                sheets[pIdx].appendChild(clone);
+            }
+        });
+
+        wrapper.classList.add('has-print-host');
+        wrapper.appendChild(host);
+    });
+};
+
+// 7. Pembersih dan Pemicu Cetak
+window.bersihkanLembarCetakPresisiA4 = function() {
+    document.querySelectorAll('.a4-print-pages-host').forEach(function(h) { h.remove(); });
+    document.querySelectorAll('.block-wrapper.has-print-host').forEach(function(w) { w.classList.remove('has-print-host'); });
+};
+
+window.addEventListener('beforeprint', function() { window.bangunLembarCetakPresisiA4(); });
+window.addEventListener('afterprint', function() { window.bersihkanLembarCetakPresisiA4(); });
+
+// Fungsi Utama Tombol Cetak Materi yang Sempat Hilang
 window.cetakMateriHalamanA4 = function() {
-    window.print();
+    window.bangunLembarCetakPresisiA4();
+    setTimeout(function() { window.print(); }, 150);
 };
 
 /* =========================================
@@ -8113,17 +9134,17 @@ window.prosesUploadLJK = async function(inputElem) {
                     status = "Benar"; 
                 }
             } else if (q.type === 'PGK') {
-                // Mencari pola PGK (Pernyataan Benar/Salah)
-                // Deteksi OCR baris tabel: "1 Benar" atau "1 B"
+                // Mencari pola PGK (Mendukung Benar/Salah & Tepat/Tidak Tepat)
                 let ansArray = [];
                 let correctCount = 0;
                 let totalOps = (q.options || []).length;
                 
                 (q.options || []).forEach((opt, oIdx) => {
-                    let regexPGK = new RegExp((oIdx + 1) + "\\s+(Benar|Salah|B|S)", "i");
+                    let regexPGK = new RegExp((oIdx + 1) + "\\s+(Benar|Salah|Tepat|Tidak Tepat|Tidak|B|S|T|TT)", "i");
                     let match = extractedText.match(regexPGK);
                     if (match) {
-                        let isCentangBenar = match[1].toUpperCase().startsWith('B');
+                        let ansWord = match[1].toUpperCase();
+                        let isCentangBenar = ansWord === 'BENAR' || ansWord === 'B' || ansWord === 'TEPAT' || ansWord === 'T';
                         if (isCentangBenar) ansArray.push(opt.label);
                     }
                 });

@@ -6,7 +6,7 @@
     <title>Sistem Belajar Mahardika</title>
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Fredoka:wght@400;500;600&family=Quicksand:wght@400;600;700&family=Lora:ital,wght@0,400;0,700;1,400&family=Merriweather:wght@400;700&family=Montserrat:wght@400;600;700&family=Open+Sans:wght@400;600&family=Oswald:wght@400;500&family=Playfair+Display:wght@400;700&family=Poppins:wght@400;600&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
     
-    <link rel="stylesheet" href="./style.css">
+    <link rel="stylesheet" href="css/style.css">
     <style id="dynamic-theme-styles"></style>
     
     <!-- ENGINE MATHJAX UNTUK LATEX RENDERING -->
@@ -1067,11 +1067,17 @@
             <button class="col-btn" style="background:#7f8c8d;" onclick="setPenColor('#7f8c8d', this)"></button>
         </div>
         <div style="width:1px; height:24px; background:rgba(255,255,255,0.2); margin:0 5px;"></div>
+        <div style="display:flex; gap:4px;">
+            <button class="tool-btn" style="padding:4px 8px;" onclick="window.undoDraw()" title="Undo (Batal Coret)">↩️</button>
+            <button class="tool-btn" style="padding:4px 8px;" onclick="window.redoDraw()" title="Redo (Ulangi Coret)">↪️</button>
+        </div>
+        <div style="width:1px; height:24px; background:rgba(255,255,255,0.2); margin:0 5px;"></div>
         <div style="display:flex;gap:4px;">
-            <button class="sz-btn" onclick="setPenSize(2, this)">S</button>
-            <button class="sz-btn active" onclick="setPenSize(4, this)">M</button>
-            <button class="sz-btn" onclick="setPenSize(8, this)">L</button>
-            <button class="sz-btn" onclick="setPenSize(12, this)">XL</button>
+            <button class="sz-btn" onclick="setPenSize(1, this)">XS</button>
+            <button class="sz-btn" onclick="setPenSize(1.8, this)">S</button>
+            <button class="sz-btn active" onclick="setPenSize(3.6, this)">M</button>
+            <button class="sz-btn" onclick="setPenSize(7.2, this)">L</button>
+            <button class="sz-btn" onclick="setPenSize(10.8, this)">XL</button>
         </div>
         <div style="width:1px; height:24px; background:rgba(255,255,255,0.2); margin:0 5px;"></div>
         <button id="btn-pen" class="tool-btn active" onclick="setDrawingTool('pen')">✏️ Pena</button>
@@ -1104,10 +1110,14 @@
                     <option value="Verdana, sans-serif">Verdana</option>
                     <option value="Tahoma, sans-serif">Tahoma</option>
                 </select>
-                <input type="number" id="input-font-size" list="font-sizes-list" style="width:55px; height:22px; font-size:11px; text-align:center; border: 1px solid #e0e0e0; border-radius:3px; margin:0 1px; outline:none; background:#fdfdfd; color:#555;" placeholder="Size" onchange="aturUkuranFont(this.value)" onkeydown="if(event.key==='Enter'){aturUkuranFont(this.value); this.blur();}">
-                <datalist id="font-sizes-list">
-                    <option value="8"><option value="12"><option value="16"><option value="20"><option value="24"><option value="28"><option value="32"><option value="36">
-                </datalist>
+                <div id="word-fontsize-box" style="display:flex; align-items:center; border: 1px solid #e0e0e0; border-radius:3px; background:#fdfdfd; margin:0 2px; height:22px; user-select:none;">
+                    <button type="button" onmousedown="event.preventDefault(); window.ubahFontStep(-1)" style="border:none; background:transparent; font-size:14px; padding:0 6px; cursor:pointer; font-weight:bold; color:#555; display:flex; align-items:center;" title="Kecilkan Ukuran Font (-1pt)">-</button>
+                    <div onmousedown="event.preventDefault(); window.toggleDropdownFontSize(event)" style="display:flex; align-items:center; height:100%; border-left:1px solid #e0e0e0; border-right:1px solid #e0e0e0; cursor:pointer; padding:0 3px; background:#fff;" title="Pilih Ukuran Font (Atau ketik angka saat daftar terbuka lalu tekan Enter)">
+                        <input type="text" id="input-font-size" value="10" readonly style="width:32px; height:100%; font-size:11px; text-align:center; border:none; outline:none; background:transparent; color:#333; font-weight:600; cursor:pointer; pointer-events:none;">
+                        <span style="font-size:9px; color:#666; padding-right:2px; pointer-events:none;">▾</span>
+                    </div>
+                    <button type="button" onmousedown="event.preventDefault(); window.ubahFontStep(1)" style="border:none; background:transparent; font-size:12px; padding:0 6px; cursor:pointer; font-weight:bold; color:#555; display:flex; align-items:center;" title="Besarkan Ukuran Font (+1pt)">+</button>
+                </div>
                 <select onchange="formatTeks('formatBlock', this.value);this.selectedIndex=0;" style="width:65px;"><option value="" disabled selected>Style</option><option value="P">Normal</option><option value="H1">Title</option><option value="H2">Sub</option><option value="BLOCKQUOTE">Quote</option></select>
                 <select onchange="aturSpasiParagraf(this.value);this.selectedIndex=0;" style="width:70px;">
                     <option value="" disabled selected>Space</option>
@@ -1122,14 +1132,25 @@
             </div>
             
             <div class="toolbar-group">
-                <button onclick="formatTeks('bold')"><b>B</b></button>
-                <button onclick="formatTeks('italic')"><i>I</i></button>
-                <button onclick="formatTeks('underline')"><u>U</u></button>
+                <button onclick="formatTeks('bold')" title="Bold"><b>B</b></button>
+                <button onclick="formatTeks('italic')" title="Italic"><i>I</i></button>
+                <button onclick="formatTeks('underline')" title="Underline"><u>U</u></button>
                 <button onclick="formatTeks('superscript')" title="Pangkat Atas" style="font-weight:bold;">X²</button>
+                <button type="button" onmousedown="event.preventDefault(); window.ubahCaseTeks('upper')" title="UPPERCASE (Ubah ke Huruf Kapital Semua)" style="font-weight:bold; font-size:10px; padding:3px 5px;">AA</button>
+                <button type="button" onmousedown="event.preventDefault(); window.ubahCaseTeks('lower')" title="lowercase (Ubah ke Huruf Kecil Semua)" style="font-weight:bold; font-size:10px; padding:3px 5px;">aa</button>
             </div>
             
             <div class="toolbar-group"><div class="color-picker-wrapper"><span style="color:#e74c3c;font-weight:bold;">A</span><input type="color" onchange="formatTeks('foreColor', this.value)" value="#111111"></div><div class="color-picker-wrapper"><span style="background:#f1c40f;font-weight:bold;padding:0 2px;">A</span><input type="color" onchange="formatTeks('hiliteColor', this.value)" value="#f1c40f"></div><button onclick="formatTeks('removeFormat')">🧽</button></div>
-            <div class="toolbar-group"><button onclick="formatTeks('insertUnorderedList')">●—</button><button onclick="formatTeks('insertOrderedList')">1—</button><button onclick="formatTeks('outdent')">⇥</button><button onclick="formatTeks('indent')">↦</button></div>
+            <div class="toolbar-group">
+                <button onclick="formatTeks('insertUnorderedList')" title="Bullet List">●—</button>
+                <button onclick="formatTeks('insertOrderedList')" title="Numbered List">1—</button>
+                <button onclick="formatTeks('outdent')" title="Outdent">⇥</button>
+                <button onclick="formatTeks('indent')" title="Indent">↦</button>
+                <button type="button" onmousedown="event.preventDefault(); window.sortirTeksTerpilih('az')" title="Sortir Alfabet A ke Z" style="font-weight:bold; font-size:10px; padding:3px 4px; color:#2980b9;">A↓Z</button>
+                <button type="button" onmousedown="event.preventDefault(); window.sortirTeksTerpilih('za')" title="Sortir Alfabet Z ke A" style="font-weight:bold; font-size:10px; padding:3px 4px; color:#2980b9;">Z↓A</button>
+                <button type="button" onmousedown="event.preventDefault(); window.sortirTeksTerpilih('num-asc')" title="Sortir Angka 1 ke Seterusnya (Kecil ke Besar)" style="font-weight:bold; font-size:10px; padding:3px 4px; color:#16a085;">1↓9</button>
+                <button type="button" onmousedown="event.preventDefault(); window.sortirTeksTerpilih('num-desc')" title="Sortir Angka Besar ke 1 (Besar ke Kecil)" style="font-weight:bold; font-size:10px; padding:3px 4px; color:#d35400;">9↓1</button>
+            </div>
             <div class="toolbar-group"><button onclick="formatTeks('justifyLeft')">⫷</button><button onclick="formatTeks('justifyCenter')">≡</button><button onclick="formatTeks('justifyRight')">⫸</button></div>
             <div class="toolbar-group">
                 <button onclick="bukaModalGlosarium()">💡 Is</button>
@@ -1209,7 +1230,7 @@
     </div>
 
     <!-- SCRIPT REFERENCES -->
-    <script src="./main.js"></script>
-    <script type="module" src="./firebase-db.js"></script>
+    <script src="js/main.js"></script>
+    <script type="module" src="js/firebase-db.js"></script>
 </body>
 </html>
