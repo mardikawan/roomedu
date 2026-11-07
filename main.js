@@ -1771,7 +1771,7 @@ window.mulaiGenerateKisiKisi = function() {
     } else {
         // Jika belum ada, panggil file eksternal secara diam-diam
         let script = document.createElement('script');
-        script.src = 'js/kisi-kisi-engine.js'; 
+        script.src = './kisi-kisi-engine.js'; 
         script.onload = function() {
             window.eksekusiGenerateKisiKisi(jenisUjian, tapel, mapel, kelasFase, cp);
             btn.innerHTML = oldBtnText;
