@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-app.js";
 import { getDatabase, ref, set, get, child, onValue, remove, goOffline, goOnline } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-database.js";
-import { getAuth, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-auth.js";
+import { getAuth, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword, sendEmailVerification, updatePassword, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-auth.js";
 // IMPORT FIREBASE STORAGE
 import { getStorage, ref as sRef, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-storage.js";
 
@@ -162,21 +162,24 @@ onValue(ref(db, basePath + '/theme_settings'), function(snap) {
 });
 
 /* =========================================
-   TARIK & SIMPAN DATA CATATAN GURU (EXCEL STYLE)
+   TARIK & SIMPAN DATA CATATAN GURU (ANTI-LONCAT KURSOR)
    ========================================= */
 onValue(ref(db, basePath + '/admin_catatan_guru'), function(snap) {
+    // Abaikan pantulan data dari penyimpanan lokal sendiri agar kursor tidak pernah loncat saat mengetik
+    if (window.isTypingCG || (Date.now() - (window._lastSaveCGTime || 0) < 1500)) return;
+
     if (snap.exists()) {
         let data = snap.val();
-        // Normalisasi: Firebase terkadang mengubah array menjadi object, kita pastikan tetap array
         window.adminCatatanGuruData = Array.isArray(data) ? data : Object.values(data);
     } else {
         window.adminCatatanGuruData = [{ id: 'sheet_1', nama: 'Sheet 1', html: '' }];
     }
     
-    // Render ulang UI hanya jika Jendela sedang terbuka DAN guru TIDAK sedang mengetik
     let modalCG = document.getElementById('modal-catatan-guru');
+    let editorCG = document.getElementById('cg-editor-area');
     if (modalCG && modalCG.style.display === 'flex' && typeof window.renderSheetsCG === "function") {
-        if (!window.isTypingCG) {
+        // Jangan pernah menimpa innerHTML jika kursor guru sedang aktif di dalam editor Catatan Guru
+        if (document.activeElement !== editorCG) {
             window.renderSheetsCG();
             window.muatKontenSheetAktifCG();
         }
@@ -188,6 +191,7 @@ window.simpanCatatanGuruKeDB = function() {
     
     let stat = document.getElementById('cg-sync-status');
     if(stat) stat.innerHTML = "<span style='color:#f1c40f;'>☁️ Menyimpan...</span>";
+    window._lastSaveCGTime = Date.now();
     
     try {
         let payload = {};
@@ -204,22 +208,26 @@ window.simpanCatatanGuruKeDB = function() {
         });
         
         set(ref(db, basePath + '/admin_catatan_guru'), payload).then(() => {
+            window._lastSaveCGTime = Date.now();
+            window.isTypingCG = false;
             if(stat) stat.innerHTML = "<span style='color:#2ecc71;'>✓ Tersimpan</span>";
-            window.isTypingCG = false; 
         }).catch(err => {
+            window.isTypingCG = false;
             console.error("Gagal simpan Catatan Guru:", err);
             if(stat) stat.innerHTML = "<span style='color:#e74c3c;' title='" + err.message + "'>❌ Gagal Simpan</span>";
         });
     } catch(e) {
-        console.error("Data error:", e);
+        window.isTypingCG = false;
         if(stat) stat.innerHTML = "<span style='color:#e74c3c;'>❌ Error Data Format</span>";
     }
 };
 
 /* =========================================
-   TARIK & SIMPAN DATA CATATAN KELAS
+   TARIK & SIMPAN DATA CATATAN KELAS (ANTI-LONCAT KURSOR)
    ========================================= */
 onValue(ref(db, basePath + '/admin_catatan_kelas'), function(snap) {
+    if (window.isTypingCK || (Date.now() - (window._lastSaveCKTime || 0) < 1500)) return;
+
     if (snap.exists()) {
         window.adminCatatanKelasData = snap.val();
         for (let kls in window.adminCatatanKelasData) {
@@ -232,8 +240,9 @@ onValue(ref(db, basePath + '/admin_catatan_kelas'), function(snap) {
     }
     
     let modalCK = document.getElementById('modal-catatan-kelas');
+    let editorCK = document.getElementById('ck-editor-area');
     if (modalCK && modalCK.style.display === 'flex' && typeof window.renderSheetsCK === "function") {
-        if (!window.isTypingCK) {
+        if (document.activeElement !== editorCK) {
             window.renderSheetsCK();
             window.muatKontenSheetAktifCK();
         }
@@ -245,6 +254,7 @@ window.simpanCatatanKelasKeDB = function() {
     
     let stat = document.getElementById('ck-sync-status');
     if(stat) stat.innerHTML = "<span style='color:#f1c40f;'>☁️ Menyimpan...</span>";
+    window._lastSaveCKTime = Date.now();
     
     try {
         let payload = {};
@@ -263,13 +273,16 @@ window.simpanCatatanKelasKeDB = function() {
         }
         
         set(ref(db, basePath + '/admin_catatan_kelas'), payload).then(() => {
+            window._lastSaveCKTime = Date.now();
+            window.isTypingCK = false;
             if(stat) stat.innerHTML = "<span style='color:#2ecc71;'>✓ Tersimpan</span>";
-            window.isTypingCK = false; 
         }).catch(err => {
+            window.isTypingCK = false;
             console.error("Gagal simpan Catatan Kelas:", err);
             if(stat) stat.innerHTML = "<span style='color:#e74c3c;'>❌ Gagal Simpan</span>";
         });
     } catch(e) {
+        window.isTypingCK = false;
         if(stat) stat.innerHTML = "<span style='color:#e74c3c;'>❌ Error Format</span>";
     }
 };
@@ -458,20 +471,199 @@ window.muatKontenHalaman = function(slugBab) {
 // Panggil fungsi saat web pertama kali dibuka
 window.muatKontenHalaman(window.babAktif);
 
-// 4. Tarik Data Bank Latihan (OPEN AKSES UNTUK PUBLIK/TAMU)
+// =========================================================
+// MESIN REGISTRASI & VERIFIKASI GMAIL NYATA (FIREBASE AUTH)
+// =========================================================
+window.daftarkanEmailVerifikasiNyata = function(email, password, onSuccess, onError) {
+    goOnline(db);
+    createUserWithEmailAndPassword(secondaryAuth, email, password).then(function(userCred) {
+        sendEmailVerification(userCred.user).then(function() {
+            secondaryAuth.signOut();
+            if (onSuccess) onSuccess(userCred.user.uid);
+        }).catch(function(errVerif) {
+            secondaryAuth.signOut();
+            if (onError) onError(errVerif);
+        });
+    }).catch(function(errCreate) {
+        // Jika email sudah pernah terdaftar di Auth namun belum diverifikasi, coba login & kirim ulang link verifikasi
+        signInWithEmailAndPassword(secondaryAuth, email, password).then(function(userCred) {
+            if (userCred.user.emailVerified) {
+                secondaryAuth.signOut();
+                if (onSuccess) onSuccess(userCred.user.uid, true);
+            } else {
+                sendEmailVerification(userCred.user).then(function() {
+                    secondaryAuth.signOut();
+                    if (onSuccess) onSuccess(userCred.user.uid, false);
+                }).catch(function(e2) {
+                    secondaryAuth.signOut();
+                    if (onError) onError(e2);
+                });
+            }
+        }).catch(function() {
+            if (onError) onError(errCreate);
+        });
+    });
+};
+
+window.kirimResetPasswordGmail = function(email, onSuccess, onError) {
+    goOnline(db);
+    sendPasswordResetEmail(auth, email).then(function() {
+        if (onSuccess) onSuccess();
+    }).catch(function(err) {
+        if (onError) onError(err);
+    });
+};
+
+window.cekStatusVerifikasiGmail = function(email, password, onResult, onError) {
+    goOnline(db);
+    signInWithEmailAndPassword(secondaryAuth, email, password).then(function(userCred) {
+        userCred.user.reload().then(function() {
+            let isVerified = Boolean(userCred.user.emailVerified);
+            secondaryAuth.signOut();
+            if (onResult) onResult(isVerified);
+        });
+    }).catch(function(err) {
+        if (onError) onError(err);
+    });
+};
+
+// 4. Tarik Data Bank Latihan (DENGAN CACHE LOKAL INSTAN 0.01 DETIK ANTI-LAG)
+let cacheLatihanKey = 'cache_bank_latihan_' + guruAktif;
+try {
+    let rawCacheLat = localStorage.getItem(cacheLatihanKey);
+    if (rawCacheLat) {
+        window.adminBankLatihanData = JSON.parse(rawCacheLat);
+        window.bankLatihanLoaded = true;
+    }
+} catch(e) {}
+
 onValue(ref(db, basePath + '/admin_bank_latihan'), function(snap) {
+    window.bankLatihanLoaded = true;
     if(snap.exists()) {
         window.adminBankLatihanData = snap.val();
+        try { localStorage.setItem(cacheLatihanKey, JSON.stringify(window.adminBankLatihanData)); } catch(e) {}
     } else {
         window.adminBankLatihanData = {};
     }
     if(typeof window.renderManajerSoal === "function" && document.getElementById('modal-manajer-soal') && document.getElementById('modal-manajer-soal').style.display === 'flex') {
         window.renderManajerSoal();
     }
+    // Jika siswa sedang membuka modal Pilih Topik Latihan, langsung perbarui dropdown kelas tanpa perlu keluar-masuk!
+    let modalEnterLat = document.getElementById('modal-enter-latihan');
+    if (modalEnterLat && modalEnterLat.style.display === 'flex' && typeof window.inisialisasiDropdownLatihanSiswa === "function") {
+        window.inisialisasiDropdownLatihanSiswa();
+    }
 });
 
-// --- DATA DI BAWAH INI HANYA DITARIK JIKA USER SUDAH LOGIN (SISWA / ADMIN) ---
-if (statusSistem === "admin" || statusSistem === "siswa") {
+// 4C. Tarik Data Jadwal Sekolah & Kalender Pengingat Admin (Per Akun Guru) + Kolom Kustom Ledger
+onValue(ref(db, basePath + '/admin_jadwal_kalender'), function(snap) {
+    window.adminJadwalKalenderData = snap.exists() ? snap.val() : { excelHtml: "", events: {} };
+    if (typeof window.hitungDanUpdateBadgeNotifikasi === "function") {
+        window.hitungDanUpdateBadgeNotifikasi();
+    }
+    let modalJG = document.getElementById('modal-jadwal-guru');
+    if (modalJG && modalJG.style.display === 'flex' && typeof window.renderKalenderGuru === "function") {
+        window.renderKalenderGuru();
+    }
+});
+
+window.simpanJadwalKalenderKeDB = function() {
+    if (sessionStorage.getItem("statusLogin") !== "admin") return;
+    set(ref(db, basePath + '/admin_jadwal_kalender'), window.adminJadwalKalenderData || { excelHtml: "", events: {} }).then(function() {
+        if (typeof window.showSaveToast === "function") window.showSaveToast();
+        if (typeof window.hitungDanUpdateBadgeNotifikasi === "function") window.hitungDanUpdateBadgeNotifikasi();
+    });
+};
+
+onValue(ref(db, basePath + '/admin_ledger_meta'), function(snap) {
+    window.adminLedgerMetaData = snap.exists() ? snap.val() : {};
+    if (typeof window.renderLedgerSiswa === "function" && document.getElementById('modal-administrasi') && document.getElementById('modal-administrasi').style.display === 'flex') {
+        window.renderLedgerSiswa();
+    }
+});
+
+window.simpanLedgerMetaKeDB = function() {
+    if (sessionStorage.getItem("statusLogin") !== "admin") return;
+    set(ref(db, basePath + '/admin_ledger_meta'), window.adminLedgerMetaData || {}).then(function() {
+        if (typeof window.showSaveToast === "function") window.showSaveToast();
+    });
+};
+
+window.simpanRekapNilaiPenuhKeDB = function() {
+    if (sessionStorage.getItem("statusLogin") !== "admin") return;
+    set(ref(db, basePath + '/admin_rekap_nilai'), window.adminRekapNilaiData || {}).then(function() {
+        if (typeof window.showSaveToast === "function") window.showSaveToast();
+    });
+};
+
+// 4B. Tarik Data Kelas & Siswa, Akun Siswa, Leaderboard, dan Notifikasi (Agar Pendaftaran, Lonceng & Peringkat Selalu Sinkron)
+window.adminDataLoaded = false;
+onValue(ref(db, basePath + '/admin_data'), function(snap) {
+    window.adminDataLoaded = true;
+    window.adminData = snap.exists() ? snap.val() : {};
+    if (typeof window.sinkronkanAkunSiswaDariAdminData === "function") window.sinkronkanAkunSiswaDariAdminData();
+    if (typeof window.renderAdminData === "function" && document.getElementById('modal-administrasi') && document.getElementById('modal-administrasi').style.display === 'flex') {
+        window.renderAdminData();
+    }
+});
+
+window.akunSiswaLoaded = false;
+onValue(ref(db, basePath + '/akun_siswa'), function(snap) {
+    window.akunSiswaLoaded = true;
+    window.akunSiswaData = snap.exists() ? snap.val() : {};
+    if (typeof window.sinkronkanAkunSiswaDariAdminData === "function") window.sinkronkanAkunSiswaDariAdminData();
+    if (typeof window.perbaruiUIHeaderProfilSiswa === "function") window.perbaruiUIHeaderProfilSiswa();
+});
+
+onValue(ref(db, basePath + '/leaderboard_siswa'), function(snap) {
+    window.leaderboardSiswaData = snap.exists() ? snap.val() : {};
+    if (typeof window.perbaruiUIHeaderProfilSiswa === "function") {
+        window.perbaruiUIHeaderProfilSiswa();
+    }
+    if (typeof window.renderTabelLeaderboard === "function" && document.getElementById('modal-leaderboard') && document.getElementById('modal-leaderboard').style.display === 'flex') {
+        window.renderTabelLeaderboard();
+    }
+});
+
+onValue(ref(db, basePath + '/admin_notifikasi'), function(snap) {
+    window.adminNotifikasiData = snap.exists() ? snap.val() : [];
+    if (!Array.isArray(window.adminNotifikasiData)) {
+        window.adminNotifikasiData = Object.values(window.adminNotifikasiData);
+    }
+    if (typeof window.hitungDanUpdateBadgeNotifikasi === "function") {
+        window.hitungDanUpdateBadgeNotifikasi();
+    }
+    if (typeof window.renderDaftarNotifAdmin === "function") {
+        window.renderDaftarNotifAdmin();
+    }
+});
+
+window.simpanAkunSiswaKeDB = function(usernameKey, dataObj, onDone) {
+    if (!usernameKey) return;
+    set(ref(db, basePath + '/akun_siswa/' + usernameKey), dataObj).then(function() {
+        if (onDone) onDone();
+    });
+};
+
+window.simpanSemuaAkunSiswaKeDB = function() {
+    if (!window.akunSiswaData) return;
+    set(ref(db, basePath + '/akun_siswa'), window.akunSiswaData);
+};
+
+window.simpanLeaderboardSiswaKeDB = function(usernameKey, dataObj) {
+    if (!usernameKey) return;
+    set(ref(db, basePath + '/leaderboard_siswa/' + usernameKey), dataObj);
+};
+
+window.simpanNotifikasiAdminKeDB = function() {
+    if (sessionStorage.getItem("statusLogin") !== "admin") return;
+    set(ref(db, basePath + '/admin_notifikasi'), window.adminNotifikasiData || []).then(function() {
+        if (typeof window.showSaveToast === "function") window.showSaveToast();
+    });
+};
+
+// --- DATA DI BAWAH INI HANYA DITARIK JIKA USER SUDAH LOGIN (SISWA / ADMIN / TAMU) ---
+if (statusSistem === "admin" || statusSistem === "siswa" || statusSistem === "tamu") {
     
     // 5. Tarik Data Administrasi (Daftar Kelas & Siswa)
     onValue(ref(db, basePath + '/admin_data'), function(snap) {

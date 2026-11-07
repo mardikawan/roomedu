@@ -6,7 +6,7 @@
     <title>Sistem Belajar Mahardika</title>
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Fredoka:wght@400;500;600&family=Quicksand:wght@400;600;700&family=Lora:ital,wght@0,400;0,700;1,400&family=Merriweather:wght@400;700&family=Montserrat:wght@400;600;700&family=Open+Sans:wght@400;600&family=Oswald:wght@400;500&family=Playfair+Display:wght@400;700&family=Poppins:wght@400;600&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
     
-    <link rel="stylesheet" href="./style.css">
+    <link rel="stylesheet" href="css/style.css">
     <style id="dynamic-theme-styles"></style>
     
     <!-- ENGINE MATHJAX UNTUK LATEX RENDERING -->
@@ -86,21 +86,198 @@
         <div id="ujian-strict-container"></div>
     </div>
     
-    <div id="temporary-quiz-room"><div class="btn-print-room"><button onclick="cetakKuisPDF('temporary-quiz-container', 'Latihan Mandiri')">🖨️ Print PDF</button> <span style="color:#aaa;">|</span> <button onclick="exportWordKuis('temporary-quiz-container', 'Latihan Mandiri')">📄 Export Word</button></div><button class="btn-close-room" onclick="tutupLatihanMandiri()">✕ Keluar Ruang</button><div style="max-width: 800px; margin: 0 auto; text-align: center; margin-bottom: 30px; padding-top: 20px;"><h1 style="font-size: 32px; color: #2c3e50; font-family: 'Montserrat'; margin-bottom: 5px;" id="lat-judul-ui">Ruang Latihan Mandiri 🚀</h1><p style="color: #7f8c8d; margin-top: 0;">Soal diacak. Hasil tidak disimpan permanen.</p></div><div id="temporary-quiz-container"></div></div>
+    <div id="temporary-quiz-room"><div class="btn-print-room"><button onclick="cetakKuisPDF('temporary-quiz-container', 'Latihan Mandiri')">🖨️ Print PDF</button> <span style="color:#aaa;">|</span> <button onclick="exportWordKuis('temporary-quiz-container', 'Latihan Mandiri')">📄 Export Word</button></div><button class="btn-close-room" onclick="tutupLatihanMandiri()">✕ Keluar Ruang</button><div style="max-width: 800px; margin: 0 auto; text-align: center; margin-bottom: 30px; padding-top: 20px;"><h1 style="font-size: 32px; color: #2c3e50; font-family: 'Montserrat'; margin-bottom: 5px;" id="lat-judul-ui">Ruang Latihan Mandiri 🚀</h1><p style="color: #7f8c8d; margin-top: 0;">Soal berurutan sesuai Bank Soal. Hasil tidak disimpan permanen.</p></div><div id="temporary-quiz-container"></div></div>
 
     <!-- SEMUA MODAL -->
-    <!-- Modal Login Sistem (Siswa & Guru) -->
+    <!-- Modal Login & Registrasi Mandiri (Siswa, Guru, SBD, & Tamu) -->
     <div id="modal-login-sistem" class="modal-overlay" onclick="if(event.target===this)tutupModal('modal-login-sistem')">
-        <div class="modal-box" style="width:350px; text-align:center;">
-            <div class="modal-header" style="background:#2c3e50; color:white;">
-                <h3 style="margin:0;">🔒 Masuk Sistem</h3>
+        <div class="modal-box" style="width:420px; text-align:center;">
+            <div class="modal-header" style="background:#0b3954; color:white;">
+                <h3 style="margin:0;" id="judul-modal-auth">🔒 Akses Sistem Belajar</h3>
                 <button class="close-btn" style="color:white;" onclick="tutupModal('modal-login-sistem')">✕</button>
             </div>
-            <div class="modal-body">
-                <p style="font-size:12px; color:#7f8c8d; margin-top:0;">Gunakan akun Universal (Siswa) atau Admin (Guru)</p>
-                <input type="text" id="input-username-login" class="input-box" placeholder="Username" style="text-align:center; font-weight:bold; font-size:16px;" onkeydown="if(event.key==='Enter'){document.getElementById('input-password-login').focus();}">
-                <input type="password" id="input-password-login" class="input-box" placeholder="Password" style="text-align:center; font-weight:bold; font-size:16px; margin-top:10px;" onkeydown="if(event.key==='Enter'){window.prosesLoginSistem();}">
-                <button class="btn-action" style="background:#2980b9; width:100%; margin-top:15px;" onclick="window.prosesLoginSistem()">Masuk 🚀</button>
+            <div class="modal-body" style="padding:20px;">
+                <!-- Tab Navigasi Masuk vs Buat Akun -->
+                <div style="display:flex; gap:6px; background:#f1f5f9; padding:4px; border-radius:8px; margin-bottom:16px;">
+                    <button id="tab-auth-login" type="button" style="flex:1; padding:8px; border:none; border-radius:6px; background:#0b3954; color:white; font-weight:bold; font-size:12px; cursor:pointer;" onclick="window.gantiTabAuth('login')">🔑 Masuk (Sign In)</button>
+                    <button id="tab-auth-register" type="button" style="flex:1; padding:8px; border:none; border-radius:6px; background:transparent; color:#475569; font-weight:bold; font-size:12px; cursor:pointer;" onclick="window.gantiTabAuth('register')">✨ Buat Akun Baru</button>
+                </div>
+
+                <!-- FORM 1: MASUK (SIGN IN) -->
+                <div id="form-auth-login">
+                    <p style="font-size:11px; color:#64748b; margin-top:0; margin-bottom:12px;">Masukkan Username & Password Anda (Siswa / Guru / Akun SBD)</p>
+                    <input type="text" id="input-username-login" class="input-box" placeholder="Masukkan Username Anda" style="text-align:center; font-weight:bold; font-size:15px; margin-bottom:10px;" onkeydown="if(event.key==='Enter'){document.getElementById('input-password-login').focus();}">
+                    <input type="password" id="input-password-login" class="input-box" placeholder="Password" style="text-align:center; font-weight:bold; font-size:15px; margin-bottom:14px;" onkeydown="if(event.key==='Enter'){window.prosesLoginSistem();}">
+                    <button id="btn-submit-login" class="btn-action" style="background:#2980b9; width:100%; font-size:14px; padding:11px;" onclick="window.prosesLoginSistem()">Masuk 🚀</button>
+                    
+                    <!-- LUPA PASSWORD -->
+                    <div style="text-align:right; margin-top:10px;">
+                        <a href="#" onclick="event.preventDefault(); window.prosesLupaPassword()" style="font-size:12px; color:#3498db; text-decoration:none; font-weight:bold;">Lupa Password?</a>
+                    </div>
+                    
+                    <div style="margin-top:16px; padding-top:14px; border-top:1px dashed #cbd5e1;">
+                        <p style="font-size:11px; color:#7f8c8d; margin:0 0 8px 0;">Hanya ingin membaca materi & latihan mandiri?</p>
+                        <button type="button" class="btn-action" style="background:#16a085; width:100%; font-size:13px; padding:9px;" onclick="window.masukSebagaiTamu()">👤 Login Sebagai Tamu (Bebas)</button>
+                    </div>
+                </div>
+
+                <!-- FORM 2: REGISTRASI MANDIRI + VERIFIKASI GMAIL ASLI -->
+                <div id="form-auth-register" style="display:none; text-align:left;">
+                    <div style="background:#eaf2f8; border-left:4px solid #2980b9; padding:8px 10px; border-radius:4px; font-size:11px; color:#2c3e50; margin-bottom:12px;">
+                        📧 Link verifikasi resmi dikirim ke <b>Gmail</b> Anda (1 Gmail maksimal untuk 5 akun, dan login tetap menggunakan <b>Username</b>).
+                    </div>
+                    <label style="font-size:11px; font-weight:bold; color:#2c3e50;">1. Pilih Kelas (Atau Kelas Umum):</label>
+                    <select id="reg-select-kelas" class="input-box" style="margin-bottom:10px; font-weight:bold;" onchange="window.updateDropdownNamaRegistrasi()"></select>
+
+                    <label style="font-size:11px; font-weight:bold; color:#2c3e50;">2. Nama Lengkap Siswa:</label>
+                    <select id="reg-select-nama" class="input-box" style="margin-bottom:8px; font-weight:bold;" onchange="window.isiOtomatisUsernameReg()"></select>
+                    <input type="text" id="reg-input-nama-baru" class="input-box" placeholder="Ketik Nama Lengkap Anda..." style="display:none; margin-bottom:10px; font-weight:bold;">
+
+                    <label style="font-size:11px; font-weight:bold; color:#2c3e50;">3. Tentukan Username Login:</label>
+                    <input type="text" id="reg-input-username" class="input-box" placeholder="contoh: alexa (huruf kecil tanpa spasi)" style="margin-bottom:10px; font-weight:bold; color:#2980b9;">
+
+                    <label style="font-size:11px; font-weight:bold; color:#2c3e50;">4. Alamat Gmail Aktif (Maks. 5 Akun / Gmail):</label>
+                    <input type="email" id="reg-input-email" class="input-box" placeholder="nama@gmail.com" style="margin-bottom:10px; font-weight:bold;">
+
+                    <label style="font-size:11px; font-weight:bold; color:#2c3e50;">5. Buat Password (Min. 6 Karakter):</label>
+                    <input type="password" id="reg-input-password" class="input-box" placeholder="Minimal 6 karakter..." style="margin-bottom:14px; font-weight:bold;">
+
+                    <button id="btn-submit-register" type="button" class="btn-action" style="background:#27ae60; width:100%; font-size:13px; padding:11px;" onclick="window.prosesRegistrasiAkunMandiri()">📩 Kirim Link Verifikasi ke Gmail</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL LONCENG NOTIFIKASI SISWA -->
+    <div id="modal-notifikasi-siswa" class="modal-overlay" onclick="if(event.target===this)tutupModal('modal-notifikasi-siswa')">
+        <div class="modal-box" style="width:520px; max-height:85vh;">
+            <div class="modal-header" style="background:#0b3954; color:white;">
+                <h3 style="margin:0;">🔔 Pusat Notifikasi & Tugas</h3>
+                <button class="close-btn" style="color:white;" onclick="tutupModal('modal-notifikasi-siswa')">✕</button>
+            </div>
+            <div class="modal-body" style="background:#f8fafc; padding:16px;">
+                <div id="list-notifikasi-siswa-container" style="display:flex; flex-direction:column; gap:10px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL PAPAN PERINGKAT (LEADERBOARD SAINS) -->
+    <div id="modal-leaderboard" class="modal-overlay" onclick="if(event.target===this)tutupModal('modal-leaderboard')">
+        <div class="modal-box" style="width:720px; max-height:90vh; display:flex; flex-direction:column;">
+            <div class="modal-header" style="background:linear-gradient(135deg, #0b3954, #16a085); color:white;">
+                <div>
+                    <h3 style="margin:0;">🏆 Papan Peringkat Ilmuwan Sains</h3>
+                    <div style="font-size:11px; color:#f1c40f; margin-top:2px;">Login Harian (+10 XP) • Latihan Mandiri & Ujian (+Skor XP)</div>
+                </div>
+                <button class="close-btn" style="color:white;" onclick="tutupModal('modal-leaderboard')">✕</button>
+            </div>
+            <div class="modal-body" style="padding:16px; background:#f4f6f8; flex:1; overflow-y:auto;">
+                <!-- Filter Peringkat: Semua Angkatan, Per Angkatan, Per Kelas Spesifik -->
+                <div style="display:flex; gap:8px; flex-wrap:wrap; background:white; padding:12px; border-radius:8px; border:1px solid #e2e8f0; margin-bottom:14px; align-items:center;">
+                    <div style="flex:1; min-width:150px;">
+                        <label style="font-size:11px; font-weight:bold; color:#475569; display:block; margin-bottom:4px;">Filter Cakupan:</label>
+                        <select id="lb-filter-cakupan" class="input-box" style="margin:0; padding:7px; font-weight:bold;" onchange="window.ubahFilterLeaderboard()">
+                            <option value="semua">🌍 Semua Angkatan</option>
+                            <option value="angkatan">🎓 Per Angkatan (X / XI / XII)</option>
+                            <option value="kelas">🏫 Per Kelas Spesifik</option>
+                        </select>
+                    </div>
+                    <div id="lb-box-subfilter" style="flex:1; min-width:160px; display:none;">
+                        <label id="lb-label-subfilter" style="font-size:11px; font-weight:bold; color:#475569; display:block; margin-bottom:4px;">Pilih Target:</label>
+                        <select id="lb-select-subfilter" class="input-box" style="margin:0; padding:7px; font-weight:bold;" onchange="window.renderTabelLeaderboard()"></select>
+                    </div>
+                </div>
+
+                <!-- Info Lencana Sains -->
+                <div style="display:flex; gap:6px; overflow-x:auto; padding-bottom:8px; margin-bottom:12px; font-size:11px;">
+                    <span style="background:#fff; border:1px solid #cbd5e1; padding:4px 10px; border-radius:20px; white-space:nowrap;">🔍 <b>Pengamat</b> (0-500)</span>
+                    <span style="background:#e8f8f5; border:1px solid #a3e4d7; padding:4px 10px; border-radius:20px; white-space:nowrap;">🧪 <b>Asisten Lab</b> (501-2rb)</span>
+                    <span style="background:#eaf2f8; border:1px solid #aed6f1; padding:4px 10px; border-radius:20px; white-space:nowrap;">🔬 <b>Analis</b> (2rb-5rb)</span>
+                    <span style="background:#f5eef8; border:1px solid #d7bde2; padding:4px 10px; border-radius:20px; white-space:nowrap;">🧬 <b>Peneliti</b> (5rb-10rb)</span>
+                    <span style="background:#fef9e7; border:1px solid #f9e79f; padding:4px 10px; border-radius:20px; white-space:nowrap;">⚛️ <b>Cendekiawan</b> (10rb+)</span>
+                </div>
+
+                <!-- Daftar Peringkat Siswa -->
+                <div id="leaderboard-list-container" style="display:flex; flex-direction:column; gap:8px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL PROFIL SISWA & PENGATURAN AKUN -->
+    <div id="modal-profil-siswa" class="modal-overlay" onclick="if(event.target===this)tutupModal('modal-profil-siswa')">
+        <div class="modal-box" style="width:500px; max-height:90vh;">
+            <div class="modal-header" style="background:#0b3954; color:white;">
+                <h3 style="margin:0;">👤 Profil & Lencana Sains</h3>
+                <button class="close-btn" style="color:white;" onclick="tutupModal('modal-profil-siswa')">✕</button>
+            </div>
+            <div class="modal-body" style="padding:20px; background:#f8fafc;">
+                <!-- Kartu Identitas & Foto Profil -->
+                <div style="display:flex; align-items:center; gap:16px; background:white; padding:16px; border-radius:10px; border:1px solid #e2e8f0; margin-bottom:15px;">
+                    <div style="position:relative; width:76px; height:76px; flex-shrink:0;">
+                        <img id="profil-img-preview" src="" alt="Foto Siswa" style="width:76px; height:76px; border-radius:50%; object-fit:cover; border:3px solid #3498db; background:#e2e8f0;">
+                        <input type="file" id="input-upload-foto-profil" accept="image/*" style="display:none;" onchange="window.prosesUploadFotoProfil(this)">
+                        <button type="button" onclick="document.getElementById('input-upload-foto-profil').click()" style="position:absolute; bottom:0; right:0; background:#2980b9; color:white; border:2px solid white; border-radius:50%; width:26px; height:26px; font-size:12px; cursor:pointer; display:flex; align-items:center; justify-content:center;" title="Ubah Foto Profil">📷</button>
+                    </div>
+                    <div style="flex:1; min-width:0;">
+                        <div id="profil-badge-lencana" style="display:inline-block; background:#fef9e7; color:#d35400; border:1px solid #f9e79f; padding:2px 10px; border-radius:20px; font-size:11px; font-weight:bold; margin-bottom:4px;">🔍 Pengamat</div>
+                        <div id="profil-nama-asli" style="font-weight:bold; font-size:16px; color:#1e293b; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Nama Siswa</div>
+                        <div id="profil-info-kelas" style="font-size:12px; color:#64748b;">Kelas: - | Username: -</div>
+                        <div id="profil-deskripsi-lencana" style="font-size:11px; color:#0b3954; margin-top:4px; font-style:italic;"></div>
+                    </div>
+                    <div style="text-align:center; background:#e8f8f5; border:2px solid #16a085; padding:8px 12px; border-radius:8px;">
+                        <div style="font-size:10px; font-weight:bold; color:#16a085;">TOTAL POIN</div>
+                        <div id="profil-total-xp" style="font-size:24px; font-weight:900; color:#0b3954; font-family:'Bebas Neue', sans-serif; line-height:1;">0 XP</div>
+                    </div>
+                </div>
+
+                <!-- Kolom Akumulasi Jumlah Soal yang Telah Dikerjakan -->
+                <div style="background:white; padding:14px; border-radius:10px; border:1px solid #e2e8f0; margin-bottom:15px;">
+                    <div style="font-size:12px; font-weight:bold; color:#2c3e50; margin-bottom:10px;">📊 Akumulasi Soal yang Telah Dikerjakan</div>
+                    <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; text-align:center;">
+                        <div style="background:#ebf5fb; padding:8px; border-radius:6px; border:1px solid #aed6f1;">
+                            <div style="font-size:10px; font-weight:bold; color:#2980b9;">PG</div>
+                            <div id="profil-stat-pg" style="font-size:18px; font-weight:900; color:#1e293b;">0</div>
+                        </div>
+                        <div style="background:#f5eef8; padding:8px; border-radius:6px; border:1px solid #d7bde2;">
+                            <div style="font-size:10px; font-weight:bold; color:#8e44ad;">PGK</div>
+                            <div id="profil-stat-pgk" style="font-size:18px; font-weight:900; color:#1e293b;">0</div>
+                        </div>
+                        <div style="background:#fef9e7; padding:8px; border-radius:6px; border:1px solid #f9e79f;">
+                            <div style="font-size:10px; font-weight:bold; color:#d35400;">ISIAN</div>
+                            <div id="profil-stat-is" style="font-size:18px; font-weight:900; color:#1e293b;">0</div>
+                        </div>
+                        <div style="background:#e8f8f5; padding:8px; border-radius:6px; border:1px solid #a3e4d7;">
+                            <div style="font-size:10px; font-weight:bold; color:#16a085;">ESSAY</div>
+                            <div id="profil-stat-es" style="font-size:18px; font-weight:900; color:#1e293b;">0</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ubah Nama Panggilan -->
+                <div style="background:white; padding:14px; border-radius:10px; border:1px solid #e2e8f0; margin-bottom:15px;">
+                    <label style="font-size:12px; font-weight:bold; color:#2c3e50; display:block; margin-bottom:6px;">✨ Nama Panggilan (Tampil di Header & Peringkat):</label>
+                    <div style="display:flex; gap:8px;">
+                        <input type="text" id="profil-input-panggilan" class="input-box" placeholder="Ketik nama panggilan..." style="margin:0; flex:1; font-weight:bold;">
+                        <button type="button" class="btn-action" style="background:#2980b9; width:auto; padding:8px 14px;" onclick="window.simpanNamaPanggilanProfil()">Simpan</button>
+                    </div>
+                </div>
+
+                <!-- Keamanan Akun: Ganti Username & Password (Verifikasi Gmail) -->
+                <div style="background:white; padding:14px; border-radius:10px; border:1px solid #e2e8f0;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <span style="font-size:12px; font-weight:bold; color:#c0392b;">🔐 Ganti Username & Password (Wajib Verifikasi Gmail)</span>
+                        <span id="profil-status-gmail" style="font-size:10px; padding:2px 8px; border-radius:12px; font-weight:bold;"></span>
+                    </div>
+                    <input type="email" id="profil-input-gmail" class="input-box" placeholder="Masukkan alamat Gmail aktif Anda..." style="margin-bottom:8px; font-weight:bold;">
+                    <div style="display:flex; gap:8px; margin-bottom:10px;">
+                        <input type="text" id="profil-input-username-baru" class="input-box" placeholder="Username Baru" style="margin:0; flex:1; font-weight:bold;">
+                        <input type="password" id="profil-input-password-baru" class="input-box" placeholder="Password Baru (Min. 6)" style="margin:0; flex:1; font-weight:bold;">
+                    </div>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <button type="button" class="btn-action" style="background:#e67e22; flex:1; font-size:12px; padding:9px;" onclick="window.kirimVerifikasiGmailProfil()">📧 1. Kirim Link Verifikasi ke Gmail</button>
+                        <button type="button" class="btn-action" style="background:#27ae60; flex:1; font-size:12px; padding:9px;" onclick="window.terapkanGantiKredensialProfil()">✅ 2. Simpan Username & Password</button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -135,10 +312,11 @@
                 </div>
                 
                 <div>
-                    <label style="font-weight:bold; font-size:13px; color:#2c3e50; margin-bottom:5px; display:block;">2. Nama Lengkap (Otomatis):</label>
+                    <label style="font-weight:bold; font-size:13px; color:#2c3e50; margin-bottom:5px; display:block;">2. Nama Lengkap Siswa:</label>
                     <select id="ujian-select-nama" class="input-box" style="margin:0; font-weight:bold; cursor:pointer;">
                         <option value="">-- Pilih Kelas Terlebih Dahulu --</option>
                     </select>
+                    <input type="text" id="ujian-input-nama-manual" class="input-box" placeholder="Ketik Nama Lengkap Anda..." style="display:none; margin-top:8px; margin-bottom:0; font-weight:bold; border:2px solid #2980b9;">
                 </div>
                 
                 <div>
@@ -196,9 +374,9 @@
             <div class="modal-body" style="padding:15px; flex:1; overflow-y:auto;">
                 <div style="display:flex; justify-content:space-between; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
                     <div style="display:flex; gap:10px;">
-                        <select id="filter-rekap-kelas" class="input-box" style="margin:0; width:150px; cursor:pointer;" onchange="window.renderRekapNilai()"></select>
+                        <select id="filter-rekap-kelas" class="input-box" style="margin:0; width:150px; cursor:pointer;" onchange="window.ubahKelasRekapNilai()"></select>
                         <select id="filter-rekap-paket" class="input-box" style="margin:0; width:250px; cursor:pointer;" onchange="window.renderRekapNilai()">
-                            <option value="">-- Pilih Paket Ujian --</option>
+                            <option value="">-- Pilih Kelas Terlebih Dahulu --</option>
                         </select>
                     </div>
                     <div style="display:flex; gap:8px;">
@@ -600,7 +778,54 @@
     <div id="modal-pages" class="modal-overlay" onclick="if(event.target===this)tutupModal('modal-pages')"><div class="modal-box"><div class="modal-header"><h3>⚙️ Pages</h3><button class="close-btn" onclick="tutupModal('modal-pages')">✕</button></div><div class="modal-body"><button class="btn-action" style="margin-bottom:20px;" onclick="tambahHalamanBaru(0)">⊕ Add Page</button><ul class="page-list" id="sortable-list"></ul></div></div></div>
     <div id="modal-link" class="modal-overlay" onclick="if(event.target===this)tutupModal('modal-link')"><div class="modal-box" style="width:400px;"><div class="modal-header"><h3>🔗 Link</h3><button class="close-btn" onclick="tutupModal('modal-link')">✕</button></div><div class="modal-body"><select id="link-internal-select" class="input-box"></select><input type="text" id="link-external-input" class="input-box"><button class="btn-action" onclick="terapkanHyperlink()">Apply Link</button></div></div></div>
     
-    <div id="modal-quiz-result" class="modal-overlay" style="z-index:999999;" onclick="if(event.target===this)window.tutupModalHasilQuiz()"><div class="modal-box" style="width:350px;text-align:center;"><div class="modal-body" style="padding:30px;"><h2 style="margin:0 0 10px 0;color:#2c3e50;">Selesai! 🎉</h2><h1 style="font-size:70px;color:#3498db;margin:10px 0;" id="quiz-result-score">100</h1><p style="font-size:14px;color:#7f8c8d;">Benar <b id="quiz-result-correct" style="color:#27ae60;">0</b> dari <b id="quiz-result-total">0</b></p><button class="btn-action" style="margin-top:20px;background:#3498db; margin-bottom:10px;" onclick="window.tutupModalHasilQuiz()">Tutup / Lihat Pembahasan</button><button class="btn-action" id="btn-remedial" style="background:#e74c3c; display:none;" onclick="triggerRemedialOtomatis()">🔥 Mulai Remedial (C1/C2)</button></div></div></div>
+    <div id="modal-quiz-result" class="modal-overlay" style="z-index:999999;" onclick="if(event.target===this)window.tutupModalHasilQuiz()">
+        <div class="modal-box" style="width:520px; max-width:95vw; text-align:center; border-radius:14px; overflow:hidden;">
+            <div class="modal-body" style="padding:25px 20px 20px 20px;">
+                <div id="quiz-result-level-badge" style="display:inline-block; background:#eaf2f8; color:#2980b9; font-weight:800; font-size:11px; padding:4px 12px; border-radius:20px; margin-bottom:8px;">TINGKAT C1</div>
+                <h2 style="margin:0 0 5px 0; color:#2c3e50;" id="quiz-result-title">Selesai! 🎉</h2>
+                <h1 style="font-size:68px; color:#3498db; margin:5px 0; line-height:1;" id="quiz-result-score">100</h1>
+                <p style="font-size:14px; color:#7f8c8d; margin:6px 0 10px 0;">Benar <b id="quiz-result-correct" style="color:#27ae60;">0</b> dari <b id="quiz-result-total">0</b> soal</p>
+                <div id="quiz-result-adaptive-msg" style="font-size:12px; color:#475569; background:#f8fafc; border:1px solid #e2e8f0; padding:10px 12px; border-radius:8px; margin-bottom:14px; font-weight:600;"></div>
+                <button class="btn-action" style="background:#34495e; width:auto; padding:8px 20px; font-size:12px; border-radius:20px; margin-bottom:16px;" onclick="window.tutupModalHasilQuiz()">👁️ Tutup & Lihat Pembahasan Soal</button>
+                <!-- Baris Tombol Navigasi Adaptif 3 Posisi (Kiri Bawah - Tengah Bawah - Kanan Bawah) -->
+                <div id="quiz-result-adaptive-actions" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; align-items:center; border-top:1px dashed #cbd5e1; padding-top:14px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL MINI-GAMES ISTIRAHAT OTAK (ROTASI 5 GAMES RUANG LATIHAN) -->
+    <div id="modal-minigame-latihan" class="modal-overlay" style="z-index:1000050;">
+        <div class="modal-box minigame-modal-box">
+            <!-- Baris Atas Kecil: Info Giliran Game & Tombol Fokus Tanpa Mini Games (Muncul di Game 1 & Kelipatan 5) -->
+            <div class="minigame-top-strip">
+                <span id="minigame-badge-urutan" class="minigame-step-pill">🎮 Refresh Otak (Game 1/5)</span>
+                <button type="button" id="btn-fokus-tanpa-game" class="minigame-optout-btn" onclick="window.matikanMiniGamesSesiIni()">
+                    🚫 Saya akan fokus tanpa mini games
+                </button>
+            </div>
+
+            <!-- Header Judul & Timer Game -->
+            <div class="minigame-header-bar">
+                <div>
+                    <h3 id="minigame-title" style="margin:0; font-size:16px; color:#1e293b;">🧠 Memory Match Sains</h3>
+                    <p id="minigame-subtitle" style="margin:2px 0 0 0; font-size:11px; color:#64748b;">Cocokkan pasangan simbol sains berikut!</p>
+                </div>
+                <div class="minigame-stat-group">
+                    <div class="minigame-stat-pill" id="minigame-score-pill">⭐ <span id="minigame-score-val">0</span></div>
+                    <div class="minigame-timer-pill" id="minigame-timer-pill">⏱️ <span id="minigame-timer-val">30</span>s</div>
+                </div>
+            </div>
+
+            <!-- Area Panggung Permainan Dinamis -->
+            <div id="minigame-stage-body" class="minigame-stage-body"></div>
+
+            <!-- Footer Kecil -->
+            <div class="minigame-footer-bar">
+                <span style="font-size:11px; color:#64748b; font-weight:600;">🎁 Selesaikan untuk klaim bonus <b style="color:#16a085;">+5 XP</b></span>
+                <button type="button" class="minigame-skip-btn" onclick="window.lewatiSatuMiniGame()">Lewati ➔</button>
+            </div>
+        </div>
+    </div>
 
     <div class="right-edge-adder" onclick="tambahBlokBaruAkhir()">⊕ Add block</div>
     
@@ -700,12 +925,31 @@
         </div>
     </div>
 
-    <!-- HEADER NAVBAR (TANPA SLOT IKLAN) -->
+    <!-- HEADER NAVBAR (DENGAN LONCENG NOTIFIKASI, LEADERBOARD, & PROFIL) -->
     <div class="header-wrapper" id="header-wrap">
+        <!-- Pojok Kiri Atas: Lonceng Notifikasi & Papan Peringkat -->
+        <div class="header-left-stack" onclick="event.stopPropagation();">
+            <button id="btn-header-notif" class="header-pill-btn" onclick="window.bukaModalNotifikasiSiswa()" title="Notifikasi Tugas & Ujian">
+                🔔 <span>Notifikasi</span>
+                <b id="badge-header-notif" class="header-notif-badge" style="display:none;">0</b>
+            </button>
+            <button id="btn-header-leaderboard" class="header-pill-btn leaderboard-pill" onclick="window.bukaModalLeaderboard()" title="Papan Peringkat Sains">
+                🏆 <span>Leaderboard</span>
+            </button>
+        </div>
+
         <span class="header-settings-btn" onclick="bukaModal('modal-theme');event.stopPropagation();">⚙️</span>
         <h1 class="header-title" id="web-title">Mahardika</h1>
-        <button id="btn-login-utama" onclick="bukaModal('modal-login-sistem')" style="position:absolute; right:20px; top:50%; transform:translateY(-50%); background:#e67e22; color:white; border:none; padding:8px 20px; border-radius:30px; font-weight:bold; font-family:'Poppins', sans-serif; cursor:pointer; box-shadow:0 4px 10px rgba(0,0,0,0.2); transition: 0.3s; z-index: 10;">LOGIN</button>
-        <button id="btn-logout-utama" onclick="window.prosesLogoutSistem()" style="display:none; position:absolute; right:20px; top:50%; transform:translateY(-50%); background:#c0392b; color:white; border:none; padding:8px 20px; border-radius:30px; font-weight:bold; font-family:'Poppins', sans-serif; cursor:pointer; box-shadow:0 4px 10px rgba(0,0,0,0.2); transition: 0.3s; z-index: 10;">LOGOUT</button>
+
+        <!-- Pojok Kanan Atas: Profil Siswa & Tombol Login/Logout -->
+        <div class="header-right-actions" onclick="event.stopPropagation();">
+            <button id="btn-profil-utama" class="header-profile-btn" style="display:none;" onclick="window.bukaModalProfilSiswa()" title="Profil & Pencapaian Saya">
+                <img id="header-profil-foto" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ffffff'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E" alt="Profil">
+                <span id="header-profil-nama">Profil</span>
+            </button>
+            <button id="btn-login-utama" onclick="window.bukaModalLoginSistem()">LOGIN</button>
+            <button id="btn-logout-utama" onclick="window.prosesLogoutSistem()" style="display:none;">LOGOUT</button>
+        </div>
     </div>
     
     <!-- NAVBAR UTAMA -->
@@ -746,12 +990,13 @@
             </div>
             <div class="modal-body" style="padding: 15px; display: flex; flex-direction: column; flex: 1; overflow: hidden; background:#f4f6f6;">
                 
-                <!-- Header Administrasi (Pilih Kelas, Info, & Salin Link Siswa) -->
+                <!-- Header Administrasi (Pilih Kelas, Catatan Kelas, Rekap Nilai, Info, & Salin Link Siswa) -->
                 <div style="display:flex; justify-content:space-between; align-items:center; background:white; padding:10px 15px; border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,0.05); margin-bottom:15px; flex-wrap:wrap; gap:10px;">
                     <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
                         <label style="font-weight:bold; font-size:13px; color:#2c3e50;">🏫 Pilih Kelas Terlebih Dahulu:</label>
                         <select id="admin-select-kelas" class="input-box" style="width:200px; margin:0; padding:6px; font-weight:bold;" onchange="window.pilihKelasAdmin(this.value)"></select>
                         <button class="btn-action" style="background:#e67e22; width:auto; padding:6px 12px; font-size:12px; border-radius:6px; display:flex; align-items:center; gap:6px;" onclick="window.bukaCatatanKelas()">📝 Catatan Kelas</button>
+                        <button class="btn-action" style="background:#16a085; width:auto; padding:6px 12px; font-size:12px; border-radius:6px; display:flex; align-items:center; gap:6px;" onclick="window.bukaModal('modal-rekap-nilai')">📊 Rekap Nilai</button>
                     </div>
                     <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
                         <div style="font-size:12px; color:#7f8c8d; font-weight:bold;">
@@ -761,12 +1006,13 @@
                     </div>
                 </div>
 
-                <!-- Tabs Menu Administrasi -->
+                <!-- Tabs Menu Administrasi (Reminder diganti menjadi Remedial) -->
                 <div style="display:flex; gap:8px; margin-bottom:15px; flex-wrap:wrap; border-bottom: 2px solid #ddd; padding-bottom: 10px;">
                     <button class="btn-action tab-admin-btn active" style="background:#0b3954; width:auto; padding:8px 15px; font-size:12px;" onclick="bukaTabAdmin('tab-absensi', this)">📋 Absensi Siswa</button>
                     <button class="btn-action tab-admin-btn" style="background:#ffffff; color:#333; border:1px solid #ccc; width:auto; padding:8px 15px; font-size:12px; box-shadow:none;" onclick="bukaTabAdmin('tab-agenda', this)">📅 Agenda Mengajar</button>
                     <button class="btn-action tab-admin-btn" style="background:#ffffff; color:#333; border:1px solid #ccc; width:auto; padding:8px 15px; font-size:12px; box-shadow:none;" onclick="bukaTabAdmin('tab-ledger', this)">📊 Ledger Akademik</button>
-                    <button class="btn-action tab-admin-btn" style="background:#ffffff; color:#333; border:1px solid #ccc; width:auto; padding:8px 15px; font-size:12px; box-shadow:none;" onclick="bukaTabAdmin('tab-reminder', this)">🔔 Reminder <span style="background:#e74c3c; color:white; padding:2px 6px; border-radius:10px; font-size:10px;">0</span></button>
+                    <button class="btn-action tab-admin-btn" style="background:#ffffff; color:#c0392b; border:1px solid #f5b7b1; width:auto; padding:8px 15px; font-size:12px; box-shadow:none; font-weight:bold;" onclick="bukaTabAdmin('tab-remedial-admin', this)">🔥 Remedial <span id="badge-remedial-admin" style="background:#e74c3c; color:white; padding:2px 6px; border-radius:10px; font-size:10px;">0</span></button>
+                    <button class="btn-action tab-admin-btn" style="background:#ffffff; color:#333; border:1px solid #ccc; width:auto; padding:8px 15px; font-size:12px; box-shadow:none;" onclick="bukaTabAdmin('tab-notifikasi-admin', this)">📢 Notifikasi Siswa</button>
                     <div style="flex:1;"></div>
                     <!-- Tombol Input Data Pindah ke Kanan -->
                     <button class="btn-action tab-admin-btn" style="background:#3498db; color:white; width:auto; padding:8px 15px; font-size:12px; border:none;" onclick="bukaTabAdmin('tab-input-data', this)">👥 Input Data Siswa & Kelas</button>
@@ -832,27 +1078,33 @@
                         </div>
                     </div>
 
-                    <!-- TAB BARU: LEDGER SISWA -->
+                    <!-- TAB LEDGER AKADEMIK BARU (KOLOM UJIAN DINAMIS EDITABLE & RATA-RATA KELAS) -->
                     <div id="tab-ledger" class="admin-tab-content" style="display:none;">
-                        <div style="display:flex; justify-content:space-between; align-items:center; background:white; padding:10px 15px; border-radius:8px; border:1px solid #e1e8ed; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
-                            <h4 style="margin:0; color:#2c3e50;">📊 Ledger Akademik & Kehadiran: <span id="label-ledger-kelas" style="color:#2980b9;">Belum Dipilih</span></h4>
-                            <button class="btn-action" style="background:#16a085; width:auto; padding:6px 15px; font-size:12px;" onclick="window.exportExcelLedgerSiswa()">📥 Export Ledger (Excel)</button>
+                        <div style="display:flex; justify-content:space-between; align-items:center; background:white; padding:10px 15px; border-radius:8px; border:1px solid #e1e8ed; margin-bottom:12px; flex-wrap:wrap; gap:10px;">
+                            <div>
+                                <h4 style="margin:0; color:#2c3e50;">📊 Ledger Akademik & Kehadiran: <span id="label-ledger-kelas" style="color:#2980b9;">Belum Dipilih</span></h4>
+                                <span style="font-size:11px; color:#7f8c8d;">💡 Klik nama ujian di judul kolom untuk mengubah nama, atau klik nilai untuk mengedit manual.</span>
+                            </div>
+                            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                                <button class="btn-action" style="background:#8e44ad; width:auto; padding:6px 14px; font-size:12px;" onclick="window.tambahKolomUjianLedger()">➕ Tambah Kolom Ujian</button>
+                                <button class="btn-action" style="background:#16a085; width:auto; padding:6px 14px; font-size:12px;" onclick="window.exportExcelLedgerSiswa()">📥 Export Ledger</button>
+                            </div>
                         </div>
                         <div style="overflow-x:auto; background:white; border:1px solid #e1e8ed; border-radius:8px; padding:1px;">
                             <table class="excel-table" style="min-width:100%; text-align:center;">
-                                <thead>
+                                <thead id="head-ledger-siswa">
                                     <tr>
                                         <th rowspan="2" style="width:40px; background:#2c3e50;">No</th>
                                         <th rowspan="2" style="text-align:left; background:#2c3e50; min-width:180px;">Nama Siswa</th>
+                                        <th rowspan="2" style="background:#2c3e50;">Nilai Akhir</th>
                                         <th colspan="4" style="background:#2c3e50;">Kehadiran</th>
-                                        <th rowspan="2" style="background:#2c3e50;">Nilai Akhir (Proporsional)</th>
                                         <th rowspan="2" style="background:#2c3e50; width:90px;">Aksi</th>
                                     </tr>
                                     <tr>
-                                        <th style="background:#27ae60; width:45px; min-width:45px;">H</th>
-                                        <th style="background:#f39c12; width:45px; min-width:45px;">S</th>
-                                        <th style="background:#2980b9; width:45px; min-width:45px;">I</th>
-                                        <th style="background:#c0392b; width:45px; min-width:45px;">A</th>
+                                        <th style="background:#27ae60; width:45px;">H</th>
+                                        <th style="background:#f39c12; width:45px;">S</th>
+                                        <th style="background:#2980b9; width:45px;">I</th>
+                                        <th style="background:#c0392b; width:45px;">A</th>
                                     </tr>
                                 </thead>
                                 <tbody id="body-ledger-siswa">
@@ -894,29 +1146,67 @@
                         </div>
                     </div>
 
-                    <div id="tab-reminder" class="admin-tab-content" style="display:none;">
-                        <div style="display:flex; justify-content:space-between; align-items:center; background:white; padding:10px 15px; border-radius:8px; border:1px solid #e1e8ed; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
-                            <div style="display:flex; align-items:center; gap:10px;">
-                                <span style="font-weight:bold; font-size:13px; color:#2c3e50;">Tampilkan Pengingat:</span>
-                                <button class="btn-action" id="btn-rem-khusus" style="background:#0b3954; width:auto; padding:6px 15px; font-size:12px;" onclick="setModeReminder('khusus')">📌 Khusus Kelas <span id="label-rem-kelas">Aktif</span></button>
-                                <button class="btn-action" id="btn-rem-semua" style="background:#ffffff; color:#333; border:1px solid #ccc; width:auto; padding:6px 15px; font-size:12px; box-shadow:none;" onclick="setModeReminder('semua')">📁 Semua Kelas</button>
+                    <!-- TAB BARU: REMEDIAL TERPADU SEMUA UJIAN DI KELAS AKTIF -->
+                    <div id="tab-remedial-admin" class="admin-tab-content" style="display:none;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; background:#fdf2f2; padding:12px 16px; border-radius:8px; border:1px solid #f5b7b1; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
+                            <div>
+                                <h4 style="margin:0; color:#c0392b;">🔥 Daftar Remedial Seluruh Ujian — Kelas: <span id="label-remedial-admin-kelas" style="color:#2980b9;">Belum Dipilih</span></h4>
+                                <p style="font-size:11px; color:#7f8c8d; margin:3px 0 0 0;">Menampilkan seluruh siswa yang nilainya di bawah KKM pada setiap ujian di kelas ini. Klik <b>✅ Tuntas</b> untuk menaikkan nilai ke KKM secara otomatis di Ledger.</p>
                             </div>
-                            <p style="font-size:11px; color:#f39c12; margin:0; font-weight:bold;">💡 Pengingat ujian tidak akan hilang sebelum tombol X ditekan.</p>
-                        </div>
-
-                        <h5 style="color:#27ae60; margin-bottom:10px; border-bottom:1px solid #eee; padding-bottom:5px;">📚 1. Pengingat Siswa Ketinggalan Materi Pelajaran (Status: -, A, S, I)</h5>
-                        <div id="list-rem-materi" style="background:#fcfcfc; border:1px solid #eee; border-radius:8px; padding:15px; margin-bottom:20px; max-height:250px; overflow-y:auto; display:flex; flex-direction:column; gap:8px;"></div>
-
-                        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #eee; padding-bottom:5px; margin-bottom:10px; flex-wrap:wrap; gap:10px;">
-                            <h5 style="color:#c0392b; margin:0;">🎯 2. Pengingat Siswa Belum Mengikuti Ujian</h5>
-                            <div style="display:flex; gap:10px;">
-                                <select id="rem-pilih-ujian" class="input-box" style="margin:0; padding:6px; font-size:11px; width:280px; font-weight:bold;">
-                                    <option value="">-- Pilih Paket Ujian untuk Dipantau --</option>
-                                </select>
-                                <button class="btn-action" style="background:#8e44ad; width:auto; padding:6px 15px; font-size:11px;" onclick="window.pantauUjianOtomatis()">+ Pantau Ujian Kelas</button>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <label style="font-size:12px; font-weight:bold; color:#c0392b;">KKM Kelas:</label>
+                                <input type="number" id="input-kkm-remedial-admin" class="input-box" style="width:75px; margin:0; padding:6px; text-align:center; font-weight:900; color:#c0392b; border:2px solid #e74c3c;" oninput="window.renderRemedialTabAdmin()">
                             </div>
                         </div>
-                        <div id="list-rem-ujian" style="background:#fcfcfc; border:1px solid #eee; border-radius:8px; padding:15px; max-height:250px; overflow-y:auto; display:flex; flex-direction:column; gap:8px;"></div>
+                        <div style="overflow-x:auto; background:white; border:1px solid #e1e8ed; border-radius:8px; padding:1px;">
+                            <table class="excel-table" style="min-width:100%; text-align:center;">
+                                <thead>
+                                    <tr>
+                                        <th style="width:45px; background:#2c3e50;">No</th>
+                                        <th style="text-align:left; background:#2c3e50; min-width:160px;">Nama Ujian</th>
+                                        <th style="text-align:left; background:#2c3e50; min-width:180px;">Nama Siswa</th>
+                                        <th style="background:#2c3e50; width:95px;">Nilai Awal</th>
+                                        <th style="background:#2c3e50; width:80px;">Target KKM</th>
+                                        <th style="background:#2c3e50; width:210px;">Aksi Guru</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="body-remedial-tab-admin">
+                                    <tr><td colspan="6" style="padding:20px; color:#7f8c8d; font-weight:bold;">Pilih kelas di header atas terlebih dahulu.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- TAB BARU: KIRIM NOTIFIKASI KE SISWA (TEKS, GAMBAR, LINK, BUTTON) -->
+                    <div id="tab-notifikasi-admin" class="admin-tab-content" style="display:none;">
+                        <div style="display:flex; gap:20px; flex-wrap:wrap;">
+                            <div style="flex:1.2; min-width:300px; background:#f8f9fa; border:1px solid #e1e8ed; border-radius:8px; padding:16px;">
+                                <h4 style="margin-top:0; color:#2c3e50; border-bottom:2px solid #e1e8ed; padding-bottom:8px;">📢 Buat Pengumuman / Notifikasi Tugas</h4>
+                                <label style="font-size:12px; font-weight:bold; color:#2c3e50; display:block; margin-bottom:4px;">Target Penerima:</label>
+                                <select id="notif-admin-target-kelas" class="input-box" style="margin-bottom:10px; font-weight:bold;"></select>
+
+                                <label style="font-size:12px; font-weight:bold; color:#2c3e50; display:block; margin-bottom:4px;">Judul Notifikasi:</label>
+                                <input type="text" id="notif-admin-judul" class="input-box" placeholder="Contoh: Tugas Praktikum Biologi Bab Sel" style="margin-bottom:10px; font-weight:bold;">
+
+                                <!-- Mini Toolbar Sisipan Notifikasi (Gambar, Link, Tombol) -->
+                                <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px;">
+                                    <button type="button" class="btn-action" style="background:#34495e; width:auto; padding:5px 10px; font-size:11px;" onclick="document.execCommand('bold')"><b>B</b></button>
+                                    <button type="button" class="btn-action" style="background:#2980b9; width:auto; padding:5px 10px; font-size:11px;" onclick="window.sisipkanLinkNotifAdmin()">🔗 Link</button>
+                                    <button type="button" class="btn-action" style="background:#0b3954; width:auto; padding:5px 10px; font-size:11px;" onclick="window.sisipkanButtonNotifAdmin()">🔘 Button</button>
+                                    <input type="file" id="input-img-notif-admin" accept="image/*" style="display:none;" onchange="window.uploadGambarNotifAdmin(this)">
+                                    <button type="button" class="btn-action" style="background:#8e44ad; width:auto; padding:5px 10px; font-size:11px;" onclick="document.getElementById('input-img-notif-admin').click()">🖼️ Gambar</button>
+                                </div>
+
+                                <div id="notif-admin-editor" contenteditable="true" style="background:white; border:1px solid #cbd5e1; border-radius:6px; min-height:130px; padding:12px; font-size:13px; outline:none; margin-bottom:12px; overflow-y:auto;">Ketik isi notifikasi, tugas, atau sisipkan tombol menuju halaman materi...</div>
+
+                                <button type="button" class="btn-action" style="background:#27ae60; width:100%;" onclick="window.kirimNotifikasiAdminKeSiswa()">🚀 Terbitkan ke Lonceng Notifikasi Siswa</button>
+                            </div>
+
+                            <div style="flex:1; min-width:280px; background:white; border:1px solid #e1e8ed; border-radius:8px; padding:16px;">
+                                <h4 style="margin-top:0; color:#2c3e50; border-bottom:2px solid #eee; padding-bottom:8px;">📋 Daftar Notifikasi Aktif</h4>
+                                <div id="list-notif-admin-aktif" style="display:flex; flex-direction:column; gap:8px; max-height:360px; overflow-y:auto;"></div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- TAB 5: KELOLA AKUN GURU (KHUSUS SUPER ADMIN MAHARDIKA) -->
@@ -965,15 +1255,16 @@
         </div>
     </div>
 
-    <!-- MODAL CATATAN GURU (FLOATING EXCEL-STYLE) -->
+    <!-- MODAL CATATAN GURU (FLOATING EXCEL-STYLE + TOMBOL JADWAL) -->
     <div id="modal-catatan-guru" class="floating-cg" style="display:none;">
         <div class="cg-header" id="cg-header">
             <div style="font-weight:bold; font-size:13px; display:flex; align-items:center; gap:6px;">
                 📝 Catatan Guru <span id="cg-sync-status" style="font-size:10px; font-weight:normal; color:#bdc3c7;">(Tersimpan)</span>
             </div>
-            <div style="display:flex; gap:10px;">
-                <button onclick="window.toggleSizeCatatanGuru()" title="Perbesar/Perkecil">🗗</button>
-                <button onclick="window.tutupCatatanGuru()" title="Tutup">✕</button>
+            <div style="display:flex; align-items:center; gap:10px;" onpointerdown="event.stopPropagation()">
+                <button type="button" onclick="window.bukaModalJadwalGuru()" style="background:#e67e22; color:white; border:none; padding:4px 12px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:4px; box-shadow:0 2px 5px rgba(0,0,0,0.2);" title="Buka Jadwal Sekolah & Kalender Pengingat">📅 Jadwal</button>
+                <button type="button" onclick="window.toggleSizeCatatanGuru()" title="Perbesar/Perkecil">🗗</button>
+                <button type="button" onclick="window.tutupCatatanGuru()" title="Tutup">✕</button>
             </div>
         </div>
         <div class="cg-body">
@@ -993,9 +1284,9 @@
             <div style="font-weight:bold; font-size:13px; display:flex; align-items:center; gap:6px;">
                 📝 Catatan <span id="ck-kelas-title">Kelas</span> <span id="ck-sync-status" style="font-size:10px; font-weight:normal; color:#fdfefe;">(Tersimpan)</span>
             </div>
-            <div style="display:flex; gap:10px;">
-                <button onclick="window.toggleSizeCatatanKelas()" title="Perbesar/Perkecil">🗗</button>
-                <button onclick="window.tutupCatatanKelas()" title="Tutup">✕</button>
+            <div style="display:flex; gap:10px;" onpointerdown="event.stopPropagation()">
+                <button type="button" onclick="window.toggleSizeCatatanKelas()" title="Perbesar/Perkecil">🗗</button>
+                <button type="button" onclick="window.tutupCatatanKelas()" title="Tutup">✕</button>
             </div>
         </div>
         <div class="cg-body">
@@ -1006,6 +1297,57 @@
             <button class="cg-add-sheet" onclick="window.tambahSheetCK()" title="Tambah Sheet Baru">+</button>
         </div>
     </div>
+
+    <!-- MODAL JADWAL SEKOLAH (EXCEL) & KALENDER PENGINGAT ADMIN -->
+    <div id="modal-jadwal-guru" class="modal-overlay" onclick="if(event.target===this)tutupModal('modal-jadwal-guru')">
+        <div class="modal-box" style="width:92vw; max-width:980px; height:88vh; max-height:88vh; display:flex; flex-direction:column; background:#1e1e1e; color:#f1f5f9; border:1px solid #333; border-radius:12px; overflow:hidden;">
+            <div class="modal-header" style="background:#141414; border-bottom:1px solid #2e2e2e; padding:12px 20px;">
+                <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+                    <h3 style="margin:0; color:#ffffff; font-size:16px;">📅 Jadwal Sekolah & Kalender Pengingat</h3>
+                    <div style="display:flex; gap:6px; background:#2b2b2b; padding:3px; border-radius:8px;">
+                        <button type="button" id="btn-tab-jadwal-kalender" onclick="window.gantiTabJadwalGuru('kalender')" style="background:#e67e22; color:white; border:none; padding:6px 14px; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer;">🗓️ Kalender Pengingat</button>
+                        <button type="button" id="btn-tab-jadwal-excel" onclick="window.gantiTabJadwalGuru('excel')" style="background:transparent; color:#cbd5e1; border:none; padding:6px 14px; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer;">📊 Jadwal Sekolah (Excel)</button>
+                    </div>
+                </div>
+                <button class="close-btn" style="color:#fff;" onclick="tutupModal('modal-jadwal-guru')">✕</button>
+            </div>
+            <div class="modal-body" style="padding:0; flex:1; overflow:hidden; display:flex; flex-direction:column;">
+                <!-- TAB 1: KALENDER GAYA DARK MACOS -->
+                <div id="view-jadwal-kalender" style="display:flex; flex-direction:column; flex:1; overflow:hidden; background:#1c1c1e;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding:14px 20px; border-bottom:1px solid #2c2c2e;">
+                        <div id="kalender-title-bulan" style="font-size:26px; font-weight:800; color:#ffffff; letter-spacing:-0.5px;">November <span style="font-weight:300; color:#a1a1aa;">2026</span></div>
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            <button type="button" class="cal-nav-btn" onclick="window.geserBulanKalenderGuru(-1)">‹</button>
+                            <button type="button" class="cal-nav-btn cal-today-btn" onclick="window.resetBulanKalenderHariIni()">Today</button>
+                            <button type="button" class="cal-nav-btn" onclick="window.geserBulanKalenderGuru(1)">›</button>
+                        </div>
+                    </div>
+                    <div class="cal-weekdays-row">
+                        <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+                    </div>
+                    <div id="kalender-grid-days" class="cal-days-grid"></div>
+                </div>
+
+                <!-- TAB 2: JADWAL SEKOLAH (PASTE / IMPORT EXCEL) -->
+                <div id="view-jadwal-excel" style="display:none; flex-direction:column; flex:1; overflow:hidden; background:#ffffff; color:#1e293b; padding:16px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:10px;">
+                        <div>
+                            <h4 style="margin:0; color:#0b3954;">📊 Tabel Jadwal Mengajar Sekolah</h4>
+                            <span style="font-size:11px; color:#64748b;">💡 Anda bisa langsung <b>Copy-Paste</b> tabel dari Microsoft Excel ke area di bawah ini, atau mengunggah file CSV/Excel.</span>
+                        </div>
+                        <div style="display:flex; gap:8px; align-items:center;">
+                            <input type="file" id="input-file-jadwal-excel" accept=".csv,.txt" style="display:none;" onchange="window.importFileJadwalCSV(this)">
+                            <button type="button" class="btn-action" style="background:#2980b9; width:auto; padding:6px 12px; font-size:12px;" onclick="document.getElementById('input-file-jadwal-excel').click()">📥 Upload CSV/Excel</button>
+                            <button type="button" class="btn-action" style="background:#8e44ad; width:auto; padding:6px 12px; font-size:12px;" onclick="window.resetTabelJadwalDefault()">🔄 Buat Tabel Baru</button>
+                            <button type="button" class="btn-action" style="background:#27ae60; width:auto; padding:6px 14px; font-size:12px;" onclick="window.simpanJadwalSekolahExcel()">💾 Simpan Jadwal</button>
+                        </div>
+                    </div>
+                    <div id="editor-jadwal-excel" contenteditable="true" oninput="window.simpanJadwalSekolahDelay()" style="flex:1; overflow:auto; border:1px solid #cbd5e1; border-radius:8px; padding:15px; background:#f8fafc; outline:none;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
 
     <!-- MODAL GENERATOR KISI-KISI SOAL MESIN CERDAS LOKAL -->
     <div id="modal-kisi-kisi" class="modal-overlay" onclick="if(event.target===this)tutupModal('modal-kisi-kisi')">
@@ -1229,8 +1571,19 @@
         </div>
     </div>
 
+    <!-- NAVIGASI CBT MELAYANG (LATIHAN & UJIAN) -->
+    <button id="btn-toggle-cbt-nav" class="btn-toggle-nav" onclick="window.toggleCbtNav()" style="display:none;">
+        <span id="cbt-nav-info">0/0 Terjawab</span> <span>⬆️</span>
+    </button>
+    
+    <div id="cbt-nav-drawer" class="latihan-nav-fixed">
+        <div class="nav-drag-handle" onclick="window.toggleCbtNav()"></div>
+        <button class="close-nav-btn" onclick="window.toggleCbtNav()" title="Tutup Navigasi">✕</button>
+        <h4 style="margin:0 0 15px 0; text-align:center; color:#2c3e50;">Navigasi Pilihan Soal</h4>
+        <div id="cbt-nav-grid" class="quiz-nav-bar" style="border:none; padding:0; margin:0;"></div>
+    </div>
     <!-- SCRIPT REFERENCES -->
-    <script src="./main.js"></script>
-    <script type="module" src="./firebase-db.js"></script>
+    <script src="js/main.js"></script>
+    <script type="module" src="js/firebase-db.js"></script>
 </body>
 </html>
