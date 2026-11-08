@@ -3645,7 +3645,7 @@ document.addEventListener('selectstart', e => {
 });
 
 /* =========================================
-   KONTROL GAMBAR DALAM BLOK (IMAGE SETTINGS)
+   KONTROL GAMBAR DALAM BLOK (IMAGE SETTINGS & FREE WRAP LAYOUT)
    ========================================= */
 window.selectedImg = null; 
 
@@ -3670,11 +3670,19 @@ document.addEventListener('click', e => {
             c.style.display = 'flex'; 
             c.style.top = (rect.top + window.scrollY - 35) + 'px'; 
             c.style.left = (rect.left + window.scrollX) + 'px'; 
+            
+            // Tambahkan tombol ubah layout Float/Inline ke dalam kontrol gambar jika belum ada
+            if (!document.getElementById('btn-layout-img')) {
+                c.innerHTML += '<div style="width:1px;height:14px;background:rgba(255,255,255,0.3);margin:0 4px;"></div><button id="btn-layout-img" onclick="window.toggleLayoutGambar()" style="font-size:12px; font-weight:bold;" title="Ubah Layout Gambar (Melayang / Sebaris dengan Teks)">🔄 Float</button>';
+            }
         }
     } 
     // Saat klik di luar area gambar/kontrol
     else if(!e.target.closest('#img-controls') && e.type === 'click') { 
-        if(window.selectedImg) window.selectedImg.classList.remove('img-selected'); 
+        if(window.selectedImg) {
+            window.selectedImg.classList.remove('img-selected'); 
+            window.selectedImg.style.cursor = window.selectedImg.style.position === 'absolute' ? 'move' : 'ew-resize';
+        }
         window.selectedImg = null; 
         let c = document.getElementById('img-controls');
         if(c) c.style.display = 'none'; 
@@ -3696,10 +3704,96 @@ document.addEventListener('keydown', e => {
 
 window.alignGambar = function(p) { 
     if(window.selectedImg) { 
+        // Jika gambar dalam mode melayang, kembalikan dulu ke in-line agar alignment berfungsi
+        if (window.selectedImg.style.position === 'absolute') {
+            window.selectedImg.style.position = 'static';
+            window.selectedImg.style.zIndex = '';
+        }
         window.selectedImg.style.display = 'block'; 
         window.selectedImg.style.margin = p === 'left' ? '15px auto 15px 0' : (p === 'right' ? '15px 0 15px auto' : '15px auto'); 
         triggerInput(); 
     } 
+};
+
+window.toggleLayoutGambar = function() {
+    if (window.selectedImg) {
+        let isAbsolute = window.selectedImg.style.position === 'absolute';
+        if (isAbsolute) {
+            // Kembalikan ke Inline
+            window.selectedImg.style.position = 'static';
+            window.selectedImg.style.zIndex = '';
+            window.selectedImg.style.margin = '15px auto';
+            window.selectedImg.style.cursor = 'ew-resize';
+        } else {
+            // Jadikan Melayang (Float / Square)
+            let parentBlock = window.selectedImg.closest('.content-block, .fb-content');
+            if (parentBlock) {
+                // Pastikan blok parent relatif agar gambar absolut terikat di dalamnya
+                if (window.getComputedStyle(parentBlock).position === 'static') {
+                    parentBlock.style.position = 'relative';
+                }
+            }
+            window.selectedImg.style.position = 'absolute';
+            window.selectedImg.style.zIndex = '10';
+            window.selectedImg.style.margin = '0';
+            window.selectedImg.style.cursor = 'move';
+            
+            // Pasang event geser
+            window.selectedImg.onpointerdown = window.startDragGambarFloat;
+        }
+        triggerInput();
+    }
+};
+
+window.startDragGambarFloat = function(e) {
+    if (!document.body.classList.contains('mode-edit-aktif') && !document.documentElement.classList.contains('force-edit-mode')) return;
+    let img = e.target;
+    if (img.style.position !== 'absolute') return; // Hanya berlaku untuk gambar melayang
+    
+    e.preventDefault();
+    e.stopPropagation();
+
+    let parentBlock = img.closest('.content-block, .fb-content');
+    if (!parentBlock) return;
+    
+    let pRect = parentBlock.getBoundingClientRect();
+    let startX = e.clientX;
+    let startY = e.clientY;
+    
+    // Ambil posisi awal (offset dari parent)
+    let initLeft = img.offsetLeft;
+    let initTop = img.offsetTop;
+
+    img.setPointerCapture(e.pointerId);
+
+    function move(ev) {
+        let dx = ev.clientX - startX;
+        let dy = ev.clientY - startY;
+        
+        let newLeft = initLeft + dx;
+        let newTop = initTop + dy;
+        
+        img.style.left = newLeft + 'px';
+        img.style.top = newTop + 'px';
+        
+        // Memaksa update kotak kontrol biru agar ikut bergerak
+        const c = document.getElementById('img-controls'); 
+        if (c && window.selectedImg === img) {
+            const rect = img.getBoundingClientRect(); 
+            c.style.top = (rect.top + window.scrollY - 35) + 'px'; 
+            c.style.left = (rect.left + window.scrollX) + 'px'; 
+        }
+    }
+
+    function up(ev) {
+        img.releasePointerCapture(e.pointerId);
+        document.removeEventListener('pointermove', move);
+        document.removeEventListener('pointerup', up);
+        if (parentBlock) parentBlock.dispatchEvent(new Event('input', {bubbles: true})); 
+    }
+
+    document.addEventListener('pointermove', move);
+    document.addEventListener('pointerup', up);
 };
 
 /* =========================================
