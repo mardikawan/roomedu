@@ -5213,19 +5213,23 @@ window.pasangGayaKertasWordA4 = function() {
         #main-editor-wrapper { background-color: #e2e8f0 !important; padding-top: 24px !important; padding-bottom: 60px !important; }
         #blocks-container { gap: 28px !important; }
         .block-wrapper { background-color: transparent !important; padding-top: 0 !important; padding-bottom: 0 !important; margin: 0 auto !important; }
+        
+        /* PENTING: Hilangkan !important pada width dan max-width agar 
+           saat dibuka di HP (lewat media query CSS layar HP), ukuran ini bisa diganti menjadi 100% luwes */
         .content-block.a4-portrait-block,
         .mode-edit-aktif .content-block.a4-portrait-block,
         .force-edit-mode .content-block.a4-portrait-block,
         .mode-edit-aktif .content-block.a4-portrait-block:focus,
         .force-edit-mode .content-block.a4-portrait-block:focus {
-            width: 794px !important; max-width: 794px !important;
+            width: 794px; 
+            max-width: 794px;
             min-height: 1123px !important; height: 1123px !important; max-height: 1123px !important;
-            padding: 48px 48px 48px 48px !important; box-sizing: border-box !important;
+            padding: 48px 48px 48px 48px; box-sizing: border-box !important;
             overflow: hidden !important; border-radius: 0 !important;
             border: 1px solid #cbd5e1 !important; outline: none !important;
             box-shadow: 0 6px 20px rgba(15, 23, 42, 0.12) !important;
             background-color: #ffffff !important;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='794' height='1151' viewBox='0 0 794 1151'%3E%3Crect x='0' y='0' width='794' height='1123' fill='%23ffffff'/%3E%3Crect x='0.5' y='0.5' width='793' height='1122' fill='none' stroke='%23d0d7de' stroke-width='1'/%3E%3Cpath d='M 24 48 L 48 48 L 48 24' fill='none' stroke='%2394a3b8' stroke-width='1.2'/%3E%3Cpath d='M 770 48 L 746 48 L 746 24' fill='none' stroke='%2394a3b8' stroke-width='1.2'/%3E%3Cpath d='M 24 1075 L 48 1075 L 48 1099' fill='none' stroke='%2394a3b8' stroke-width='1.2'/%3E%3Cpath d='M 770 1075 L 746 1075 L 746 1099' fill='none' stroke='%2394a3b8' stroke-width='1.2'/%3E%3Crect x='0' y='1123' width='794' height='28' fill='%23cbd5e1'/%3E%3Cline x1='0' y1='1123.5' x2='794' y2='1123.5' stroke='%2394a3b8' stroke-width='1.5'/%3E%3Cline x1='0' y1='1150.5' x2='794' y2='1150.5' stroke='%2394a3b8' stroke-width='1.5'/%3E%3C/svg%3E") !important;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='794' height='1151' viewBox='0 0 794 1151'%3E%3Crect x='0' y='0' width='794' height='1123' fill='%23ffffff'/%3E%3Crect x='0.5' y='0.5' width='793' height='1122' fill='none' stroke='%23d0d7de' stroke-width='1'/%3E%3Cpath d='M 24 48 L 48 48 L 48 24' fill='none' stroke='%2394a3b8' stroke-width='1.2'/%3E%3Cpath d='M 770 48 L 746 48 L 746 24' fill='none' stroke='%2394a3b8' stroke-width='1.2'/%3E%3Cpath d='M 24 1075 L 48 1075 L 48 1099' fill='none' stroke='%2394a3b8' stroke-width='1.2'/%3E%3Crect x='0' y='1123' width='794' height='28' fill='%23cbd5e1'/%3E%3Cline x1='0' y1='1123.5' x2='794' y2='1123.5' stroke='%2394a3b8' stroke-width='1.5'/%3E%3Cline x1='0' y1='1150.5' x2='794' y2='1150.5' stroke='%2394a3b8' stroke-width='1.5'/%3E%3C/svg%3E") !important;
             background-size: 794px 1151px !important; background-repeat: repeat-y !important; background-position: top center !important;
         }
         .content-block.a4-portrait-block img, .content-block.a4-portrait-block video, .content-block.a4-portrait-block iframe {
