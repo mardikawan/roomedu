@@ -1232,27 +1232,21 @@ body:not(.mode-edit-aktif):not(.force-edit-mode) .locked-hidden-nav-item {
 }
 
 /* =========================================
-   FIX TAMPILAN HP (HEADER 1 BARIS, AUTO-SCALE A4, & Z-INDEX NAVBAR)
+   FIX TAMPILAN HP (HEADER 1 BARIS, KERTAS FULL, & DROPDOWN ANTI-TERPOTONG)
    ========================================= */
-
-/* Pastikan Navbar di atas materi (2000), tapi TETAP DI BAWAH MODAL (z-index modal adalah 5000) */
 .navbar {
-    z-index: 2000 !important;
-}
-.navbar ul.sub-menu-nav {
-    z-index: 3000 !important;
+    z-index: 999999 !important;
 }
 
 @media (max-width: 768px) {
-    /* 1. Kunci Lebar Layar Utama */
+    /* Kunci Lebar Layar Utama */
     html, body {
         overflow-x: hidden !important;
         width: 100vw !important;
         max-width: 100vw !important;
-        padding-bottom: 80px !important;
     }
     
-    /* 2. Bebaskan Kertas A4 dari Lebar 794px Menjadi 100% Layar HP Penuh */
+    /* Bebaskan Kertas A4 menjadi 100% Layar HP Penuh */
     .editor-wrapper {
         width: 100vw !important;
         max-width: 100vw !important;
@@ -1270,13 +1264,13 @@ body:not(.mode-edit-aktif):not(.force-edit-mode) .locked-hidden-nav-item {
         padding: 0 !important;
     }
 
-    /* Override paksaan lebar kertas 794px di HP menjadi luwes 100% */
+    /* Kertas A4 HP: Padding normal, border tipis, teks melipat ke bawah */
     .content-block.a4-portrait-block,
     .mode-edit-aktif .content-block.a4-portrait-block,
     .force-edit-mode .content-block.a4-portrait-block {
         width: 100vw !important;
         max-width: 100vw !important;
-        padding: 15px 12px !important; /* Kurangi drastis padding kertas di HP agar konten tidak terjepit */
+        padding: 15px 12px !important; 
         margin: 0 !important;
         min-height: auto !important;
         height: auto !important;
@@ -1284,20 +1278,20 @@ body:not(.mode-edit-aktif):not(.force-edit-mode) .locked-hidden-nav-item {
         box-sizing: border-box !important;
         background-size: cover !important;
         background-position: center top !important;
-        /* Kunci agar teks & elemen selalu melipat (wrap) dan tidak menerobos layar */
+        border: none !important;
+        box-shadow: none !important;
         word-wrap: break-word !important;
         overflow-wrap: break-word !important;
         word-break: break-word !important;
     }
 
-    /* Pastikan media (gambar, tabel) ikut mengecil proporsional */
     .content-block img, .content-block iframe, .content-block video, .content-block table {
         max-width: 100% !important;
         height: auto !important;
         box-sizing: border-box !important;
     }
 
-    /* 3. Header 1 Baris Mulus (Horizontal Scroll) */
+    /* Header 1 Baris (Bisa Di-scroll Kiri Kanan) */
     .header-wrapper {
         display: flex !important;
         flex-direction: row !important;
@@ -1321,7 +1315,6 @@ body:not(.mode-edit-aktif):not(.force-edit-mode) .locked-hidden-nav-item {
         flex-shrink: 0 !important;
         order: 0 !important;
     }
-    
     .header-title {
         position: static !important;
         transform: none !important;
@@ -1330,8 +1323,38 @@ body:not(.mode-edit-aktif):not(.force-edit-mode) .locked-hidden-nav-item {
         flex-shrink: 0 !important;
         max-width: none !important;
     }
-    
     #btn-login-utama, #btn-logout-utama {
         position: static !important;
+    }
+
+    /* FIX NAVBAR DROPDOWN TERPOTONG: Ubah struktur Menu di HP menjadi Vertikal jika terbuka */
+    .navbar ul#dynamic-navbar {
+        display: flex !important;
+        flex-wrap: wrap !important; /* Biarkan tombol membungkus ke bawah jika sempit */
+        overflow: visible !important; /* Jangan sembunyikan dropdown yang keluar */
+        white-space: normal !important;
+        padding: 5px 10px !important;
+    }
+    
+    /* Buat Sub-Menu melebar 100% di HP agar tidak melampaui batas kanan layar */
+    #dynamic-navbar ul.sub-menu-nav {
+        position: static !important; /* Tidak melayang, tapi mendesak elemen di bawahnya */
+        width: 100% !important;
+        box-shadow: none !important;
+        border-radius: 0 !important;
+        border-left: 2px solid #f1c40f !important;
+        background: #092e44 !important;
+        margin: 0 !important;
+    }
+    #dynamic-navbar ul.sub-menu-nav ul.sub-menu-nav {
+        border-left: 2px solid #3498db !important;
+        background: #072333 !important;
+    }
+    #dynamic-navbar li {
+        width: auto;
+    }
+    /* Pastikan induk Sub-Menu di HP juga mengambil lebar 100% agar anaknya muat */
+    #dynamic-navbar li.has-sub.open-sub {
+        width: 100% !important; 
     }
 }
