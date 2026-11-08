@@ -1213,21 +1213,41 @@ body:not(.mode-edit-aktif):not(.force-edit-mode) .locked-hidden-nav-item {
 }
 
 /* =========================================
-   FIX TAMPILAN HP (HEADER 1 BARIS & ANTI ZOOM-OUT)
+   FIX TAMPILAN HP (HEADER 1 BARIS, AUTO-SCALE A4, & Z-INDEX NAVBAR)
    ========================================= */
+
+/* Pastikan Navbar selalu berada di tingkat paling atas agar dropdown tidak tenggelam */
+.navbar {
+    z-index: 99999 !important;
+}
+
 @media (max-width: 768px) {
-    /* 1. Mencegah Layar HP Mengecil (Zoom Out) */
+    /* 1. Kunci Lebar Layar Utama */
     html, body {
         overflow-x: hidden !important;
         width: 100vw !important;
         max-width: 100vw !important;
     }
     
-    /* 2. Kertas A4 Bisa Digeser Kiri-Kanan Tanpa Merusak Layar */
+    /* 2. Auto-Scale Kertas A4 agar Muat di Layar HP Tanpa Scroll Kiri-Kanan */
     .editor-wrapper {
+        width: 100vw !important;
         max-width: 100vw !important;
-        overflow-x: auto !important;
-        -webkit-overflow-scrolling: touch;
+        overflow-x: hidden !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        padding: 10px 0 !important;
+    }
+    
+    /* Pengecilan proporsional wrapper kertas */
+    .a4-paper-wrapper {
+        width: 100vw !important;
+        max-width: 100vw !important;
+        transform-origin: top center;
+        /* Skala dinamis: lebar layar HP dibagi 794px (lebar asli A4), dikurangi sedikit margin */
+        transform: scale(calc((100vw - 20px) / 794)) !important;
+        margin-bottom: calc(((100vw - 20px) / 794 - 1) * 1123px + 20px) !important; 
     }
 
     /* 3. Header 1 Baris Mulus (Horizontal Scroll) */

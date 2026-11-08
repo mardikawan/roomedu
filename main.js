@@ -1778,7 +1778,7 @@ window.mulaiGenerateKisiKisi = function() {
     } else {
         // Jika belum ada, panggil file eksternal secara diam-diam
         let script = document.createElement('script');
-        script.src = './kisi-kisi-engine.js'; 
+        script.src = 'js/kisi-kisi-engine.js'; 
         script.onload = function() {
             window.eksekusiGenerateKisiKisi(jenisUjian, tapel, mapel, kelasFase, cp);
             btn.innerHTML = oldBtnText;
@@ -2260,17 +2260,32 @@ window.prosesLogoutSistem = function(forceLogout) {
         let prevStatus = sessionStorage.getItem("statusLogin");
         let currentGuru = sessionStorage.getItem("guruTarget") || "mahardika";
         
+        // 1. Bersihkan Data Sesi Browser
         sessionStorage.removeItem("statusLogin");
         sessionStorage.removeItem("username");
         sessionStorage.removeItem("previewMode");
+        sessionStorage.clear(); // Pastikan bersih total
+        
+        // 2. Bersihkan Data Ingatan Permanen (Auto-Login)
+        localStorage.removeItem("statusLogin_mahardika");
+        localStorage.removeItem("username_mahardika");
+        localStorage.removeItem("guruTarget_mahardika");
 
-        window.logoutFirebase(function() {
-            if (prevStatus === "admin" && currentGuru !== "mahardika") {
-                window.location.href = "index.html?guru=" + encodeURIComponent(currentGuru) + "&bab=home";
-            } else {
-                window.location.reload();
-            }
-        });
+        // 3. Tembak Firebase untuk Logout
+        if (typeof window.logoutFirebase === "function") {
+            window.logoutFirebase(function() {
+                // Beri jeda sangat singkat agar Firebase selesai memutuskan koneksi sebelum halaman dialihkan
+                setTimeout(function() {
+                    if (prevStatus === "admin" && currentGuru !== "mahardika") {
+                        window.location.href = "index.html?guru=" + encodeURIComponent(currentGuru) + "&bab=home";
+                    } else {
+                        window.location.replace("index.html?bab=home"); // Gunakan replace agar tidak tersimpan di riwayat tombol "Back"
+                    }
+                }, 150);
+            });
+        } else {
+            window.location.replace("index.html?bab=home");
+        }
     }
 };
 
