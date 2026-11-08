@@ -5,6 +5,13 @@ if (urlParams.get('guru')) {
     sessionStorage.setItem("guruTarget", urlParams.get('guru').trim().toLowerCase());
 }
 
+// SINKRONISASI INGATAN LOGIN PERMANEN (AUTO-LOGIN SEBELUM CEK AKSES)
+if (localStorage.getItem("statusLogin_mahardika")) {
+    sessionStorage.setItem("statusLogin", localStorage.getItem("statusLogin_mahardika"));
+    sessionStorage.setItem("username", localStorage.getItem("username_mahardika"));
+    sessionStorage.setItem("guruTarget", localStorage.getItem("guruTarget_mahardika"));
+}
+
 // FORCE WIPE SYSTEM (Reset sesi lama setelah perbaikan hak akses)
 let currentAppVersion = "2.0.2";
 if (localStorage.getItem("app_version_mahardika") !== currentAppVersion) {
@@ -1771,7 +1778,7 @@ window.mulaiGenerateKisiKisi = function() {
     } else {
         // Jika belum ada, panggil file eksternal secara diam-diam
         let script = document.createElement('script');
-        script.src = './kisi-kisi-engine.js'; 
+        script.src = 'js/kisi-kisi-engine.js'; 
         script.onload = function() {
             window.eksekusiGenerateKisiKisi(jenisUjian, tapel, mapel, kelasFase, cp);
             btn.innerHTML = oldBtnText;
@@ -2048,6 +2055,12 @@ window.masukSebagaiTamu = function() {
     sessionStorage.setItem("statusLogin", "tamu");
     sessionStorage.setItem("username", "Tamu");
     sessionStorage.setItem("guruTarget", window.guruAktif || "mahardika");
+    
+    // Simpan ingatan ke LocalStorage agar tidak perlu login ulang (Auto-Login)
+    localStorage.setItem("statusLogin_mahardika", "tamu");
+    localStorage.setItem("username_mahardika", "Tamu");
+    localStorage.setItem("guruTarget_mahardika", window.guruAktif || "mahardika");
+    
     window.location.reload();
 };
 
@@ -2101,9 +2114,17 @@ window.prosesLoginSistem = function() {
     window.loginFirebase(emailTarget, pass, function() {
         document.body.classList.remove("mode-edit-aktif", "force-edit-mode");
         sessionStorage.removeItem("previewMode");
+        
+        let finalUser = userKey === "sbd" ? "SBD" : userKey;
+        
         sessionStorage.setItem("statusLogin", roleTarget);
-        sessionStorage.setItem("username", userKey === "sbd" ? "SBD" : userKey);
+        sessionStorage.setItem("username", finalUser);
         sessionStorage.setItem("guruTarget", guruTarget);
+        
+        // Simpan ingatan ke LocalStorage agar tidak perlu login ulang (Auto-Login)
+        localStorage.setItem("statusLogin_mahardika", roleTarget);
+        localStorage.setItem("username_mahardika", finalUser);
+        localStorage.setItem("guruTarget_mahardika", guruTarget);
         
         if (roleTarget === "siswa" || roleTarget === "tamu") window.location.reload();
         else window.location.href = "index.html?guru=" + encodeURIComponent(guruTarget) + "&bab=home";
@@ -2113,6 +2134,12 @@ window.prosesLoginSistem = function() {
             sessionStorage.setItem("statusLogin", roleTarget);
             sessionStorage.setItem("username", userKey);
             sessionStorage.setItem("guruTarget", guruTarget);
+            
+            // Simpan ingatan ke LocalStorage agar tidak perlu login ulang (Auto-Login)
+            localStorage.setItem("statusLogin_mahardika", roleTarget);
+            localStorage.setItem("username_mahardika", userKey);
+            localStorage.setItem("guruTarget_mahardika", guruTarget);
+            
             window.location.reload();
         } else {
             btn.innerText = oldText; btn.disabled = false;
