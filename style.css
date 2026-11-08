@@ -1235,9 +1235,12 @@ body:not(.mode-edit-aktif):not(.force-edit-mode) .locked-hidden-nav-item {
    FIX TAMPILAN HP (HEADER 1 BARIS, AUTO-SCALE A4, & Z-INDEX NAVBAR)
    ========================================= */
 
-/* Pastikan Navbar selalu berada di tingkat paling atas agar dropdown tidak tenggelam oleh modal apapun */
-.navbar, .navbar ul#dynamic-navbar, .navbar ul.sub-menu-nav {
-    z-index: 9999999 !important;
+/* Pastikan Navbar di atas materi (2000), tapi TETAP DI BAWAH MODAL (z-index modal adalah 5000) */
+.navbar {
+    z-index: 2000 !important;
+}
+.navbar ul.sub-menu-nav {
+    z-index: 3000 !important;
 }
 
 @media (max-width: 768px) {
