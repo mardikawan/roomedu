@@ -1,6 +1,6 @@
 /* =========================================================================
-   MODUL FITUR CHECK-IN AFEKTIF, PERKEMBANGAN SISWA, & UPGRADE MINI-GAMES
-   File Terpisah agar main.js tetap ringan dan rapi
+   MODUL FITUR CHECK-IN AFEKTIF, PERKEMBANGAN SISWA, MINI-GAMES,
+   CONTENT BLOCK DINAMIS, & TOKO BINGKAI PROFIL (KARTU BERMOTIF + AVATAR)
    ========================================================================= */
 
 window.adminAfektifData = window.adminAfektifData || [];
@@ -12,20 +12,18 @@ window.checkinState = {
     jawaban2: ""
 };
 
-// 1. PERHITUNGAN SIKLUS HARI CHECK-IN (RESET SETIAP JAM 05:00 PAGI)
+// =========================================================================
+// 1. SIKLUS CHECK-IN DIRESET SETIAP 8 JAM & UI TOMBOL CHECK-IN
+// =========================================================================
 window.dapatkanKunciHariCheckin = function() {
     let now = new Date();
-    // Jika masih sebelum jam 05:00 pagi, masih dihitung hari sebelumnya
-    if (now.getHours() < 5) {
-        now.setDate(now.getDate() - 1);
-    }
     let yyyy = now.getFullYear();
     let mm = String(now.getMonth() + 1).padStart(2, '0');
     let dd = String(now.getDate()).padStart(2, '0');
-    return yyyy + '-' + mm + '-' + dd;
+    let slot8Jam = Math.floor(now.getHours() / 8); // Berganti setiap 8 jam (00:00, 08:00, 16:00)
+    return yyyy + '-' + mm + '-' + dd + '_S' + slot8Jam;
 };
 
-// Cek apakah siswa sudah check-in pada siklus hari ini (setelah jam 05:00 pagi)
 window.apakahSudahCheckinHariIni = function() {
     let stat = sessionStorage.getItem("statusLogin");
     let uName = sessionStorage.getItem("username");
@@ -39,49 +37,50 @@ window.apakahSudahCheckinHariIni = function() {
     return lokalKey === keyHariIni;
 };
 
-// Perbarui tampilan tombol Check-in (Kuning = Belum, Hijau = Sudah)
 window.perbaruiTombolCheckinUI = function() {
     let btn = document.getElementById("btn-header-checkin");
-    let stat = sessionStorage.getItem("statusLogin");
     if (!btn) return;
 
-    // Tampilkan untuk siswa (dan admin untuk preview)
-    if (stat === "siswa" || stat === "admin") {
-        btn.style.display = "flex";
-    } else {
-        btn.style.display = "flex";
-    }
+    btn.style.display = "flex";
 
     if (window.apakahSudahCheckinHariIni()) {
         btn.style.background = "#27ae60";
         btn.style.color = "#ffffff";
         btn.style.borderColor = "#2ecc71";
-        btn.innerHTML = "✅ <span>Sudah Check-in</span>";
+        btn.style.cursor = "not-allowed";
+        btn.style.opacity = "0.95";
+        btn.disabled = true;
+        btn.onclick = null;
+        btn.innerHTML = "✅ <span>Checked</span>";
     } else {
         btn.style.background = "#f1c40f";
         btn.style.color = "#0b3954";
         btn.style.borderColor = "#f39c12";
-        btn.innerHTML = "😊 <span>Check-in (+20 XP)</span>";
+        btn.style.cursor = "pointer";
+        btn.style.opacity = "1";
+        btn.disabled = false;
+        btn.onclick = function() { window.bukaModalCheckinSiswa(); };
+        btn.innerHTML = "😊 <span>Check-in</span>";
     }
 };
 
-// Pantau pergantian waktu setiap 30 detik agar otomatis reset tepat pukul 05:00 pagi
 setInterval(function() {
     window.perbaruiTombolCheckinUI();
 }, 30000);
 
+// =========================================================================
 // 2. MESIN PEMBACA VALIDASI JAWABAN SISWA
+// =========================================================================
 window.validasiTeksCheckinSiswa = function(teks) {
     let bersih = (teks || "").trim();
 
     if (bersih.length < 20) {
         return {
             valid: false,
-            pesan: "⚠️ Jawabanmu masih terlalu singkat (" + bersih.length + "/20 karakter). Yuk ceritakan lebih lengkap minimal 20 karakter!"
+            pesan: "⚠️ Jawabanmu masih terlalu singkat. Yuk ceritakan lebih lengkap!"
         };
     }
 
-    // Daftar kata terlarang (tidak ada, gak tau, dll.)
     let polaTerlarang = /\b(tidak\s*ada|gak\s*ada|tak\s*ada|nggak\s*ada|ga\s*ada|enggak\s*ada|tiada|tidak\s*tau|gak\s*tau|tak\s*tau|nggak\s*tau|ga\s*tau|tidak\s*tahu|gak\s*tahu|tak\s*tahu|kurang\s*tau|kurang\s*tahu|entahlah|entah|rahasia|kosong|malas\s*ngetik|apa\s*ya)\b/i;
     if (polaTerlarang.test(bersih)) {
         return {
@@ -90,7 +89,6 @@ window.validasiTeksCheckinSiswa = function(teks) {
         };
     }
 
-    // Cek ketikan karakter berulang/spam (contoh: "aaaaaaaaaaaaaaaaaaaa" atau "asdfasdfasdfasdfasdf")
     let tanpaSpasi = bersih.toLowerCase().replace(/\s+/g, '');
     let hurufUnik = new Set(tanpaSpasi.split('')).size;
     if (hurufUnik < 5 || /(.)\1{4,}/.test(tanpaSpasi)) {
@@ -100,19 +98,17 @@ window.validasiTeksCheckinSiswa = function(teks) {
         };
     }
 
-    // Cek minimal jumlah kata (minimal 4 kata)
     let jumlahKata = bersih.split(/\s+/).filter(function(k) { return k.length > 1; }).length;
     if (jumlahKata < 4) {
         return {
             valid: false,
-            pesan: "⚠️ Tuliskan dalam bentuk kalimat yang utuh (minimal 4 kata dan 20 karakter)."
+            pesan: "⚠️ Yuk ceritakan lebih lengkap dalam bentuk kalimat yang utuh!"
         };
     }
 
-    return { valid: true, pesan: "✓ Kalimat sudah baik dan memenuhi syarat (" + bersih.length + " karakter)." };
+    return { valid: true, pesan: "✓ Cerita sudah baik dan siap dikirim." };
 };
 
-// Live indicator saat siswa mengetik di kolom check-in
 window.pantauKetikanCheckin = function(idTextarea, idInfo) {
     let el = document.getElementById(idTextarea);
     let info = document.getElementById(idInfo);
@@ -124,17 +120,16 @@ window.pantauKetikanCheckin = function(idTextarea, idInfo) {
     el.style.borderColor = hasil.valid ? "#27ae60" : "#e74c3c";
 };
 
+// =========================================================================
 // 3. ALUR MODAL CHECK-IN EMOSI SISWA
+// =========================================================================
 window.bukaModalCheckinSiswa = function() {
+    if (window.apakahSudahCheckinHariIni()) return;
+
     let stat = sessionStorage.getItem("statusLogin");
     if (stat !== "siswa" && stat !== "admin") {
-        alert("🔒 Silakan login menggunakan akun Siswa terlebih dahulu untuk melakukan Check-in harian dan mendapatkan +20 XP!");
+        alert("🔒 Silakan login menggunakan akun Siswa terlebih dahulu untuk melakukan Check-in!");
         if (typeof window.bukaModalLoginSistem === "function") window.bukaModalLoginSistem();
-        return;
-    }
-
-    if (stat === "siswa" && window.apakahSudahCheckinHariIni()) {
-        alert("✅ Kamu sudah menyelesaikan Check-in hari ini! Tombol Check-in akan direset kembali besok pukul 05:00 pagi. Selamat belajar!");
         return;
     }
 
@@ -220,7 +215,6 @@ window.pilihEmosiCheckin = function(kodeEmosi) {
     window.checkinState.ikon = cfg.ikon;
     window.checkinState.cfg = cfg;
 
-    // Render Pertanyaan 1
     let body = document.getElementById("checkin-modal-body");
     body.innerHTML =
         '<div style="text-align:left;">' +
@@ -229,8 +223,8 @@ window.pilihEmosiCheckin = function(kodeEmosi) {
                 '<button type="button" onclick="window.renderStepPilihEmosiCheckin()" style="background:transparent; border:1px solid ' + cfg.warna + '; color:' + cfg.warna + '; border-radius:6px; padding:3px 8px; font-size:11px; font-weight:bold; cursor:pointer;">Ganti Emoji</button>' +
             '</div>' +
             '<label style="font-weight:700; font-size:14px; color:#1e293b; display:block; margin-bottom:8px; line-height:1.4;">' + cfg.q1 + '</label>' +
-            '<textarea id="checkin-input-1" class="input-box" rows="4" placeholder="Ketik ceritamu di sini (minimal 20 karakter, jujur & jelas)..." style="margin-bottom:6px; font-size:13px;" oninput="window.pantauKetikanCheckin(\'checkin-input-1\', \'checkin-info-1\')"></textarea>' +
-            '<div id="checkin-info-1" style="font-size:11px; font-weight:bold; color:#7f8c8d; margin-bottom:14px;">Minimal 20 karakter.</div>' +
+            '<textarea id="checkin-input-1" class="input-box" rows="4" placeholder="Ketik ceritamu di sini dengan jujur dan jelas..." style="margin-bottom:6px; font-size:13px;" oninput="window.pantauKetikanCheckin(\'checkin-input-1\', \'checkin-info-1\')"></textarea>' +
+            '<div id="checkin-info-1" style="font-size:11px; font-weight:bold; color:#7f8c8d; margin-bottom:14px;">Ceritakan dengan jujur dan jelas.</div>' +
             '<button type="button" class="btn-action" style="background:#0b3954; width:100%; padding:11px; font-size:14px;" onclick="window.lanjutStepCheckinKedua()">Lanjutkan ➔</button>' +
         '</div>';
 };
@@ -249,13 +243,11 @@ window.lanjutStepCheckinKedua = function() {
     window.checkinState.jawaban1 = inp1.value.trim();
     let cfg = window.checkinState.cfg;
 
-    // Jika emosi "biasa" (hanya 1 pertanyaan), langsung ke pesan penutup & tombol Semangat Belajar
     if (!cfg.q2) {
         window.renderStepPenutupCheckin();
         return;
     }
 
-    // Jika ada pertanyaan ke-2 (Bahagia, Sedih, Marah)
     let body = document.getElementById("checkin-modal-body");
     body.innerHTML =
         '<div style="text-align:left;">' +
@@ -263,8 +255,8 @@ window.lanjutStepCheckinKedua = function() {
                 cfg.ikon + ' ' + cfg.label + ' — Langkah Terakhir' +
             '</div>' +
             '<label style="font-weight:700; font-size:14px; color:#1e293b; display:block; margin-bottom:8px; line-height:1.4;">' + cfg.q2 + '</label>' +
-            '<textarea id="checkin-input-2" class="input-box" rows="4" placeholder="Ketik jawabanmu di sini (minimal 20 karakter)..." style="margin-bottom:6px; font-size:13px;" oninput="window.pantauKetikanCheckin(\'checkin-input-2\', \'checkin-info-2\')"></textarea>' +
-            '<div id="checkin-info-2" style="font-size:11px; font-weight:bold; color:#7f8c8d; margin-bottom:14px;">Minimal 20 karakter.</div>' +
+            '<textarea id="checkin-input-2" class="input-box" rows="4" placeholder="Ketik jawabanmu di sini dengan jujur dan jelas..." style="margin-bottom:6px; font-size:13px;" oninput="window.pantauKetikanCheckin(\'checkin-input-2\', \'checkin-info-2\')"></textarea>' +
+            '<div id="checkin-info-2" style="font-size:11px; font-weight:bold; color:#7f8c8d; margin-bottom:14px;">Ceritakan dengan jujur dan jelas.</div>' +
             '<button type="button" class="btn-action" style="background:#0b3954; width:100%; padding:11px; font-size:14px;" onclick="window.verifikasiStepKeduaCheckin()">Lanjutkan ➔</button>' +
         '</div>';
 };
@@ -295,7 +287,7 @@ window.renderStepPenutupCheckin = function() {
             '<div style="background:' + cfg.bg + '; border-left:4px solid ' + cfg.warna + '; padding:16px; border-radius:10px; font-size:14px; color:#1e293b; line-height:1.6; font-weight:600; margin-bottom:20px; text-align:left;">' +
                 cfg.pesanPenutup +
             '</div>' +
-            '<button type="button" class="btn-action" style="background:#27ae60; width:100%; font-size:16px; padding:14px; border-radius:30px; font-weight:900; box-shadow:0 6px 15px rgba(39,174,96,0.35);" onclick="window.selesaikanCheckinHarian()">🔥 Semangat Belajar! (+20 XP)</button>' +
+            '<button type="button" class="btn-action" style="background:#27ae60; width:100%; font-size:16px; padding:14px; border-radius:30px; font-weight:900; box-shadow:0 6px 15px rgba(39,174,96,0.35);" onclick="window.selesaikanCheckinHarian()">🔥 Semangat Belajar!</button>' +
         '</div>';
 };
 
@@ -327,7 +319,7 @@ window.selesaikanCheckinHarian = function() {
         username: uName,
         nama: namaLengkap,
         kelas: kelasSiswa,
-        tanggalKey: keyHariIni,
+        tanggalKey: keyHariIni.split('_')[0],
         waktu: waktuStr,
         timestamp: now.toISOString(),
         emosi: window.checkinState.labelEmosi,
@@ -343,7 +335,6 @@ window.selesaikanCheckinHarian = function() {
         window.simpanDataAfektifKeDB();
     }
 
-    // Berikan +20 XP ke Siswa dan catat checkinTerakhir
     if (stat === "siswa") {
         localStorage.setItem("checkin_done_" + (window.guruAktif || "mahardika") + "_" + uName, keyHariIni);
         if (window.leaderboardSiswaData && window.leaderboardSiswaData[uName]) {
@@ -358,7 +349,9 @@ window.selesaikanCheckinHarian = function() {
     window.perbaruiTombolCheckinUI();
 };
 
+// =========================================================================
 // 4. DASBOR PERKEMBANGAN SISWA (KOGNITIF & AFEKTIF FORMAT EXCEL)
+// =========================================================================
 window.bukaModalPerkembanganSiswa = function() {
     window.bukaModal("modal-perkembangan-siswa");
     window.gantiTabPerkembanganSiswa("afektif");
@@ -415,21 +408,19 @@ window.renderTabelAfektifAdmin = function() {
 
     let list = Array.isArray(window.adminAfektifData) ? window.adminAfektifData.slice() : [];
 
-    // Filter data
     let filtered = list.filter(function(item) {
         if (!item) return false;
         if (filterKelas !== "Semua" && item.kelas !== filterKelas) return false;
         if (filterEmosi !== "Semua" && item.emosi !== filterEmosi) return false;
-        if (filterTgl && item.tanggalKey !== filterTgl) return false;
+        let tglSaja = (item.tanggalKey || "").split('_')[0];
+        if (filterTgl && tglSaja !== filterTgl) return false;
         return true;
     });
 
-    // Urutkan terbaru di atas
     filtered.sort(function(a, b) {
         return new Date(b.timestamp || 0) - new Date(a.timestamp || 0);
     });
 
-    // Hitung statistik ringkas
     let count = { "Bahagia": 0, "Sedih": 0, "Marah": 0, "Biasa Saja": 0 };
     filtered.forEach(function(item) {
         if (count[item.emosi] !== undefined) count[item.emosi]++;
@@ -481,7 +472,6 @@ window.renderTabelAfektifAdmin = function() {
     tbody.innerHTML = html;
 };
 
-// Export Rekap Afektif Siswa ke File Excel (.xls)
 window.exportExcelAfektifSiswa = function() {
     let table = document.getElementById("tabel-afektif-excel");
     if (!table) return;
@@ -493,20 +483,15 @@ window.exportExcelAfektifSiswa = function() {
     let blob = new Blob([html], { type: "application/vnd.ms-excel" });
     let link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = "Rekap_Afektif_Siswa_" + window.dapatkanKunciHariCheckin() + ".xls";
+    link.download = "Rekap_Afektif_Siswa.xls";
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
 };
 
-/* =========================================================================
-   TAHAP 2: UPGRADE MINI-GAMES (ROTASI 6 GAMES)
-   - Game 3: Simon Says (Minimal 8 Ketukan & Jaminan Variasi 4 Warna)
-   - Game 4: Anagram Pengetahuan Umum (Bukan Biologi)
-   - Game 6: Cari 5 Perbedaan pada 2 Gambar (SVG Interaktif Anti-Pecah)
-   ========================================================================= */
-
-// Override Rotasi Mini-Games menjadi 6 Permainan
+// =========================================================================
+// 5. UPGRADE MINI-GAMES (ROTASI 6 GAMES)
+// =========================================================================
 window.bukaMiniGameLatihan = function(onCloseCallback) {
     if (!window.sesiLatihanSiswa || window.sesiLatihanSiswa.disableMiniGames) {
         if (onCloseCallback) onCloseCallback();
@@ -553,25 +538,17 @@ window.bukaMiniGameLatihan = function(onCloseCallback) {
     else window.mulaiGame6SpotDiff();
 };
 
-// -------------------------------------------------------------------------
-// GAME 3 (UPGRADE): SIMON SAYS — MINIMAL 8 KETUKAN & VARIASI 4 WARNA MERATA
-// -------------------------------------------------------------------------
 window.buatPolaSimonBeragam = function(panjangKetukan) {
-    // Pastikan keempat warna (0=Merah, 1=Hijau, 2=Biru, 3=Kuning) wajib muncul minimal 2 kali
     let poolWajib = [0, 1, 2, 3, 0, 1, 2, 3];
     while (poolWajib.length < panjangKetukan) {
         poolWajib.push(Math.floor(Math.random() * 4));
     }
-
-    // Acak urutan menggunakan Fisher-Yates Shuffle
     for (let i = poolWajib.length - 1; i > 0; i--) {
         let j = Math.floor(Math.random() * (i + 1));
         let temp = poolWajib[i];
         poolWajib[i] = poolWajib[j];
         poolWajib[j] = temp;
     }
-
-    // Cegah 1 warna menyala 3 kali berturut-turut agar pola terasa dinamis
     for (let k = 2; k < poolWajib.length; k++) {
         if (poolWajib[k] === poolWajib[k - 1] && poolWajib[k] === poolWajib[k - 2]) {
             poolWajib[k] = (poolWajib[k] + 1 + Math.floor(Math.random() * 3)) % 4;
@@ -581,7 +558,7 @@ window.buatPolaSimonBeragam = function(panjangKetukan) {
 };
 
 window.mulaiGame3SimonSays = function() {
-    let targetKetukan = 8 + Math.floor(Math.random() * 3); // 8, 9, atau 10 ketukan (Minimal 8 ketukan)
+    let targetKetukan = 8 + Math.floor(Math.random() * 3);
     document.getElementById('minigame-title').innerText = '⚡ 3. Simon Says: Pola ' + targetKetukan + ' Ketukan';
     document.getElementById('minigame-subtitle').innerText = 'Ingat urutan ' + targetKetukan + ' ketukan dari 4 warna tombol di bawah, lalu tirukan!';
     document.getElementById('minigame-score-val').innerText = '0/' + targetKetukan;
@@ -606,11 +583,9 @@ window.mulaiGame3SimonSays = function() {
     };
 
     window.renderIndikatorTitikSimon();
-
     window.jalankanTimerMiniGame(50, function() {
         window.selesaikanMiniGameDenganHadiah('Waktu selesai! Latihan memori pola yang bagus!');
     });
-
     window.mulaiRondeSimonSays();
 };
 
@@ -703,9 +678,6 @@ window.klikPadSimon = function(padIdx) {
     }
 };
 
-// -------------------------------------------------------------------------
-// GAME 4 (UPGRADE): ACAK HURUF PENGETAHUAN UMUM (BUKAN BIOLOGI)
-// -------------------------------------------------------------------------
 window.mulaiGame4BioAnagram = function() {
     document.getElementById('minigame-title').innerText = '🔤 4. Susun Kata: Pengetahuan Umum';
     document.getElementById('minigame-subtitle').innerText = 'Susun huruf acak di bawah untuk menjawab pertanyaan pengetahuan umum!';
@@ -742,38 +714,30 @@ window.mulaiGame4BioAnagram = function() {
     };
 
     window.renderUIBioAnagram();
-
     window.jalankanTimerMiniGame(35, function() {
         window.selesaikanMiniGameDenganHadiah('Waktu habis! Jawaban yang benar adalah: ' + terpilih.kata);
     });
 };
 
-// -------------------------------------------------------------------------
-// GAME 6 (BARU): MENCARI 5 PERBEDAAN PADA 2 GAMBAR
-// -------------------------------------------------------------------------
 window.DAFTAR_TEMA_SPOT_DIFF = [
     {
         judul: "Pemandangan Pagi di Pegunungan",
-        // Gambar Dasar yang Sama untuk Gambar 1 dan Gambar 2
         baseSVG:
             '<rect x="0" y="0" width="240" height="170" fill="#bae6fd"/>' +
             '<polygon points="10,135 75,55 140,135" fill="#64748b"/>' +
             '<polygon points="75,55 57,78 93,78" fill="#f8fafc"/>' +
             '<polygon points="95,135 165,45 235,135" fill="#475569"/>' +
             '<rect x="0" y="130" width="240" height="40" fill="#4ade80"/>' +
-            // Rumah
             '<rect x="35" y="95" width="46" height="36" fill="#fef08a" stroke="#ca8a04" stroke-width="1.5"/>' +
             '<polygon points="30,95 58,72 86,95" fill="#ef4444"/>' +
-            // Pohon Kanan
             '<rect x="190" y="102" width="10" height="30" fill="#78350f"/>' +
             '<circle cx="195" cy="92" r="18" fill="#16a34a"/>',
-        // 5 Perbedaan (svgA = Gambar 1, svgB = Gambar 2, x & y = titik koordinat klik)
         diffs: [
-            { id: 0, x: 35, y: 30, r: 20, svgA: '<circle cx="35" cy="30" r="14" fill="#facc15"/>', svgB: '<circle cx="35" cy="30" r="14" fill="#fb923c"/>' }, // 1. Warna Matahari (Kuning vs Oranye)
-            { id: 1, x: 120, y: 32, r: 22, svgA: '<ellipse cx="120" cy="32" rx="18" ry="9" fill="#ffffff"/>', svgB: '' }, // 2. Awan Putih di Tengah Atas (Ada vs Hilang)
-            { id: 2, x: 58, y: 115, r: 18, svgA: '<rect x="52" y="108" width="12" height="23" fill="#92400e"/>', svgB: '<rect x="52" y="108" width="12" height="23" fill="#2563eb"/>' }, // 3. Warna Pintu Rumah (Cokelat vs Biru)
-            { id: 3, x: 195, y: 88, r: 20, svgA: '<circle cx="189" cy="88" r="3.5" fill="#ef4444"/><circle cx="201" cy="94" r="3.5" fill="#ef4444"/>', svgB: '' }, // 4. Buah Apel Merah di Pohon (Ada vs Tidak Ada)
-            { id: 4, x: 135, y: 150, r: 20, svgA: '<circle cx="135" cy="150" r="6" fill="#ec4899"/><circle cx="135" cy="150" r="2.5" fill="#facc15"/>', svgB: '<circle cx="135" cy="150" r="6" fill="#a855f7"/><circle cx="135" cy="150" r="2.5" fill="#ffffff"/>' } // 5. Bunga di Rumput (Pink vs Ungu)
+            { id: 0, x: 35, y: 30, r: 20, svgA: '<circle cx="35" cy="30" r="14" fill="#facc15"/>', svgB: '<circle cx="35" cy="30" r="14" fill="#fb923c"/>' },
+            { id: 1, x: 120, y: 32, r: 22, svgA: '<ellipse cx="120" cy="32" rx="18" ry="9" fill="#ffffff"/>', svgB: '' },
+            { id: 2, x: 58, y: 115, r: 18, svgA: '<rect x="52" y="108" width="12" height="23" fill="#92400e"/>', svgB: '<rect x="52" y="108" width="12" height="23" fill="#2563eb"/>' },
+            { id: 3, x: 195, y: 88, r: 20, svgA: '<circle cx="189" cy="88" r="3.5" fill="#ef4444"/><circle cx="201" cy="94" r="3.5" fill="#ef4444"/>', svgB: '' },
+            { id: 4, x: 135, y: 150, r: 20, svgA: '<circle cx="135" cy="150" r="6" fill="#ec4899"/><circle cx="135" cy="150" r="2.5" fill="#facc15"/>', svgB: '<circle cx="135" cy="150" r="6" fill="#a855f7"/><circle cx="135" cy="150" r="2.5" fill="#ffffff"/>' }
         ]
     },
     {
@@ -781,20 +745,17 @@ window.DAFTAR_TEMA_SPOT_DIFF = [
         baseSVG:
             '<rect x="0" y="0" width="240" height="170" fill="#f1f5f9"/>' +
             '<rect x="0" y="125" width="240" height="45" fill="#d97706"/>' +
-            // Layar Monitor
             '<rect x="75" y="45" width="85" height="58" rx="5" fill="#1e293b" stroke="#475569" stroke-width="3"/>' +
             '<rect x="108" y="103" width="18" height="16" fill="#64748b"/>' +
             '<rect x="92" y="118" width="50" height="7" rx="3" fill="#475569"/>' +
-            // Rak Buku Atas
             '<rect x="15" y="25" width="45" height="6" fill="#78350f"/>' +
-            // Gelas / Mug di Kanan
             '<rect x="185" y="96" width="22" height="28" rx="3" fill="#ef4444"/>',
         diffs: [
-            { id: 0, x: 195, y: 32, r: 22, svgA: '<circle cx="195" cy="32" r="15" fill="#ffffff" stroke="#0f172a" stroke-width="2"/><line x1="195" y1="32" x2="195" y2="21" stroke="#0f172a" stroke-width="2"/><line x1="195" y1="32" x2="203" y2="32" stroke="#0f172a" stroke-width="2"/>', svgB: '<circle cx="195" cy="32" r="15" fill="#fef08a" stroke="#0f172a" stroke-width="2"/><line x1="195" y1="32" x2="195" y2="21" stroke="#0f172a" stroke-width="2"/><line x1="195" y1="32" x2="186" y2="32" stroke="#0f172a" stroke-width="2"/>' }, // 1. Jam Dinding (Jarum & Warna)
-            { id: 1, x: 37, y: 16, r: 20, svgA: '<rect x="22" y="8" width="9" height="17" fill="#3b82f6"/><rect x="33" y="6" width="9" height="19" fill="#10b981"/>', svgB: '<rect x="22" y="8" width="9" height="17" fill="#3b82f6"/>' }, // 2. Buku Hijau di Rak Atas
-            { id: 2, x: 117, y: 74, r: 22, svgA: '<circle cx="117" cy="74" r="12" fill="#38bdf8"/>', svgB: '<polygon points="117,60 131,86 103,86" fill="#f43f5e"/>' }, // 3. Ikon di Layar Monitor (Lingkaran Biru vs Segitiga Merah)
-            { id: 3, x: 196, y: 83, r: 20, svgA: '<path d="M192,92 Q190,82 195,76 M200,92 Q198,82 203,76" stroke="#94a3b8" stroke-width="2" fill="none"/>', svgB: '' }, // 4. Uap Panas di Atas Mug
-            { id: 4, x: 42, y: 145, r: 22, svgA: '<rect x="25" y="140" width="36" height="8" rx="3" fill="#22c55e"/>', svgB: '<rect x="25" y="140" width="36" height="8" rx="3" fill="#a855f7"/>' } // 5. Pena di Atas Meja (Hijau vs Ungu)
+            { id: 0, x: 195, y: 32, r: 22, svgA: '<circle cx="195" cy="32" r="15" fill="#ffffff" stroke="#0f172a" stroke-width="2"/><line x1="195" y1="32" x2="195" y2="21" stroke="#0f172a" stroke-width="2"/><line x1="195" y1="32" x2="203" y2="32" stroke="#0f172a" stroke-width="2"/>', svgB: '<circle cx="195" cy="32" r="15" fill="#fef08a" stroke="#0f172a" stroke-width="2"/><line x1="195" y1="32" x2="195" y2="21" stroke="#0f172a" stroke-width="2"/><line x1="195" y1="32" x2="186" y2="32" stroke="#0f172a" stroke-width="2"/>' },
+            { id: 1, x: 37, y: 16, r: 20, svgA: '<rect x="22" y="8" width="9" height="17" fill="#3b82f6"/><rect x="33" y="6" width="9" height="19" fill="#10b981"/>', svgB: '<rect x="22" y="8" width="9" height="17" fill="#3b82f6"/>' },
+            { id: 2, x: 117, y: 74, r: 22, svgA: '<circle cx="117" cy="74" r="12" fill="#38bdf8"/>', svgB: '<polygon points="117,60 131,86 103,86" fill="#f43f5e"/>' },
+            { id: 3, x: 196, y: 83, r: 20, svgA: '<path d="M192,92 Q190,82 195,76 M200,92 Q198,82 203,76" stroke="#94a3b8" stroke-width="2" fill="none"/>', svgB: '' },
+            { id: 4, x: 42, y: 145, r: 22, svgA: '<rect x="25" y="140" width="36" height="8" rx="3" fill="#22c55e"/>', svgB: '<rect x="25" y="140" width="36" height="8" rx="3" fill="#a855f7"/>' }
         ]
     },
     {
@@ -802,19 +763,17 @@ window.DAFTAR_TEMA_SPOT_DIFF = [
         baseSVG:
             '<rect x="0" y="0" width="240" height="170" fill="#0284c7"/>' +
             '<rect x="0" y="140" width="240" height="30" fill="#fde047"/>' +
-            // Kapal Selam
             '<ellipse cx="115" cy="75" rx="45" ry="24" fill="#facc15" stroke="#ca8a04" stroke-width="2"/>' +
             '<rect x="105" y="40" width="16" height="14" fill="#eab308"/>' +
             '<rect x="105" y="36" width="24" height="6" rx="2" fill="#ca8a04"/>' +
-            // Rumput Laut Kiri
             '<path d="M25,140 Q18,115 28,95 Q35,115 28,140" fill="#16a34a"/>' +
             '<path d="M38,140 Q45,118 36,102 Q28,118 38,140" fill="#15803d"/>',
         diffs: [
-            { id: 0, x: 115, y: 75, r: 20, svgA: '<circle cx="115" cy="75" r="10" fill="#bae6fd" stroke="#0369a1" stroke-width="2"/>', svgB: '<rect x="105" y="65" width="20" height="20" rx="3" fill="#bae6fd" stroke="#0369a1" stroke-width="2"/>' }, // 1. Jendela Kapal Selam (Bulat vs Kotak)
-            { id: 1, x: 64, y: 75, r: 18, svgA: '<polygon points="70,75 56,64 56,86" fill="#ef4444"/>', svgB: '<polygon points="70,75 56,64 56,86" fill="#22c55e"/>' }, // 2. Baling-baling Ekor Kapal Selam (Merah vs Hijau)
-            { id: 2, x: 195, y: 45, r: 22, svgA: '<ellipse cx="195" cy="45" rx="14" ry="8" fill="#fb923c"/><polygon points="209,45 220,38 220,52" fill="#fb923c"/>', svgB: '<ellipse cx="195" cy="45" rx="14" ry="8" fill="#f472b6"/><polygon points="209,45 220,38 220,52" fill="#f472b6"/>' }, // 3. Warna Ikan Kecil di Kanan Atas
-            { id: 3, x: 48, y: 38, r: 20, svgA: '<circle cx="48" cy="45" r="5" fill="#e0f2fe"/><circle cx="54" cy="32" r="3.5" fill="#e0f2fe"/>', svgB: '' }, // 4. Gelembung Udara Kiri Atas
-            { id: 4, x: 180, y: 148, r: 20, svgA: '<polygon points="180,136 184,145 194,146 186,152 188,161 180,156 172,161 174,152 166,146 176,145" fill="#f97316"/>', svgB: '' } // 5. Bintang Laut di Pasir Kanan Bawah
+            { id: 0, x: 115, y: 75, r: 20, svgA: '<circle cx="115" cy="75" r="10" fill="#bae6fd" stroke="#0369a1" stroke-width="2"/>', svgB: '<rect x="105" y="65" width="20" height="20" rx="3" fill="#bae6fd" stroke="#0369a1" stroke-width="2"/>' },
+            { id: 1, x: 64, y: 75, r: 18, svgA: '<polygon points="70,75 56,64 56,86" fill="#ef4444"/>', svgB: '<polygon points="70,75 56,64 56,86" fill="#22c55e"/>' },
+            { id: 2, x: 195, y: 45, r: 22, svgA: '<ellipse cx="195" cy="45" rx="14" ry="8" fill="#fb923c"/><polygon points="209,45 220,38 220,52" fill="#fb923c"/>', svgB: '<ellipse cx="195" cy="45" rx="14" ry="8" fill="#f472b6"/><polygon points="209,45 220,38 220,52" fill="#f472b6"/>' },
+            { id: 3, x: 48, y: 38, r: 20, svgA: '<circle cx="48" cy="45" r="5" fill="#e0f2fe"/><circle cx="54" cy="32" r="3.5" fill="#e0f2fe"/>', svgB: '' },
+            { id: 4, x: 180, y: 148, r: 20, svgA: '<polygon points="180,136 184,145 194,146 186,152 188,161 180,156 172,161 174,152 166,146 176,145" fill="#f97316"/>', svgB: '' }
         ]
     }
 ];
@@ -827,11 +786,7 @@ window.mulaiGame6SpotDiff = function() {
     document.getElementById('minigame-subtitle').innerText = 'Sentuh/klik langsung pada 5 bagian yang berbeda antara Gambar 1 dan Gambar 2!';
     document.getElementById('minigame-score-val').innerText = '0/5';
 
-    window.mgSpotState = {
-        tema: tema,
-        foundIds: []
-    };
-
+    window.mgSpotState = { tema: tema, foundIds: [] };
     window.renderUISpotDiff();
 
     window.jalankanTimerMiniGame(45, function() {
@@ -844,10 +799,7 @@ window.renderUISpotDiff = function() {
     let stage = document.getElementById('minigame-stage-body');
     if (!st || !stage) return;
 
-    let diffLayerA = '';
-    let diffLayerB = '';
-    let ringsLayer = '';
-
+    let diffLayerA = '', diffLayerB = '', ringsLayer = '';
     st.tema.diffs.forEach(function(d) {
         diffLayerA += d.svgA;
         diffLayerB += d.svgB;
@@ -889,9 +841,7 @@ window.klikGambarSpotDiff = function(evt, svgEl) {
     st.tema.diffs.forEach(function(d) {
         if (!st.foundIds.includes(d.id)) {
             let dist = Math.hypot(clickX - d.x, clickY - d.y);
-            if (dist <= (d.r || 22)) {
-                hitDiff = d;
-            }
+            if (dist <= (d.r || 22)) hitDiff = d;
         }
     });
 
@@ -907,7 +857,6 @@ window.klikGambarSpotDiff = function(evt, svgEl) {
             window.minigameActiveTimers.push(t);
         }
     } else {
-        // Beri tanda silang merah singkat jika salah klik
         let missMark = document.createElementNS("http://www.w3.org/2000/svg", "text");
         missMark.setAttribute("x", clickX - 6);
         missMark.setAttribute("y", clickY + 6);
@@ -920,11 +869,9 @@ window.klikGambarSpotDiff = function(evt, svgEl) {
     }
 };
 
-/* =========================================================================
-   TAHAP 3: ROMBAK CONTENT BLOCK DINAMIS, PATTERN DI DALAM BLOK, & LINE SPACING
-   ========================================================================= */
-
-// 1. Matikan Pengunci Kertas A4 & Hapus Garis Siku Margin 4 Sudut
+// =========================================================================
+// 6. ROMBAK CONTENT BLOCK DINAMIS, PATTERN DI DALAM BLOK, & LINE SPACING
+// =========================================================================
 window.matikanPengunciKertasA4 = function() {
     let styleA4 = document.getElementById('ms-word-a4-override');
     if (styleA4) styleA4.remove();
@@ -934,7 +881,6 @@ window.matikanPengunciKertasA4 = function() {
 };
 window.matikanPengunciKertasA4();
 
-// Nonaktifkan fungsi pemotong halaman A4 otomatis agar blok memanjang bebas ke bawah
 window.pasangGayaKertasWordA4 = function() { window.matikanPengunciKertasA4(); };
 window.jalankanPaginasiWord = function() { window.matikanPengunciKertasA4(); };
 window.rapikanSemuaBlokA4Word = function() { window.matikanPengunciKertasA4(); };
@@ -943,7 +889,6 @@ window.bangunLembarCetakPresisiA4 = function() {};
 window.bersihkanLembarCetakPresisiA4 = function() {};
 window.cekBatasTinggiA4Keydown = function() {};
 
-// Saat mengetik, cukup sesuaikan tinggi kanvas coretan & simpan ke DB tanpa memotong blok
 window.cekBatasTinggiA4Input = function(e, el) {
     let idx = parseInt(el.getAttribute('data-index'), 10);
     if (!isNaN(idx) && window.contentBlocksData && window.contentBlocksData[idx]) {
@@ -957,12 +902,10 @@ window.cekBatasTinggiA4Input = function(e, el) {
     }, 150);
 };
 
-// Cetak materi langsung tanpa pemotong kaku A4
 window.cetakMateriHalamanA4 = function() {
     window.print();
 };
 
-// 2. Render Content Block Dinamis (Pattern & Warna Latar Berada DI DALAM Content Block)
 window.renderBlocks = function() {
     window.matikanPengunciKertasA4();
     let html = '';
@@ -977,7 +920,6 @@ window.renderBlocks = function() {
         let padTop = blok.padTop || '25px';
         let padBot = blok.padBot || '25px';
 
-        // A. TIPE BLOK SLIDE PDF
         if (blok.type === 'pdf_slides') {
             let slides = Array.isArray(blok.slides) ? blok.slides : [];
             let sIdx = typeof blok.activeSlide === 'number' ? blok.activeSlide : 0;
@@ -1023,7 +965,6 @@ window.renderBlocks = function() {
                 '</div>' +
             '</div>';
         }
-        // B. TIPE BLOK KUIS INLINE
         else if (blok.type === 'quiz') {
             let judulKuis = blok.quizTitle || '🧩 Uji Pemahaman';
             let editJudulAttr = isEdit ? 'contenteditable="true" style="outline:none; border-bottom:1px dashed #3498db; padding-bottom:2px;" onblur="window.contentBlocksData[' + index + '].quizTitle=this.innerText; if(window.simpanKeDB) window.simpanKeDB();"' : '';
@@ -1134,7 +1075,6 @@ window.renderBlocks = function() {
                 '</div>' +
             '</div>';
         }
-        // C. TIPE BLOK TEKS & TABEL DINAMIS (LEBAR S/M/L/XL & PANJANG BEBAS KE BAWAH)
         else {
             let floatImgsText = window.renderFloatImagesHTML(index, -1, blok.floatImages || []);
             html += '<div class="block-wrapper" data-index="' + index + '" style="padding-top:' + padTop + ';padding-bottom:' + padBot + ';">' +
@@ -1159,7 +1099,6 @@ window.renderBlocks = function() {
     }, 150);
 };
 
-// 3. Pengaturan Style & Pattern (Langsung di Dalam Content Block, Bukan di Luar)
 window.bukaSidebarBlock = function(i) {
     window.activeBlockIndex = i;
     let b = window.contentBlocksData[i];
@@ -1208,7 +1147,6 @@ window.ubahPolaBkg = function(pola) {
     let d = document.querySelector('.content-block[data-index="' + idx + '"]');
     let wrap = document.querySelector('.block-wrapper[data-index="' + idx + '"]');
 
-    // Pastikan wrapper luar bersih dan pattern hanya ada di dalam content-block
     if (wrap) wrap.classList.remove('bg-pattern-lines', 'bg-pattern-grid', 'bg-pattern-dots');
     if (d) {
         d.classList.remove('bg-pattern-lines', 'bg-pattern-grid', 'bg-pattern-dots');
@@ -1217,7 +1155,6 @@ window.ubahPolaBkg = function(pola) {
     if (typeof window.simpanKeDB === 'function') window.simpanKeDB();
 };
 
-// 4. Mesin Line Spacing Baru: Atas = 0, Bawah = 0.25, 0.5, 0.75, 1, 1.25, 1.5, 2
 window.aturSpasiParagraf = function(cmd) {
     let sel = window.getSelection();
     if (!sel || sel.rangeCount === 0) return;
@@ -1231,7 +1168,6 @@ window.aturSpasiParagraf = function(cmd) {
     let numVal = parseFloat(rawVal);
     if (isNaN(numVal)) return;
 
-    // Peta skala jarak bawah baris & kerapatan baris (0.25 sangat dempet s/d 2 renggang, atas selalu 0)
     let petaSpasiBawah = {
         "0.25": { lh: "0.88", mb: "0.05em" },
         "0.5":  { lh: "1.02", mb: "0.15em" },
@@ -1243,14 +1179,12 @@ window.aturSpasiParagraf = function(cmd) {
     };
     let cfg = petaSpasiBawah[String(numVal)] || { lh: String(numVal), mb: (numVal * 0.4) + "em" };
 
-    // Cari semua elemen baris/paragraf yang berada di dalam blok seleksi
     let targetBlocks = Array.from(editable.querySelectorAll('p, div, li, h1, h2, h3, h4, h5, h6, blockquote, td')).filter(function(blk) {
         if (!range.intersectsNode(blk)) return false;
         let hasChildBlock = blk.querySelector('p, div, li, h1, h2, h3, h4, h5, h6, blockquote');
         return !hasChildBlock;
     });
 
-    // Jika kursor hanya berada di 1 baris atau teks belum dibungkus <p>
     if (targetBlocks.length === 0) {
         let closestBlk = anchorEl.closest ? anchorEl.closest('p, div, li, h1, h2, h3, h4, h5, h6, blockquote, td') : null;
         if (!closestBlk || closestBlk === editable) {
@@ -1281,4 +1215,488 @@ window.aturSpasiParagraf = function(cmd) {
     }
 
     editable.dispatchEvent(new Event('input', { bubbles: true }));
+};
+
+// =========================================================================
+// 7. REGISTRASI KELAS UMUM & POP-UP PENGINGAT LATIHAN TANPA LOGIN
+// =========================================================================
+window.gantiTabAuth = function(tab) {
+    let btnLog = document.getElementById('tab-auth-login');
+    let btnReg = document.getElementById('tab-auth-register');
+    let formLog = document.getElementById('form-auth-login');
+    let formReg = document.getElementById('form-auth-register');
+
+    if (tab === 'login') {
+        btnLog.style.background = '#0b3954'; btnLog.style.color = 'white';
+        btnReg.style.background = 'transparent'; btnReg.style.color = '#475569';
+        formLog.style.display = 'block'; formReg.style.display = 'none';
+        document.getElementById('judul-modal-auth').innerText = '🔒 Akses Sistem Belajar';
+    } else {
+        btnReg.style.background = '#0b3954'; btnReg.style.color = 'white';
+        btnLog.style.background = 'transparent'; btnLog.style.color = '#475569';
+        formLog.style.display = 'none'; formReg.style.display = 'block';
+        document.getElementById('judul-modal-auth').innerText = '✨ Buat Akun Siswa Baru';
+
+        let selKelas = document.getElementById('reg-select-kelas');
+        if (selKelas) {
+            selKelas.innerHTML = '<option value="Umum" selected>🌍 Kelas Umum (Tamu/Luar)</option>';
+            selKelas.value = "Umum";
+        }
+        window.updateDropdownNamaRegistrasi();
+    }
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+    let inpNamaManual = document.getElementById('reg-input-nama-baru');
+    if (inpNamaManual) {
+        inpNamaManual.addEventListener('input', function() {
+            if (typeof window.isiOtomatisUsernameReg === 'function') {
+                window.isiOtomatisUsernameReg();
+            }
+        });
+    }
+    window.perbaruiTombolCheckinUI();
+});
+
+window.tampilkanPopupPengingatLatihanTanpaLogin = function(onCloseCallback) {
+    let oldModal = document.getElementById('modal-pengingat-poin-latihan');
+    if (oldModal) oldModal.remove();
+
+    let modal = document.createElement('div');
+    modal.id = 'modal-pengingat-poin-latihan';
+    modal.className = 'modal-overlay';
+    modal.style.display = 'flex';
+    modal.style.zIndex = '1000090';
+
+    function tutupDanLanjut() {
+        modal.remove();
+        if (onCloseCallback) onCloseCallback();
+    }
+
+    modal.onclick = function(e) {
+        if (e.target === modal) tutupDanLanjut();
+    };
+
+    modal.innerHTML =
+        '<div class="modal-box" style="width:390px; max-width:92vw; text-align:center; border-radius:14px; overflow:hidden; box-shadow:0 15px 35px rgba(0,0,0,0.3);">' +
+            '<div class="modal-header" style="background:#fef9e7; border-bottom:1px solid #f9e79f; padding:14px 18px;">' +
+                '<h3 style="margin:0; color:#d35400; font-size:16px;">⚠️ Pengingat Poin Latihan</h3>' +
+                '<button type="button" class="close-btn" id="btn-x-pengingat-latihan" style="color:#d35400;">✕</button>' +
+            '</div>' +
+            '<div class="modal-body" style="padding:22px 20px;">' +
+                '<div style="font-size:44px; margin-bottom:8px;">💡</div>' +
+                '<p style="margin:0 0 18px 0; font-size:15px; font-weight:700; color:#1e293b; line-height:1.5;">Jika belum login, Anda tidak akan mendapatkan poin.</p>' +
+                '<button type="button" id="btn-ok-pengingat-latihan" class="btn-action" style="background:#0b3954; width:100%; padding:11px; border-radius:25px; font-size:14px;">Mengerti & Lanjut Latihan ➔</button>' +
+            '</div>' +
+        '</div>';
+
+    document.body.appendChild(modal);
+    document.getElementById('btn-x-pengingat-latihan').onclick = tutupDanLanjut;
+    document.getElementById('btn-ok-pengingat-latihan').onclick = tutupDanLanjut;
+};
+
+if (!window._baseMulaiLatihanSiswa) {
+    window._baseMulaiLatihanSiswa = window.mulaiLatihanSiswa;
+}
+window.mulaiLatihanSiswa = function() {
+    let stat = sessionStorage.getItem("statusLogin");
+    if (stat !== "siswa" && stat !== "admin") {
+        let selKes = document.getElementById('latihan-select-kesulitan');
+        let keyVal = (selKes && selKes.value) ? selKes.value : document.getElementById('latihan-select-bab').value;
+        if (!keyVal) return alert("Pilih Bab dan Tingkat Kesulitan terlebih dahulu!");
+
+        window.tampilkanPopupPengingatLatihanTanpaLogin(function() {
+            if (window._baseMulaiLatihanSiswa) window._baseMulaiLatihanSiswa();
+        });
+        return;
+    }
+    if (window._baseMulaiLatihanSiswa) window._baseMulaiLatihanSiswa();
+};
+
+// =========================================================================
+// 8. RENTANG LENCANA BARU (SAMPAI PROFESOR) & TOKO BINGKAI PROFIL (KARTU + AVATAR)
+// =========================================================================
+window.kalkulasiLencanaSains = function(xp) {
+    let poin = Number(xp) || 0;
+    if (poin <= 500) {
+        return { nama: "Pengamat", ikon: "🔍", batas: 500, warna: "#d35400", bg: "#fef9e7", border: "#f9e79f", deskripsi: "Baru memulai perjalanan mengamati keajaiban sains (0 - 500 XP)." };
+    }
+    if (poin <= 10000) {
+        return { nama: "Asisten Lab", ikon: "🧪", batas: 10000, warna: "#16a085", bg: "#e8f8f5", border: "#a3e4d7", deskripsi: "Telah mahir menggunakan alat dasar dan memahami modul (501 - 10.000 XP)." };
+    }
+    if (poin <= 75000) {
+        return { nama: "Analis", ikon: "🔬", batas: 75000, warna: "#2980b9", bg: "#eaf2f8", border: "#aed6f1", deskripsi: "Ahli dalam mengumpulkan data dan mengevaluasi materi (10.001 - 75.000 XP)." };
+    }
+    if (poin <= 500000) {
+        return { nama: "Peneliti", ikon: "🧬", batas: 500000, warna: "#8e44ad", bg: "#f5eef8", border: "#d7bde2", deskripsi: "Mampu memecahkan masalah HOTS dan meraih skor tinggi (75.001 - 500.000 XP)." };
+    }
+    if (poin <= 10000000) {
+        return { nama: "Cendekiawan", ikon: "⚛️", batas: 10000000, warna: "#c0392b", bg: "#fdedec", border: "#fadbd8", deskripsi: "Menguasai berbagai cabang ilmu sains secara mendalam (500.001 - 10.000.000 XP)." };
+    }
+    return { nama: "Profesor", ikon: "👑", batas: "Max", warna: "#b45309", bg: "#fffbeb", border: "#f59e0b", deskripsi: "Pangkat mahaguru tertinggi (> 10.000.000 XP). Legenda Sains Sejati!" };
+};
+
+// KATALOG 20 PAKET BINGKAI (MENCAKUP BINGKAI KARTU BERMOTIF/BATIK/LEKUKAN + BINGKAI AVATAR)
+window.KATALOG_BORDER_SHOP = [
+    // TIER 1: STANDARD (1.000 XP) - Pola Geometris Halus & Bingkai Avatar Cincin Mengilap
+    { id: "b1",  no: 1,  tier: "Standard",  harga: 1000,    nama: "1. Silver Clean",     ikonKanan: "✨", classCss: "sbd-border-1",  avatarCss: "av-frame-1" },
+    { id: "b2",  no: 2,  tier: "Standard",  harga: 1000,    nama: "2. Nature Leaf",      ikonKanan: "🌿", classCss: "sbd-border-2",  avatarCss: "av-frame-2" },
+    { id: "b3",  no: 3,  tier: "Standard",  harga: 1000,    nama: "3. Sky Breeze",       ikonKanan: "💎", classCss: "sbd-border-3",  avatarCss: "av-frame-3" },
+    { id: "b4",  no: 4,  tier: "Standard",  harga: 1000,    nama: "4. Sunny Gold",       ikonKanan: "⭐", classCss: "sbd-border-4",  avatarCss: "av-frame-4" },
+    { id: "b5",  no: 5,  tier: "Standard",  harga: 1000,    nama: "5. Mint Crown",       ikonKanan: "👑", classCss: "sbd-border-5",  avatarCss: "av-frame-5" },
+
+    // TIER 2: ELITE (10.000 XP) - Motif Batik Kawung & Sulur Klasik + Bingkai Avatar Segi Delapan Permata
+    { id: "b6",  no: 6,  tier: "Elite",     harga: 10000,   nama: "6. Navy Batik Crest", ikonKanan: "⚡", classCss: "sbd-border-6",  avatarCss: "av-frame-6" },
+    { id: "b7",  no: 7,  tier: "Elite",     harga: 10000,   nama: "7. Golden Kawung",    ikonKanan: "🌾", classCss: "sbd-border-7",  avatarCss: "av-frame-7" },
+    { id: "b8",  no: 8,  tier: "Elite",     harga: 10000,   nama: "8. Mystic Violet",    ikonKanan: "🔮", classCss: "sbd-border-8",  avatarCss: "av-frame-8" },
+    { id: "b9",  no: 9,  tier: "Elite",     harga: 10000,   nama: "9. Emerald Royal",    ikonKanan: "👑", classCss: "sbd-border-9",  avatarCss: "av-frame-9" },
+    { id: "b10", no: 10, tier: "Elite",     harga: 10000,   nama: "10. Sapphire Crest",  ikonKanan: "🛡️", classCss: "sbd-border-10", avatarCss: "av-frame-10" },
+
+    // TIER 3: SPECIAL (50.000 XP) - Lekukan Gelombang Ombak & Batik Mega Mendung + Avatar Berkelopak
+    { id: "b11", no: 11, tier: "Special",   harga: 50000,   nama: "11. Sweet Sakura",    ikonKanan: "💖", classCss: "sbd-border-11", avatarCss: "av-frame-11" },
+    { id: "b12", no: 12, tier: "Special",   harga: 50000,   nama: "12. Spring Blossom",  ikonKanan: "🌼", classCss: "sbd-border-12", avatarCss: "av-frame-12" },
+    { id: "b13", no: 13, tier: "Special",   harga: 50000,   nama: "13. Cosmic Saturn",   ikonKanan: "🪐", classCss: "sbd-border-13", avatarCss: "av-frame-13" },
+    { id: "b14", no: 14, tier: "Special",   harga: 50000,   nama: "14. Cyber Crystal",   ikonKanan: "🧊", classCss: "sbd-border-14", avatarCss: "av-frame-14" },
+    { id: "b15", no: 15, tier: "Special",   harga: 50000,   nama: "15. Party Fiesta",    ikonKanan: "🎈", classCss: "sbd-border-15", avatarCss: "av-frame-15" },
+
+    // TIER 4: LEGENDARY (1.000.000 XP) - Ukiran Batik Emas Kerajaan & Sudut Perisai + Avatar Mahkota Berputar
+    { id: "b16", no: 16, tier: "Legendary", harga: 1000000, nama: "16. Sovereign Gold",  ikonKanan: "👑", classCss: "sbd-border-16", avatarCss: "av-frame-16" },
+    { id: "b17", no: 17, tier: "Legendary", harga: 1000000, nama: "17. Seraphim Wings",  ikonKanan: "🪽", classCss: "sbd-border-17", avatarCss: "av-frame-17" },
+    { id: "b18", no: 18, tier: "Legendary", harga: 1000000, nama: "18. Astral Archon",   ikonKanan: "🌌", classCss: "sbd-border-18", avatarCss: "av-frame-18" },
+    { id: "b19", no: 19, tier: "Legendary", harga: 1000000, nama: "19. Inferno Dragon",  ikonKanan: "🐉", classCss: "sbd-border-19", avatarCss: "av-frame-19" },
+    { id: "b20", no: 20, tier: "Legendary", harga: 1000000, nama: "20. Celestial Void",  ikonKanan: "⚜️", classCss: "sbd-border-20", avatarCss: "av-frame-20" }
+];
+
+window.cariDataBorderById = function(borderId) {
+    if (!borderId) return null;
+    return window.KATALOG_BORDER_SHOP.find(function(b) { return b.id === borderId; }) || null;
+};
+
+// Pembangun HTML Bingkai Avatar Berornamen (Bisa Dipakai di Leaderboard, Shop, Profil, & Header)
+window.buatHTMLBingkaiAvatar = function(fotoSrc, borderId, sizePx, fallbackColor) {
+    let item = window.cariDataBorderById(borderId);
+    let defaultSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ffffff'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E";
+    let src = fotoSrc || defaultSvg;
+    let sz = sizePx || 46;
+
+    if (!item) {
+        return '<div class="av-frame-wrap" style="width:' + sz + 'px; height:' + sz + 'px;">' +
+                   '<img class="av-frame-img" src="' + src + '" style="border:2px solid ' + (fallbackColor || '#3498db') + ';">' +
+               '</div>';
+    }
+
+    let tierClass = "av-tier-" + item.tier.toLowerCase();
+    return '<div class="av-frame-wrap ' + tierClass + ' ' + item.avatarCss + '" style="width:' + sz + 'px; height:' + sz + 'px;" data-badge="' + item.ikonKanan + '">' +
+               '<span class="av-frame-ring"></span>' +
+               '<img class="av-frame-img" src="' + src + '">' +
+               '<span class="av-frame-crest">' + item.ikonKanan + '</span>' +
+           '</div>';
+};
+
+window.pastikanAreaShopDiProfilAda = function() {
+    let modalProfil = document.getElementById('modal-profil-siswa');
+    if (!modalProfil) return;
+    let body = modalProfil.querySelector('.modal-body');
+    if (!body || document.getElementById('profil-shop-section')) return;
+
+    let shopContainer = document.createElement('div');
+    shopContainer.id = 'profil-shop-section';
+    shopContainer.style.cssText = 'background:white; padding:14px; border-radius:10px; border:2px solid #f1c40f; margin-bottom:15px; box-shadow:0 4px 12px rgba(241,196,15,0.12);';
+    shopContainer.innerHTML =
+        '<div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">' +
+            '<div>' +
+                '<div style="font-size:14px; font-weight:800; color:#0b3954;">🛒 Toko Bingkai & Ornamen Profil (XP Shop)</div>' +
+                '<div style="font-size:11px; color:#64748b;">Tukarkan poin XP-mu dengan Bingkai Avatar & Kartu berpola unik!</div>' +
+            '</div>' +
+            '<button type="button" class="btn-action" style="background:linear-gradient(135deg, #f39c12, #d35400); width:auto; padding:7px 14px; font-size:12px; border-radius:20px;" onclick="window.toggleBukaTutupShopProfil()">🛍️ Buka Shop</button>' +
+        '</div>' +
+        '<div id="profil-shop-drawer" style="display:none; margin-top:14px; border-top:1px dashed #cbd5e1; padding-top:12px;">' +
+            '<div style="display:flex; gap:6px; overflow-x:auto; padding-bottom:8px; margin-bottom:10px;" id="shop-tier-tabs">' +
+                '<button type="button" class="shop-tier-btn active" onclick="window.renderIsiShopBorder(\'Standard\', this)">⭐ Standard (1rb)</button>' +
+                '<button type="button" class="shop-tier-btn" onclick="window.renderIsiShopBorder(\'Elite\', this)">👑 Elite (10rb)</button>' +
+                '<button type="button" class="shop-tier-btn" onclick="window.renderIsiShopBorder(\'Special\', this)">🔮 Special (50rb)</button>' +
+                '<button type="button" class="shop-tier-btn" onclick="window.renderIsiShopBorder(\'Legendary\', this)">🐉 Legendary (1jt)</button>' +
+            '</div>' +
+            '<div id="shop-border-list" style="display:grid; grid-template-columns:1fr; gap:12px; max-height:310px; overflow-y:auto; padding:4px;"></div>' +
+        '</div>';
+
+    let firstCard = body.firstElementChild;
+    if (firstCard && firstCard.nextSibling) {
+        body.insertBefore(shopContainer, firstCard.nextSibling);
+    } else {
+        body.appendChild(shopContainer);
+    }
+};
+
+window.toggleBukaTutupShopProfil = function() {
+    let drawer = document.getElementById('profil-shop-drawer');
+    if (!drawer) return;
+    if (drawer.style.display === 'none') {
+        drawer.style.display = 'block';
+        window.renderIsiShopBorder('Standard');
+    } else {
+        drawer.style.display = 'none';
+    }
+};
+
+window.activeShopTier = 'Standard';
+window.renderIsiShopBorder = function(tierFilter, btnEl) {
+    if (tierFilter) window.activeShopTier = tierFilter;
+    if (btnEl) {
+        document.querySelectorAll('#shop-tier-tabs .shop-tier-btn').forEach(function(b) {
+            b.classList.remove('active');
+        });
+        btnEl.classList.add('active');
+    }
+
+    let listEl = document.getElementById('shop-border-list');
+    if (!listEl) return;
+
+    let uName = sessionStorage.getItem("username");
+    let lb = (window.leaderboardSiswaData && window.leaderboardSiswaData[uName]) ? window.leaderboardSiswaData[uName] : null;
+    if (!lb) return;
+
+    let owned = Array.isArray(lb.ownedBorders) ? lb.ownedBorders : (lb.ownedBorders ? Object.values(lb.ownedBorders) : []);
+    let equipped = lb.equippedBorder || "";
+    let namaTampil = lb.namaPanggilan || lb.namaLengkap || uName;
+
+    let items = window.KATALOG_BORDER_SHOP.filter(function(item) {
+        return item.tier === window.activeShopTier;
+    });
+
+    let html = '';
+    items.forEach(function(item) {
+        let isOwned = owned.includes(item.id);
+        let isEquipped = (equipped === item.id);
+        let hargaStr = item.harga.toLocaleString('id-ID') + ' XP';
+
+        let btnAksi = '';
+        if (isEquipped) {
+            btnAksi = '<button type="button" onclick="window.lepasBorderProfil()" style="background:#64748b; color:white; border:none; padding:6px 12px; border-radius:16px; font-size:11px; font-weight:bold; cursor:pointer;">✓ Terpasang (Lepas)</button>';
+        } else if (isOwned) {
+            btnAksi = '<button type="button" onclick="window.pasangBorderProfil(\'' + item.id + '\')" style="background:#27ae60; color:white; border:none; padding:6px 14px; border-radius:16px; font-size:11px; font-weight:bold; cursor:pointer;">Pasang</button>';
+        } else {
+            btnAksi = '<button type="button" onclick="window.beliBorderDiShop(\'' + item.id + '\')" style="background:#0b3954; color:#f1c40f; border:1px solid #f1c40f; padding:6px 12px; border-radius:16px; font-size:11px; font-weight:800; cursor:pointer;">🛒 Beli (' + hargaStr + ')</button>';
+        }
+
+        let avatarHtml = window.buatHTMLBingkaiAvatar(lb.foto, item.id, 44);
+        let tierClass = "sbd-tier-" + item.tier.toLowerCase();
+
+        html +=
+            '<div class="sbd-banner-frame ' + tierClass + ' ' + item.classCss + '" style="padding:12px 15px; display:flex; align-items:center; justify-content:space-between; gap:12px;">' +
+                '<div style="display:flex; align-items:center; gap:12px; z-index:2;">' +
+                    avatarHtml +
+                    '<div>' +
+                        '<div style="font-weight:800; font-size:14px; color:#1e293b;">' + namaTampil + ' <span style="font-size:14px;">' + item.ikonKanan + '</span></div>' +
+                        '<div style="font-size:11px; font-weight:700; color:#334155;">' + item.nama + ' • ' + item.tier + '</div>' +
+                    '</div>' +
+                '</div>' +
+                '<div style="z-index:2; flex-shrink:0;">' + btnAksi + '</div>' +
+            '</div>';
+    });
+
+    listEl.innerHTML = html;
+};
+
+window.beliBorderDiShop = function(borderId) {
+    let uName = sessionStorage.getItem("username");
+    if (!uName || !window.leaderboardSiswaData || !window.leaderboardSiswaData[uName]) return;
+
+    let item = window.cariDataBorderById(borderId);
+    if (!item) return;
+
+    let lb = window.leaderboardSiswaData[uName];
+    let xpSekarang = Number(lb.xp) || 0;
+
+    if (!Array.isArray(lb.ownedBorders)) {
+        lb.ownedBorders = lb.ownedBorders ? Object.values(lb.ownedBorders) : [];
+    }
+
+    if (lb.ownedBorders.includes(borderId)) {
+        window.pasangBorderProfil(borderId);
+        return;
+    }
+
+    if (xpSekarang < item.harga) {
+        let kurang = (item.harga - xpSekarang).toLocaleString('id-ID');
+        return alert("⚠️ Poin XP kamu belum cukup untuk membeli bingkai " + item.nama + "!\n\nHarga: " + item.harga.toLocaleString('id-ID') + " XP\nXP kamu saat ini: " + xpSekarang.toLocaleString('id-ID') + " XP\n(Kurang " + kurang + " XP lagi. Yuk rajin Check-in, Latihan, & Ujian!)");
+    }
+
+    if (!confirm("Beli bingkai \"" + item.nama + "\" (" + item.tier + ") seharga " + item.harga.toLocaleString('id-ID') + " XP?\n\nPoin XP kamu akan dikurangi sebesar " + item.harga.toLocaleString('id-ID') + " XP.")) {
+        return;
+    }
+
+    lb.xp = xpSekarang - item.harga;
+    lb.ownedBorders.push(borderId);
+    lb.equippedBorder = borderId;
+
+    if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
+        window.simpanLeaderboardSiswaKeDB(uName, lb);
+    }
+
+    window.bukaModalProfilSiswa();
+    window.renderIsiShopBorder(window.activeShopTier);
+    window.perbaruiUIHeaderProfilSiswa();
+    alert("🎉 Selamat! Kamu berhasil membeli dan memasang bingkai \"" + item.nama + "\"!");
+};
+
+window.pasangBorderProfil = function(borderId) {
+    let uName = sessionStorage.getItem("username");
+    if (!uName || !window.leaderboardSiswaData || !window.leaderboardSiswaData[uName]) return;
+
+    window.leaderboardSiswaData[uName].equippedBorder = borderId;
+    if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
+        window.simpanLeaderboardSiswaKeDB(uName, window.leaderboardSiswaData[uName]);
+    }
+    window.bukaModalProfilSiswa();
+    window.renderIsiShopBorder(window.activeShopTier);
+    window.perbaruiUIHeaderProfilSiswa();
+};
+
+window.lepasBorderProfil = function() {
+    let uName = sessionStorage.getItem("username");
+    if (!uName || !window.leaderboardSiswaData || !window.leaderboardSiswaData[uName]) return;
+
+    window.leaderboardSiswaData[uName].equippedBorder = "";
+    if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
+        window.simpanLeaderboardSiswaKeDB(uName, window.leaderboardSiswaData[uName]);
+    }
+    window.bukaModalProfilSiswa();
+    window.renderIsiShopBorder(window.activeShopTier);
+    window.perbaruiUIHeaderProfilSiswa();
+};
+
+// Update Modal Profil Siswa (Pasang Bingkai Kartu + Bingkai Avatar sekaligus)
+if (!window._baseBukaModalProfilSiswa) {
+    window._baseBukaModalProfilSiswa = window.bukaModalProfilSiswa;
+}
+window.bukaModalProfilSiswa = function() {
+    if (window._baseBukaModalProfilSiswa) window._baseBukaModalProfilSiswa();
+    window.pastikanAreaShopDiProfilAda();
+
+    let uName = sessionStorage.getItem("username");
+    let lb = (window.leaderboardSiswaData && window.leaderboardSiswaData[uName]) ? window.leaderboardSiswaData[uName] : null;
+    if (!lb) return;
+
+    let itemBorder = window.cariDataBorderById(lb.equippedBorder);
+    let modalProfil = document.getElementById('modal-profil-siswa');
+    let firstCard = modalProfil ? modalProfil.querySelector('.modal-body > div:first-child') : null;
+
+    if (firstCard) {
+        firstCard.className = "";
+        if (itemBorder) {
+            firstCard.classList.add("sbd-banner-frame", "sbd-tier-" + itemBorder.tier.toLowerCase(), itemBorder.classCss);
+        }
+    }
+
+    let imgPreview = document.getElementById('profil-img-preview');
+    if (imgPreview && imgPreview.parentElement) {
+        let wrapFoto = imgPreview.parentElement;
+        wrapFoto.className = "av-profil-host";
+        if (itemBorder) {
+            wrapFoto.classList.add("av-tier-" + itemBorder.tier.toLowerCase(), itemBorder.avatarCss);
+        }
+    }
+};
+
+// Update Tombol Header Profil Siswa
+if (!window._basePerbaruiHeaderProfil) {
+    window._basePerbaruiHeaderProfil = window.perbaruiUIHeaderProfilSiswa;
+}
+window.perbaruiUIHeaderProfilSiswa = function() {
+    if (window._basePerbaruiHeaderProfil) window._basePerbaruiHeaderProfil();
+    let uName = sessionStorage.getItem("username");
+    let btnProfil = document.getElementById('btn-profil-utama');
+    let lb = (window.leaderboardSiswaData && window.leaderboardSiswaData[uName]) ? window.leaderboardSiswaData[uName] : null;
+    if (btnProfil && lb) {
+        btnProfil.className = "header-profile-btn";
+        let itemBorder = window.cariDataBorderById(lb.equippedBorder);
+        if (itemBorder) {
+            btnProfil.classList.add(itemBorder.classCss, itemBorder.avatarCss);
+        }
+    }
+    window.perbaruiTombolCheckinUI();
+};
+
+// Update Leaderboard (Tampilkan Bingkai Kartu Bermotif + Bingkai Avatar + Nama Lengkap di Samping Nama Panggilan)
+window.renderTabelLeaderboard = function() {
+    let container = document.getElementById('leaderboard-list-container');
+    if (!container) return;
+
+    let filterType = document.getElementById('lb-filter-cakupan').value;
+    let filterVal = document.getElementById('lb-select-subfilter').value;
+
+    let rawData = Object.values(window.leaderboardSiswaData || {});
+    let filtered = [];
+
+    rawData.forEach(function(item) {
+        let kls = (item.kelas || "").toUpperCase().trim();
+        let isSMA = /^(X|XI|XII)(\s|-|$)/.test(kls);
+        if (!isSMA) return;
+
+        if (filterType === 'semua') {
+            filtered.push(item);
+        } else if (filterType === 'angkatan') {
+            let regexAngkatan = new RegExp("^" + filterVal + "(\\s|-|$)");
+            if (regexAngkatan.test(kls)) filtered.push(item);
+        } else if (filterType === 'kelas' && item.kelas === filterVal) {
+            filtered.push(item);
+        }
+    });
+
+    filtered.sort(function(a, b) { return (b.xp || 0) - (a.xp || 0); });
+
+    if (filtered.length === 0) {
+        container.innerHTML = '<div style="text-align:center; padding:30px; color:#7f8c8d; font-style:italic;">Belum ada data ilmuwan sains untuk kategori ini.</div>';
+        return;
+    }
+
+    let html = '';
+    filtered.forEach(function(siswa, i) {
+        let lencana = window.kalkulasiLencanaSains(siswa.xp || 0);
+        let namaAsli = (siswa.namaLengkap || "").trim();
+        let namaPanggilan = (siswa.namaPanggilan || "").trim();
+        let namaUtama = namaPanggilan || namaAsli;
+
+        let htmlNamaLengkapSamping = "";
+        if (namaPanggilan && namaAsli && namaPanggilan.toLowerCase() !== namaAsli.toLowerCase()) {
+            htmlNamaLengkapSamping = '<span style="font-size:11px; font-weight:600; color:#475569; margin-left:6px;">(' + namaAsli + ')</span>';
+        }
+
+        let statSoal = siswa.statSoal || { PG: 0, PGK: 0, IS: 0, Essay: 0 };
+        let totalDikerjakan = statSoal.PG + statSoal.PGK + statSoal.IS + statSoal.Essay;
+
+        let bgRank = i === 0 ? '#fef9e7' : (i === 1 ? '#f8f9fa' : (i === 2 ? '#fdf2e9' : '#ffffff'));
+        let borderRank = i === 0 ? '#f1c40f' : (i === 1 ? '#bdc3c7' : (i === 2 ? '#e67e22' : '#e2e8f0'));
+        let medali = i === 0 ? '🥇' : (i === 1 ? '🥈' : (i === 2 ? '🥉' : (i + 1)));
+
+        let itemBorder = window.cariDataBorderById(siswa.equippedBorder);
+        let tierClass = itemBorder ? ('sbd-tier-' + itemBorder.tier.toLowerCase()) : '';
+        let classBorder = itemBorder ? ('sbd-banner-frame ' + tierClass + ' ' + itemBorder.classCss) : '';
+        let styleDefault = itemBorder ? '' : ('background:' + bgRank + '; border:1px solid ' + borderRank + ';');
+        let ikonOrnamen = itemBorder ? (' <span title="' + itemBorder.nama + '">' + itemBorder.ikonKanan + '</span>') : '';
+
+        // Bangun Bingkai Avatar + Foto Siswa
+        let avatarHtml = window.buatHTMLBingkaiAvatar(siswa.foto, siswa.equippedBorder, 48, lencana.warna);
+
+        html +=
+        '<div class="' + classBorder + '" style="display:flex; align-items:center; gap:14px; ' + styleDefault + ' padding:13px 16px; border-radius:12px; position:relative;">' +
+            '<div style="font-size:20px; font-weight:900; color:' + (i < 3 ? '#d35400' : '#64748b') + '; width:28px; text-align:center; z-index:2; flex-shrink:0;">' + medali + '</div>' +
+            avatarHtml +
+            '<div style="flex:1; min-width:0; z-index:2;">' +
+                '<div style="font-weight:800; font-size:15px; color:#1e293b; display:flex; align-items:baseline; flex-wrap:wrap; row-gap:2px;">' +
+                    '<span>' + namaUtama + ikonOrnamen + '</span>' +
+                    htmlNamaLengkapSamping +
+                '</div>' +
+                '<div style="font-size:11px; color:#475569; margin-top:3px;">' +
+                    '<span style="background:' + lencana.bg + '; color:' + lencana.warna + '; border:1px solid ' + lencana.border + '; padding:1px 6px; border-radius:10px; font-weight:bold;">' + lencana.ikon + ' ' + lencana.nama + '</span> - <b>' + siswa.kelas + '</b>' +
+                '</div>' +
+            '</div>' +
+            '<div style="text-align:right; flex-shrink:0; z-index:2;">' +
+                '<div style="font-size:20px; font-weight:900; color:#0b3954; font-family:\'Bebas Neue\', sans-serif;">' + Number(siswa.xp || 0).toLocaleString('id-ID') + ' XP</div>' +
+                '<div style="font-size:11px; color:#475569; font-weight:bold;">🔥 ' + totalDikerjakan + ' Soal Selesai</div>' +
+            '</div>' +
+        '</div>';
+    });
+    container.innerHTML = html;
 };
