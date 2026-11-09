@@ -975,3 +975,24 @@ document.getElementById('main-editor-wrapper').addEventListener('input', functio
 if(window.floatingBoxesData && window.renderFloatingBoxes) {
     window.renderFloatingBoxes();
 }
+// Tarik & Simpan Data Check-in Afektif Siswa
+onValue(ref(db, basePath + '/admin_afektif_siswa'), function(snap) {
+    if (snap.exists()) {
+        let val = snap.val();
+        window.adminAfektifData = Array.isArray(val) ? val : Object.values(val);
+    } else {
+        window.adminAfektifData = [];
+    }
+    let modalPS = document.getElementById('modal-perkembangan-siswa');
+    if (modalPS && modalPS.style.display === 'flex' && typeof window.renderTabelAfektifAdmin === 'function') {
+        window.renderTabelAfektifAdmin();
+    }
+});
+
+window.simpanDataAfektifKeDB = function() {
+    set(ref(db, basePath + '/admin_afektif_siswa'), window.adminAfektifData || []).then(function() {
+        if (typeof window.showSaveToast === "function") window.showSaveToast();
+    }).catch(function(err) {
+        console.error("Gagal menyimpan data afektif:", err);
+    });
+};

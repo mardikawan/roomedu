@@ -6,7 +6,7 @@
     <title>Sistem Belajar Mahardika</title>
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Fredoka:wght@400;500;600&family=Quicksand:wght@400;600;700&family=Lora:ital,wght@0,400;0,700;1,400&family=Merriweather:wght@400;700&family=Montserrat:wght@400;600;700&family=Open+Sans:wght@400;600&family=Oswald:wght@400;500&family=Playfair+Display:wght@400;700&family=Poppins:wght@400;600&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
     
-    <link rel="stylesheet" href="./style.css">
+    <link rel="stylesheet" href="css/style.css">
     <style id="dynamic-theme-styles"></style>
     
     <!-- ENGINE MATHJAX UNTUK LATEX RENDERING -->
@@ -167,7 +167,7 @@
             <div class="modal-header" style="background:linear-gradient(135deg, #0b3954, #16a085); color:white;">
                 <div>
                     <h3 style="margin:0;">🏆 Papan Peringkat Ilmuwan Sains</h3>
-                    <div style="font-size:11px; color:#f1c40f; margin-top:2px;">Login Harian (+10 XP) • Latihan Mandiri & Ujian (+Skor XP)</div>
+                    <div style="font-size:11px; color:#f1c40f; margin-top:2px;">Check-in Harian (+20 XP) • Latihan Mandiri & Ujian (+Skor XP)</div>
                 </div>
                 <button class="close-btn" style="color:white;" onclick="tutupModal('modal-leaderboard')">✕</button>
             </div>
@@ -927,16 +927,21 @@
 
     <!-- HEADER NAVBAR (DENGAN LONCENG NOTIFIKASI, LEADERBOARD, & PROFIL) -->
     <div class="header-wrapper" id="header-wrap">
-        <!-- Pojok Kiri Atas: Lonceng Notifikasi & Papan Peringkat -->
+        <!-- Pojok Kiri Atas: Lonceng Notifikasi, Check-in Harian, & Papan Peringkat -->
         <div class="header-left-stack" onclick="event.stopPropagation();">
-            <button id="btn-header-notif" class="header-pill-btn" onclick="window.bukaModalNotifikasiSiswa()" title="Notifikasi Tugas & Ujian">
-                🔔 <span>Notifikasi</span>
-                <b id="badge-header-notif" class="header-notif-badge" style="display:none;">0</b>
-            </button>
-            <button id="btn-header-leaderboard" class="header-pill-btn leaderboard-pill" onclick="window.bukaModalLeaderboard()" title="Papan Peringkat Sains">
-                🏆 <span>Leaderboard</span>
-            </button>
-        </div>
+          <div style="display:flex; gap:6px; align-items:center;">
+              <button id="btn-header-notif" class="header-pill-btn" onclick="window.bukaModalNotifikasiSiswa()" title="Notifikasi Tugas & Ujian">
+                  🔔 <span>Notifikasi</span>
+                  <b id="badge-header-notif" class="header-notif-badge" style="display:none;">0</b>
+              </button>
+              <button id="btn-header-checkin" class="header-pill-btn" style="background:#f1c40f; color:#0b3954; border-color:#f39c12; font-weight:800;" onclick="window.bukaModalCheckinSiswa()" title="Check-in Keadaan Hari Ini (+20 XP)">
+                  😊 <span>Check-in (+20 XP)</span>
+              </button>
+          </div>
+          <button id="btn-header-leaderboard" class="header-pill-btn leaderboard-pill" onclick="window.bukaModalLeaderboard()" title="Papan Peringkat Sains">
+              🏆 <span>Leaderboard</span>
+          </button>
+      </div>
 
         <span class="header-settings-btn" onclick="bukaModal('modal-theme');event.stopPropagation();">⚙️</span>
         <h1 class="header-title" id="web-title">Mahardika</h1>
@@ -972,6 +977,7 @@
         <span onclick="window.bukaModal('modal-manajer-ujian')">🗂️ Manajer Ujian</span>
         <span onclick="window.bukaModalAdministrasi()" style="color:#2980b9; font-weight:900;">📁 Administrasi</span>
         <span onclick="window.bukaModal('modal-rekap-nilai')">📊 Rekap Nilai</span>
+        <span onclick="window.bukaModalPerkembanganSiswa()" style="color:#27ae60; font-weight:900;">📈 Perkembangan Siswa</span>
         <span onclick="window.bukaWelcomePopup()">📢 Popup</span>
         <span onclick="window.cetakMateriHalamanA4()" style="color:#16a085; font-weight:900;">🖨️ Cetak Materi (A4)</span>
         <!-- TOMBOL BARU CATATAN GURU -->
@@ -1399,6 +1405,80 @@
         </div>
     </div>
 
+    <!-- MODAL CHECK-IN HARIAN SISWA (+20 XP) -->
+  <div id="modal-checkin-siswa" class="modal-overlay" onclick="if(event.target===this)tutupModal('modal-checkin-siswa')">
+      <div class="modal-box" style="width: 480px; max-width: 94vw;">
+          <div class="modal-header" style="background:#0b3954; color:white;">
+              <h3 style="margin:0;">😊 Check-in Harian Siswa</h3>
+              <button class="close-btn" style="color:white;" onclick="tutupModal('modal-checkin-siswa')">✕</button>
+          </div>
+          <div class="modal-body" id="checkin-modal-body" style="padding:20px; background:#ffffff;"></div>
+      </div>
+  </div>
+
+  <!-- MODAL PERKEMBANGAN SISWA (KOGNITIF & AFEKTIF) -->
+  <div id="modal-perkembangan-siswa" class="modal-overlay" onclick="if(event.target===this)tutupModal('modal-perkembangan-siswa')">
+      <div class="modal-box" style="width: 95vw; height: 92vh; max-height: 92vh; display:flex; flex-direction:column;">
+          <div class="modal-header" style="background:#0b3954; color:white;">
+              <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+                  <h3 style="margin:0;">📈 Perkembangan Siswa (Kognitif & Afektif)</h3>
+                  <div style="display:flex; gap:6px; background:rgba(255,255,255,0.12); padding:4px; border-radius:8px;">
+                      <button type="button" id="btn-tab-perkembangan-kognitif" onclick="window.gantiTabPerkembanganSiswa('kognitif')" style="background:#ffffff; color:#333; border:none; padding:6px 14px; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer;">🧠 Kognitif</button>
+                      <button type="button" id="btn-tab-perkembangan-afektif" onclick="window.gantiTabPerkembanganSiswa('afektif')" style="background:#27ae60; color:white; border:none; padding:6px 14px; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer;">💚 Afektif</button>
+                  </div>
+              </div>
+              <button class="close-btn" style="color:white;" onclick="tutupModal('modal-perkembangan-siswa')">✕</button>
+          </div>
+          <div class="modal-body" style="padding:16px; flex:1; overflow:hidden; display:flex; flex-direction:column; background:#f4f6f8;">
+              <!-- TAB KOGNITIF (BELUM DIAKTIFKAN) -->
+              <div id="view-perkembangan-kognitif" style="display:none; text-align:center; padding:60px 20px; background:white; border-radius:10px; border:1px dashed #cbd5e1;">
+                  <div style="font-size:48px; margin-bottom:10px;">🧠</div>
+                  <h3 style="margin:0 0 6px 0; color:#2c3e50;">Analisis Perkembangan Kognitif Siswa</h3>
+                  <p style="margin:0; font-size:13px; color:#7f8c8d;">Fitur grafik dan analisis capaian kognitif akan diaktifkan pada pembaruan berikutnya.</p>
+              </div>
+
+              <!-- TAB AFEKTIF (AKTIF - FORMAT EXCEL SEPERTI JADWAL GURU) -->
+              <div id="view-perkembangan-afektif" style="display:flex; flex-direction:column; flex:1; overflow:hidden; gap:12px;">
+                  <div id="rekap-statistik-afektif" style="display:flex; gap:10px; flex-wrap:wrap;"></div>
+
+                  <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; background:white; padding:10px 14px; border-radius:8px; border:1px solid #e2e8f0;">
+                      <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                          <select id="filter-afektif-kelas" class="input-box" style="margin:0; width:170px; font-weight:bold;" onchange="window.renderTabelAfektifAdmin()">
+                              <option value="Semua">🏫 Semua Kelas</option>
+                          </select>
+                          <select id="filter-afektif-emosi" class="input-box" style="margin:0; width:160px; font-weight:bold;" onchange="window.renderTabelAfektifAdmin()">
+                              <option value="Semua">😊 Semua Emosi</option>
+                              <option value="Bahagia">😊 Bahagia</option>
+                              <option value="Sedih">😢 Sedih</option>
+                              <option value="Marah">😠 Marah</option>
+                              <option value="Biasa Saja">😐 Biasa Saja</option>
+                          </select>
+                          <input type="date" id="filter-afektif-tanggal" class="input-box" style="margin:0; width:150px; font-weight:bold;" onchange="window.renderTabelAfektifAdmin()">
+                          <button type="button" class="btn-action" style="background:#64748b; width:auto; padding:7px 12px; font-size:11px;" onclick="document.getElementById('filter-afektif-tanggal').value=''; window.renderTabelAfektifAdmin();">Reset Filter</button>
+                      </div>
+                      <button type="button" class="btn-action" style="background:#27ae60; width:auto; padding:8px 16px; font-size:12px;" onclick="window.exportExcelAfektifSiswa()">📥 Export Excel (.xls)</button>
+                  </div>
+
+                  <div style="flex:1; overflow:auto; background:white; border:1px solid #cbd5e1; border-radius:8px;">
+                      <table id="tabel-afektif-excel" class="excel-table" style="width:100%; min-width:900px;">
+                          <thead>
+                              <tr>
+                                  <th style="width:45px; text-align:center; position:sticky; top:0; z-index:5;">No</th>
+                                  <th style="width:130px; position:sticky; top:0; z-index:5;">Waktu Check-in</th>
+                                  <th style="width:180px; position:sticky; top:0; z-index:5;">Nama Siswa</th>
+                                  <th style="width:100px; text-align:center; position:sticky; top:0; z-index:5;">Kelas</th>
+                                  <th style="width:120px; text-align:center; position:sticky; top:0; z-index:5;">Perasaan</th>
+                                  <th style="position:sticky; top:0; z-index:5;">Refleksi / Cerita Utama (Kolom 1)</th>
+                                  <th style="position:sticky; top:0; z-index:5;">Sikap / Tindak Lanjut Positif (Kolom 2)</th>
+                              </tr>
+                          </thead>
+                          <tbody id="body-tabel-afektif-excel"></tbody>
+                      </table>
+                  </div>
+              </div>
+          </div>
+      </div>
+  </div>
     <!-- ALAT GAMBAR -->
     <div id="pen-tools">
         <div style="display:flex; gap:8px;">
@@ -1461,16 +1541,16 @@
                     <button type="button" onmousedown="event.preventDefault(); window.ubahFontStep(1)" style="border:none; background:transparent; font-size:12px; padding:0 6px; cursor:pointer; font-weight:bold; color:#555; display:flex; align-items:center;" title="Besarkan Ukuran Font (+1pt)">+</button>
                 </div>
                 <select onchange="formatTeks('formatBlock', this.value);this.selectedIndex=0;" style="width:65px;"><option value="" disabled selected>Style</option><option value="P">Normal</option><option value="H1">Title</option><option value="H2">Sub</option><option value="BLOCKQUOTE">Quote</option></select>
-                <select onchange="aturSpasiParagraf(this.value);this.selectedIndex=0;" style="width:70px;">
-                    <option value="" disabled selected>Space</option>
-                    <option value="line-1.0">1.0 (Single)</option>
-                    <option value="line-1.15">1.15</option>
-                    <option value="line-1.5">1.5</option>
-                    <option value="line-2.0">2.0 (Double)</option>
-                    <option value="add-before">+Before (12pt)</option>
-                    <option value="add-after">+After (8pt)</option>
-                    <option value="remove-space">-Remove Spacing</option>
-                </select>
+                <select onchange="aturSpasiParagraf(this.value);this.selectedIndex=0;" style="width:72px;" title="Jarak Baris Bawah (Atas = 0)">
+                  <option value="" disabled selected>Space</option>
+                  <option value="0.25">0.25</option>
+                  <option value="0.5">0.5</option>
+                  <option value="0.75">0.75</option>
+                  <option value="1">1</option>
+                  <option value="1.25">1.25</option>
+                  <option value="1.5">1.5</option>
+                  <option value="2">2</option>
+              </select>
             </div>
             
             <div class="toolbar-group">
@@ -1544,13 +1624,14 @@
                 </div>
             </div>
             <div class="setting-group">
-                <label>Width</label>
-                <div class="size-btns">
-                    <button class="size-btn" onclick="ubahStyleBlok('width','M')">M</button>
-                    <button class="size-btn" onclick="ubahStyleBlok('width','L')">L</button>
-                    <button class="size-btn" onclick="ubahStyleBlok('width','XL')">Full</button>
-                </div>
-            </div>
+              <label>Width</label>
+              <div class="size-btns">
+                  <button class="size-btn" onclick="ubahStyleBlok('width','S')">S</button>
+                  <button class="size-btn" onclick="ubahStyleBlok('width','M')">M</button>
+                  <button class="size-btn" onclick="ubahStyleBlok('width','L')">L</button>
+                  <button class="size-btn" onclick="ubahStyleBlok('width','XL')">Full</button>
+              </div>
+          </div>
             <div class="setting-group">
                 <label>Top Padding</label>
                 <div class="slider-container">
@@ -1583,7 +1664,11 @@
         <div id="cbt-nav-grid" class="quiz-nav-bar" style="border:none; padding:0; margin:0;"></div>
     </div>
     <!-- SCRIPT REFERENCES -->
-    <script src="./main.js"></script>
-    <script type="module" src="./firebase-db.js"></script>
+    <script src="js/main.js"></script>
+    <script type="module" src="js/firebase-db.js"></script>
 </body>
 </html>
+<!-- SCRIPT REFERENCES -->
+  <script src="js/main.js"></script>
+  <script src="js/fitur-afektif-games.js"></script>
+  <script type="module" src="js/firebase-db.js"></script>

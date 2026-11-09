@@ -12510,7 +12510,9 @@ window.perbaruiUIHeaderProfilSiswa = function() {
             let today = new Date().toLocaleDateString('id-ID');
             if (lb.loginTerakhir !== today) {
                 lb.loginTerakhir = today;
-                window.tambahXPSiswa(10, 'login_harian');
+                if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
+                    window.simpanLeaderboardSiswaKeDB(uName, lb);
+                }
             }
         }
     } else {
@@ -12519,6 +12521,10 @@ window.perbaruiUIHeaderProfilSiswa = function() {
     }
     window.hitungDanUpdateBadgeNotifikasi();
 };
+
+if (typeof window.perbaruiTombolCheckinUI === "function") {
+    window.perbaruiTombolCheckinUI();
+}
 
 window.bukaModalProfilSiswa = function() {
     let uName = sessionStorage.getItem("username");

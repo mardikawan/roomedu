@@ -1335,3 +1335,154 @@ body:not(.mode-edit-aktif):not(.force-edit-mode) .locked-hidden-nav-item {
         position: static !important;
     }
 }
+
+/* =========================================
+   GAME 6: CARI 5 PERBEDAAN PADA 2 GAMBAR
+   ========================================= */
+.mg-spot-wrapper {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    width: 100%;
+}
+.mg-spot-box {
+    background: #f8fafc;
+    border: 2px solid #cbd5e1;
+    border-radius: 10px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+.mg-spot-label {
+    background: #0b3954;
+    color: #f1c40f;
+    font-size: 10px;
+    font-weight: 800;
+    text-align: center;
+    padding: 3px 0;
+    letter-spacing: 0.5px;
+}
+.mg-spot-svg {
+    width: 100%;
+    height: auto;
+    display: block;
+    cursor: crosshair;
+    touch-action: manipulation;
+}
+@media (max-width: 480px) {
+    .mg-spot-wrapper {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+}
+/* =========================================================================
+   TAHAP 3: CONTENT BLOCK DINAMIS (TANPA KUNCI A4, TANPA SIKU MARGIN,
+   PATTERN DI DALAM CONTENT BLOCK, & JARAK ATAS BARIS = 0)
+   ========================================================================= */
+
+#main-editor-wrapper {
+    background-color: #f1f5f9 !important;
+    padding-top: 20px !important;
+    padding-bottom: 60px !important;
+}
+
+#blocks-container {
+    gap: 20px !important;
+}
+
+.block-wrapper {
+    background-color: transparent !important;
+    background-image: none !important;
+    width: 100% !important;
+    display: flex !important;
+    justify-content: center !important;
+}
+
+/* Lebar Wadah Mengikuti Pilihan S, M, L, atau XL (Full) */
+.a4-paper-wrapper.dynamic-block-shell {
+    position: relative !important;
+    margin: 0 auto !important;
+    width: 100% !important;
+    transition: max-width 0.25s ease;
+}
+.a4-paper-wrapper.dynamic-block-shell[data-width="S"],
+.content-block.dynamic-content-block[data-width="S"] {
+    max-width: 640px !important;
+}
+.a4-paper-wrapper.dynamic-block-shell[data-width="M"],
+.content-block.dynamic-content-block[data-width="M"] {
+    max-width: 820px !important;
+}
+.a4-paper-wrapper.dynamic-block-shell[data-width="L"],
+.content-block.dynamic-content-block[data-width="L"] {
+    max-width: 1040px !important;
+}
+.a4-paper-wrapper.dynamic-block-shell[data-width="XL"],
+.content-block.dynamic-content-block[data-width="XL"] {
+    max-width: 96vw !important;
+}
+
+/* Content Block Memanjang Dinamis Ke Bawah & Tanpa Siku Margin 4 Sudut */
+.content-block.a4-portrait-block,
+.content-block.dynamic-content-block,
+.mode-edit-aktif .content-block.a4-portrait-block,
+.force-edit-mode .content-block.a4-portrait-block {
+    width: 100% !important;
+    min-height: 160px !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding: 32px 36px !important;
+    border-radius: 10px !important;
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08) !important;
+    background-image: none !important;
+    background-repeat: repeat !important;
+    background-size: auto !important;
+    box-sizing: border-box !important;
+}
+
+/* Pattern Buku, Grid, dan Dots Berada Di Dalam Content Block */
+.content-block.bg-pattern-lines,
+.mode-edit-aktif .content-block.bg-pattern-lines,
+.force-edit-mode .content-block.bg-pattern-lines {
+    background-image: repeating-linear-gradient(transparent, transparent 31px, #aed6f1 31px, #aed6f1 32px) !important;
+    background-size: 100% 32px !important;
+    background-position: top left !important;
+}
+
+.content-block.bg-pattern-grid,
+.mode-edit-aktif .content-block.bg-pattern-grid,
+.force-edit-mode .content-block.bg-pattern-grid {
+    background-image: linear-gradient(#e1e8ed 1px, transparent 1px), linear-gradient(90deg, #e1e8ed 1px, transparent 1px) !important;
+    background-size: 25px 25px !important;
+    background-position: top left !important;
+}
+
+.content-block.bg-pattern-dots,
+.mode-edit-aktif .content-block.bg-pattern-dots,
+.force-edit-mode .content-block.bg-pattern-dots {
+    background-image: radial-gradient(#bdc3c7 2px, transparent 2px) !important;
+    background-size: 28px 28px !important;
+    background-position: top left !important;
+}
+
+/* Pastikan Jarak Atas Setiap Baris Selalu 0 (Line Spacing Hanya di Bawah Baris) */
+.content-block p,
+.content-block div:not(.quiz-container):not(.quiz-header):not(.quiz-question-card):not(.quiz-options):not(.quiz-nav-bar):not(.short-answer-box),
+.content-block li,
+.content-block h1,
+.content-block h2,
+.content-block h3,
+.content-block blockquote {
+    margin-top: 0px !important;
+    padding-top: 0px !important;
+}
+
+@media (max-width: 768px) {
+    .content-block.a4-portrait-block,
+    .content-block.dynamic-content-block {
+        padding: 18px 14px !important;
+        border-radius: 8px !important;
+    }
+}
