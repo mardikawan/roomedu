@@ -6,7 +6,7 @@
     <title>Sistem Belajar Mahardika</title>
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Fredoka:wght@400;500;600&family=Quicksand:wght@400;600;700&family=Lora:ital,wght@0,400;0,700;1,400&family=Merriweather:wght@400;700&family=Montserrat:wght@400;600;700&family=Open+Sans:wght@400;600&family=Oswald:wght@400;500&family=Playfair+Display:wght@400;700&family=Poppins:wght@400;600&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
     
-    <link rel="stylesheet" href="./style.css">
+    <link rel="stylesheet" href="css/style.css">
     <style id="dynamic-theme-styles"></style>
     
     <!-- ENGINE MATHJAX UNTUK LATEX RENDERING -->
@@ -44,6 +44,9 @@
     </div>
 
     <div class="fast-scroll-btns">
+        <button id="btn-darkmode-global" onclick="window.toggleDarkModeGlobal()" title="Mode Gelap / Terang (Dark Mode)">🌙</button>
+        <button id="btn-zoom-in-global" onclick="window.ubahZoomTeksGlobal(1)" title="Perbesar Ukuran Tulisan (+)" style="font-weight:900; font-size:20px;">+</button>
+        <button id="btn-zoom-out-global" onclick="window.ubahZoomTeksGlobal(-1)" title="Perkecil Ukuran Tulisan (-)" style="font-weight:900; font-size:20px;">−</button>
         <button id="btn-fullscreen-global" onclick="window.toggleUniversalFullscreen()" title="Layar Penuh (Fullscreen / Minimize)">⛶</button>
         <button onclick="window.scrollTo({top:0, behavior:'smooth'})" title="Ke Atas">⬆️</button>
         <button onclick="window.scrollTo({top:document.body.scrollHeight, behavior:'smooth'})" title="Ke Bawah">⬇️</button>
@@ -167,7 +170,7 @@
             <div class="modal-header" style="background:linear-gradient(135deg, #0b3954, #16a085); color:white;">
                 <div>
                     <h3 style="margin:0;">🏆 Papan Peringkat Ilmuwan Sains</h3>
-                    <div style="font-size:11px; color:#f1c40f; margin-top:2px;">Check-in Harian (+20 XP) • Latihan Mandiri & Ujian (+Skor XP)</div>
+                    <div style="font-size:11px; color:#f1c40f; margin-top:2px;">Check-in Harian (+100 XP) • Latihan Mandiri & Ujian (+Skor XP)</div>
                 </div>
                 <button class="close-btn" style="color:white;" onclick="tutupModal('modal-leaderboard')">✕</button>
             </div>
@@ -296,7 +299,7 @@
         </div>
     </div>
 
-    <div id="modal-setup-latihan" class="modal-overlay" onclick="if(event.target===this)tutupModal('modal-setup-latihan')"><div class="modal-box" style="width: 450px;"><div class="modal-header" style="background:#eaf2f8;"><h3 style="color:#2980b9; margin:0;">🚀 Buat Latihan</h3><button class="close-btn" onclick="tutupModal('modal-setup-latihan')">✕</button></div><div class="modal-body"><label style="font-weight:bold;font-size:12px;display:block;">Kelas:</label><select id="setup-kelas" class="input-box" onchange="updateDropdownStudent('kelas')"></select><label style="font-weight:bold;font-size:12px;display:block;">Mapel:</label><select id="setup-mapel" class="input-box" onchange="updateDropdownStudent('mapel')" disabled></select><label style="font-weight:bold;font-size:12px;display:block;">Bab:</label><select id="setup-bab" class="input-box" onchange="updateDropdownStudent('bab')" disabled></select><label style="font-weight:bold;font-size:12px;display:block;">Kesulitan:</label><select id="setup-kesulitan" class="input-box" disabled></select><label style="font-weight:bold;font-size:12px;display:block;">Jumlah Soal:</label><input type="number" id="setup-jumlah" class="input-box" value="10" min="1" max="100" placeholder="Ketik jumlah soal"><button class="btn-action" style="background:#2980b9;" onclick="mulaiLatihanMandiri()">Mulai ⚡</button></div></div></div>
+    <div id="modal-setup-latihan" class="modal-overlay" onclick="if(event.target===this)tutupModal('modal-setup-latihan')"><div class="modal-box" style="width: 450px;"><div class="modal-header" style="background:#eaf2f8;"><h3 style="color:#2980b9; margin:0;">🚀 Buat Latihan</h3><button class="close-btn" onclick="tutupModal('modal-setup-latihan')">✕</button></div><div class="modal-body"><label style="font-weight:bold;font-size:12px;display:block;">Kelas:</label><select id="setup-kelas" class="input-box" onchange="updateDropdownStudent('kelas')"></select><label style="font-weight:bold;font-size:12px;display:block;">Mapel:</label><select id="setup-mapel" class="input-box" onchange="updateDropdownStudent('mapel')" disabled></select><label style="font-weight:bold;font-size:12px;display:block;">Bab:</label><select id="setup-bab" class="input-box" onchange="updateDropdownStudent('bab')" disabled></select><label style="font-weight:bold;font-size:12px;display:block;">Kesulitan:</label><select id="setup-kesulitan" class="input-box" disabled></select><label style="font-weight:bold;font-size:12px;display:block;">Jumlah Soal:</label><input type="number" id="setup-jumlah" class="input-box" value="20" min="20" max="200" placeholder="Minimal 20 soal (Bisa lebih)"><button class="btn-action" style="background:#2980b9;" onclick="mulaiLatihanMandiri()">Mulai ⚡</button></div></div></div>
     
     <!-- MODAL MASUK UJIAN (GERBANG SISWA) -->
     <div id="modal-enter-ujian" class="modal-overlay" onclick="if(event.target===this)tutupModal('modal-enter-ujian')">
@@ -829,8 +832,8 @@
                     </select>
                 </div>
                 <div>
-                    <label style="font-weight:bold; font-size:12px; color:#7f8c8d; margin-bottom:5px; display:block;">5. Jumlah Soal (Total yang akan diambil):</label>
-                    <input type="number" id="latihan-jumlah-soal" class="input-box" value="10" min="1" max="100" style="margin:0; font-weight:bold; color:#2c3e50;">
+                    <label style="font-weight:bold; font-size:12px; color:#7f8c8d; margin-bottom:5px; display:block;">5. Jumlah Soal (Minimal 20 Soal, Bisa Lebih):</label>
+                    <input type="number" id="latihan-jumlah-soal" class="input-box" value="20" min="20" max="200" style="margin:0; font-weight:bold; color:#2c3e50;" onchange="if(this.value < 20) { alert('⚠️ Latihan membutuhkan minimal 20 soal!'); this.value = 20; }" onblur="if(this.value < 20) { this.value = 20; }">
                 </div>
                 <button class="btn-action" style="background:#f1c40f; color:#d35400; width:100%; font-size:16px; padding:12px; margin-top:6px; font-weight:900; text-transform:uppercase; letter-spacing:1px; border-radius:8px; box-shadow:0 4px 6px rgba(241, 196, 15, 0.3);" onclick="window.mulaiLatihanSiswa()">🚀 Mulai Berlatih</button>
             </div>
@@ -1637,9 +1640,9 @@
         <div id="cbt-nav-grid" class="quiz-nav-bar" style="border:none; padding:0; margin:0;"></div>
     </div>
     <!-- SCRIPT REFERENCES -->
-    <script src="./main.js"></script>
-    <script src="./fitur-afektif-games.js"></script>
-    <script src="./my-pet-engine.js"></script>
-    <script type="module" src="./firebase-db.js"></script>
+    <script src="js/main.js"></script>
+    <script src="js/fitur-afektif-games.js"></script>
+    <script src="js/my-pet-engine.js"></script>
+    <script type="module" src="js/firebase-db.js"></script>
 </body>
 </html>

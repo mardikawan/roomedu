@@ -2050,28 +2050,31 @@ body:not(.mode-edit-aktif):not(.force-edit-mode) .locked-hidden-nav-item {
     user-select: none;
 }
 
-/* Tema Visual 6 Level Habitat */
-.hab-lv-1 { background: linear-gradient(180deg, #e0f2fe 0%, #bae6fd 62%, #fde68a 62%, #fcd34d 100%); border-color: #94a3b8; }
-.hab-lv-2 { background: linear-gradient(180deg, #ffedd5 0%, #fed7aa 60%, #d97706 60%, #b45309 100%); border-color: #d97706; }
-.hab-lv-3 { background: linear-gradient(180deg, #bae6fd 0%, #7dd3fc 58%, #4ade80 58%, #16a34a 100%); border-color: #22c55e; }
-.hab-lv-4 { background: linear-gradient(180deg, #a5f3fc 0%, #38bdf8 56%, #84cc16 56%, #4d7c0f 100%); border-color: #0284c7; }
-.hab-lv-5 { background: linear-gradient(180deg, #fef3c7 0%, #fde047 56%, #f8fafc 56%, #cbd5e1 100%); border-color: #eab308; }
-.hab-lv-6 { background: radial-gradient(circle at 50% 25%, #f5d0fe 0%, #6d28d9 58%, #1e1b4b 58%, #312e81 100%); border-color: #f59e0b; box-shadow: 0 0 20px rgba(245,158,11,0.35); }
-
-.mypet-hab-sky-ornament {
-    position: absolute;
-    top: 14px;
-    left: 20px;
-    right: 20px;
-    height: 60px;
-    pointer-events: none;
-    opacity: 0.85;
+/* Habitat Universal 2.5D (Bebas Lingkaran Ungu & Bebas Deretan Emoji Abstrak) */
+.mypet-universal-stage {
+    background: linear-gradient(180deg, #7dd3fc 0%, #e0f2fe 52%, #86efac 52%, #22c55e 100%);
+    border-color: #94a3b8;
 }
-.hab-lv-3 .mypet-hab-sky-ornament::before { content: "☁️      🌤️          ☁️"; font-size: 26px; }
-.hab-lv-4 .mypet-hab-sky-ornament::before { content: "⛰️   🦅         ⛰️"; font-size: 28px; }
-.hab-lv-5 .mypet-hab-sky-ornament::before { content: "🏛️      ✨👑✨      🏛️"; font-size: 26px; }
-.hab-lv-6 .mypet-hab-sky-ornament::before { content: "🌌   ✨💎✨   🌊   ✨🪐✨"; font-size: 26px; }
 
+/* Tombol Visit di Samping XP Leaderboard */
+.lb-visit-btn {
+    background: linear-gradient(135deg, #0b3954, #16a085);
+    color: #ffffff;
+    border: 1.5px solid #f1c40f;
+    padding: 6px 12px;
+    border-radius: 18px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 11px;
+    font-weight: 800;
+    cursor: pointer;
+    white-space: nowrap;
+    box-shadow: 0 3px 8px rgba(11, 57, 84, 0.2);
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+.lb-visit-btn:hover {
+    transform: translateY(-2px) scale(1.04);
+    box-shadow: 0 5px 12px rgba(22, 160, 133, 0.4);
+}
 /* Dekorasi Kosmetik di Dalam Habitat */
 .mypet-decor-item {
     position: absolute;
@@ -2297,4 +2300,181 @@ body:not(.mode-edit-aktif):not(.force-edit-mode) .locked-hidden-nav-item {
 .mypet-shop-card:hover {
     transform: translateY(-2px);
     border-color: #cbd5e1;
+}
+
+/* =========================================================================
+   PEMBARUAN: ZOOM TEKS (+/-) ANTI-TABRAKAN, SINKRONISASI CONTENT BLOCK HP 100%,
+   DARK MODE, ANIMASI INTERAKSI PET & HEWAN AIR, SERTA POP-UP ANTI-AI 5 DETIK
+   ========================================================================= */
+
+:root {
+    --user-font-scale: 1;
+}
+
+/* 1. Zoom Teks Proporsional dengan Auto-Reflow (Teks Membesar Tanpa Merusak Kotak) */
+.content-block,
+.quiz-question-text,
+.quiz-option-btn,
+#temporary-quiz-room .quiz-question-card,
+#ujian-strict-room .quiz-question-card {
+    zoom: var(--user-font-scale, 1);
+    overflow-wrap: anywhere !important;
+    word-break: break-word !important;
+}
+
+/* 2. Sinkronisasi Content Block di HP agar 100% Utuh Seperti Laptop & Tidak Terpotong */
+@media (max-width: 768px) {
+    #blocks-container {
+        width: 100% !important;
+        padding: 0 8px !important;
+        box-sizing: border-box !important;
+    }
+    .block-wrapper,
+    .a4-paper-wrapper.dynamic-block-shell {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 auto !important;
+        box-sizing: border-box !important;
+    }
+    .content-block.a4-portrait-block,
+    .content-block.dynamic-content-block {
+        width: 100% !important;
+        max-width: 100% !important;
+        padding: 20px 16px !important;
+        box-sizing: border-box !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+    }
+    .content-block table {
+        display: block;
+        max-width: 100% !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+    }
+    .content-block img,
+    .content-block video,
+    .content-block iframe,
+    .content-block svg {
+        max-width: 100% !important;
+        height: auto !important;
+    }
+}
+
+/* 3. Pop-up Peringatan Anti-AI 5 Detik yang Perlahan Menghilang (Fade-Out) */
+.anti-ai-warning-toast {
+    position: fixed;
+    top: 22px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, #991b1b, #dc2626);
+    color: #ffffff;
+    border: 2px solid #fde047;
+    border-radius: 14px;
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    max-width: 92vw;
+    width: 460px;
+    box-shadow: 0 12px 32px rgba(153, 27, 27, 0.55);
+    z-index: 1000099;
+    font-family: 'Poppins', sans-serif;
+    opacity: 1;
+    transition: opacity 1.8s ease, transform 1.8s ease;
+    pointer-events: none;
+}
+.anti-ai-warning-toast.fade-out-slow {
+    opacity: 0 !important;
+    transform: translateX(-50%) translateY(-12px) !important;
+}
+
+/* 4. Animasi Partikel Interaksi Singkat (Elus, Mainan, Makan) & Riak Hewan Air */
+.mypet-live-fx-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 25;
+    overflow: hidden;
+}
+@keyframes fxBurstFloat {
+    0%   { opacity: 0; transform: translate(-50%, 10px) scale(0.4); }
+    25%  { opacity: 1; transform: translate(-50%, -18px) scale(1.25); }
+    80%  { opacity: 1; transform: translate(-50%, -42px) scale(1.1); }
+    100% { opacity: 0; transform: translate(-50%, -58px) scale(0.8); }
+}
+.mypet-live-fx-overlay span {
+    position: absolute;
+    font-size: 34px;
+    filter: drop-shadow(0 4px 6px rgba(0,0,0,0.2));
+    animation: fxBurstFloat 2.2s ease-out forwards;
+}
+.mypet-live-fx-overlay .fx-burst-1 { left: 42%; top: 45%; animation-delay: 0s; }
+.mypet-live-fx-overlay .fx-burst-2 { left: 58%; top: 38%; animation-delay: 0.18s; }
+.mypet-live-fx-overlay .fx-burst-3 { left: 50%; top: 30%; animation-delay: 0.35s; }
+
+@keyframes waterRipplePulse {
+    0%, 100% { transform: scale(0.92); opacity: 0.65; }
+    50%      { transform: scale(1.08); opacity: 0.95; }
+}
+.mypet-water-ripple {
+    width: 78px;
+    height: 16px;
+    border-radius: 50%;
+    border: 2.5px solid rgba(224, 242, 254, 0.85);
+    background: rgba(56, 189, 248, 0.25);
+    margin-top: -16px;
+    pointer-events: none;
+    animation: waterRipplePulse 2.4s ease-in-out infinite;
+}
+
+/* 5. Mode Gelap / Dark Mode Global */
+body.dark-mode-active,
+body.dark-mode-active #main-editor-wrapper {
+    background-color: #0f172a !important;
+    color: #e2e8f0 !important;
+}
+body.dark-mode-active .toolbar-wrapper,
+body.dark-mode-active .admin-menu-bar {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+}
+body.dark-mode-active .admin-menu-bar span {
+    color: #e2e8f0 !important;
+}
+body.dark-mode-active .content-block.a4-portrait-block,
+body.dark-mode-active .content-block.dynamic-content-block {
+    background-color: #1e293b !important;
+    color: #f1f5f9 !important;
+    border-color: #334155 !important;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45) !important;
+}
+body.dark-mode-active .quiz-container,
+body.dark-mode-active .modal-box,
+body.dark-mode-active .mypet-detail-card,
+body.dark-mode-active .mypet-shop-card {
+    background-color: #1e293b !important;
+    color: #f1f5f9 !important;
+    border-color: #334155 !important;
+}
+body.dark-mode-active .quiz-question-card,
+body.dark-mode-active .mypet-body-container,
+body.dark-mode-active .mypet-tabs-bar {
+    background-color: #0f172a !important;
+    color: #e2e8f0 !important;
+    border-color: #334155 !important;
+}
+body.dark-mode-active .quiz-question-text,
+body.dark-mode-active .quiz-title,
+body.dark-mode-active .mypet-detail-info-box h3 {
+    color: #f8fafc !important;
+}
+body.dark-mode-active .quiz-option-btn {
+    background-color: #1e293b !important;
+    color: #e2e8f0 !important;
+    border-color: #475569 !important;
+}
+body.dark-mode-active #temporary-quiz-room,
+body.dark-mode-active #ujian-strict-room {
+    background-color: #0f172a !important;
+    color: #f1f5f9 !important;
 }

@@ -341,12 +341,13 @@ window.selesaikanCheckinHarian = function() {
             window.leaderboardSiswaData[uName].checkinTerakhir = keyHariIni;
         }
         if (typeof window.tambahXPSiswa === "function") {
-            window.tambahXPSiswa(20, "checkin_harian");
+            window.tambahXPSiswa(100, "checkin_harian");
         }
     }
 
     window.tutupModal("modal-checkin-siswa");
     window.perbaruiTombolCheckinUI();
+    alert("🎉 Check-in Berhasil! Kamu mendapatkan +100 XP dan +100 Coin!");
 };
 
 // =========================================================================
@@ -1426,7 +1427,9 @@ window.renderIsiShopBorder = function(tierFilter, btnEl) {
     if (!listEl) return;
 
     let uName = sessionStorage.getItem("username");
-    let lb = (window.leaderboardSiswaData && window.leaderboardSiswaData[uName]) ? window.leaderboardSiswaData[uName] : null;
+    let lb = (typeof window.pastikanStrukturDualXPDanPet === "function")
+        ? window.pastikanStrukturDualXPDanPet(uName)
+        : ((window.leaderboardSiswaData && window.leaderboardSiswaData[uName]) ? window.leaderboardSiswaData[uName] : null);
     if (!lb) return;
 
     let owned = Array.isArray(lb.ownedBorders) ? lb.ownedBorders : (lb.ownedBorders ? Object.values(lb.ownedBorders) : []);
@@ -1441,7 +1444,7 @@ window.renderIsiShopBorder = function(tierFilter, btnEl) {
     items.forEach(function(item) {
         let isOwned = owned.includes(item.id);
         let isEquipped = (equipped === item.id);
-        let hargaStr = item.harga.toLocaleString('id-ID') + ' XP';
+        let hargaStr = item.harga.toLocaleString('id-ID') + ' Coin';
 
         let btnAksi = '';
         if (isEquipped) {
@@ -1449,7 +1452,7 @@ window.renderIsiShopBorder = function(tierFilter, btnEl) {
         } else if (isOwned) {
             btnAksi = '<button type="button" onclick="window.pasangBorderProfil(\'' + item.id + '\')" style="background:#27ae60; color:white; border:none; padding:6px 14px; border-radius:16px; font-size:11px; font-weight:bold; cursor:pointer;">Pasang</button>';
         } else {
-            btnAksi = '<button type="button" onclick="window.beliBorderDiShop(\'' + item.id + '\')" style="background:#0b3954; color:#f1c40f; border:1px solid #f1c40f; padding:6px 12px; border-radius:16px; font-size:11px; font-weight:800; cursor:pointer;">🛒 Beli (' + hargaStr + ')</button>';
+            btnAksi = '<button type="button" onclick="window.beliBorderDiShop(\'' + item.id + '\')" style="background:#0b3954; color:#f1c40f; border:1px solid #f1c40f; padding:6px 12px; border-radius:16px; font-size:11px; font-weight:800; cursor:pointer;">🪙 Beli (' + hargaStr + ')</button>';
         }
 
         let avatarHtml = window.buatHTMLBingkaiAvatar(lb.foto, item.id, 44);
@@ -1471,8 +1474,6 @@ window.renderIsiShopBorder = function(tierFilter, btnEl) {
     listEl.innerHTML = html;
 };
 
-
-
 window.beliBorderDiShop = function(borderId) {
     let uName = sessionStorage.getItem("username");
     let lb = (typeof window.pastikanStrukturDualXPDanPet === "function")
@@ -1492,26 +1493,24 @@ window.beliBorderDiShop = function(borderId) {
         return;
     }
 
-    let saldo = (typeof window.ambilXPTersediaSiswa === "function")
-        ? window.ambilXPTersediaSiswa(uName)
-        : (Number(lb.xpTersedia !== undefined ? lb.xpTersedia : lb.xp) || 0);
+    let saldoCoin = (typeof window.ambilCoinSiswa === "function")
+        ? window.ambilCoinSiswa(uName)
+        : (Number(lb.coin !== undefined ? lb.coin : (lb.xpTersedia !== undefined ? lb.xpTersedia : lb.xp)) || 0);
 
-    if (saldo < item.harga) {
-        let kurang = (item.harga - saldo).toLocaleString('id-ID');
-        return alert("⚠️ Saldo XP Tersedia kamu belum cukup untuk membeli bingkai " + item.nama + "!\n\nHarga: " + item.harga.toLocaleString('id-ID') + " XP\nXP Tersedia: " + saldo.toLocaleString('id-ID') + " XP\n(Kurang " + kurang + " XP lagi)");
+    if (saldoCoin < item.harga) {
+        let kurang = (item.harga - saldoCoin).toLocaleString('id-ID');
+        return alert("⚠️ Saldo Coin kamu belum cukup untuk membeli bingkai " + item.nama + "!\n\nHarga: " + item.harga.toLocaleString('id-ID') + " Coin\nCoin kamu: " + saldoCoin.toLocaleString('id-ID') + " Coin\n(Kurang " + kurang + " Coin lagi)");
     }
 
-    if (!confirm("Beli bingkai \"" + item.nama + "\" (" + item.tier + ") seharga " + item.harga.toLocaleString('id-ID') + " XP?\n\nHanya XP Tersedia yang berkurang, sedangkan XP Total di Leaderboard tetap utuh!")) {
+    if (!confirm("Beli bingkai \"" + item.nama + "\" (" + item.tier + ") seharga " + item.harga.toLocaleString('id-ID') + " Coin?\n\nHanya Coin yang berkurang, sedangkan XP kamu di Leaderboard tetap utuh!")) {
         return;
     }
 
-    if (typeof window.gunakanXPTersediaSiswa === "function") {
-        if (!window.gunakanXPTersediaSiswa(item.harga, "beli_border_" + borderId)) return;
+    if (typeof window.gunakanCoinSiswa === "function") {
+        if (!window.gunakanCoinSiswa(item.harga, "beli_border_" + borderId)) return;
     } else {
-        lb.xpTersedia = Math.max(0, saldo - item.harga);
-        if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
-            window.simpanLeaderboardSiswaKeDB(uName, lb);
-        }
+        lb.coin = Math.max(0, saldoCoin - item.harga);
+        lb.xpTersedia = lb.coin;
     }
 
     lb.ownedBorders.push(borderId);
@@ -1622,6 +1621,7 @@ window.renderTabelLeaderboard = function() {
 
     let filterType = document.getElementById('lb-filter-cakupan').value;
     let filterVal = document.getElementById('lb-select-subfilter').value;
+    let currentUsername = (sessionStorage.getItem("username") || "").toLowerCase();
 
     let rawMap = window.leaderboardSiswaData || {};
     let filtered = [];
@@ -1634,15 +1634,17 @@ window.renderTabelLeaderboard = function() {
         let kls = String(item.kelas || "").toUpperCase().trim();
         if (!window.apakahKelasSMALeaderboard(kls)) return;
 
+        let entry = Object.assign({}, item, { _userKey: uKey });
+
         if (filterType === 'semua') {
-            filtered.push(item);
+            filtered.push(entry);
         } else if (filterType === 'angkatan') {
             let prefixTarget = String(filterVal || "").toUpperCase().trim();
             if (kls === prefixTarget || kls.indexOf(prefixTarget + " ") === 0 || kls.indexOf(prefixTarget + "-") === 0) {
-                filtered.push(item);
+                filtered.push(entry);
             }
         } else if (filterType === 'kelas' && item.kelas === filterVal) {
-            filtered.push(item);
+            filtered.push(entry);
         }
     });
 
@@ -1685,6 +1687,13 @@ window.renderTabelLeaderboard = function() {
 
         let avatarHtml = window.buatHTMLBingkaiAvatar(siswa.foto, siswa.equippedBorder, 48, lencana.warna);
 
+        // Tombol Visit di samping informasi XP (Hanya muncul untuk baris siswa lain)
+        let uKeySafe = String(siswa._userKey || "").replace(/'/g, "\\'");
+        let isSelf = (uKeySafe.toLowerCase() === currentUsername);
+        let btnVisitHtml = (!isSelf && uKeySafe)
+            ? '<button type="button" class="lb-visit-btn" onclick="window.tutupModal(\'modal-leaderboard\'); window.kunjungiHabitatSiswaLain(\'' + uKeySafe + '\');" title="Kunjungi Habitat ' + namaUtama + '">🏡 Visit</button>'
+            : '';
+
         html +=
         '<div class="' + classBorder + '" style="display:flex; align-items:center; gap:14px; ' + styleDefault + ' padding:13px 16px; border-radius:12px; position:relative;">' +
             '<div style="font-size:20px; font-weight:900; color:' + (i < 3 ? '#d35400' : '#64748b') + '; width:28px; text-align:center; z-index:2; flex-shrink:0;">' + medali + '</div>' +
@@ -1698,9 +1707,12 @@ window.renderTabelLeaderboard = function() {
                     '<span style="background:' + lencana.bg + '; color:' + lencana.warna + '; border:1px solid ' + lencana.border + '; padding:1px 6px; border-radius:10px; font-weight:bold;">' + lencana.ikon + ' ' + lencana.nama + '</span> - <b>' + siswa.kelas + '</b>' +
                 '</div>' +
             '</div>' +
-            '<div style="text-align:right; flex-shrink:0; z-index:2;">' +
-                '<div style="font-size:20px; font-weight:900; color:#0b3954; font-family:\'Bebas Neue\', sans-serif;">' + xpTotalSiswa.toLocaleString('id-ID') + ' XP</div>' +
-                '<div style="font-size:11px; color:#475569; font-weight:bold;">🔥 ' + totalDikerjakan + ' Soal Selesai</div>' +
+            '<div style="display:flex; align-items:center; gap:10px; flex-shrink:0; z-index:2;">' +
+                '<div style="text-align:right;">' +
+                    '<div style="font-size:20px; font-weight:900; color:#0b3954; font-family:\'Bebas Neue\', sans-serif;">' + xpTotalSiswa.toLocaleString('id-ID') + ' XP</div>' +
+                    '<div style="font-size:11px; color:#475569; font-weight:bold;">🔥 ' + totalDikerjakan + ' Soal Selesai</div>' +
+                '</div>' +
+                btnVisitHtml +
             '</div>' +
         '</div>';
     });
