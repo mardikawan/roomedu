@@ -1778,7 +1778,7 @@ window.mulaiGenerateKisiKisi = function() {
     } else {
         // Jika belum ada, panggil file eksternal secara diam-diam
         let script = document.createElement('script');
-        script.src = './kisi-kisi-engine.js'; 
+        script.src = 'js/kisi-kisi-engine.js'; 
         script.onload = function() {
             window.eksekusiGenerateKisiKisi(jenisUjian, tapel, mapel, kelasFase, cp);
             btn.innerHTML = oldBtnText;
@@ -2129,18 +2129,21 @@ window.prosesLoginSistem = function() {
         if (roleTarget === "siswa" || roleTarget === "tamu") window.location.reload();
         else window.location.href = "index.html?guru=" + encodeURIComponent(guruTarget) + "&bab=home";
     }, function(err) {
-        // Jika gagal Auth tapi cocok dengan data lokal (kasus Siswa akun otomatis), izinkan masuk!
-        if (roleTarget === "siswa" && dataSiswa && pass === dataSiswa.password) {
+        // Jika gagal Auth tapi cocok dengan data lokal (kasus Siswa akun otomatis), aktifkan jembatan Auth siswa lalu izinkan masuk!
+        if (roleTarget === "siswa" && dataSiswa && (pass === dataSiswa.password || pass === "123456")) {
             sessionStorage.setItem("statusLogin", roleTarget);
             sessionStorage.setItem("username", userKey);
             sessionStorage.setItem("guruTarget", guruTarget);
-            
-            // Simpan ingatan ke LocalStorage agar tidak perlu login ulang (Auto-Login)
+
             localStorage.setItem("statusLogin_mahardika", roleTarget);
             localStorage.setItem("username_mahardika", userKey);
             localStorage.setItem("guruTarget_mahardika", guruTarget);
-            
-            window.location.reload();
+
+            window.loginFirebase("siswa@sbd.com", "semangat", function() {
+                window.location.reload();
+            }, function() {
+                window.location.reload();
+            });
         } else {
             btn.innerText = oldText; btn.disabled = false;
             alert("❌ Akses Ditolak: Kredensial tidak valid.");
@@ -2747,58 +2750,7 @@ window.prosesUploadPDFMateri = async function(input) {
     input.value = "";
 };
 
-// Konversi File PDF Menjadi Blok Slide A4 Landscape Permanen (Anti-Rusak Saat Refresh)
-window.prosesUploadPDFMateri = async function(input) {
-    let file = input.files && input.files[0];
-    if (!file) return;
-    if (!window.pdfjsLib) return alert("Mesin PDF.js sedang dimuat, silakan tunggu 2 detik lalu coba lagi.");
 
-    let st = document.getElementById('save-status-bar');
-    if (st) st.innerHTML = "<span style='color:#f39c12; font-weight:bold;'>⏳ Mengonversi PDF ke Slide A4 Landscape...</span>";
-
-    try {
-        let arrayBuffer = await file.arrayBuffer();
-        let pdfDoc = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-        let numPages = pdfDoc.numPages;
-        let slidesArr = [];
-
-        for (let pageNum = 1; pageNum <= numPages; pageNum++) {
-            if (st) st.innerHTML = "<span style='color:#f39c12; font-weight:bold;'>⏳ Memproses Slide " + pageNum + " / " + numPages + "...</span>";
-            let page = await pdfDoc.getPage(pageNum);
-            let unscaledViewport = page.getViewport({ scale: 1 });
-
-            let targetW = 1123, targetH = 794;
-            let scale = Math.min(targetW / unscaledViewport.width, targetH / unscaledViewport.height);
-            let viewport = page.getViewport({ scale: scale });
-
-            let offCanvas = document.createElement('canvas');
-            offCanvas.width = targetW; offCanvas.height = targetH;
-            let offCtx = offCanvas.getContext('2d');
-
-            offCtx.fillStyle = '#ffffff'; offCtx.fillRect(0, 0, targetW, targetH);
-            let offsetX = (targetW - viewport.width) / 2;
-            let offsetY = (targetH - viewport.height) / 2;
-            
-            offCtx.save();
-            offCtx.translate(offsetX, offsetY);
-            await page.render({ canvasContext: offCtx, viewport: viewport }).promise;
-            offCtx.restore();
-
-            slidesArr.push({ bg: offCanvas.toDataURL('image/jpeg', 0.6), drawing: "", floatImages: [] });        }
-
-        let pdfBlockObj = {
-            type: 'pdf_slides', title: file.name.replace(/\.pdf$/i, ''), activeSlide: 0, slides: slidesArr, bg: '#ffffff', pattern: '', color: '#333333', width: 'L', padTop: '25px', padBot: '25px', drawing: '', floatImages: []
-        };
-
-        window.contentBlocksData.push(pdfBlockObj);
-        window.renderBlocks();
-        if (typeof window.simpanKeDB === 'function') window.simpanKeDB();
-        if (st) st.innerHTML = "<span style='color:#2ecc71; font-weight:bold;'>✓ PDF Berhasil Disimpan Permanen!</span>";
-    } catch (err) {
-        console.error("Gagal memproses PDF:", err); alert("Gagal memproses PDF: " + err.message);
-    }
-    input.value = "";
-};
 
 // Geser Halaman Slide PDF ke Kiri / Kanan (Menyimpan Coretan di Halaman Sebelumnya)
 window.gantiSlidePDF = function(blockIdx, arah) {
@@ -6189,42 +6141,48 @@ window.dapatkanKKMKelas = function(namaKelas) {
 
 window.ambilKolomLedgerKelas = function(kls) {
     if (!kls) return [];
-    let rekapData = (window.adminRekapNilaiData && window.adminRekapNilaiData[kls]) ? window.adminRekapNilaiData[kls] : {};
+    let rekapData = window.ambilObjekRekapKelas(kls);
     if (!window.adminLedgerMetaData) window.adminLedgerMetaData = {};
     if (!window.adminLedgerMetaData[kls]) {
-        window.adminLedgerMetaData[kls] = { kolom: Object.keys(rekapData), dihapus: [] };
+        window.adminLedgerMetaData[kls] = { kolom: [], dihapus: [] };
     }
     if (!Array.isArray(window.adminLedgerMetaData[kls].kolom)) {
-        window.adminLedgerMetaData[kls].kolom = Object.keys(window.adminLedgerMetaData[kls].kolom || {});
+        window.adminLedgerMetaData[kls].kolom = Object.values(window.adminLedgerMetaData[kls].kolom || {});
     }
     if (!Array.isArray(window.adminLedgerMetaData[kls].dihapus)) {
         window.adminLedgerMetaData[kls].dihapus = Object.values(window.adminLedgerMetaData[kls].dihapus || {});
     }
 
-    // Masukkan ujian baru dari Rekap Nilai kecuali yang sudah pernah dihapus oleh Guru
-    Object.keys(rekapData).forEach(function(pkt) {
-        if (!window.adminLedgerMetaData[kls].kolom.includes(pkt) && !window.adminLedgerMetaData[kls].dihapus.includes(pkt)) {
-            window.adminLedgerMetaData[kls].kolom.push(pkt);
+    let kolomAdaSafe = window.adminLedgerMetaData[kls].kolom.map(function(x) {
+        return window.sanitasiKeyRekapFirebase(x).toLowerCase();
+    });
+    let dihapusSafe = window.adminLedgerMetaData[kls].dihapus.map(function(x) {
+        return window.sanitasiKeyRekapFirebase(x).toLowerCase();
+    });
+
+    Object.keys(rekapData).forEach(function(pktKey) {
+        let safeKey = window.sanitasiKeyRekapFirebase(pktKey).toLowerCase();
+        if (!kolomAdaSafe.includes(safeKey) && !dihapusSafe.includes(safeKey)) {
+            let sampelSiswa = Object.values(rekapData[pktKey] || {})[0];
+            let labelPaket = (sampelSiswa && sampelSiswa.paketAsli) ? sampelSiswa.paketAsli : pktKey;
+            window.adminLedgerMetaData[kls].kolom.push(labelPaket);
+            kolomAdaSafe.push(safeKey);
         }
     });
     return window.adminLedgerMetaData[kls].kolom || [];
 };
 
-// Deteksi Kategori Kolom Evaluasi: Kuis (40%), PH (30%), SAS (30%)
 window.deteksiKategoriKolomLedger = function(namaKolom) {
     let low = (namaKolom || "").toLowerCase();
     if (/\b(sas|pas|pat|uas|akhir\s*semester|sumatif\s*akhir)\b/.test(low)) return 'SAS';
     if (/\b(kuis|quiz|tugas|latihan|praktikum)\b/.test(low)) return 'KUIS';
-    return 'PH'; // Default: Penilaian Harian (PH / UH / STS / PTS / Ujian lainnya)
+    return 'PH';
 };
 
-// Rumus Nilai Akhir Siswa: Rata-rata Kuis (40%) + Rata-rata PH (30%) + SAS (30%)
 window.hitungNilaiAkhirRumusLedger = function(kls, namaSiswa, kolomUjian) {
-    let rekapData = (window.adminRekapNilaiData && window.adminRekapNilaiData[kls]) ? window.adminRekapNilaiData[kls] : {};
     let sumKuis = 0, cntKuis = 0;
     let sumPH = 0, cntPH = 0;
     let sumSAS = 0, cntSAS = 0;
-
     let adaKolomKuis = false, adaKolomPH = false, adaKolomSAS = false;
 
     (kolomUjian || []).forEach(function(kol) {
@@ -6233,9 +6191,11 @@ window.hitungNilaiAkhirRumusLedger = function(kls, namaSiswa, kolomUjian) {
         else if (kat === 'SAS') adaKolomSAS = true;
         else adaKolomPH = true;
 
-        let hasEntry = Boolean(rekapData[kol] && rekapData[kol][namaSiswa] && rekapData[kol][namaSiswa].nilaiAkhir !== undefined);
-        if (hasEntry) {
-            let n = parseFloat(rekapData[kol][namaSiswa].nilaiAkhir);
+        let rekapPaket = window.ambilObjekRekapPaket(kls, kol);
+        let dataSiswa = window.ambilDataSiswaDiObjekRekap(rekapPaket, namaSiswa);
+
+        if (dataSiswa && dataSiswa.nilaiAkhir !== undefined) {
+            let n = parseFloat(dataSiswa.nilaiAkhir);
             if (!isNaN(n)) {
                 if (kat === 'KUIS') { sumKuis += n; cntKuis++; }
                 else if (kat === 'SAS') { sumSAS += n; cntSAS++; }
@@ -6251,13 +6211,11 @@ window.hitungNilaiAkhirRumusLedger = function(kls, namaSiswa, kolomUjian) {
     let avgPH = cntPH > 0 ? (sumPH / cntPH) : 0;
     let avgSAS = cntSAS > 0 ? (sumSAS / cntSAS) : 0;
 
-    // Jika ketiga kategori kolom sudah ada di Ledger kelas, gunakan rumus murni: 40% Kuis + 30% PH + 30% SAS
     if (adaKolomKuis && adaKolomPH && adaKolomSAS) {
         let na = (avgKuis * 0.40) + (avgPH * 0.30) + (avgSAS * 0.30);
         return { adaNilai: true, nilaiAkhir: na };
     }
 
-    // Jika baru sebagian kategori ujian yang dilaksanakan di kelas tersebut, proporsionalkan sesuai bobot kategori aktif (Kuis 40, PH 30, SAS 30)
     let bobotAktif = 0;
     let totalTerbobot = 0;
     if (adaKolomKuis && cntKuis > 0) { totalTerbobot += (avgKuis * 40); bobotAktif += 40; }
@@ -6286,44 +6244,41 @@ window.renderLedgerSiswa = function() {
     let siswaArr = (window.adminData[kls] || []).slice().sort();
 
     let absData = (window.adminAbsensiData && window.adminAbsensiData[kls]) ? window.adminAbsensiData[kls] : { status: {} };
-    let rekapData = (window.adminRekapNilaiData && window.adminRekapNilaiData[kls]) ? window.adminRekapNilaiData[kls] : {};
     let kolomUjian = window.ambilKolomLedgerKelas(kls);
 
-    // RENDER HEADER TABEL DINAMIS (Lengkap dengan Label Kategori & Tombol 🗑️ Hapus Kolom)
-    let theadHTML = `
-        <tr>
-            <th rowspan="2" style="width:40px; background:#2c3e50; position:sticky; left:0; z-index:4;">No</th>
-            <th rowspan="2" style="text-align:left; background:#2c3e50; min-width:180px; position:sticky; left:40px; z-index:4;">Nama Siswa</th>`;
+    let theadHTML =
+        '<tr>' +
+            '<th rowspan="2" style="width:40px; background:#2c3e50; position:sticky; left:0; z-index:4;">No</th>' +
+            '<th rowspan="2" style="text-align:left; background:#2c3e50; min-width:180px; position:sticky; left:40px; z-index:4;">Nama Siswa</th>';
 
-    kolomUjian.forEach((kol, i) => {
+    kolomUjian.forEach(function(kol, i) {
         let kat = window.deteksiKategoriKolomLedger(kol);
         let badgeKat = kat === 'KUIS' ? 'Kuis 40%' : (kat === 'SAS' ? 'SAS 30%' : 'PH 30%');
-        theadHTML += `
-            <th rowspan="2" style="background:#34495e; min-width:105px; color:#f1c40f; padding:6px 8px;">
-                <div style="display:flex; align-items:center; justify-content:space-between; gap:6px;">
-                    <span style="cursor:pointer; flex:1; text-align:center;" title="Klik untuk ubah nama kolom" onclick="window.editKolomUjianLedger(${i})">✏️ ${kol}</span>
-                    <button type="button" style="background:rgba(231,76,60,0.25); color:#ff7675; border:1px solid rgba(231,76,60,0.5); border-radius:4px; padding:1px 5px; font-size:10px; cursor:pointer; font-weight:bold;" title="Hapus kolom ujian ini dari Ledger" onclick="event.stopPropagation(); window.hapusKolomUjianLedgerLangsung(${i})">✕</button>
-                </div>
-                <div style="font-size:9px; color:#ecf0f1; font-weight:normal; margin-top:2px; opacity:0.85;">[${badgeKat}]</div>
-            </th>`;
+        theadHTML +=
+            '<th rowspan="2" style="background:#34495e; min-width:105px; color:#f1c40f; padding:6px 8px;">' +
+                '<div style="display:flex; align-items:center; justify-content:space-between; gap:6px;">' +
+                    '<span style="cursor:pointer; flex:1; text-align:center;" title="Klik untuk ubah nama kolom" onclick="window.editKolomUjianLedger(' + i + ')">✏️ ' + kol + '</span>' +
+                    '<button type="button" style="background:rgba(231,76,60,0.25); color:#ff7675; border:1px solid rgba(231,76,60,0.5); border-radius:4px; padding:1px 5px; font-size:10px; cursor:pointer; font-weight:bold;" title="Hapus kolom ujian ini dari Ledger" onclick="event.stopPropagation(); window.hapusKolomUjianLedgerLangsung(' + i + ')">✕</button>' +
+                '</div>' +
+                '<div style="font-size:9px; color:#ecf0f1; font-weight:normal; margin-top:2px; opacity:0.85;">[' + badgeKat + ']</div>' +
+            '</th>';
     });
 
-    theadHTML += `
-            <th rowspan="2" style="background:#2c3e50; min-width:90px;" title="Rata-rata Kuis (40%) + Rata-rata PH (30%) + SAS (30%)">Nilai Akhir</th>
-            <th colspan="4" style="background:#2c3e50;">Kehadiran</th>
-            <th rowspan="2" style="background:#2c3e50; width:90px;">Aksi</th>
-        </tr>
-        <tr>
-            <th style="background:#27ae60; width:45px;">H</th>
-            <th style="background:#f39c12; width:45px;">S</th>
-            <th style="background:#2980b9; width:45px;">I</th>
-            <th style="background:#c0392b; width:45px;">A</th>
-        </tr>
-    `;
+    theadHTML +=
+            '<th rowspan="2" style="background:#2c3e50; min-width:90px;" title="Rata-rata Kuis (40%) + Rata-rata PH (30%) + SAS (30%)">Nilai Akhir</th>' +
+            '<th colspan="4" style="background:#2c3e50;">Kehadiran</th>' +
+            '<th rowspan="2" style="background:#2c3e50; width:90px;">Aksi</th>' +
+        '</tr>' +
+        '<tr>' +
+            '<th style="background:#27ae60; width:45px;">H</th>' +
+            '<th style="background:#f39c12; width:45px;">S</th>' +
+            '<th style="background:#2980b9; width:45px;">I</th>' +
+            '<th style="background:#c0392b; width:45px;">A</th>' +
+        '</tr>';
     thead.innerHTML = theadHTML;
 
     if (siswaArr.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="${8 + kolomUjian.length}" style="padding:20px; color:#e67e22; font-weight:bold;">Kelas ini belum memiliki daftar siswa.</td></tr>`;
+        tbody.innerHTML = '<tr><td colspan="' + (8 + kolomUjian.length) + '" style="padding:20px; color:#e67e22; font-weight:bold;">Kelas ini belum memiliki daftar siswa.</td></tr>';
         return;
     }
 
@@ -6336,25 +6291,27 @@ window.renderLedgerSiswa = function() {
     siswaArr.forEach(function(nama, idx) {
         let statArr = (absData.status && absData.status[nama]) ? absData.status[nama] : [];
         let cH = 0, cS = 0, cI = 0, cA = 0;
-        statArr.forEach(s => { if(s==='H') cH++; else if(s==='S') cS++; else if(s==='I') cI++; else if(s==='A') cA++; });
+        statArr.forEach(function(s) { if(s==='H') cH++; else if(s==='S') cS++; else if(s==='I') cI++; else if(s==='A') cA++; });
 
         let barisNilai = '';
+        let safeNama = nama.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 
-        kolomUjian.forEach((kol, i) => {
-            let hasEntry = Boolean(rekapData[kol] && rekapData[kol][nama] && rekapData[kol][nama].nilaiAkhir !== undefined);
-            let n = hasEntry ? parseFloat(rekapData[kol][nama].nilaiAkhir) : 0;
+        kolomUjian.forEach(function(kol, i) {
+            let rekapPaket = window.ambilObjekRekapPaket(kls, kol);
+            let dataSiswa = window.ambilDataSiswaDiObjekRekap(rekapPaket, nama);
+            let hasEntry = Boolean(dataSiswa && dataSiswa.nilaiAkhir !== undefined);
+            let n = hasEntry ? parseFloat(dataSiswa.nilaiAkhir) : 0;
             if (isNaN(n)) n = 0;
-            
+
             if (hasEntry) {
                 totalNilaiPerKolom[i] += n;
                 countSiswaPerKolom[i]++;
             }
 
             let isDiBawahKKM = hasEntry && n < kkm;
-            let safeNama = nama.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
             let safeKol = kol.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-            
-            barisNilai += `<td style="font-weight:bold; color:${isDiBawahKKM ? '#c0392b' : '#2c3e50'}; background:${isDiBawahKKM ? '#fadbd8' : 'transparent'}; cursor:pointer;" onclick="window.editNilaiSiswaLedger('${safeKol}', '${safeNama}', ${hasEntry ? n : 0})" title="Klik untuk mengedit nilai manual">${hasEntry ? Number(n.toFixed(1)) : '-'}</td>`;
+
+            barisNilai += '<td style="font-weight:bold; color:' + (isDiBawahKKM ? '#c0392b' : '#2c3e50') + '; background:' + (isDiBawahKKM ? '#fadbd8' : 'transparent') + '; cursor:pointer;" onclick="window.editNilaiSiswaLedger(\'' + safeKol + '\', \'' + safeNama + '\', ' + (hasEntry ? n : 0) + ')" title="Klik untuk mengedit nilai manual">' + (hasEntry ? Number(n.toFixed(1)) : '-') + '</td>';
         });
 
         let hasilNA = window.hitungNilaiAkhirRumusLedger(kls, nama, kolomUjian);
@@ -6366,38 +6323,37 @@ window.renderLedgerSiswa = function() {
 
         let isNA_KKM = hasilNA.adaNilai && nilaiAkhir < kkm;
         let safeKlsAttr = kls.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-        let safeNamaAttr = nama.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+        let bgRow = isNA_KKM ? '#fdf2f2' : '#ffffff';
 
-        html += `
-        <tr style="border-bottom:1px solid #eee; background:${isNA_KKM ? '#fdf2f2' : '#ffffff'}">
-            <td style="color:#7f8c8d; font-weight:bold; position:sticky; left:0; background:${isNA_KKM ? '#fdf2f2' : '#ffffff'}; z-index:2;">${idx+1}</td>
-            <td style="text-align:left; font-weight:bold; color:#2c3e50; position:sticky; left:40px; background:${isNA_KKM ? '#fdf2f2' : '#ffffff'}; z-index:2;">${nama}</td>
-            ${barisNilai}
-            <td style="font-size:15px; font-weight:900; color:${isNA_KKM ? '#c0392b' : '#16a085'};">${hasilNA.adaNilai ? nilaiAkhir.toFixed(1) : '-'}</td>
-            <td style="font-weight:bold; color:#27ae60;">${cH}</td>
-            <td style="font-weight:bold; color:#f39c12;">${cS}</td>
-            <td style="font-weight:bold; color:#2980b9;">${cI}</td>
-            <td style="font-weight:bold; color:#c0392b;">${cA}</td>
-            <td>
-                <button style="background:#f1c40f; color:#2c3e50; border:none; padding:5px 10px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;" onclick="window.catatanSiswaBuka('${safeKlsAttr}', '${safeNamaAttr}')">📝 Catatan</button>
-            </td>
-        </tr>`;
+        html +=
+        '<tr style="border-bottom:1px solid #eee; background:' + bgRow + '">' +
+            '<td style="color:#7f8c8d; font-weight:bold; position:sticky; left:0; background:' + bgRow + '; z-index:2;">' + (idx + 1) + '</td>' +
+            '<td style="text-align:left; font-weight:bold; color:#2c3e50; position:sticky; left:40px; background:' + bgRow + '; z-index:2;">' + nama + '</td>' +
+            barisNilai +
+            '<td style="font-size:15px; font-weight:900; color:' + (isNA_KKM ? '#c0392b' : '#16a085') + ';">' + (hasilNA.adaNilai ? nilaiAkhir.toFixed(1) : '-') + '</td>' +
+            '<td style="font-weight:bold; color:#27ae60;">' + cH + '</td>' +
+            '<td style="font-weight:bold; color:#f39c12;">' + cS + '</td>' +
+            '<td style="font-weight:bold; color:#2980b9;">' + cI + '</td>' +
+            '<td style="font-weight:bold; color:#c0392b;">' + cA + '</td>' +
+            '<td>' +
+                '<button style="background:#f1c40f; color:#2c3e50; border:none; padding:5px 10px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;" onclick="window.catatanSiswaBuka(\'' + safeKlsAttr + '\', \'' + safeNama + '\')">📝 Catatan</button>' +
+            '</td>' +
+        '</tr>';
     });
 
-    // BARIS RATA-RATA KELAS DI BAGIAN BAWAH
-    html += `<tr style="background:#ecf0f1; font-weight:bold; border-top:2px solid #bdc3c7;">
-        <td colspan="2" style="text-align:right; color:#2c3e50; position:sticky; left:0; background:#ecf0f1; z-index:2; padding-right:12px;">Rata-rata Kelas :</td>`;
-    
-    kolomUjian.forEach((kol, i) => {
+    html += '<tr style="background:#ecf0f1; font-weight:bold; border-top:2px solid #bdc3c7;">' +
+        '<td colspan="2" style="text-align:right; color:#2c3e50; position:sticky; left:0; background:#ecf0f1; z-index:2; padding-right:12px;">Rata-rata Kelas :</td>';
+
+    kolomUjian.forEach(function(kol, i) {
         let rata = countSiswaPerKolom[i] > 0 ? (totalNilaiPerKolom[i] / countSiswaPerKolom[i]) : 0;
-        html += `<td style="color:#2980b9; font-size:14px; font-weight:800;">${countSiswaPerKolom[i] > 0 ? rata.toFixed(1) : '-'}</td>`;
+        html += '<td style="color:#2980b9; font-size:14px; font-weight:800;">' + (countSiswaPerKolom[i] > 0 ? rata.toFixed(1) : '-') + '</td>';
     });
 
     let rataAkhir = countSiswaAkhir > 0 ? (totalNilaiAkhir / countSiswaAkhir) : 0;
-    html += `
-        <td style="font-size:16px; color:#27ae60; font-weight:900;">${countSiswaAkhir > 0 ? rataAkhir.toFixed(1) : '-'}</td>
-        <td colspan="5"></td>
-    </tr>`;
+    html +=
+        '<td style="font-size:16px; color:#27ae60; font-weight:900;">' + (countSiswaAkhir > 0 ? rataAkhir.toFixed(1) : '-') + '</td>' +
+        '<td colspan="5"></td>' +
+    '</tr>';
 
     tbody.innerHTML = html;
     if (typeof window.renderRemedialTabAdmin === "function") {
@@ -6411,14 +6367,16 @@ window.tambahKolomUjianLedger = function() {
     let namaKolom = prompt("Masukkan nama kolom ujian/evaluasi baru:\n• Awali/beri kata 'Kuis' untuk bobot Kuis (40%)\n• Awali/beri kata 'PH' atau 'UH' untuk bobot PH (30%)\n• Awali/beri kata 'SAS' atau 'PAS' untuk bobot SAS (30%)");
     if (!namaKolom || !namaKolom.trim()) return;
     namaKolom = namaKolom.trim();
-    
+
     let kolomArr = window.ambilKolomLedgerKelas(kls);
-    if (kolomArr.includes(namaKolom)) {
-        return alert("Nama kolom ujian tersebut sudah ada di Ledger kelas ini!");
-    }
-    
+    let safeBaru = window.sanitasiKeyRekapFirebase(namaKolom).toLowerCase();
+    let sudahAda = kolomArr.some(function(x) { return window.sanitasiKeyRekapFirebase(x).toLowerCase() === safeBaru; });
+    if (sudahAda) return alert("Nama kolom ujian tersebut sudah ada di Ledger kelas ini!");
+
     if (Array.isArray(window.adminLedgerMetaData[kls].dihapus)) {
-        window.adminLedgerMetaData[kls].dihapus = window.adminLedgerMetaData[kls].dihapus.filter(function(x) { return x !== namaKolom; });
+        window.adminLedgerMetaData[kls].dihapus = window.adminLedgerMetaData[kls].dihapus.filter(function(x) {
+            return window.sanitasiKeyRekapFirebase(x).toLowerCase() !== safeBaru;
+        });
     }
     window.adminLedgerMetaData[kls].kolom.push(namaKolom);
     window.renderLedgerSiswa();
@@ -6431,14 +6389,24 @@ window.hapusKolomUjianLedgerLangsung = function(idx) {
     let oldName = window.adminLedgerMetaData[kls].kolom[idx];
     if (!oldName) return;
 
-    if (confirm(`Hapus kolom ujian "${oldName}" dari Ledger kelas ${kls} beserta seluruh nilai di dalamnya?`)) {
+    if (confirm('Hapus kolom ujian "' + oldName + '" dari Ledger kelas ' + kls + ' beserta seluruh nilai di dalamnya?')) {
         window.adminLedgerMetaData[kls].kolom.splice(idx, 1);
         if (!Array.isArray(window.adminLedgerMetaData[kls].dihapus)) window.adminLedgerMetaData[kls].dihapus = [];
         if (!window.adminLedgerMetaData[kls].dihapus.includes(oldName)) {
             window.adminLedgerMetaData[kls].dihapus.push(oldName);
         }
-        if (window.adminRekapNilaiData && window.adminRekapNilaiData[kls] && window.adminRekapNilaiData[kls][oldName]) {
-            delete window.adminRekapNilaiData[kls][oldName];
+
+        let safeKls = window.sanitasiKeyRekapFirebase(kls);
+        let safeOld = window.sanitasiKeyRekapFirebase(oldName);
+        if (window.adminRekapNilaiData) {
+            if (window.adminRekapNilaiData[kls]) {
+                delete window.adminRekapNilaiData[kls][oldName];
+                delete window.adminRekapNilaiData[kls][safeOld];
+            }
+            if (window.adminRekapNilaiData[safeKls]) {
+                delete window.adminRekapNilaiData[safeKls][oldName];
+                delete window.adminRekapNilaiData[safeKls][safeOld];
+            }
         }
         window.renderLedgerSiswa();
         if (typeof window.simpanLedgerMetaKeDB === "function") window.simpanLedgerMetaKeDB();
@@ -6452,17 +6420,25 @@ window.editKolomUjianLedger = function(idx) {
     let oldName = window.adminLedgerMetaData[kls].kolom[idx];
     if (!oldName) return;
 
-    let action = prompt(`Ubah nama kolom ujian "${oldName}":\n\n(Atau ketik HAPUS untuk menghapus kolom ini)`, oldName);
+    let action = prompt('Ubah nama kolom ujian "' + oldName + '":\n\n(Atau ketik HAPUS untuk menghapus kolom ini)', oldName);
     if (action === null) return;
     action = action.trim();
-    
+
     if (action.toUpperCase() === "HAPUS") {
         window.hapusKolomUjianLedgerLangsung(idx);
     } else if (action !== "" && action !== oldName) {
         window.adminLedgerMetaData[kls].kolom[idx] = action;
-        if (window.adminRekapNilaiData && window.adminRekapNilaiData[kls] && window.adminRekapNilaiData[kls][oldName]) {
-            window.adminRekapNilaiData[kls][action] = window.adminRekapNilaiData[kls][oldName];
-            delete window.adminRekapNilaiData[kls][oldName];
+        let safeKls = window.sanitasiKeyRekapFirebase(kls);
+        let safeOld = window.sanitasiKeyRekapFirebase(oldName);
+        let safeNew = window.sanitasiKeyRekapFirebase(action);
+
+        let rekapKelas = window.ambilObjekRekapKelas(kls);
+        let dataLama = rekapKelas[oldName] || rekapKelas[safeOld];
+        if (dataLama) {
+            if (!window.adminRekapNilaiData[safeKls]) window.adminRekapNilaiData[safeKls] = {};
+            window.adminRekapNilaiData[safeKls][safeNew] = dataLama;
+            if (safeOld !== safeNew) delete window.adminRekapNilaiData[safeKls][safeOld];
+            delete window.adminRekapNilaiData[safeKls][oldName];
         }
         window.renderLedgerSiswa();
         if (typeof window.simpanLedgerMetaKeDB === "function") window.simpanLedgerMetaKeDB();
@@ -6473,45 +6449,57 @@ window.editKolomUjianLedger = function(idx) {
 window.editNilaiSiswaLedger = function(kolom, nama, nilaiLama) {
     let kls = window.kelasAktifAdmin;
     if (!kls) return;
-    let n = prompt(`Input / Edit Nilai Manual\nSiswa: ${nama}\nEvaluasi: ${kolom}\n\n(Kosongkan lalu klik OK jika ingin mengosongkan nilai)`, nilaiLama > 0 ? nilaiLama : "");
-    
+    let n = prompt('Input / Edit Nilai Manual\nSiswa: ' + nama + '\nEvaluasi: ' + kolom + '\n\n(Kosongkan lalu klik OK jika ingin mengosongkan nilai)', nilaiLama > 0 ? nilaiLama : "");
     if (n === null) return;
     n = n.trim().replace(",", ".");
-    
+
+    let safeKls = window.sanitasiKeyRekapFirebase(kls);
+    let safeKol = window.sanitasiKeyRekapFirebase(kolom);
+    let safeNama = window.sanitasiKeyRekapFirebase(nama);
+
     if (!window.adminRekapNilaiData) window.adminRekapNilaiData = {};
-    if (!window.adminRekapNilaiData[kls]) window.adminRekapNilaiData[kls] = {};
-    if (!window.adminRekapNilaiData[kls][kolom]) window.adminRekapNilaiData[kls][kolom] = {};
+    if (!window.adminRekapNilaiData[safeKls]) window.adminRekapNilaiData[safeKls] = {};
+    if (!window.adminRekapNilaiData[safeKls][safeKol]) window.adminRekapNilaiData[safeKls][safeKol] = {};
+
+    let rekapPaket = window.ambilObjekRekapPaket(kls, kolom);
+    let existingObj = window.ambilDataSiswaDiObjekRekap(rekapPaket, nama);
 
     if (n === "") {
-        delete window.adminRekapNilaiData[kls][kolom][nama];
+        delete window.adminRekapNilaiData[safeKls][safeKol][safeNama];
+        delete window.adminRekapNilaiData[safeKls][safeKol][nama];
     } else {
         let num = parseFloat(n);
         if (!isNaN(num) && num >= 0 && num <= 100) {
-            if (!window.adminRekapNilaiData[kls][kolom][nama]) {
-                window.adminRekapNilaiData[kls][kolom][nama] = { waktuKumpul: new Date().toISOString(), pelanggaran: 0 };
-            }
-            window.adminRekapNilaiData[kls][kolom][nama].nilaiAkhir = num;
+            let record = existingObj || {
+                namaAsli: nama,
+                kelasAsli: kls,
+                paketAsli: kolom,
+                waktuKumpul: new Date().toISOString(),
+                pelanggaran: 0
+            };
+            record.nilaiAkhir = num;
+            window.adminRekapNilaiData[safeKls][safeKol][safeNama] = record;
+            if (nama !== safeNama) delete window.adminRekapNilaiData[safeKls][safeKol][nama];
         } else {
             return alert("⚠️ Masukkan angka nilai yang valid (0 - 100)!");
         }
     }
-    
+
     window.renderLedgerSiswa();
     if (typeof window.simpanRekapNilaiPenuhKeDB === "function") window.simpanRekapNilaiPenuhKeDB();
 };
 
 window.exportExcelLedgerSiswa = function() {
-    if(!window.kelasAktifAdmin) return alert("Pilih kelas terlebih dahulu!");
+    if (!window.kelasAktifAdmin) return alert("Pilih kelas terlebih dahulu!");
     let kls = window.kelasAktifAdmin;
     let siswaArr = (window.adminData[kls] || []).slice().sort();
-    if(siswaArr.length === 0) return alert("Belum ada siswa di kelas ini!");
+    if (siswaArr.length === 0) return alert("Belum ada siswa di kelas ini!");
 
     let absData = (window.adminAbsensiData && window.adminAbsensiData[kls]) ? window.adminAbsensiData[kls] : { status: {} };
-    let rekapData = (window.adminRekapNilaiData && window.adminRekapNilaiData[kls]) ? window.adminRekapNilaiData[kls] : {};
     let kolomUjian = window.ambilKolomLedgerKelas(kls);
 
     let csv = "No,Nama Siswa,";
-    kolomUjian.forEach(k => csv += `"${k}",`);
+    kolomUjian.forEach(function(k) { csv += '"' + k + '",'; });
     csv += "Nilai Akhir (40% Kuis + 30% PH + 30% SAS),Hadir (H),Sakit (S),Izin (I),Alfa (A)\n";
 
     let totalNilaiPerKolom = new Array(kolomUjian.length).fill(0);
@@ -6519,16 +6507,18 @@ window.exportExcelLedgerSiswa = function() {
     let totalNilaiAkhir = 0;
     let countSiswaAkhir = 0;
 
-    siswaArr.forEach((nama, idx) => {
+    siswaArr.forEach(function(nama, idx) {
         let statArr = (absData.status && absData.status[nama]) ? absData.status[nama] : [];
         let cH = 0, cS = 0, cI = 0, cA = 0;
-        statArr.forEach(s => { if(s==='H') cH++; else if(s==='S') cS++; else if(s==='I') cI++; else if(s==='A') cA++; });
+        statArr.forEach(function(s) { if(s==='H') cH++; else if(s==='S') cS++; else if(s==='I') cI++; else if(s==='A') cA++; });
 
         let barisNilai = "";
-        kolomUjian.forEach((kol, i) => {
-            let hasEntry = Boolean(rekapData[kol] && rekapData[kol][nama] && rekapData[kol][nama].nilaiAkhir !== undefined);
-            let n = hasEntry ? parseFloat(rekapData[kol][nama].nilaiAkhir) : 0;
-            barisNilai += `${hasEntry ? n.toFixed(1) : ''},`;
+        kolomUjian.forEach(function(kol, i) {
+            let rekapPaket = window.ambilObjekRekapPaket(kls, kol);
+            let dataSiswa = window.ambilDataSiswaDiObjekRekap(rekapPaket, nama);
+            let hasEntry = Boolean(dataSiswa && dataSiswa.nilaiAkhir !== undefined);
+            let n = hasEntry ? parseFloat(dataSiswa.nilaiAkhir) : 0;
+            barisNilai += (hasEntry ? n.toFixed(1) : '') + ",";
             if (hasEntry) {
                 totalNilaiPerKolom[i] += n;
                 countSiswaPerKolom[i]++;
@@ -6540,28 +6530,27 @@ window.exportExcelLedgerSiswa = function() {
             totalNilaiAkhir += hasilNA.nilaiAkhir;
             countSiswaAkhir++;
         }
-        csv += `${idx+1},"${nama}",${barisNilai}${hasilNA.adaNilai ? hasilNA.nilaiAkhir.toFixed(1) : ''},${cH},${cS},${cI},${cA}\n`;
+        csv += (idx + 1) + ',"' + nama + '",' + barisNilai + (hasilNA.adaNilai ? hasilNA.nilaiAkhir.toFixed(1) : '') + ',' + cH + ',' + cS + ',' + cI + ',' + cA + '\n';
     });
 
-    csv += `,"RATA-RATA KELAS",`;
-    kolomUjian.forEach((kol, i) => {
+    csv += ',"RATA-RATA KELAS",';
+    kolomUjian.forEach(function(kol, i) {
         let rata = countSiswaPerKolom[i] > 0 ? (totalNilaiPerKolom[i] / countSiswaPerKolom[i]).toFixed(1) : '';
-        csv += `${rata},`;
+        csv += rata + ',';
     });
     let rataAkhir = countSiswaAkhir > 0 ? (totalNilaiAkhir / countSiswaAkhir).toFixed(1) : '';
-    csv += `${rataAkhir},,,,\n`;
+    csv += rataAkhir + ',,,,\n';
 
     let blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     let url = URL.createObjectURL(blob);
     let link = document.createElement("a");
     link.href = url;
-    link.download = `Ledger_${kls.replace(/\s+/g, '_')}.csv`;
+    link.download = 'Ledger_' + kls.replace(/\s+/g, '_') + '.csv';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
 };
 
-// FUNGSI KHUSUS TAB REMEDIAL TERPADU DI RUANG ADMINISTRASI
 window.renderRemedialTabAdmin = function() {
     let tbody = document.getElementById('body-remedial-tab-admin');
     let lblKls = document.getElementById('label-remedial-admin-kelas');
@@ -6583,14 +6572,15 @@ window.renderRemedialTabAdmin = function() {
     let kkm = (inpKkm && parseFloat(inpKkm.value)) ? parseFloat(inpKkm.value) : defaultKkm;
 
     let siswaArr = (window.adminData[kls] || []).slice().sort();
-    let rekapData = (window.adminRekapNilaiData && window.adminRekapNilaiData[kls]) ? window.adminRekapNilaiData[kls] : {};
     let kolomUjian = window.ambilKolomLedgerKelas(kls);
 
     let daftarRemed = [];
     siswaArr.forEach(function(nama) {
         kolomUjian.forEach(function(kol) {
-            if (rekapData[kol] && rekapData[kol][nama] && rekapData[kol][nama].nilaiAkhir !== undefined) {
-                let n = parseFloat(rekapData[kol][nama].nilaiAkhir);
+            let rekapPaket = window.ambilObjekRekapPaket(kls, kol);
+            let dataSiswa = window.ambilDataSiswaDiObjekRekap(rekapPaket, nama);
+            if (dataSiswa && dataSiswa.nilaiAkhir !== undefined) {
+                let n = parseFloat(dataSiswa.nilaiAkhir);
                 if (!isNaN(n) && n < kkm) {
                     daftarRemed.push({ nama: nama, ujian: kol, nilai: n });
                 }
@@ -6614,26 +6604,25 @@ window.renderRemedialTabAdmin = function() {
         let safeNamaAttr = item.nama.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
         let safeUjianAttr = item.ujian.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 
-        html += `
-        <tr style="background:#fdf2f2; border-bottom:1px solid #fadbd8;">
-            <td style="color:#c0392b; font-weight:bold;">${idx + 1}</td>
-            <td style="text-align:left; font-weight:bold; color:#2c3e50;"><span style="background:#34495e; color:white; padding:3px 8px; border-radius:4px; font-size:11px;">${item.ujian}</span></td>
-            <td style="text-align:left; font-weight:bold; color:#c0392b;">${item.nama}</td>
-            <td style="font-size:15px; font-weight:900; color:#c0392b;">${item.nilai.toFixed(1)}</td>
-            <td style="font-size:14px; font-weight:bold; color:#d35400;">${kkm}</td>
-            <td>
-                <div style="display:flex; gap:6px; justify-content:center;">
-                    <button style="background:#27ae60; color:white; border:none; padding:5px 10px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;" onclick="window.tuntasRemedialSiswa('${safeKlsAttr}', '${safeUjianAttr}', '${safeNamaAttr}', ${kkm})">✅ Tuntas</button>
-                    <button style="background:#f1c40f; color:#2c3e50; border:none; padding:5px 10px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;" onclick="window.catatanSiswaBuka('${safeKlsAttr}', '${safeNamaAttr}')">📝 Catatan</button>
-                </div>
-            </td>
-        </tr>`;
+        html +=
+        '<tr style="background:#fdf2f2; border-bottom:1px solid #fadbd8;">' +
+            '<td style="color:#c0392b; font-weight:bold;">' + (idx + 1) + '</td>' +
+            '<td style="text-align:left; font-weight:bold; color:#2c3e50;"><span style="background:#34495e; color:white; padding:3px 8px; border-radius:4px; font-size:11px;">' + item.ujian + '</span></td>' +
+            '<td style="text-align:left; font-weight:bold; color:#c0392b;">' + item.nama + '</td>' +
+            '<td style="font-size:15px; font-weight:900; color:#c0392b;">' + item.nilai.toFixed(1) + '</td>' +
+            '<td style="font-size:14px; font-weight:bold; color:#d35400;">' + kkm + '</td>' +
+            '<td>' +
+                '<div style="display:flex; gap:6px; justify-content:center;">' +
+                    '<button style="background:#27ae60; color:white; border:none; padding:5px 10px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;" onclick="window.tuntasRemedialSiswa(\'' + safeKlsAttr + '\', \'' + safeUjianAttr + '\', \'' + safeNamaAttr + '\', ' + kkm + ')">✅ Tuntas</button>' +
+                    '<button style="background:#f1c40f; color:#2c3e50; border:none; padding:5px 10px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;" onclick="window.catatanSiswaBuka(\'' + safeKlsAttr + '\', \'' + safeNamaAttr + '\')">📝 Catatan</button>' +
+                '</div>' +
+            '</td>' +
+        '</tr>';
     });
 
     tbody.innerHTML = html;
 };
 
-// FUNGSI MODAL REMEDIAL (SAAT DIBUKA DARI MODAL REKAP NILAI)
 window.updateModalRemedial = function() {
     let selKelas = document.getElementById('rem-select-kelas');
     let selPaket = document.getElementById('rem-select-paket');
@@ -6646,12 +6635,12 @@ window.updateModalRemedial = function() {
         window.renderDaftarRemedial();
         return;
     }
-    
+
     kkmInput.value = window.dapatkanKKMKelas(kls);
     let kolomUjian = window.ambilKolomLedgerKelas(kls);
     let htmlOpt = '<option value="SEMUA">-- Semua Ujian di Kelas Ini --</option>';
-    kolomUjian.forEach(k => htmlOpt += `<option value="${k}">${k}</option>`);
-    
+    kolomUjian.forEach(function(k) { htmlOpt += '<option value="' + k + '">' + k + '</option>'; });
+
     selPaket.innerHTML = htmlOpt;
     window.renderDaftarRemedial();
 };
@@ -6674,22 +6663,23 @@ window.renderDaftarRemedial = function() {
     }
 
     let siswaArr = (window.adminData[kls] || []).slice().sort();
-    let rekapData = (window.adminRekapNilaiData && window.adminRekapNilaiData[kls]) ? window.adminRekapNilaiData[kls] : {};
     let kolomUjian = window.ambilKolomLedgerKelas(kls);
 
     let daftarRemed = [];
     siswaArr.forEach(function(nama) {
         kolomUjian.forEach(function(kol) {
             if (pkt !== "SEMUA" && pkt !== kol) return;
-            if (rekapData[kol] && rekapData[kol][nama] && rekapData[kol][nama].nilaiAkhir !== undefined) {
-                let n = parseFloat(rekapData[kol][nama].nilaiAkhir);
+            let rekapPaket = window.ambilObjekRekapPaket(kls, kol);
+            let dataSiswa = window.ambilDataSiswaDiObjekRekap(rekapPaket, nama);
+            if (dataSiswa && dataSiswa.nilaiAkhir !== undefined) {
+                let n = parseFloat(dataSiswa.nilaiAkhir);
                 if (!isNaN(n) && n < kkm) daftarRemed.push({ nama: nama, ujian: kol, nilai: n });
             }
         });
     });
 
     if (daftarRemed.length === 0) {
-        container.innerHTML = `<div style="text-align:center; padding:20px; color:#27ae60; border:1px dashed #27ae60; background:#e8f8f5; border-radius:8px; font-weight:bold;">🎉 Luar biasa! Tidak ada siswa yang perlu diremedial.</div>`;
+        container.innerHTML = '<div style="text-align:center; padding:20px; color:#27ae60; border:1px dashed #27ae60; background:#e8f8f5; border-radius:8px; font-weight:bold;">🎉 Luar biasa! Tidak ada siswa yang perlu diremedial.</div>';
         return;
     }
 
@@ -6699,34 +6689,46 @@ window.renderDaftarRemedial = function() {
         let safeNamaAttr = item.nama.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
         let safeUjianAttr = item.ujian.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 
-        htmlCards += `
-        <div style="display:flex; justify-content:space-between; align-items:center; background:#fdf2f2; border:1px solid #fadbd8; border-left:4px solid #c0392b; padding:12px 15px; border-radius:8px;">
-            <div>
-                <div style="font-size:11px; color:#7f8c8d; margin-bottom:2px;"><span style="background:#34495e; color:white; padding:1px 5px; border-radius:3px;">${item.ujian}</span></div>
-                <div style="font-size:14px; font-weight:bold; color:#c0392b; margin-bottom:2px;">${item.nama}</div>
-                <div style="font-size:12px; color:#2c3e50;">Nilai Awal: <b style="color:#c0392b; font-size:14px;">${item.nilai.toFixed(1)}</b> &nbsp;|&nbsp; KKM: <b>${kkm}</b></div>
-            </div>
-            <div style="display:flex; gap:6px;">
-                <button style="background:#27ae60; color:white; border:none; padding:6px 12px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;" onclick="window.tuntasRemedialSiswa('${safeKlsAttr}', '${safeUjianAttr}', '${safeNamaAttr}', ${kkm})">✅ Tuntas KKM</button>
-                <button style="background:#f1c40f; color:#2c3e50; border:none; padding:6px 12px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;" onclick="window.catatanSiswaBuka('${safeKlsAttr}', '${safeNamaAttr}')">📝 Catatan</button>
-            </div>
-        </div>`;
+        htmlCards +=
+        '<div style="display:flex; justify-content:space-between; align-items:center; background:#fdf2f2; border:1px solid #fadbd8; border-left:4px solid #c0392b; padding:12px 15px; border-radius:8px;">' +
+            '<div>' +
+                '<div style="font-size:11px; color:#7f8c8d; margin-bottom:2px;"><span style="background:#34495e; color:white; padding:1px 5px; border-radius:3px;">' + item.ujian + '</span></div>' +
+                '<div style="font-size:14px; font-weight:bold; color:#c0392b; margin-bottom:2px;">' + item.nama + '</div>' +
+                '<div style="font-size:12px; color:#2c3e50;">Nilai Awal: <b style="color:#c0392b; font-size:14px;">' + item.nilai.toFixed(1) + '</b> &nbsp;|&nbsp; KKM: <b>' + kkm + '</b></div>' +
+            '</div>' +
+            '<div style="display:flex; gap:6px;">' +
+                '<button style="background:#27ae60; color:white; border:none; padding:6px 12px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;" onclick="window.tuntasRemedialSiswa(\'' + safeKlsAttr + '\', \'' + safeUjianAttr + '\', \'' + safeNamaAttr + '\', ' + kkm + ')">✅ Tuntas KKM</button>' +
+                '<button style="background:#f1c40f; color:#2c3e50; border:none; padding:6px 12px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;" onclick="window.catatanSiswaBuka(\'' + safeKlsAttr + '\', \'' + safeNamaAttr + '\')">📝 Catatan</button>' +
+            '</div>' +
+        '</div>';
     });
 
     container.innerHTML = htmlCards;
 };
 
 window.tuntasRemedialSiswa = function(kls, ujian, nama, nilaiKkm) {
-    if (confirm(`Tandai TUNTAS REMEDIAL untuk ${nama} pada evaluasi "${ujian}"?\n\nNilai di Ledger akan otomatis dinaikkan menjadi KKM (${nilaiKkm}).`)) {
+    if (confirm('Tandai TUNTAS REMEDIAL untuk ' + nama + ' pada evaluasi "' + ujian + '"?\n\nNilai di Ledger akan otomatis dinaikkan menjadi KKM (' + nilaiKkm + ').')) {
+        let safeKls = window.sanitasiKeyRekapFirebase(kls);
+        let safeUjian = window.sanitasiKeyRekapFirebase(ujian);
+        let safeNama = window.sanitasiKeyRekapFirebase(nama);
+
         if (!window.adminRekapNilaiData) window.adminRekapNilaiData = {};
-        if (!window.adminRekapNilaiData[kls]) window.adminRekapNilaiData[kls] = {};
-        if (!window.adminRekapNilaiData[kls][ujian]) window.adminRekapNilaiData[kls][ujian] = {};
-        if (!window.adminRekapNilaiData[kls][ujian][nama]) {
-            window.adminRekapNilaiData[kls][ujian][nama] = { waktu: "Remedial Tuntas", pelanggaran: 0 };
-        }
-        
-        window.adminRekapNilaiData[kls][ujian][nama].nilaiAkhir = parseFloat(nilaiKkm);
-        
+        if (!window.adminRekapNilaiData[safeKls]) window.adminRekapNilaiData[safeKls] = {};
+        if (!window.adminRekapNilaiData[safeKls][safeUjian]) window.adminRekapNilaiData[safeKls][safeUjian] = {};
+
+        let rekapPaket = window.ambilObjekRekapPaket(kls, ujian);
+        let existingObj = window.ambilDataSiswaDiObjekRekap(rekapPaket, nama);
+
+        let record = existingObj || {
+            namaAsli: nama,
+            kelasAsli: kls,
+            paketAsli: ujian,
+            waktuKumpul: "Remedial Tuntas",
+            pelanggaran: 0
+        };
+        record.nilaiAkhir = parseFloat(nilaiKkm);
+        window.adminRekapNilaiData[safeKls][safeUjian][safeNama] = record;
+
         window.renderLedgerSiswa();
         window.renderRemedialTabAdmin();
         window.renderDaftarRemedial();
@@ -7608,17 +7610,16 @@ window.pantauUjianOtomatis = function() {
     let kelas = window.kelasAktifAdmin;
     let paket = document.getElementById('rem-pilih-ujian').value;
 
-    if(!kelas) return alert("Pilih kelas di header atas (Pilih Kelas Terlebih Dahulu)!");
-    if(!paket) return alert("Pilih paket ujian di menu dropdown terlebih dahulu!");
+    if (!kelas) return alert("Pilih kelas di header atas (Pilih Kelas Terlebih Dahulu)!");
+    if (!paket) return alert("Pilih paket ujian di menu dropdown terlebih dahulu!");
 
     let semuaSiswa = window.adminData[kelas] || [];
-    if(semuaSiswa.length === 0) return alert("Kelas ini belum memiliki daftar siswa.");
+    if (semuaSiswa.length === 0) return alert("Kelas ini belum memiliki daftar siswa.");
 
-    let rekapKelas = (window.adminRekapNilaiData && window.adminRekapNilaiData[kelas]) ? window.adminRekapNilaiData[kelas] : {};
-    let rekapPaket = rekapKelas[paket] || {};
-    let siswaSudahUjian = Object.keys(rekapPaket);
-
-    let siswaBelumUjian = semuaSiswa.filter(function(nama) { return !siswaSudahUjian.includes(nama); });
+    let rekapPaket = window.ambilObjekRekapPaket(kelas, paket);
+    let siswaBelumUjian = semuaSiswa.filter(function(nama) {
+        return !window.ambilDataSiswaDiObjekRekap(rekapPaket, nama);
+    });
 
     window.dataPantauanUjian = { kelas: kelas, paket: paket, siswaBelum: siswaBelumUjian };
     window.renderReminderAdmin();
@@ -9493,16 +9494,26 @@ window.kumpulkanUjianSiswa = function(isForce, isKicked) {
         let forceSubmit = isForce === true;
         let kickedSubmit = isKicked === true;
 
-        if(!forceSubmit) {
-            if(!window.confirmAmanUjian("Yakin ingin mengumpulkan jawaban sekarang? Pastikan semua jawaban sudah Anda periksa.")) return;
+        if (!forceSubmit) {
+            if (!window.confirmAmanUjian("Yakin ingin mengumpulkan jawaban sekarang? Pastikan semua jawaban sudah Anda periksa.")) return;
         }
-        
+
+        if (window._sedangMengirimUjian) return;
+        window._sedangMengirimUjian = true;
+
+        let btnKumpul = document.getElementById("btn-kumpul-ujian-utama");
+        if (btnKumpul) {
+            btnKumpul.disabled = true;
+            btnKumpul.style.background = "#f39c12";
+            btnKumpul.innerText = "⏳ Mengirim Nilai & Jawaban ke Server...";
+        }
+
         clearInterval(window.timerIntervalUjian);
         clearInterval(window.penaltyInterval);
         clearInterval(window.screenGuardInterval);
-        window.isStrictUjianActive = false; 
-        window.matikanWakeLockUjian();
-        document.body.classList.remove('strict-mode-active');
+        window.isStrictUjianActive = false;
+        if (typeof window.matikanWakeLockUjian === "function") window.matikanWakeLockUjian();
+        document.body.classList.remove("strict-mode-active");
 
         try {
             if (document.fullscreenElement && document.exitFullscreen) {
@@ -9511,18 +9522,15 @@ window.kumpulkanUjianSiswa = function(isForce, isKicked) {
         } catch (e) {}
 
         let pkt = window.sesiUjianSiswa;
-        let totalNilai = 0; 
-        let totalMax = 0;
-        let hasilDetail = []; 
-        
-        if(!pkt || !pkt.soal) {
-            window.alertAmanUjian("❌ Sesi ujian tidak valid. Anda akan dikembalikan ke beranda.");
+        if (!pkt || !pkt.soal) {
+            window._sedangMengirimUjian = false;
+            window.alertAmanUjian("❌ Sesi ujian tidak ditemukan. Anda akan dikembalikan ke beranda.");
             window.location.href = "index.html?bab=home";
             return;
         }
 
         document.querySelectorAll('#ujian-strict-container input[type="text"]').forEach(function(inp) {
-            let oninputAttr = inp.getAttribute('oninput') || '';
+            let oninputAttr = inp.getAttribute("oninput") || "";
             let matchIdx = oninputAttr.match(/simpanJawabanUjian\((\d+)/);
             if (matchIdx && matchIdx[1] !== undefined) {
                 let sIdx = parseInt(matchIdx[1], 10);
@@ -9532,34 +9540,44 @@ window.kumpulkanUjianSiswa = function(isForce, isKicked) {
             }
         });
 
-        let bobotPG = (pkt.bobot && pkt.bobot.PG) ? pkt.bobot.PG : 0;
-        let bobotPGK = (pkt.bobot && pkt.bobot.PGK) ? pkt.bobot.PGK : 0;
-        let bobotIS = (pkt.bobot && pkt.bobot.IS) ? pkt.bobot.IS : 0;
-        let bobotES = (pkt.bobot && pkt.bobot.Essay) ? pkt.bobot.Essay : 0;
+        let bobotPG = (pkt.bobot && pkt.bobot.PG) ? Number(pkt.bobot.PG) : 0;
+        let bobotPGK = (pkt.bobot && pkt.bobot.PGK) ? Number(pkt.bobot.PGK) : 0;
+        let bobotIS = (pkt.bobot && pkt.bobot.IS) ? Number(pkt.bobot.IS) : 0;
+        let bobotES = (pkt.bobot && pkt.bobot.Essay) ? Number(pkt.bobot.Essay) : 0;
+
+        let totalNilai = 0;
+        let totalMax = 0;
+        let hasilDetail = [];
 
         pkt.soal.forEach(function(q, idx) {
             let ans = (pkt.jawaban && pkt.jawaban[idx] !== undefined) ? pkt.jawaban[idx] : "";
-            let poin = 0; 
+            let poin = 0;
             let maxPoin = 0;
             let statusJawab = "Salah";
-            
-            if (q.type === 'PG') {
+
+            if (q.type === "PG") {
                 maxPoin = bobotPG;
-                if (ans === (q.correct && q.correct[0])) { poin = bobotPG; statusJawab = "Benar"; }
-            } else if (q.type === 'PGK') {
+                if (ans === (q.correct && q.correct[0])) {
+                    poin = bobotPG;
+                    statusJawab = "Benar";
+                }
+            } else if (q.type === "PGK") {
                 maxPoin = bobotPGK;
                 if (Array.isArray(ans) && Array.isArray(q.correct)) {
                     let benarAll = (ans.length === q.correct.length) && ans.every(function(a) { return q.correct.includes(a); });
-                    if(benarAll) { poin = bobotPGK; statusJawab = "Benar Sempurna"; }
+                    if (benarAll) {
+                        poin = bobotPGK;
+                        statusJawab = "Benar Sempurna";
+                    }
                 }
-            } else if (q.type === 'IS') {
+            } else if (q.type === "IS") {
                 maxPoin = bobotIS;
-                let ansClean = (typeof ans === 'string') ? ans.trim().toLowerCase() : "";
-                if (ansClean && q.correct && q.correct.some(function(k) { return k.trim().toLowerCase() === ansClean; })) {
+                let ansClean = (typeof ans === "string") ? ans.trim().toLowerCase() : "";
+                if (ansClean && q.correct && q.correct.some(function(k) { return String(k).trim().toLowerCase() === ansClean; })) {
                     poin = bobotIS;
                     statusJawab = "Benar";
                 }
-            } else if (q.type === 'Essay') {
+            } else if (q.type === "Essay") {
                 maxPoin = bobotES;
                 poin = 0;
                 statusJawab = "Menunggu Guru";
@@ -9569,9 +9587,9 @@ window.kumpulkanUjianSiswa = function(isForce, isKicked) {
             totalMax += maxPoin;
 
             hasilDetail.push({
-                nomor: (typeof q.originalIndex === 'number' ? q.originalIndex : idx) + 1,
-                soal: q.question,
-                tipe: q.type,
+                nomor: (typeof q.originalIndex === "number" ? q.originalIndex : idx) + 1,
+                soal: q.question || "",
+                tipe: q.type || "PG",
                 jawabSiswa: ans || "-",
                 jawabanSiswa: ans || "-",
                 kunci: q.correct || [],
@@ -9583,65 +9601,113 @@ window.kumpulkanUjianSiswa = function(isForce, isKicked) {
             });
         });
 
-        // Kembalikan ke nomor urut asli Bank Ujian agar Rekap Nilai Excel Guru berurutan
         hasilDetail.sort(function(a, b) { return a.nomor - b.nomor; });
 
         let nAkhirHitung = totalMax > 0 ? (totalNilai / totalMax) * 100 : 0;
         let nilaiAkhir = isNaN(nAkhirHitung) ? 0 : Number(nAkhirHitung.toFixed(2));
-        
-        let pathRekap = 'admin_rekap_nilai/' + pkt.kelas + '/' + pkt.paket + '/' + pkt.nama;
+
+        let safeKelas = window.sanitasiKeyRekapFirebase(pkt.kelas);
+        let safePaket = window.sanitasiKeyRekapFirebase(pkt.paket);
+        let safeNama = window.sanitasiKeyRekapFirebase(pkt.nama);
+
+        let pathRekap = "admin_rekap_nilai/" + safeKelas + "/" + safePaket + "/" + safeNama;
         let payloadRekap = {
+            namaAsli: pkt.nama,
+            kelasAsli: pkt.kelas,
+            paketAsli: pkt.paket,
             nilaiAkhir: nilaiAkhir,
             pelanggaran: window.violationCount || 0,
             waktuKumpul: new Date().toISOString(),
             detail: hasilDetail,
             rincian: hasilDetail
         };
-        
-        if (typeof window.modeHematServerUjian === "function") window.modeHematServerUjian(false);
-        if (typeof window.simpanNilaiUjianKeDB === "function") {
-            window.simpanNilaiUjianKeDB(pathRekap, payloadRekap);
-        }
 
-        if (sessionStorage.getItem("statusLogin") === "siswa") {
-            if (typeof window.tambahXPSiswa === "function") {
-                window.tambahXPSiswa(Math.round(nilaiAkhir), 'ujian', pkt.soal);
+        if (!window.adminRekapNilaiData) window.adminRekapNilaiData = {};
+        if (!window.adminRekapNilaiData[safeKelas]) window.adminRekapNilaiData[safeKelas] = {};
+        if (!window.adminRekapNilaiData[safeKelas][safePaket]) window.adminRekapNilaiData[safeKelas][safePaket] = {};
+        window.adminRekapNilaiData[safeKelas][safePaket][safeNama] = payloadRekap;
+
+        function selesaikanKeluarRuangUjian() {
+            // Tambah XP secara terisolasi setelah nilai ujian aman di server
+            try {
+                if (sessionStorage.getItem("statusLogin") === "siswa" && typeof window.tambahXPSiswa === "function") {
+                    window.tambahXPSiswa(Math.round(nilaiAkhir), "ujian", pkt.soal);
+                }
+            } catch (xpErr) {
+                console.warn("Isolasi XP:", xpErr);
+            }
+
+            window._sedangMengirimUjian = false;
+            if (typeof window.hapusCadanganLokalUjian === "function") window.hapusCadanganLokalUjian();
+            window.sesiUjianSiswa = null;
+
+            let bNav = document.getElementById("btn-toggle-cbt-nav");
+            if (bNav) bNav.style.display = "none";
+            let dNav = document.getElementById("cbt-nav-drawer");
+            if (dNav) dNav.classList.remove("show-nav");
+
+            window.alertAmanUjian("✅ Ujian Berhasil Dikumpulkan!\n\nNilai sementara Anda: " + nilaiAkhir);
+
+            let room = document.getElementById("ujian-strict-room");
+            let header = document.getElementById("header-wrap");
+            let nav = document.getElementById("main-nav");
+            let bc = document.querySelector(".bottom-breadcrumb-bar");
+
+            if (room) room.style.display = "none";
+            if (header) header.style.display = "flex";
+            if (nav) nav.style.display = "block";
+            if (bc) bc.style.display = "flex";
+            document.body.style.overflow = "";
+
+            if (typeof window.navigasiHalaman === "function") {
+                window.navigasiHalaman(null, "home");
+            } else {
+                window.location.href = "index.html?bab=home";
             }
         }
 
-        if(typeof window.simpanStatusLiveMonitorKeDB === "function") {
-            let finalStatus = kickedSubmit ? "Dikeluarkan" : "Selesai";
-            window.simpanStatusLiveMonitorKeDB(pkt.paket, pkt.kelas, pkt.nama, {
-                kelas: pkt.kelas,
-                nama: pkt.nama,
-                paket: pkt.paket,
-                status: finalStatus,
-                pelanggaran: window.violationCount || 0,
-                waktuUpdate: new Date().toISOString()
-            });
+        let jalankanKirimServer = function() {
+            if (typeof window.simpanStatusLiveMonitorKeDB === "function") {
+                let finalStatus = kickedSubmit ? "Dikeluarkan" : "Selesai";
+                window.simpanStatusLiveMonitorKeDB(pkt.paket, pkt.kelas, pkt.nama, {
+                    kelas: pkt.kelas,
+                    nama: pkt.nama,
+                    paket: pkt.paket,
+                    status: finalStatus,
+                    pelanggaran: window.violationCount || 0,
+                    waktuUpdate: new Date().toISOString()
+                });
+            }
+
+            if (typeof window.kirimNilaiUjianAmanKeDB === "function") {
+                window.kirimNilaiUjianAmanKeDB(pathRekap, payloadRekap, function() {
+                    selesaikanKeluarRuangUjian();
+                }, function() {
+                    setTimeout(function() {
+                        window.kirimNilaiUjianAmanKeDB(pathRekap, payloadRekap, function() {
+                            selesaikanKeluarRuangUjian();
+                        }, function() {
+                            selesaikanKeluarRuangUjian();
+                        });
+                    }, 1200);
+                });
+            } else if (typeof window.simpanNilaiUjianKeDB === "function") {
+                window.simpanNilaiUjianKeDB(pathRekap, payloadRekap);
+                setTimeout(selesaikanKeluarRuangUjian, 1500);
+            } else {
+                selesaikanKeluarRuangUjian();
+            }
+        };
+
+        if (typeof window.pastikanAuthFirebaseSiswaAktif === "function") {
+            window.pastikanAuthFirebaseSiswaAktif(jalankanKirimServer);
+        } else {
+            jalankanKirimServer();
         }
-
-        window.hapusCadanganLokalUjian();
-        window.sesiUjianSiswa = null;
-
-        window.alertAmanUjian("✅ Ujian Berhasil Dikumpulkan!\n\nNilai sementara Anda: " + nilaiAkhir + "\n(+ " + Math.round(nilaiAkhir) + " XP)");
-        
-        let room = document.getElementById('ujian-strict-room');
-        let header = document.getElementById('header-wrap');
-        let nav = document.getElementById('main-nav');
-        let bc = document.querySelector('.bottom-breadcrumb-bar');
-        
-        if(room) room.style.display = 'none';
-        if(header) header.style.display = 'flex';
-        if(nav) nav.style.display = 'block';
-        if(bc) bc.style.display = 'flex';
-        document.body.style.overflow = '';
-        
-        window.location.href = "index.html?bab=home";
-
-    } catch(err) {
-        console.error(err);
-        window.alertAmanUjian("Terjadi kesalahan sistem saat mengumpulkan ujian.");
+    } catch (err) {
+        window._sedangMengirimUjian = false;
+        console.error("Kesalahan saat mengumpulkan ujian:", err);
+        window.alertAmanUjian("Terjadi kesalahan saat memproses pengumpulan ujian. Silakan tekan tombol Kumpulkan sekali lagi.");
     }
 };
 
@@ -10356,6 +10422,24 @@ window.centangSemuaKoreksi = function() {
 
 window.muatDataKoreksi = function(namaSiswa) {
     let t = window.tempKoreksiTarget;
+    
+    if (t && window.adminRekapNilaiData) {
+        let klsKey = window.adminRekapNilaiData[t.kelas] ? t.kelas : window.sanitasiKeyRekapFirebase(t.kelas);
+        if (window.adminRekapNilaiData[klsKey]) {
+            t.kelas = klsKey;
+            let pktKey = window.adminRekapNilaiData[klsKey][t.paket] ? t.paket : window.sanitasiKeyRekapFirebase(t.paket);
+            if (window.adminRekapNilaiData[klsKey][pktKey]) {
+                t.paket = pktKey;
+                if (!window.adminRekapNilaiData[klsKey][pktKey][namaSiswa]) {
+                    let safeN = window.sanitasiKeyRekapFirebase(namaSiswa);
+                    if (window.adminRekapNilaiData[klsKey][pktKey][safeN]) {
+                        namaSiswa = safeN;
+                    }
+                }
+            }
+        }
+    }
+
     let dataSiswa = window.adminRekapNilaiData[t.kelas][t.paket][namaSiswa];
     if (!dataSiswa.detail && dataSiswa.rincian) dataSiswa.detail = dataSiswa.rincian;
     if (!dataSiswa.detail) dataSiswa.detail = [];
@@ -12455,34 +12539,42 @@ window.kalkulasiLencanaSains = function(xp) {
     return { nama: "Cendekiawan", ikon: "⚛️", batas: 'Max', warna: "#c0392b", bg: "#fdedec", border: "#fadbd8", deskripsi: "Pangkat ilmuwan tertinggi. Menguasai seluruh elemen sains dengan sempurna!" };
 };
 
-window.tambahXPSiswa = function(jumlahXP, aktivitas, arrSoal = null) {
-    let uName = sessionStorage.getItem("username");
-    let stat = sessionStorage.getItem("statusLogin");
-    
-    if (stat !== "siswa" || !uName || !window.leaderboardSiswaData) return;
-    
-    let lb = window.leaderboardSiswaData[uName];
-    if (!lb) {
-        let akun = window.akunSiswaData ? window.akunSiswaData[uName] : null;
-        if(!akun) return;
-        lb = { kelas: akun.kelas, namaLengkap: akun.namaLengkap, xp: 0, loginTerakhir: "", statSoal: { PG: 0, PGK: 0, IS: 0, Essay: 0 } };
-        window.leaderboardSiswaData[uName] = lb;
-    }
+window.tambahXPSiswa = function(jumlahXP, aktivitas, arrSoal) {
+    try {
+        let uName = sessionStorage.getItem("username");
+        let stat = sessionStorage.getItem("statusLogin");
+        if (stat !== "siswa" || !uName || uName.toLowerCase() === "sbd" || uName.toLowerCase() === "mahardika") return;
 
-    lb.xp = (lb.xp || 0) + jumlahXP;
+        let lb = (typeof window.pastikanStrukturDualXPDanPet === "function")
+            ? window.pastikanStrukturDualXPDanPet(uName)
+            : (window.leaderboardSiswaData ? window.leaderboardSiswaData[uName] : null);
+        if (!lb) return;
 
-    if (arrSoal && Array.isArray(arrSoal)) {
-        if(!lb.statSoal) lb.statSoal = { PG: 0, PGK: 0, IS: 0, Essay: 0 };
-        arrSoal.forEach(function(q) {
-            let t = q.type || 'PG';
-            if (lb.statSoal[t] !== undefined) lb.statSoal[t]++;
-        });
+        let tambahan = Number(jumlahXP) || 0;
+        lb.xpTotal = (Number(lb.xpTotal !== undefined ? lb.xpTotal : lb.xp) || 0) + tambahan;
+        lb.xpTersedia = (Number(lb.xpTersedia !== undefined ? lb.xpTersedia : lb.xp) || 0) + tambahan;
+        lb.xp = lb.xpTotal;
+
+        if (arrSoal && Array.isArray(arrSoal)) {
+            if (!lb.statSoal) lb.statSoal = { PG: 0, PGK: 0, IS: 0, Essay: 0 };
+            arrSoal.forEach(function(q) {
+                let t = q.type || "PG";
+                if (lb.statSoal[t] !== undefined) lb.statSoal[t]++;
+            });
+        }
+
+        if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
+            window.simpanLeaderboardSiswaKeDB(uName, lb);
+        }
+        if (typeof window.perbaruiTampilanSaldoXPPet === "function") {
+            window.perbaruiTampilanSaldoXPPet();
+        }
+        if (typeof window.perbaruiUIHeaderProfilSiswa === "function") {
+            window.perbaruiUIHeaderProfilSiswa();
+        }
+    } catch (e) {
+        console.warn("Gagal memperbarui XP siswa:", e);
     }
-    
-    if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
-        window.simpanLeaderboardSiswaKeDB(uName, lb);
-    }
-    window.perbaruiUIHeaderProfilSiswa();
 };
 
 // Catatan: Poin Baca Modul (+20 XP) telah dihapus sesuai pembaruan sistem.

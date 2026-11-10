@@ -60,16 +60,31 @@ window.buatAkunAuthGuru = function(email, password, onSuccess, onError) {
     }).catch(function(err) { if(onError) onError(err); });
 };
 
-// PENGATUR LALU LINTAS SERVER (HEMAT KONEKSI UNTUK 1000+ SISWA)
+// PENGATUR LALU LINTAS SERVER (PASTIKAN KONEKSI SELALU ONLINE SAAT UJIAN & PENGUMPULAN NILAI)
 window.modeHematServerUjian = function(isOfflineMode) {
     try {
-        if (isOfflineMode) {
-            goOffline(db);
-        } else {
-            goOnline(db);
-        }
+        goOnline(db);
     } catch (e) {
         console.warn("Pengaturan koneksi:", e);
+    }
+};
+
+// Jembatan Otomatis agar Akun Siswa (123456) Selalu Memiliki Izin Tulis ke Firebase
+window.pastikanAuthFirebaseSiswaAktif = function(callback) {
+    goOnline(db);
+    if (auth.currentUser) {
+        if (callback) callback();
+        return;
+    }
+    let stat = sessionStorage.getItem("statusLogin");
+    if (stat === "siswa" || stat === "tamu") {
+        signInWithEmailAndPassword(auth, "siswa@sbd.com", "semangat").then(function() {
+            if (callback) callback();
+        }).catch(function() {
+            if (callback) callback();
+        });
+    } else {
+        if (callback) callback();
     }
 };
 
@@ -589,14 +604,82 @@ window.simpanLedgerMetaKeDB = function() {
     });
 };
 
+// FUNGSI SANITASI & PENCOCOKAN KUNCI REKAP NILAI / LEDGER SATU PINTU
+window.sanitasiKeyRekapFirebase = function(teks) {
+    return String(teks || "").replace(/[\.\#\x24\[\]\/]/g, "").trim();
+};
+
+window.ambilObjekRekapKelas = function(namaKelas) {
+    if (!window.adminRekapNilaiData || !namaKelas) return {};
+    if (window.adminRekapNilaiData[namaKelas]) return window.adminRekapNilaiData[namaKelas];
+    let safeKls = window.sanitasiKeyRekapFirebase(namaKelas);
+    return window.adminRekapNilaiData[safeKls] || {};
+};
+
+window.ambilObjekRekapPaket = function(namaKelas, namaPaket) {
+    let rekapKelas = window.ambilObjekRekapKelas(namaKelas);
+    if (!rekapKelas || !namaPaket) return {};
+    if (rekapKelas[namaPaket]) return rekapKelas[namaPaket];
+    let safePkt = window.sanitasiKeyRekapFirebase(namaPaket);
+    return rekapKelas[safePkt] || {};
+};
+
+window.ambilDataSiswaDiObjekRekap = function(objRekapPaket, namaSiswa) {
+    if (!objRekapPaket || !namaSiswa) return null;
+    if (objRekapPaket[namaSiswa]) return objRekapPaket[namaSiswa];
+
+    let cleanTarget = window.sanitasiKeyRekapFirebase(namaSiswa).toLowerCase();
+    let trimTarget = String(namaSiswa).trim().toLowerCase();
+
+    let keys = Object.keys(objRekapPaket);
+    for (let i = 0; i < keys.length; i++) {
+        let k = keys[i];
+        let item = objRekapPaket[k];
+        if (k.trim().toLowerCase() === trimTarget) return item;
+        if (window.sanitasiKeyRekapFirebase(k).toLowerCase() === cleanTarget) return item;
+        if (item && item.namaAsli && item.namaAsli.trim().toLowerCase() === trimTarget) return item;
+    }
+    return null;
+};
+
 window.simpanRekapNilaiPenuhKeDB = function() {
     if (sessionStorage.getItem("statusLogin") !== "admin") return;
-    set(ref(db, basePath + '/admin_rekap_nilai'), window.adminRekapNilaiData || {}).then(function() {
+    let rawRekap = window.adminRekapNilaiData || {};
+    let cleanRekap = {};
+
+    Object.keys(rawRekap).forEach(function(kls) {
+        let safeKls = window.sanitasiKeyRekapFirebase(kls);
+        if (!safeKls) return;
+        if (!cleanRekap[safeKls]) cleanRekap[safeKls] = {};
+
+        let paketMap = rawRekap[kls] || {};
+        Object.keys(paketMap).forEach(function(pkt) {
+            let safePkt = window.sanitasiKeyRekapFirebase(pkt);
+            if (!safePkt) return;
+            if (!cleanRekap[safeKls][safePkt]) cleanRekap[safeKls][safePkt] = {};
+
+            let siswaMap = paketMap[pkt] || {};
+            Object.keys(siswaMap).forEach(function(nama) {
+                let safeNama = window.sanitasiKeyRekapFirebase(nama);
+                if (!safeNama) return;
+                let item = Object.assign({}, siswaMap[nama]);
+                if (!item.namaAsli) item.namaAsli = nama;
+                if (!item.kelasAsli) item.kelasAsli = kls;
+                if (!item.paketAsli) item.paketAsli = pkt;
+                cleanRekap[safeKls][safePkt][safeNama] = item;
+            });
+        });
+    });
+
+    window.adminRekapNilaiData = cleanRekap;
+    set(ref(db, basePath + '/admin_rekap_nilai'), cleanRekap).then(function() {
         if (typeof window.showSaveToast === "function") window.showSaveToast();
+    }).catch(function(err) {
+        console.error("Gagal menyimpan Rekap Nilai ke DB:", err);
     });
 };
 
-// 4B. Tarik Data Kelas & Siswa, Akun Siswa, Leaderboard, dan Notifikasi (Agar Pendaftaran, Lonceng & Peringkat Selalu Sinkron)
+// 4B. Tarik Data Kelas & Siswa, Akun Siswa, Leaderboard, dan Notifikasi
 window.adminDataLoaded = false;
 onValue(ref(db, basePath + '/admin_data'), function(snap) {
     window.adminDataLoaded = true;
@@ -615,7 +698,9 @@ onValue(ref(db, basePath + '/akun_siswa'), function(snap) {
     if (typeof window.perbaruiUIHeaderProfilSiswa === "function") window.perbaruiUIHeaderProfilSiswa();
 });
 
+window.leaderboardLoaded = false;
 onValue(ref(db, basePath + '/leaderboard_siswa'), function(snap) {
+    window.leaderboardLoaded = true;
     window.leaderboardSiswaData = snap.exists() ? snap.val() : {};
     if (typeof window.perbaruiUIHeaderProfilSiswa === "function") {
         window.perbaruiUIHeaderProfilSiswa();
@@ -651,8 +736,12 @@ window.simpanSemuaAkunSiswaKeDB = function() {
 };
 
 window.simpanLeaderboardSiswaKeDB = function(usernameKey, dataObj) {
-    if (!usernameKey) return;
-    set(ref(db, basePath + '/leaderboard_siswa/' + usernameKey), dataObj);
+    if (!usernameKey || !dataObj) return;
+    let cleanKey = window.sanitasiKeyRekapFirebase(usernameKey).toLowerCase();
+    // Isolasi Penuh: Jangan pernah menyimpan akun Guru/Admin ke tabel leaderboard_siswa
+    if (cleanKey === "mahardika" || cleanKey === "sbd" || sessionStorage.getItem("statusLogin") === "admin") return;
+    if (window.daftarAkunGuru && window.daftarAkunGuru[cleanKey]) return;
+    set(ref(db, basePath + '/leaderboard_siswa/' + cleanKey), dataObj);
 };
 
 window.simpanNotifikasiAdminKeDB = function() {
@@ -662,88 +751,74 @@ window.simpanNotifikasiAdminKeDB = function() {
     });
 };
 
-// --- DATA DI BAWAH INI HANYA DITARIK JIKA USER SUDAH LOGIN (SISWA / ADMIN / TAMU) ---
-if (statusSistem === "admin" || statusSistem === "siswa" || statusSistem === "tamu") {
-    
-    // 5. Tarik Data Administrasi (Daftar Kelas & Siswa)
-    onValue(ref(db, basePath + '/admin_data'), function(snap) {
-        if(snap.exists()) window.adminData = snap.val();
-        else window.adminData = {};
-        if(typeof window.renderAdminData === "function" && document.getElementById('modal-administrasi') && document.getElementById('modal-administrasi').style.display === 'flex') {
-            window.renderAdminData();
-        }
-    });
+// 6. Tarik Data Absensi Siswa
+onValue(ref(db, basePath + '/admin_absensi'), function(snap) {
+    window.adminAbsensiData = snap.exists() ? snap.val() : {};
+    if (typeof window.renderAbsensiAdmin === "function" && document.getElementById('modal-administrasi') && document.getElementById('modal-administrasi').style.display === 'flex') {
+        window.renderAbsensiAdmin();
+    }
+});
 
-    // 6. Tarik Data Absensi Siswa
-    onValue(ref(db, basePath + '/admin_absensi'), function(snap) {
-        if(snap.exists()) window.adminAbsensiData = snap.val();
-        else window.adminAbsensiData = {};
-        if(typeof window.renderAbsensiAdmin === "function" && document.getElementById('modal-administrasi') && document.getElementById('modal-administrasi').style.display === 'flex') {
-            window.renderAbsensiAdmin();
-        }
-    });
+// 7. Tarik Data Agenda Mengajar
+onValue(ref(db, basePath + '/admin_agenda'), function(snap) {
+    window.adminAgendaData = snap.exists() ? snap.val() : {};
+    if (typeof window.renderAgendaAdmin === "function" && document.getElementById('modal-administrasi') && document.getElementById('modal-administrasi').style.display === 'flex') {
+        window.renderAgendaAdmin();
+    }
+});
 
-    // 7. Tarik Data Agenda Mengajar
-    onValue(ref(db, basePath + '/admin_agenda'), function(snap) {
-        if(snap.exists()) window.adminAgendaData = snap.val();
-        else window.adminAgendaData = {};
-        if(typeof window.renderAgendaAdmin === "function" && document.getElementById('modal-administrasi') && document.getElementById('modal-administrasi').style.display === 'flex') {
-            window.renderAgendaAdmin();
-        }
-    });
+// 8. Tarik Data Bank Ujian
+onValue(ref(db, basePath + '/admin_bank_ujian'), function(snap) {
+    window.adminBankUjianData = snap.exists() ? snap.val() : {};
+    if (typeof window.renderManajerUjian === "function" && document.getElementById('modal-manajer-ujian') && document.getElementById('modal-manajer-ujian').style.display === 'flex') {
+        window.renderManajerUjian();
+    }
+});
 
-    // 8. Tarik Data Bank Ujian
-    onValue(ref(db, basePath + '/admin_bank_ujian'), function(snap) {
-        if(snap.exists()) window.adminBankUjianData = snap.val();
-        else window.adminBankUjianData = {};
-        if(typeof window.renderManajerUjian === "function" && document.getElementById('modal-manajer-ujian') && document.getElementById('modal-manajer-ujian').style.display === 'flex') {
-            window.renderManajerUjian();
-        }
-    });
+// 9. Tarik Data Ujian yang Sedang Aktif
+onValue(ref(db, basePath + '/admin_ujian_aktif'), function(snap) {
+    window.adminUjianAktifData = snap.exists() ? snap.val() : {};
+    if (typeof window.renderKontrolUjian === "function" && document.getElementById('modal-manajer-ujian') && document.getElementById('modal-manajer-ujian').style.display === 'flex') {
+        window.renderKontrolUjian();
+    }
+});
 
-    // 9. Tarik Data Ujian yang Sedang Aktif
-    onValue(ref(db, basePath + '/admin_ujian_aktif'), function(snap) {
-        if(snap.exists()) window.adminUjianAktifData = snap.val();
-        else window.adminUjianAktifData = {};
-        if(typeof window.renderKontrolUjian === "function" && document.getElementById('modal-kontrol-ujian') && document.getElementById('modal-kontrol-ujian').style.display === 'flex') {
-            window.renderKontrolUjian();
-        }
-    });
+// 10. Tarik Data Rekap Nilai Ujian & Ledger
+onValue(ref(db, basePath + '/admin_rekap_nilai'), function(snap) {
+    window.adminRekapNilaiData = snap.exists() ? snap.val() : {};
+    let modalRN = document.getElementById('modal-rekap-nilai');
+    if (modalRN && modalRN.style.display === 'flex') {
+        if (typeof window.renderDropdownRekap === "function") window.renderDropdownRekap();
+        if (typeof window.renderRekapNilai === "function") window.renderRekapNilai();
+    }
+    let modalAdm = document.getElementById('modal-administrasi');
+    if (modalAdm && modalAdm.style.display === 'flex') {
+        if (typeof window.renderLedgerSiswa === "function") window.renderLedgerSiswa();
+        if (typeof window.renderRemedialTabAdmin === "function") window.renderRemedialTabAdmin();
+    }
+});
 
-    // 10. Tarik Data Rekap Nilai Ujian (Ledger)
-    onValue(ref(db, basePath + '/admin_rekap_nilai'), function(snap) {
-        if(snap.exists()) window.adminRekapNilaiData = snap.val();
-        else window.adminRekapNilaiData = {};
-        if(typeof window.renderRekapNilai === "function" && document.getElementById('modal-rekap-nilai') && document.getElementById('modal-rekap-nilai').style.display === 'flex') {
-            window.renderDropdownRekap();
-        }
-    });
+// 11. Tarik Data Live Monitor
+onValue(ref(db, basePath + '/admin_live_monitor'), function(snap) {
+    window.adminLiveMonitorData = snap.exists() ? snap.val() : {};
+    if (typeof window.perbaruiBadgeNotifMonitor === "function") window.perbaruiBadgeNotifMonitor();
 
-    // 11. Tarik Data Live Monitor
-    onValue(ref(db, basePath + '/admin_live_monitor'), function(snap) {
-        if(snap.exists()) window.adminLiveMonitorData = snap.val();
-        else window.adminLiveMonitorData = {};
-        
-        if(typeof window.perbaruiBadgeNotifMonitor === "function") window.perbaruiBadgeNotifMonitor();
-        
-        let modalMU = document.getElementById('modal-manajer-ujian'); 
-        let isMonitorOpen = (modalMU && modalMU.style.display === 'flex' && document.getElementById('tab-ujian-monitor') && document.getElementById('tab-ujian-monitor').style.display !== 'none');
-        
-        if(isMonitorOpen && typeof window.renderIsiLiveMonitor === "function") {
-            window.renderIsiLiveMonitor();
-        }
-    });
-}
+    let modalMU = document.getElementById('modal-manajer-ujian');
+    let isMonitorOpen = (modalMU && modalMU.style.display === 'flex' && document.getElementById('tab-ujian-monitor') && document.getElementById('tab-ujian-monitor').style.display !== 'none');
+    if (isMonitorOpen && typeof window.renderIsiLiveMonitor === "function") {
+        window.renderIsiLiveMonitor();
+    }
+});
 
 // Fungsi Kirim Status Siswa ke Live Monitor (Mulai, Melanggar, Selesai)
 window.simpanStatusLiveMonitorKeDB = function(paket, kelas, nama, payload) {
-    if(!paket || !kelas || !nama) return;
-    // Sanitasi Path: Hapus karakter terlarang Firebase (. # $ [ ]) yang membuat sistem gagal menyimpan data (Kasus Jason Mario)
-    let safeNama = nama.replace(/[\.\#\$\[\]]/g, '').trim();
-    let safePaket = paket.replace(/[\.\#\$\[\]]/g, '').trim();
-    let safeKelas = kelas.replace(/[\.\#\$\[\]]/g, '').trim();
-    
+    if (!paket || !kelas || !nama) return;
+    let safeNama = window.sanitasiKeyRekapFirebase(nama);
+    let safePaket = window.sanitasiKeyRekapFirebase(paket);
+    let safeKelas = window.sanitasiKeyRekapFirebase(kelas);
+
     let pathLM = basePath + '/admin_live_monitor/' + safePaket + '/' + safeKelas + '/' + safeNama;
+    goOnline(db);
     set(ref(db, pathLM), payload).catch(function(err) {
         console.error("Gagal memperbarui Live Monitor:", err);
     });

@@ -6,7 +6,7 @@
     <title>Sistem Belajar Mahardika</title>
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Fredoka:wght@400;500;600&family=Quicksand:wght@400;600;700&family=Lora:ital,wght@0,400;0,700;1,400&family=Merriweather:wght@400;700&family=Montserrat:wght@400;600;700&family=Open+Sans:wght@400;600&family=Oswald:wght@400;500&family=Playfair+Display:wght@400;700&family=Poppins:wght@400;600&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
     
-    <link rel="stylesheet" href="./style.css">
+    <link rel="stylesheet" href="css/style.css">
     <style id="dynamic-theme-styles"></style>
     
     <!-- ENGINE MATHJAX UNTUK LATEX RENDERING -->
@@ -330,40 +330,6 @@
         </div>
     </div>
     
-    <div id="modal-kontrol-ujian" class="modal-overlay" onclick="if(event.target===this)tutupModal('modal-kontrol-ujian')">
-        <div class="modal-box" style="width: 500px;">
-            <div class="modal-header" style="background:#fdedec;"><h3 style="color:#c0392b; margin:0;">📝 Kontrol Ujian</h3><button class="close-btn" onclick="tutupModal('modal-kontrol-ujian')">✕</button></div>
-            <div class="modal-body">
-                <div style="background:#f8f9fa; border:1px solid #e1e8ed; padding:15px; border-radius:8px; margin-bottom:20px;">
-                    <h4 style="margin:0 0 10px 0; color:#2c3e50;">➕ Aktifkan Ujian Baru</h4>
-                    <label style="font-weight:bold;font-size:11px;display:block;color:#7f8c8d;">Pilih Paket Ujian (Yang Belum Aktif):</label>
-                    <select id="admin-pilih-ujian" class="input-box"></select>
-                    <label style="font-weight:bold;font-size:11px;display:block;color:#7f8c8d;">Kode Akses Ujian:</label>
-                    <input type="text" id="admin-kode-ujian" class="input-box" placeholder="Contoh: BIO100" style="font-weight:bold;text-transform:uppercase;">
-                    <label style="font-weight:bold;font-size:11px;display:block;color:#7f8c8d;">Durasi Waktu Ujian (Menit):</label>
-                    <input type="number" id="admin-durasi-ujian" class="input-box" placeholder="Contoh: 90" value="90" style="font-weight:bold;">
-                    <button class="btn-action" style="background:#27ae60;" onclick="simpanKontrolUjian()">Aktifkan Ujian 🚀</button>
-                </div>
-                <div><h4 style="margin:0 0 10px 0; color:#c0392b; display:flex; justify-content:space-between; align-items:center;"><span>🔴 Ujian Sedang Aktif</span></h4><div id="container-ujian-aktif"></div></div>
-            </div>
-        </div>
-    </div>
-    
-    <div id="modal-live-monitor" class="modal-overlay" onclick="if(event.target===this)tutupLiveMonitor()">
-        <div class="modal-box" style="width: 600px; max-height: 90vh;">
-            <div class="modal-header" style="background:#fdedec;">
-                <h3 style="color:#c0392b; margin:0;">📡 Live Monitor Ujian</h3>
-                <div style="display:flex; gap:10px; align-items:center;">
-                    <button class="btn-action" style="background:#e74c3c; width:auto; padding:5px 12px; font-size:11px;" onclick="hapusLiveMonitorData()">🗑️ Hapus History</button>
-                    <button class="close-btn" onclick="tutupLiveMonitor()">✕</button>
-                </div>
-            </div>
-            <div class="modal-body">
-                <select id="live-monitor-paket" class="input-box" onchange="loadLiveMonitor(this.value)"><option value="">-- Pilih Ujian --</option></select>
-                <div id="live-monitor-list" style="margin-top:15px; display:flex; flex-direction:column; gap:10px; font-family: 'Poppins'; font-size: 13px;"></div>
-            </div>
-        </div>
-    </div>
 
     <!-- MODAL REKAP NILAI (LEDGER) -->
     <div id="modal-rekap-nilai" class="modal-overlay" onclick="if(event.target===this)tutupModal('modal-rekap-nilai')">
@@ -1671,11 +1637,9 @@
         <div id="cbt-nav-grid" class="quiz-nav-bar" style="border:none; padding:0; margin:0;"></div>
     </div>
     <!-- SCRIPT REFERENCES -->
-    <script src="./main.js"></script>
-    <script type="module" src="./firebase-db.js"></script>
+    <script src="js/main.js"></script>
+    <script src="js/fitur-afektif-games.js"></script>
+    <script src="js/my-pet-engine.js"></script>
+    <script type="module" src="js/firebase-db.js"></script>
 </body>
 </html>
-<!-- SCRIPT REFERENCES -->
-  <script src="./main.js"></script>
-  <script src="./fitur-afektif-games.js"></script>
-  <script type="module" src="./firebase-db.js"></script>

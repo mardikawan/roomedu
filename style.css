@@ -1788,3 +1788,513 @@ body:not(.mode-edit-aktif):not(.force-edit-mode) .locked-hidden-nav-item {
     pointer-events: none;
     z-index: 1;
 }
+
+/* =========================================================================
+   MY PET SYSTEM — TOMBOL KIRI BAWAH & MODAL UTAMA
+   ========================================================================= */
+.mypet-floating-btn {
+    position: fixed;
+    left: 20px;
+    bottom: 48px;
+    background: linear-gradient(135deg, #0b3954, #16a085);
+    color: #ffffff;
+    border: 2px solid #f1c40f;
+    border-radius: 30px;
+    padding: 9px 18px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 13px;
+    font-weight: 800;
+    cursor: pointer;
+    box-shadow: 0 6px 18px rgba(11, 57, 84, 0.35);
+    z-index: 8500;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.mode-edit-aktif .mypet-floating-btn,
+.force-edit-mode .mypet-floating-btn {
+    bottom: 105px; /* Agar tidak bertabrakan dengan tombol Preview as Student milik Admin */
+}
+.mypet-floating-btn:hover {
+    transform: translateY(-3px) scale(1.04);
+    box-shadow: 0 8px 22px rgba(22, 160, 133, 0.5);
+}
+.mypet-float-icon {
+    font-size: 18px;
+    line-height: 1;
+}
+.mypet-hungry-badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 20px;
+    height: 20px;
+    background: #ef4444;
+    color: #ffffff;
+    border: 2px solid #ffffff;
+    border-radius: 50%;
+    font-size: 11px;
+    font-weight: 900;
+    align-items: center;
+    justify-content: center;
+    animation: pulse-badge 1s infinite;
+}
+
+.mypet-modal-box {
+    width: 860px !important;
+    max-width: 96vw !important;
+    height: 88vh !important;
+    max-height: 88vh !important;
+    border-radius: 16px !important;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    background: #f8fafc;
+    border: 2px solid #cbd5e1;
+}
+.mypet-header {
+    background: linear-gradient(135deg, #0b3954 0%, #1e293b 100%);
+    padding: 14px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    border-bottom: 2px solid #f1c40f;
+}
+.mypet-xp-pill {
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(253, 224, 71, 0.5);
+    border-radius: 10px;
+    padding: 4px 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    line-height: 1.2;
+}
+.mypet-xp-pill.total-pill {
+    border-color: rgba(147, 197, 253, 0.4);
+    background: rgba(15, 23, 42, 0.45);
+}
+.mypet-tabs-bar {
+    display: flex;
+    background: #ffffff;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 8px 16px;
+    gap: 8px;
+    overflow-x: auto;
+    flex-shrink: 0;
+}
+.mypet-tab-btn {
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid #cbd5e1;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: 0.2s;
+}
+.mypet-tab-btn.active {
+    background: #0b3954;
+    color: #f1c40f;
+    border-color: #0b3954;
+    box-shadow: 0 3px 8px rgba(11, 57, 84, 0.25);
+}
+.mypet-body-container {
+    padding: 16px !important;
+    flex: 1;
+    overflow-y: auto;
+    background: #f1f5f9;
+}
+/* =========================================================================
+   MY PET SYSTEM — TAHAP 2: ANIMASI KARAKTER 2.5D CHIBI (5 STATES)
+   ========================================================================= */
+.mypet-25d-actor {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    user-select: none;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+.mypet-25d-actor:hover {
+    transform: scale(1.04);
+}
+
+/* Matikan seluruh animasi ketika modal ditutup atau tab tidak terlihat agar hemat CPU/RAM */
+#modal-my-pet[style*="display: none"] .mypet-25d-actor *,
+.mypet-anim-paused .mypet-25d-actor * {
+    animation-play-state: paused !important;
+}
+
+/* 1. STATE IDLE: Bernapas lembut, berkedip, menggerakkan ekor & telinga */
+@keyframes petBreatheIdle {
+    0%, 100% { transform: translateY(0px) scaleY(1); }
+    50%      { transform: translateY(-5px) scaleY(1.02); }
+}
+@keyframes petBlinkEyes {
+    0%, 92%, 100% { transform: scaleY(1); }
+    96%           { transform: scaleY(0.08); }
+}
+@keyframes petTailWag {
+    0%, 100% { transform: rotate(0deg); }
+    50%      { transform: rotate(10deg); }
+}
+@keyframes petEarTwitch {
+    0%, 85%, 100% { transform: rotate(0deg); }
+    92%           { transform: rotate(-6deg); }
+}
+
+.pet-state-idle .pet-whole-body {
+    transform-origin: 256px 430px;
+    animation: petBreatheIdle 3.2s ease-in-out infinite;
+}
+.pet-state-idle .pet-eyes-blink {
+    transform-origin: 256px 188px;
+    animation: petBlinkEyes 4.2s infinite;
+}
+.pet-state-idle .pet-tail-part,
+.pet-state-idle .pet-wing-left,
+.pet-state-idle .pet-wing-right {
+    transform-origin: 330px 380px;
+    animation: petTailWag 2.4s ease-in-out infinite;
+}
+.pet-state-idle .pet-ear-left {
+    transform-origin: 170px 160px;
+    animation: petEarTwitch 5s ease-in-out infinite;
+}
+
+/* 2. STATE HAPPY: Melompat ceria & ekor bergoyang cepat */
+@keyframes petJumpHappy {
+    0%, 100% { transform: translateY(0px) scale(1, 1); }
+    30%      { transform: translateY(-28px) scale(0.96, 1.05); }
+    60%      { transform: translateY(0px) scale(1.05, 0.95); }
+}
+.pet-state-happy .pet-whole-body {
+    transform-origin: 256px 430px;
+    animation: petJumpHappy 0.85s ease-in-out infinite;
+}
+.pet-state-happy .pet-tail-part {
+    transform-origin: 330px 380px;
+    animation: petTailWag 0.5s ease-in-out infinite;
+}
+
+/* 3. STATE EATING: Mengunyah makanan & mengangguk puas */
+@keyframes petEatBob {
+    0%, 100% { transform: translateY(0px) rotate(0deg); }
+    50%      { transform: translateY(8px) rotate(3deg); }
+}
+@keyframes petMouthChewAnim {
+    0%, 100% { transform: scaleY(1); }
+    50%      { transform: scaleY(0.35); }
+}
+.pet-state-eating .pet-head-group {
+    transform-origin: 256px 220px;
+    animation: petEatBob 0.45s ease-in-out infinite;
+}
+.pet-state-eating .pet-mouth-chew {
+    transform-origin: 256px 232px;
+    animation: petMouthChewAnim 0.35s ease-in-out infinite;
+}
+
+/* 4. STATE SLEEPY: Menguap & menundukkan kepala perlahan */
+@keyframes petHeadNodSleepy {
+    0%, 100% { transform: translateY(0px) rotate(0deg); }
+    60%      { transform: translateY(10px) rotate(5deg); }
+}
+.pet-state-sleepy .pet-head-group {
+    transform-origin: 256px 230px;
+    animation: petHeadNodSleepy 4s ease-in-out infinite;
+}
+
+/* 5. STATE HUNGRY & CRITICAL: Lesu, gerakan lambat, menoleh ke wadah makanan */
+@keyframes petHungryLook {
+    0%, 100% { transform: translateY(4px) rotate(0deg); }
+    50%      { transform: translateY(8px) rotate(-6deg); }
+}
+.pet-state-hungry .pet-whole-body {
+    transform-origin: 256px 430px;
+    animation: petHungryLook 3.8s ease-in-out infinite;
+}
+.pet-state-critical .pet-whole-body {
+    transform-origin: 256px 440px;
+    transform: translateY(18px) scale(0.95, 0.88);
+    filter: saturate(0.65);
+}
+
+@keyframes petFloatBubble {
+    0%, 100% { transform: translateY(0px); }
+    50%      { transform: translateY(-10px); }
+}
+.pet-status-float {
+    animation: petFloatBubble 1.8s ease-in-out infinite;
+}
+/* =========================================================================
+   MY PET SYSTEM — TAHAP 3: PANGGUNG HABITAT (LV.1 - LV.6) & PANEL INTERAKSI
+   ========================================================================= */
+.mypet-habitat-stage {
+    position: relative;
+    width: 100%;
+    height: 300px; /* Spesifikasi Desktop: 280-360 px */
+    border-radius: 16px;
+    overflow: hidden;
+    border: 3px solid #cbd5e1;
+    box-shadow: inset 0 4px 20px rgba(0,0,0,0.08), 0 6px 18px rgba(15,23,42,0.06);
+    margin-bottom: 14px;
+    user-select: none;
+}
+
+/* Tema Visual 6 Level Habitat */
+.hab-lv-1 { background: linear-gradient(180deg, #e0f2fe 0%, #bae6fd 62%, #fde68a 62%, #fcd34d 100%); border-color: #94a3b8; }
+.hab-lv-2 { background: linear-gradient(180deg, #ffedd5 0%, #fed7aa 60%, #d97706 60%, #b45309 100%); border-color: #d97706; }
+.hab-lv-3 { background: linear-gradient(180deg, #bae6fd 0%, #7dd3fc 58%, #4ade80 58%, #16a34a 100%); border-color: #22c55e; }
+.hab-lv-4 { background: linear-gradient(180deg, #a5f3fc 0%, #38bdf8 56%, #84cc16 56%, #4d7c0f 100%); border-color: #0284c7; }
+.hab-lv-5 { background: linear-gradient(180deg, #fef3c7 0%, #fde047 56%, #f8fafc 56%, #cbd5e1 100%); border-color: #eab308; }
+.hab-lv-6 { background: radial-gradient(circle at 50% 25%, #f5d0fe 0%, #6d28d9 58%, #1e1b4b 58%, #312e81 100%); border-color: #f59e0b; box-shadow: 0 0 20px rgba(245,158,11,0.35); }
+
+.mypet-hab-sky-ornament {
+    position: absolute;
+    top: 14px;
+    left: 20px;
+    right: 20px;
+    height: 60px;
+    pointer-events: none;
+    opacity: 0.85;
+}
+.hab-lv-3 .mypet-hab-sky-ornament::before { content: "☁️      🌤️          ☁️"; font-size: 26px; }
+.hab-lv-4 .mypet-hab-sky-ornament::before { content: "⛰️   🦅         ⛰️"; font-size: 28px; }
+.hab-lv-5 .mypet-hab-sky-ornament::before { content: "🏛️      ✨👑✨      🏛️"; font-size: 26px; }
+.hab-lv-6 .mypet-hab-sky-ornament::before { content: "🌌   ✨💎✨   🌊   ✨🪐✨"; font-size: 26px; }
+
+/* Dekorasi Kosmetik di Dalam Habitat */
+.mypet-decor-item {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    font-size: 38px;
+    z-index: 2;
+    filter: drop-shadow(0 4px 6px rgba(0,0,0,0.18));
+    pointer-events: none;
+}
+
+/* Posisi Pet di Panggung Habitat */
+.mypet-stage-actor-wrap {
+    position: absolute;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    z-index: 5;
+    transition: left 0.3s, bottom 0.3s, transform 0.2s;
+}
+.mypet-stage-actor-wrap.is-companion-pet {
+    z-index: 3;
+    opacity: 0.92;
+}
+.mypet-stage-actor-wrap:hover {
+    transform: translateX(-50%) scale(1.06);
+}
+.mypet-stage-nametag {
+    background: rgba(15, 23, 42, 0.75);
+    color: #ffffff;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 2px 8px;
+    border-radius: 10px;
+    margin-top: -6px;
+    white-space: nowrap;
+    backdrop-filter: blur(2px);
+}
+
+/* Wadah Makanan di Kanan Bawah Habitat */
+.mypet-food-bowl {
+    position: absolute;
+    right: 22px;
+    bottom: 14px;
+    width: 52px;
+    height: 52px;
+    background: rgba(255, 255, 255, 0.9);
+    border: 2px solid #f59e0b;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    cursor: pointer;
+    z-index: 6;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+    transition: transform 0.2s;
+}
+.mypet-food-bowl:hover {
+    transform: scale(1.12);
+}
+
+/* Toast Interaksi Melayang di Panggung Habitat */
+.mypet-interaction-toast {
+    position: absolute;
+    top: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(15, 23, 42, 0.88);
+    color: #ffffff;
+    padding: 8px 16px;
+    border-radius: 25px;
+    font-size: 12px;
+    z-index: 20;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.25);
+    border: 1px solid #facc15;
+    text-align: center;
+    max-width: 88%;
+}
+
+/* Laci Pilih Makanan */
+.mypet-feed-drawer {
+    background: #ffffff;
+    border: 2px solid #f59e0b;
+    border-radius: 14px;
+    padding: 12px 16px;
+    margin-bottom: 14px;
+    box-shadow: 0 6px 18px rgba(245, 158, 11, 0.15);
+}
+.mypet-food-item-btn {
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    padding: 8px 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    transition: 0.15s;
+}
+.mypet-food-item-btn:hover {
+    background: #fef9e7;
+    border-color: #f59e0b;
+    transform: translateY(-2px);
+}
+
+/* Kartu Detail Pet Aktif */
+.mypet-detail-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 16px;
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    flex-wrap: wrap;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+}
+.mypet-detail-avatar-box {
+    width: 180px;
+    min-height: 175px;
+    background: radial-gradient(circle, #f8fafc 0%, #e2e8f0 100%);
+    border: 1px solid #cbd5e1;
+    border-radius: 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 10px;
+    text-align: center;
+    flex-shrink: 0;
+    margin: 0 auto;
+}
+.mypet-detail-info-box {
+    flex: 1;
+    min-width: 260px;
+}
+.mypet-stat-bar-bg {
+    width: 100%;
+    height: 12px;
+    background: #e2e8f0;
+    border-radius: 10px;
+    overflow: hidden;
+}
+.mypet-stat-bar-fill {
+    height: 100%;
+    border-radius: 10px;
+    transition: width 0.35s ease;
+}
+.mypet-action-btns-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+}
+.mypet-act-btn {
+    border: none;
+    border-radius: 10px;
+    padding: 10px 8px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 12px;
+    font-weight: 800;
+    color: #ffffff;
+    cursor: pointer;
+    transition: transform 0.15s, opacity 0.15s;
+}
+.mypet-act-btn:hover { transform: translateY(-2px); opacity: 0.94; }
+.btn-elus   { background: #ec4899; }
+.btn-makan  { background: #16a34a; }
+.btn-main   { background: #f59e0b; }
+.btn-dandan { background: #8b5cf6; }
+
+@media (max-width: 768px) {
+    .mypet-habitat-stage {
+        height: 240px; /* Spesifikasi Ponsel: 220-300 px */
+    }
+    .mypet-action-btns-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+/* =========================================================================
+   MY PET SYSTEM — TAHAP 4: GAYA KARTU SHOP & RUANG GANTI WARDROBE
+   ========================================================================= */
+.mypet-subtab-btn {
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid #cbd5e1;
+    padding: 6px 13px;
+    border-radius: 18px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 11px;
+    font-weight: 800;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: 0.18s;
+}
+.mypet-subtab-btn:hover {
+    background: #e2e8f0;
+}
+.mypet-subtab-btn.active {
+    background: #16a085;
+    color: #ffffff;
+    border-color: #16a085;
+}
+
+.mypet-shop-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(185px, 1fr));
+    gap: 12px;
+}
+.mypet-shop-card {
+    background: #ffffff;
+    border: 2px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    box-shadow: 0 3px 10px rgba(15, 23, 42, 0.03);
+    transition: transform 0.18s, border-color 0.18s;
+}
+.mypet-shop-card:hover {
+    transform: translateY(-2px);
+    border-color: #cbd5e1;
+}

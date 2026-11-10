@@ -93,38 +93,84 @@ window.MY_PET_CATALOG = {
 // Pastikan objek siswa di Leaderboard memiliki xp (XP Total), xpTersedia (Saldo Belanja), & myPetData
 window.pastikanStrukturDualXPDanPet = function(uName) {
     let userKey = uName || sessionStorage.getItem("username");
-    if (!userKey || !window.leaderboardSiswaData || !window.leaderboardSiswaData[userKey]) return null;
+    if (!userKey) return null;
+
+    let isAdmin = (typeof window.isAdminSession === "function" && window.isAdminSession()) ||
+                  sessionStorage.getItem("statusLogin") === "admin" ||
+                  userKey.toLowerCase() === "mahardika";
+
+    if (!window.leaderboardSiswaData) window.leaderboardSiswaData = {};
+
+    // Isolasi Admin/Guru ke memori terpisah agar tidak pernah masuk ke Leaderboard Siswa di Firebase
+    if (isAdmin) {
+        if (!window._adminSandboxPetProfile) {
+            window._adminSandboxPetProfile = {
+                kelas: "Guru / Admin",
+                namaLengkap: userKey,
+                xp: 1000000000,
+                xpTotal: 1000000000,
+                xpTersedia: 1000000000,
+                myPetData: {
+                    habitatLevel: 6,
+                    activePetId: "",
+                    ownedPets: {},
+                    foodInventory: {},
+                    ownedDecorations: [],
+                    activeDecorations: [],
+                    ownedWardrobe: []
+                }
+            };
+        }
+        return window._adminSandboxPetProfile;
+    }
+
+    let akunAsli = (window.akunSiswaData && window.akunSiswaData[userKey]) ? window.akunSiswaData[userKey] : null;
+
+    if (!window.leaderboardSiswaData[userKey]) {
+        if (!window.leaderboardLoaded || !akunAsli) return null;
+
+        window.leaderboardSiswaData[userKey] = {
+            kelas: akunAsli.kelas || "Umum",
+            namaLengkap: akunAsli.namaLengkap || userKey,
+            xp: 0,
+            xpTotal: 0,
+            xpTersedia: 0,
+            statSoal: { PG: 0, PGK: 0, IS: 0, Essay: 0 }
+        };
+    }
 
     let lb = window.leaderboardSiswaData[userKey];
-    let currentTotal = Number(lb.xp) || 0;
 
-    // Jika xpTotal belum pernah dicatat, samakan dengan xp saat ini
-    if (typeof lb.xpTotal !== "number") {
+    // Pulihkan kelas dan nama lengkap siswa dari akunSiswaData jika sempat kosong
+    if (akunAsli) {
+        if ((!lb.kelas || lb.kelas === "Umum") && akunAsli.kelas && akunAsli.kelas !== "Umum") {
+            lb.kelas = akunAsli.kelas;
+        }
+        if ((!lb.namaLengkap || lb.namaLengkap === userKey) && akunAsli.namaLengkap) {
+            lb.namaLengkap = akunAsli.namaLengkap;
+        }
+    }
+
+    let currentTotal = Number(lb.xp) || 0;
+    if (typeof lb.xpTotal !== "number" || currentTotal > lb.xpTotal) {
         lb.xpTotal = currentTotal;
     }
-    // Jika xp lebih besar dari xpTotal (misal baru dapat tambahan dari latihan), naikkan xpTotal
-    if (currentTotal > lb.xpTotal) {
-        lb.xpTotal = currentTotal;
-    }
-    // Pastikan lb.xp selalu bernilai XP Total agar Leaderboard tidak pernah turun saat siswa belanja!
     lb.xp = lb.xpTotal;
 
-    // Jika xpTersedia belum pernah diinisialisasi, samakan dengan xpTotal dikurangi total pengeluaran
     if (typeof lb.xpTersedia !== "number") {
         let spent = Number(lb.xpSpentTotal) || 0;
         lb.xpTersedia = Math.max(0, lb.xpTotal - spent);
     }
 
-    // Struktur dasar My Pet milik siswa
     if (!lb.myPetData || typeof lb.myPetData !== "object") {
         lb.myPetData = {
-            habitatLevel: 0, // 0 = belum punya pet; otomatis jadi 1 (Starter Habitat Gratis) saat beli pet pertama
+            habitatLevel: 0,
             activePetId: "",
-            ownedPets: {},        // { kadal: { id, customName, hunger, mood, bondXp, bondLevel, lastUpdate, lastPetTime, lastPlayTime, outfit: { head, eyes, body, costume } } }
-            foodInventory: {},    // { food_biscuit: 2, snack_kucing: 1 }
-            ownedDecorations: [], // ["dec_bed", "dec_tree"]
+            ownedPets: {},
+            foodInventory: {},
+            ownedDecorations: [],
             activeDecorations: [],
-            ownedWardrobe: []     // ["head_bandana", "cost_hero"]
+            ownedWardrobe: []
         };
     } else {
         if (!lb.myPetData.ownedPets) lb.myPetData.ownedPets = {};
@@ -173,34 +219,6 @@ window.gunakanXPTersediaSiswa = function(hargaXP, keterangan) {
     return true;
 };
 
-// Hook pada window.tambahXPSiswa agar setiap tambahan XP dari belajar menambah XP Total DAN XP Tersedia sekaligus
-if (!window._hookedDualXPTambah && typeof window.tambahXPSiswa === "function") {
-    window._hookedDualXPTambah = true;
-    const _asliTambahXPSiswa = window.tambahXPSiswa;
-    window.tambahXPSiswa = function(jumlahXP, aktivitas, arrSoal) {
-        let uName = sessionStorage.getItem("username");
-        let stat = sessionStorage.getItem("statusLogin");
-        let tambahan = Number(jumlahXP) || 0;
-
-        if (stat === "siswa" && uName) {
-            window.pastikanStrukturDualXPDanPet(uName);
-        }
-
-        // Jalankan fungsi asli (menambah lb.xp dan menyimpan ke Firebase)
-        _asliTambahXPSiswa(jumlahXP, aktivitas, arrSoal);
-
-        if (stat === "siswa" && uName && window.leaderboardSiswaData && window.leaderboardSiswaData[uName]) {
-            let lb = window.leaderboardSiswaData[uName];
-            lb.xpTotal = (Number(lb.xpTotal) || 0) + tambahan;
-            lb.xpTersedia = (Number(lb.xpTersedia) || 0) + tambahan;
-            lb.xp = lb.xpTotal; // Leaderboard tetap memakai XP Total
-            if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
-                window.simpanLeaderboardSiswaKeDB(uName, lb);
-            }
-            window.perbaruiTampilanSaldoXPPet();
-        }
-    };
-}
 
 // =========================================================================
 // 3. MESIN WAKTU LAPAR REAL-TIME (-4 POIN / JAM) & STATUS RESPONS PET
@@ -432,63 +450,6 @@ window.gantiTabMyPet = function(tabName) {
     }
 };
 
-// Placeholder awal sebelum Tahap 2, 3, dan 4 dipasang
-window.renderTabHabitatMyPet = window.renderTabHabitatMyPet || function() {
-    let el = document.getElementById("mypet-view-habitat");
-    if (el) el.innerHTML = '<div style="padding:30px; text-align:center; color:#475569; font-weight:bold;">🏡 Mesin Pondasi Habitat & Dual-XP Siap! Lanjutkan ke Tahap 2 & 3 untuk merender animasi 2.5D dan panggung Habitat.</div>';
-};
-window.renderTabCollectionMyPet = window.renderTabCollectionMyPet || function() {
-    let el = document.getElementById("mypet-view-collection");
-    if (el) el.innerHTML = '<div style="padding:30px; text-align:center; color:#475569; font-weight:bold;">🐾 Katalog 7 Spesies Pet Siap!</div>';
-};
-window.renderTabShopMyPet = window.renderTabShopMyPet || function() {
-    let el = document.getElementById("mypet-view-shop");
-    if (el) el.innerHTML = '<div style="padding:30px; text-align:center; color:#475569; font-weight:bold;">🛒 Database Harga Pet, Upgrade Kandang, Makanan, & Kostum Siap!</div>';
-};
-window.renderTabWardrobeMyPet = window.renderTabWardrobeMyPet || function() {
-    let el = document.getElementById("mypet-view-wardrobe");
-    if (el) el.innerHTML = '<div style="padding:30px; text-align:center; color:#475569; font-weight:bold;">👗 Database 22 Item Wardrobe Siap!</div>';
-};
-
-// Hubungkan Border Shop lama agar juga memotong XP Tersedia (bukan XP Total Leaderboard)
-window.beliBorderDiShop = function(borderId) {
-    let uName = sessionStorage.getItem("username");
-    let lb = window.pastikanStrukturDualXPDanPet(uName);
-    if (!lb) return;
-
-    let item = window.cariDataBorderById(borderId);
-    if (!item) return;
-
-    if (!Array.isArray(lb.ownedBorders)) {
-        lb.ownedBorders = lb.ownedBorders ? Object.values(lb.ownedBorders) : [];
-    }
-    if (lb.ownedBorders.includes(borderId)) {
-        window.pasangBorderProfil(borderId);
-        return;
-    }
-
-    let saldo = window.ambilXPTersediaSiswa(uName);
-    if (saldo < item.harga) {
-        let kurang = (item.harga - saldo).toLocaleString('id-ID');
-        return alert("⚠️ Saldo XP Tersedia kamu belum cukup untuk membeli bingkai " + item.nama + "!\n\nHarga: " + item.harga.toLocaleString('id-ID') + " XP\nXP Tersedia: " + saldo.toLocaleString('id-ID') + " XP\n(Kurang " + kurang + " XP lagi)");
-    }
-
-    if (!confirm("Beli bingkai \"" + item.nama + "\" (" + item.tier + ") seharga " + item.harga.toLocaleString('id-ID') + " XP?\n\nHanya XP Tersedia yang berkurang, sedangkan XP Total di Leaderboard tetap utuh!")) {
-        return;
-    }
-
-    if (window.gunakanXPTersediaSiswa(item.harga, "beli_border_" + borderId)) {
-        lb.ownedBorders.push(borderId);
-        lb.equippedBorder = borderId;
-        if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
-            window.simpanLeaderboardSiswaKeDB(uName, lb);
-        }
-        window.bukaModalProfilSiswa();
-        window.renderIsiShopBorder(window.activeShopTier);
-        window.perbaruiUIHeaderProfilSiswa();
-        alert("🎉 Selamat! Kamu berhasil membeli dan memasang bingkai \"" + item.nama + "\"!");
-    }
-};
 
 document.addEventListener("DOMContentLoaded", function() {
     window.pastikanUIMyPetAda();
@@ -2084,516 +2045,4 @@ window.lepasSemuaKostumPetAktif = function() {
         window.simpanLeaderboardSiswaKeDB(uName, lb);
     }
     window.renderTabWardrobeMyPet();
-};
-
-
-
-/* =========================================================================
-   PATCH PERBAIKAN SINKRONISASI EKOSISTEM UJIAN, REKAP NILAI, LEDGER, & XP
-   (Tempelkan di baris paling bawah file js/my-pet-engine.js)
-   ========================================================================= */
-
-// 1. JEMBATAN OTENTIKASI FIREBASE OTOMATIS UNTUK AKUN SISWA
-// Memastikan siswa yang login dengan akun otomatis (123456) tetap memiliki izin tulis ke Firebase
-window.pastikanAuthFirebaseSiswaAktif = function(callback) {
-    let stat = sessionStorage.getItem("statusLogin");
-    if (stat === "siswa" && typeof window.loginFirebase === "function" && !window._siswaFirebaseAuthReady) {
-        window.loginFirebase("siswa@sbd.com", "semangat", function() {
-            window._siswaFirebaseAuthReady = true;
-            if (callback) callback();
-        }, function() {
-            if (callback) callback();
-        });
-    } else {
-        if (callback) callback();
-    }
-};
-
-document.addEventListener("DOMContentLoaded", function() {
-    // Matikan pemutus jaringan (goOffline) selama ujian agar pengiriman nilai tidak pernah gagal
-    window.modeHematServerUjian = function() {};
-    setTimeout(function() {
-        window.modeHematServerUjian = function() {};
-        window.pastikanAuthFirebaseSiswaAktif();
-    }, 1000);
-});
-
-// 2. SANITASI KUNCI PATH FIREBASE & PENCARI DATA REKAP ANTI-MELESET
-window.sanitasiKeyRekapFirebase = function(teks) {
-    return String(teks || "").replace(/[\.\#\$\[\]\/]/g, "").trim();
-};
-
-// Mencocokkan nama siswa di Rekap Nilai & Ledger meskipun ada tanda titik (.) atau spasi
-window.ambilDataSiswaDiObjekRekap = function(objRekapPaket, namaSiswa) {
-    if (!objRekapPaket || !namaSiswa) return null;
-    if (objRekapPaket[namaSiswa]) return objRekapPaket[namaSiswa];
-
-    let cleanTarget = window.sanitasiKeyRekapFirebase(namaSiswa).toLowerCase();
-    let trimTarget = String(namaSiswa).trim().toLowerCase();
-
-    let keys = Object.keys(objRekapPaket);
-    for (let i = 0; i < keys.length; i++) {
-        let k = keys[i];
-        let item = objRekapPaket[k];
-        if (k.trim().toLowerCase() === trimTarget) return item;
-        if (window.sanitasiKeyRekapFirebase(k).toLowerCase() === cleanTarget) return item;
-        if (item && item.namaAsli && item.namaAsli.trim().toLowerCase() === trimTarget) return item;
-    }
-    return null;
-};
-
-// 3. PERBAIKAN DUAL-XP & SELF-HEALING DATA KELAS/NAMA SISWA (ADMIN 1 MILIAR XP)
-window.pastikanStrukturDualXPDanPet = function(uName) {
-    let userKey = uName || sessionStorage.getItem("username");
-    if (!userKey) return null;
-
-    let isAdmin = (typeof window.isAdminSession === "function" && window.isAdminSession()) ||
-                  sessionStorage.getItem("statusLogin") === "admin" ||
-                  userKey === "mahardika";
-
-    if (!window.leaderboardSiswaData) window.leaderboardSiswaData = {};
-
-    // Ambil data asli siswa dari akunSiswaData agar kelas & nama lengkap tidak berubah jadi "Umum"
-    let akunAsli = (window.akunSiswaData && window.akunSiswaData[userKey]) ? window.akunSiswaData[userKey] : null;
-
-    if (!window.leaderboardSiswaData[userKey]) {
-        // Jangan membuat data palsu untuk siswa jika akun_siswa belum selesai dimuat dari server
-        if (!isAdmin && !akunAsli) return null;
-
-        window.leaderboardSiswaData[userKey] = {
-            kelas: isAdmin ? "Guru / Admin" : (akunAsli ? akunAsli.kelas : "Umum"),
-            namaLengkap: isAdmin ? userKey : (akunAsli ? akunAsli.namaLengkap : userKey),
-            xp: isAdmin ? 1000000000 : 0,
-            xpTotal: isAdmin ? 1000000000 : 0,
-            xpTersedia: isAdmin ? 1000000000 : 0,
-            statSoal: { PG: 0, PGK: 0, IS: 0, Essay: 0 }
-        };
-    }
-
-    let lb = window.leaderboardSiswaData[userKey];
-
-    // Self-Healing: Pulihkan kelas & nama lengkap siswa jika sempat tertimpa menjadi "Umum" / username
-    if (!isAdmin && akunAsli) {
-        if ((!lb.kelas || lb.kelas === "Umum") && akunAsli.kelas && akunAsli.kelas !== "Umum") {
-            lb.kelas = akunAsli.kelas;
-        }
-        if ((!lb.namaLengkap || lb.namaLengkap === userKey) && akunAsli.namaLengkap) {
-            lb.namaLengkap = akunAsli.namaLengkap;
-        }
-    }
-
-    if (isAdmin) {
-        lb.xpTotal = 1000000000;
-        lb.xpTersedia = 1000000000;
-        lb.xp = 1000000000;
-    } else {
-        let currentTotal = Number(lb.xp) || 0;
-        if (typeof lb.xpTotal !== "number" || currentTotal > lb.xpTotal) {
-            lb.xpTotal = currentTotal;
-        }
-        lb.xp = lb.xpTotal;
-
-        if (typeof lb.xpTersedia !== "number") {
-            let spent = Number(lb.xpSpentTotal) || 0;
-            lb.xpTersedia = Math.max(0, lb.xpTotal - spent);
-        }
-    }
-
-    if (!lb.myPetData || typeof lb.myPetData !== "object") {
-        lb.myPetData = {
-            habitatLevel: isAdmin ? 6 : 0,
-            activePetId: "",
-            ownedPets: {},
-            foodInventory: {},
-            ownedDecorations: [],
-            activeDecorations: [],
-            ownedWardrobe: []
-        };
-    } else {
-        if (!lb.myPetData.ownedPets) lb.myPetData.ownedPets = {};
-        if (!lb.myPetData.foodInventory) lb.myPetData.foodInventory = {};
-        if (!Array.isArray(lb.myPetData.ownedDecorations)) lb.myPetData.ownedDecorations = Object.values(lb.myPetData.ownedDecorations || {});
-        if (!Array.isArray(lb.myPetData.activeDecorations)) lb.myPetData.activeDecorations = Object.values(lb.myPetData.activeDecorations || {});
-        if (!Array.isArray(lb.myPetData.ownedWardrobe)) lb.myPetData.ownedWardrobe = Object.values(lb.myPetData.ownedWardrobe || {});
-        if (isAdmin && (!lb.myPetData.habitatLevel || lb.myPetData.habitatLevel < 6)) {
-            lb.myPetData.habitatLevel = 6;
-        }
-    }
-
-    return lb;
-};
-
-// Penambahan XP Siswa yang Bersih (Tanpa Double-Hook & Aman untuk Ujian/Latihan)
-window.tambahXPSiswa = function(jumlahXP, aktivitas, arrSoal) {
-    let uName = sessionStorage.getItem("username");
-    let stat = sessionStorage.getItem("statusLogin");
-    if (stat !== "siswa" || !uName || uName.toLowerCase() === "sbd") return;
-
-    let lb = window.pastikanStrukturDualXPDanPet(uName);
-    if (!lb) return;
-
-    let tambahan = Number(jumlahXP) || 0;
-    lb.xpTotal = (Number(lb.xpTotal) || 0) + tambahan;
-    lb.xpTersedia = (Number(lb.xpTersedia) || 0) + tambahan;
-    lb.xp = lb.xpTotal;
-
-    if (arrSoal && Array.isArray(arrSoal)) {
-        if (!lb.statSoal) lb.statSoal = { PG: 0, PGK: 0, IS: 0, Essay: 0 };
-        arrSoal.forEach(function(q) {
-            let t = q.type || "PG";
-            if (lb.statSoal[t] !== undefined) lb.statSoal[t]++;
-        });
-    }
-
-    if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
-        window.simpanLeaderboardSiswaKeDB(uName, lb);
-    }
-    if (typeof window.perbaruiTampilanSaldoXPPet === "function") {
-        window.perbaruiTampilanSaldoXPPet();
-    }
-    if (typeof window.perbaruiUIHeaderProfilSiswa === "function") {
-        window.perbaruiUIHeaderProfilSiswa();
-    }
-};
-
-// 4. PERBAIKAN PENGUMPULAN UJIAN SISWA (TUNGGU KONFIRMASI SERVER SEBELUM PINDAH HALAMAN)
-window.kumpulkanUjianSiswa = function(isForce, isKicked) {
-    try {
-        let forceSubmit = isForce === true;
-        let kickedSubmit = isKicked === true;
-
-        if (!forceSubmit) {
-            if (!window.confirmAmanUjian("Yakin ingin mengumpulkan jawaban sekarang? Pastikan semua jawaban sudah Anda periksa.")) return;
-        }
-
-        if (window._sedangMengirimUjian) return;
-        window._sedangMengirimUjian = true;
-
-        let btnKumpul = document.getElementById("btn-kumpul-ujian-utama");
-        if (btnKumpul) {
-            btnKumpul.disabled = true;
-            btnKumpul.style.background = "#f39c12";
-            btnKumpul.innerText = "⏳ Mengirim Nilai & Jawaban ke Server...";
-        }
-
-        clearInterval(window.timerIntervalUjian);
-        clearInterval(window.penaltyInterval);
-        clearInterval(window.screenGuardInterval);
-        window.isStrictUjianActive = false;
-        if (typeof window.matikanWakeLockUjian === "function") window.matikanWakeLockUjian();
-        document.body.classList.remove("strict-mode-active");
-
-        try {
-            if (document.fullscreenElement && document.exitFullscreen) {
-                document.exitFullscreen().catch(function() {});
-            }
-        } catch (e) {}
-
-        let pkt = window.sesiUjianSiswa;
-        if (!pkt || !pkt.soal) {
-            window._sedangMengirimUjian = false;
-            window.alertAmanUjian("❌ Sesi ujian tidak ditemukan. Anda akan dikembalikan ke beranda.");
-            window.location.href = "index.html?bab=home";
-            return;
-        }
-
-        // Pastikan seluruh ketikan terakhir di kotak input isian/essay terekam
-        document.querySelectorAll('#ujian-strict-container input[type="text"]').forEach(function(inp) {
-            let oninputAttr = inp.getAttribute("oninput") || "";
-            let matchIdx = oninputAttr.match(/simpanJawabanUjian\((\d+)/);
-            if (matchIdx && matchIdx[1] !== undefined) {
-                let sIdx = parseInt(matchIdx[1], 10);
-                if (inp.value && (!pkt.jawaban[sIdx] || pkt.jawaban[sIdx] !== inp.value)) {
-                    pkt.jawaban[sIdx] = inp.value.trim();
-                }
-            }
-        });
-
-        let bobotPG = (pkt.bobot && pkt.bobot.PG) ? Number(pkt.bobot.PG) : 0;
-        let bobotPGK = (pkt.bobot && pkt.bobot.PGK) ? Number(pkt.bobot.PGK) : 0;
-        let bobotIS = (pkt.bobot && pkt.bobot.IS) ? Number(pkt.bobot.IS) : 0;
-        let bobotES = (pkt.bobot && pkt.bobot.Essay) ? Number(pkt.bobot.Essay) : 0;
-
-        let totalNilai = 0;
-        let totalMax = 0;
-        let hasilDetail = [];
-
-        pkt.soal.forEach(function(q, idx) {
-            let ans = (pkt.jawaban && pkt.jawaban[idx] !== undefined) ? pkt.jawaban[idx] : "";
-            let poin = 0;
-            let maxPoin = 0;
-            let statusJawab = "Salah";
-
-            if (q.type === "PG") {
-                maxPoin = bobotPG;
-                if (ans === (q.correct && q.correct[0])) {
-                    poin = bobotPG;
-                    statusJawab = "Benar";
-                }
-            } else if (q.type === "PGK") {
-                maxPoin = bobotPGK;
-                if (Array.isArray(ans) && Array.isArray(q.correct)) {
-                    let benarAll = (ans.length === q.correct.length) && ans.every(function(a) { return q.correct.includes(a); });
-                    if (benarAll) {
-                        poin = bobotPGK;
-                        statusJawab = "Benar Sempurna";
-                    }
-                }
-            } else if (q.type === "IS") {
-                maxPoin = bobotIS;
-                let ansClean = (typeof ans === "string") ? ans.trim().toLowerCase() : "";
-                if (ansClean && q.correct && q.correct.some(function(k) { return String(k).trim().toLowerCase() === ansClean; })) {
-                    poin = bobotIS;
-                    statusJawab = "Benar";
-                }
-            } else if (q.type === "Essay") {
-                maxPoin = bobotES;
-                poin = 0;
-                statusJawab = "Menunggu Guru";
-            }
-
-            totalNilai += poin;
-            totalMax += maxPoin;
-
-            hasilDetail.push({
-                nomor: (typeof q.originalIndex === "number" ? q.originalIndex : idx) + 1,
-                soal: q.question || "",
-                tipe: q.type || "PG",
-                jawabSiswa: ans || "-",
-                jawabanSiswa: ans || "-",
-                kunci: q.correct || [],
-                pembahasan: q.explanation || "Tidak ada pembahasan.",
-                poin: poin,
-                poinDidapat: poin,
-                maxPoin: maxPoin,
-                status: statusJawab
-            });
-        });
-
-        hasilDetail.sort(function(a, b) { return a.nomor - b.nomor; });
-
-        let nAkhirHitung = totalMax > 0 ? (totalNilai / totalMax) * 100 : 0;
-        let nilaiAkhir = isNaN(nAkhirHitung) ? 0 : Number(nAkhirHitung.toFixed(2));
-
-        let safeKelas = window.sanitasiKeyRekapFirebase(pkt.kelas);
-        let safePaket = window.sanitasiKeyRekapFirebase(pkt.paket);
-        let safeNama = window.sanitasiKeyRekapFirebase(pkt.nama);
-
-        let pathRekap = "admin_rekap_nilai/" + safeKelas + "/" + safePaket + "/" + safeNama;
-        let payloadRekap = {
-            namaAsli: pkt.nama,
-            kelasAsli: pkt.kelas,
-            paketAsli: pkt.paket,
-            nilaiAkhir: nilaiAkhir,
-            pelanggaran: window.violationCount || 0,
-            waktuKumpul: new Date().toISOString(),
-            detail: hasilDetail,
-            rincian: hasilDetail
-        };
-
-        // Simpan juga ke memori lokal agar langsung terlihat tanpa jeda
-        if (!window.adminRekapNilaiData) window.adminRekapNilaiData = {};
-        if (!window.adminRekapNilaiData[safeKelas]) window.adminRekapNilaiData[safeKelas] = {};
-        if (!window.adminRekapNilaiData[safeKelas][safePaket]) window.adminRekapNilaiData[safeKelas][safePaket] = {};
-        window.adminRekapNilaiData[safeKelas][safePaket][pkt.nama] = payloadRekap;
-
-        function selesaikanKeluarRuangUjian() {
-            window._sedangMengirimUjian = false;
-            window.hapusCadanganLokalUjian();
-            window.sesiUjianSiswa = null;
-
-            let bNav = document.getElementById("btn-toggle-cbt-nav");
-            if (bNav) bNav.style.display = "none";
-            let dNav = document.getElementById("cbt-nav-drawer");
-            if (dNav) dNav.classList.remove("show-nav");
-
-            window.alertAmanUjian("✅ Ujian Berhasil Dikumpulkan!\n\nNilai sementara Anda: " + nilaiAkhir + "\n(+ " + Math.round(nilaiAkhir) + " XP)");
-
-            let room = document.getElementById("ujian-strict-room");
-            let header = document.getElementById("header-wrap");
-            let nav = document.getElementById("main-nav");
-            let bc = document.querySelector(".bottom-breadcrumb-bar");
-
-            if (room) room.style.display = "none";
-            if (header) header.style.display = "flex";
-            if (nav) nav.style.display = "block";
-            if (bc) bc.style.display = "flex";
-            document.body.style.overflow = "";
-
-            if (typeof window.navigasiHalaman === "function") {
-                window.navigasiHalaman(null, "home");
-            } else {
-                window.location.href = "index.html?bab=home";
-            }
-        }
-
-        // Pastikan koneksi & otentikasi Firebase aktif, lalu TUNGGU sampai data benar-benar masuk ke server
-        window.pastikanAuthFirebaseSiswaAktif(function() {
-            if (typeof window.simpanStatusLiveMonitorKeDB === "function") {
-                let finalStatus = kickedSubmit ? "Dikeluarkan" : "Selesai";
-                window.simpanStatusLiveMonitorKeDB(pkt.paket, pkt.kelas, pkt.nama, {
-                    kelas: pkt.kelas,
-                    nama: pkt.nama,
-                    paket: pkt.paket,
-                    status: finalStatus,
-                    pelanggaran: window.violationCount || 0,
-                    waktuUpdate: new Date().toISOString()
-                });
-            }
-
-            if (sessionStorage.getItem("statusLogin") === "siswa" && typeof window.tambahXPSiswa === "function") {
-                window.tambahXPSiswa(Math.round(nilaiAkhir), "ujian", pkt.soal);
-            }
-
-            if (typeof window.kirimNilaiUjianAmanKeDB === "function") {
-                window.kirimNilaiUjianAmanKeDB(pathRekap, payloadRekap, function() {
-                    selesaikanKeluarRuangUjian();
-                }, function() {
-                    // Coba kirim sekali lagi jika koneksi sempat padat
-                    setTimeout(function() {
-                        window.kirimNilaiUjianAmanKeDB(pathRekap, payloadRekap, function() {
-                            selesaikanKeluarRuangUjian();
-                        }, function() {
-                            selesaikanKeluarRuangUjian();
-                        });
-                    }, 1200);
-                });
-            } else if (typeof window.simpanNilaiUjianKeDB === "function") {
-                window.simpanNilaiUjianKeDB(pathRekap, payloadRekap);
-                setTimeout(selesaikanKeluarRuangUjian, 1500);
-            } else {
-                selesaikanKeluarRuangUjian();
-            }
-        });
-    } catch (err) {
-        window._sedangMengirimUjian = false;
-        console.error("Kesalahan saat mengumpulkan ujian:", err);
-        window.alertAmanUjian("Terjadi kesalahan saat memproses pengumpulan ujian. Silakan tekan tombol Kumpulkan sekali lagi.");
-    }
-};
-
-// 5. SINKRONISASI PENUH REKAP NILAI, KOREKSI DETAIL, & LEDGER AKADEMIK
-window.ambilObjekRekapKelas = function(namaKelas) {
-    if (!window.adminRekapNilaiData || !namaKelas) return {};
-    if (window.adminRekapNilaiData[namaKelas]) return window.adminRekapNilaiData[namaKelas];
-    let safeKls = window.sanitasiKeyRekapFirebase(namaKelas);
-    return window.adminRekapNilaiData[safeKls] || {};
-};
-
-window.ambilObjekRekapPaket = function(namaKelas, namaPaket) {
-    let rekapKelas = window.ambilObjekRekapKelas(namaKelas);
-    if (!rekapKelas || !namaPaket) return {};
-    if (rekapKelas[namaPaket]) return rekapKelas[namaPaket];
-    let safePkt = window.sanitasiKeyRekapFirebase(namaPaket);
-    return rekapKelas[safePkt] || {};
-};
-
-window.ambilDaftarPaketUjianKelas = function(namaKelas) {
-    if (!namaKelas) return [];
-    let paketSet = new Set();
-
-    let rekapKelas = window.ambilObjekRekapKelas(namaKelas);
-    Object.keys(rekapKelas).forEach(function(p) {
-        if (Object.keys(rekapKelas[p] || {}).length > 0) {
-            paketSet.add(p);
-        }
-    });
-
-    if (window.adminLiveMonitorData) {
-        Object.keys(window.adminLiveMonitorData).forEach(function(p) {
-            let lmPkt = window.adminLiveMonitorData[p] || {};
-            let lmKls = lmPkt[namaKelas] || lmPkt[window.sanitasiKeyRekapFirebase(namaKelas)];
-            if (lmKls && Object.keys(lmKls).length > 0) {
-                paketSet.add(p);
-            }
-        });
-    }
-
-    if (window.adminLedgerMetaData && window.adminLedgerMetaData[namaKelas] && Array.isArray(window.adminLedgerMetaData[namaKelas].kolom)) {
-        window.adminLedgerMetaData[namaKelas].kolom.forEach(function(p) {
-            if ((window.adminBankUjianData && window.adminBankUjianData[p]) || rekapKelas[p]) {
-                paketSet.add(p);
-            }
-        });
-    }
-
-    // Jika belum ada yang mengumpulkan sama sekali, tampilkan juga ujian yang sedang aktif agar guru tetap bisa memantau / input manual
-    if (paketSet.size === 0 && window.adminUjianAktifData) {
-        Object.values(window.adminUjianAktifData).forEach(function(u) {
-            if (u && u.paket) paketSet.add(u.paket);
-        });
-    }
-
-    return Array.from(paketSet).sort();
-};
-
-// Pastikan perhitungan Nilai Akhir di Ledger membaca data dengan pencocokan nama yang aman
-window.hitungNilaiAkhirRumusLedger = function(kls, namaSiswa, kolomUjian) {
-    let sumKuis = 0, cntKuis = 0;
-    let sumPH = 0, cntPH = 0;
-    let sumSAS = 0, cntSAS = 0;
-    let adaKolomKuis = false, adaKolomPH = false, adaKolomSAS = false;
-
-    (kolomUjian || []).forEach(function(kol) {
-        let kat = window.deteksiKategoriKolomLedger(kol);
-        if (kat === "KUIS") adaKolomKuis = true;
-        else if (kat === "SAS") adaKolomSAS = true;
-        else adaKolomPH = true;
-
-        let rekapPaket = window.ambilObjekRekapPaket(kls, kol);
-        let dataSiswa = window.ambilDataSiswaDiObjekRekap(rekapPaket, namaSiswa);
-
-        if (dataSiswa && dataSiswa.nilaiAkhir !== undefined) {
-            let n = parseFloat(dataSiswa.nilaiAkhir);
-            if (!isNaN(n)) {
-                if (kat === "KUIS") { sumKuis += n; cntKuis++; }
-                else if (kat === "SAS") { sumSAS += n; cntSAS++; }
-                else { sumPH += n; cntPH++; }
-            }
-        }
-    });
-
-    let totalDiikuti = cntKuis + cntPH + cntSAS;
-    if (totalDiikuti === 0) return { adaNilai: false, nilaiAkhir: 0 };
-
-    let avgKuis = cntKuis > 0 ? (sumKuis / cntKuis) : 0;
-    let avgPH = cntPH > 0 ? (sumPH / cntPH) : 0;
-    let avgSAS = cntSAS > 0 ? (sumSAS / cntSAS) : 0;
-
-    if (adaKolomKuis && adaKolomPH && adaKolomSAS) {
-        let na = (avgKuis * 0.40) + (avgPH * 0.30) + (avgSAS * 0.30);
-        return { adaNilai: true, nilaiAkhir: na };
-    }
-
-    let bobotAktif = 0;
-    let totalTerbobot = 0;
-    if (adaKolomKuis && cntKuis > 0) { totalTerbobot += (avgKuis * 40); bobotAktif += 40; }
-    if (adaKolomPH && cntPH > 0) { totalTerbobot += (avgPH * 30); bobotAktif += 30; }
-    if (adaKolomSAS && cntSAS > 0) { totalTerbobot += (avgSAS * 30); bobotAktif += 30; }
-
-    let nilaiFinal = bobotAktif > 0 ? (totalTerbobot / bobotAktif) : 0;
-    return { adaNilai: true, nilaiAkhir: nilaiFinal };
-};
-
-// Sinkronisasi Kunci Nama Siswa Saat Membuka Detail Koreksi Ujian
-const _asliMuatDataKoreksi = window.muatDataKoreksi;
-window.muatDataKoreksi = function(namaSiswa) {
-    let t = window.tempKoreksiTarget;
-    if (t && window.adminRekapNilaiData) {
-        let klsKey = window.adminRekapNilaiData[t.kelas] ? t.kelas : window.sanitasiKeyRekapFirebase(t.kelas);
-        if (window.adminRekapNilaiData[klsKey]) {
-            t.kelas = klsKey;
-            let pktKey = window.adminRekapNilaiData[klsKey][t.paket] ? t.paket : window.sanitasiKeyRekapFirebase(t.paket);
-            if (window.adminRekapNilaiData[klsKey][pktKey]) {
-                t.paket = pktKey;
-                if (!window.adminRekapNilaiData[klsKey][pktKey][namaSiswa]) {
-                    let safeN = window.sanitasiKeyRekapFirebase(namaSiswa);
-                    if (window.adminRekapNilaiData[klsKey][pktKey][safeN]) {
-                        namaSiswa = safeN;
-                    }
-                }
-            }
-        }
-    }
-    if (_asliMuatDataKoreksi) _asliMuatDataKoreksi(namaSiswa);
 };

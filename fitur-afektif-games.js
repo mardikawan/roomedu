@@ -1217,34 +1217,7 @@ window.aturSpasiParagraf = function(cmd) {
     editable.dispatchEvent(new Event('input', { bubbles: true }));
 };
 
-// =========================================================================
-// 7. REGISTRASI KELAS UMUM & POP-UP PENGINGAT LATIHAN TANPA LOGIN
-// =========================================================================
-window.gantiTabAuth = function(tab) {
-    let btnLog = document.getElementById('tab-auth-login');
-    let btnReg = document.getElementById('tab-auth-register');
-    let formLog = document.getElementById('form-auth-login');
-    let formReg = document.getElementById('form-auth-register');
 
-    if (tab === 'login') {
-        btnLog.style.background = '#0b3954'; btnLog.style.color = 'white';
-        btnReg.style.background = 'transparent'; btnReg.style.color = '#475569';
-        formLog.style.display = 'block'; formReg.style.display = 'none';
-        document.getElementById('judul-modal-auth').innerText = '🔒 Akses Sistem Belajar';
-    } else {
-        btnReg.style.background = '#0b3954'; btnReg.style.color = 'white';
-        btnLog.style.background = 'transparent'; btnLog.style.color = '#475569';
-        formLog.style.display = 'none'; formReg.style.display = 'block';
-        document.getElementById('judul-modal-auth').innerText = '✨ Buat Akun Siswa Baru';
-
-        let selKelas = document.getElementById('reg-select-kelas');
-        if (selKelas) {
-            selKelas.innerHTML = '<option value="Umum" selected>🌍 Kelas Umum (Tamu/Luar)</option>';
-            selKelas.value = "Umum";
-        }
-        window.updateDropdownNamaRegistrasi();
-    }
-};
 
 document.addEventListener('DOMContentLoaded', function() {
     let inpNamaManual = document.getElementById('reg-input-nama-baru');
@@ -1498,15 +1471,17 @@ window.renderIsiShopBorder = function(tierFilter, btnEl) {
     listEl.innerHTML = html;
 };
 
+
+
 window.beliBorderDiShop = function(borderId) {
     let uName = sessionStorage.getItem("username");
-    if (!uName || !window.leaderboardSiswaData || !window.leaderboardSiswaData[uName]) return;
+    let lb = (typeof window.pastikanStrukturDualXPDanPet === "function")
+        ? window.pastikanStrukturDualXPDanPet(uName)
+        : (window.leaderboardSiswaData ? window.leaderboardSiswaData[uName] : null);
+    if (!lb) return;
 
     let item = window.cariDataBorderById(borderId);
     if (!item) return;
-
-    let lb = window.leaderboardSiswaData[uName];
-    let xpSekarang = Number(lb.xp) || 0;
 
     if (!Array.isArray(lb.ownedBorders)) {
         lb.ownedBorders = lb.ownedBorders ? Object.values(lb.ownedBorders) : [];
@@ -1517,16 +1492,28 @@ window.beliBorderDiShop = function(borderId) {
         return;
     }
 
-    if (xpSekarang < item.harga) {
-        let kurang = (item.harga - xpSekarang).toLocaleString('id-ID');
-        return alert("⚠️ Poin XP kamu belum cukup untuk membeli bingkai " + item.nama + "!\n\nHarga: " + item.harga.toLocaleString('id-ID') + " XP\nXP kamu saat ini: " + xpSekarang.toLocaleString('id-ID') + " XP\n(Kurang " + kurang + " XP lagi. Yuk rajin Check-in, Latihan, & Ujian!)");
+    let saldo = (typeof window.ambilXPTersediaSiswa === "function")
+        ? window.ambilXPTersediaSiswa(uName)
+        : (Number(lb.xpTersedia !== undefined ? lb.xpTersedia : lb.xp) || 0);
+
+    if (saldo < item.harga) {
+        let kurang = (item.harga - saldo).toLocaleString('id-ID');
+        return alert("⚠️ Saldo XP Tersedia kamu belum cukup untuk membeli bingkai " + item.nama + "!\n\nHarga: " + item.harga.toLocaleString('id-ID') + " XP\nXP Tersedia: " + saldo.toLocaleString('id-ID') + " XP\n(Kurang " + kurang + " XP lagi)");
     }
 
-    if (!confirm("Beli bingkai \"" + item.nama + "\" (" + item.tier + ") seharga " + item.harga.toLocaleString('id-ID') + " XP?\n\nPoin XP kamu akan dikurangi sebesar " + item.harga.toLocaleString('id-ID') + " XP.")) {
+    if (!confirm("Beli bingkai \"" + item.nama + "\" (" + item.tier + ") seharga " + item.harga.toLocaleString('id-ID') + " XP?\n\nHanya XP Tersedia yang berkurang, sedangkan XP Total di Leaderboard tetap utuh!")) {
         return;
     }
 
-    lb.xp = xpSekarang - item.harga;
+    if (typeof window.gunakanXPTersediaSiswa === "function") {
+        if (!window.gunakanXPTersediaSiswa(item.harga, "beli_border_" + borderId)) return;
+    } else {
+        lb.xpTersedia = Math.max(0, saldo - item.harga);
+        if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
+            window.simpanLeaderboardSiswaKeDB(uName, lb);
+        }
+    }
+
     lb.ownedBorders.push(borderId);
     lb.equippedBorder = borderId;
 
@@ -1566,7 +1553,6 @@ window.lepasBorderProfil = function() {
     window.perbaruiUIHeaderProfilSiswa();
 };
 
-// Update Modal Profil Siswa (Pasang Bingkai Kartu + Bingkai Avatar sekaligus)
 if (!window._baseBukaModalProfilSiswa) {
     window._baseBukaModalProfilSiswa = window.bukaModalProfilSiswa;
 }
@@ -1575,7 +1561,9 @@ window.bukaModalProfilSiswa = function() {
     window.pastikanAreaShopDiProfilAda();
 
     let uName = sessionStorage.getItem("username");
-    let lb = (window.leaderboardSiswaData && window.leaderboardSiswaData[uName]) ? window.leaderboardSiswaData[uName] : null;
+    let lb = (typeof window.pastikanStrukturDualXPDanPet === "function")
+        ? window.pastikanStrukturDualXPDanPet(uName)
+        : ((window.leaderboardSiswaData && window.leaderboardSiswaData[uName]) ? window.leaderboardSiswaData[uName] : null);
     if (!lb) return;
 
     let itemBorder = window.cariDataBorderById(lb.equippedBorder);
@@ -1597,9 +1585,11 @@ window.bukaModalProfilSiswa = function() {
             wrapFoto.classList.add("av-tier-" + itemBorder.tier.toLowerCase(), itemBorder.avatarCss);
         }
     }
+    if (typeof window.perbaruiTampilanSaldoXPPet === "function") {
+        window.perbaruiTampilanSaldoXPPet();
+    }
 };
 
-// Update Tombol Header Profil Siswa
 if (!window._basePerbaruiHeaderProfil) {
     window._basePerbaruiHeaderProfil = window.perbaruiUIHeaderProfilSiswa;
 }
@@ -1618,7 +1608,14 @@ window.perbaruiUIHeaderProfilSiswa = function() {
     window.perbaruiTombolCheckinUI();
 };
 
-// Update Leaderboard (Tampilkan Bingkai Kartu Bermotif + Bingkai Avatar + Nama Lengkap di Samping Nama Panggilan)
+window.apakahKelasSMALeaderboard = function(namaKelas) {
+    let kls = String(namaKelas || "").toUpperCase().trim();
+    if (!kls || kls === "UMUM" || kls.indexOf("ADMIN") !== -1 || kls.indexOf("GURU") !== -1) return false;
+    return (kls === "X" || kls === "XI" || kls === "XII" ||
+            kls.indexOf("X ") === 0 || kls.indexOf("XI ") === 0 || kls.indexOf("XII ") === 0 ||
+            kls.indexOf("X-") === 0 || kls.indexOf("XI-") === 0 || kls.indexOf("XII-") === 0);
+};
+
 window.renderTabelLeaderboard = function() {
     let container = document.getElementById('leaderboard-list-container');
     if (!container) return;
@@ -1626,25 +1623,34 @@ window.renderTabelLeaderboard = function() {
     let filterType = document.getElementById('lb-filter-cakupan').value;
     let filterVal = document.getElementById('lb-select-subfilter').value;
 
-    let rawData = Object.values(window.leaderboardSiswaData || {});
+    let rawMap = window.leaderboardSiswaData || {};
     let filtered = [];
 
-    rawData.forEach(function(item) {
-        let kls = (item.kelas || "").toUpperCase().trim();
-        let isSMA = /^(X|XI|XII)(\s|-|$)/.test(kls);
-        if (!isSMA) return;
+    Object.keys(rawMap).forEach(function(uKey) {
+        if (uKey.toLowerCase() === "mahardika" || uKey.toLowerCase() === "sbd") return;
+        let item = rawMap[uKey];
+        if (!item) return;
+
+        let kls = String(item.kelas || "").toUpperCase().trim();
+        if (!window.apakahKelasSMALeaderboard(kls)) return;
 
         if (filterType === 'semua') {
             filtered.push(item);
         } else if (filterType === 'angkatan') {
-            let regexAngkatan = new RegExp("^" + filterVal + "(\\s|-|$)");
-            if (regexAngkatan.test(kls)) filtered.push(item);
+            let prefixTarget = String(filterVal || "").toUpperCase().trim();
+            if (kls === prefixTarget || kls.indexOf(prefixTarget + " ") === 0 || kls.indexOf(prefixTarget + "-") === 0) {
+                filtered.push(item);
+            }
         } else if (filterType === 'kelas' && item.kelas === filterVal) {
             filtered.push(item);
         }
     });
 
-    filtered.sort(function(a, b) { return (b.xp || 0) - (a.xp || 0); });
+    filtered.sort(function(a, b) {
+        let xpA = Number(a.xpTotal !== undefined ? a.xpTotal : a.xp) || 0;
+        let xpB = Number(b.xpTotal !== undefined ? b.xpTotal : b.xp) || 0;
+        return xpB - xpA;
+    });
 
     if (filtered.length === 0) {
         container.innerHTML = '<div style="text-align:center; padding:30px; color:#7f8c8d; font-style:italic;">Belum ada data ilmuwan sains untuk kategori ini.</div>';
@@ -1653,7 +1659,8 @@ window.renderTabelLeaderboard = function() {
 
     let html = '';
     filtered.forEach(function(siswa, i) {
-        let lencana = window.kalkulasiLencanaSains(siswa.xp || 0);
+        let xpTotalSiswa = Number(siswa.xpTotal !== undefined ? siswa.xpTotal : siswa.xp) || 0;
+        let lencana = window.kalkulasiLencanaSains(xpTotalSiswa);
         let namaAsli = (siswa.namaLengkap || "").trim();
         let namaPanggilan = (siswa.namaPanggilan || "").trim();
         let namaUtama = namaPanggilan || namaAsli;
@@ -1664,7 +1671,7 @@ window.renderTabelLeaderboard = function() {
         }
 
         let statSoal = siswa.statSoal || { PG: 0, PGK: 0, IS: 0, Essay: 0 };
-        let totalDikerjakan = statSoal.PG + statSoal.PGK + statSoal.IS + statSoal.Essay;
+        let totalDikerjakan = (Number(statSoal.PG) || 0) + (Number(statSoal.PGK) || 0) + (Number(statSoal.IS) || 0) + (Number(statSoal.Essay) || 0);
 
         let bgRank = i === 0 ? '#fef9e7' : (i === 1 ? '#f8f9fa' : (i === 2 ? '#fdf2e9' : '#ffffff'));
         let borderRank = i === 0 ? '#f1c40f' : (i === 1 ? '#bdc3c7' : (i === 2 ? '#e67e22' : '#e2e8f0'));
@@ -1676,7 +1683,6 @@ window.renderTabelLeaderboard = function() {
         let styleDefault = itemBorder ? '' : ('background:' + bgRank + '; border:1px solid ' + borderRank + ';');
         let ikonOrnamen = itemBorder ? (' <span title="' + itemBorder.nama + '">' + itemBorder.ikonKanan + '</span>') : '';
 
-        // Bangun Bingkai Avatar + Foto Siswa
         let avatarHtml = window.buatHTMLBingkaiAvatar(siswa.foto, siswa.equippedBorder, 48, lencana.warna);
 
         html +=
@@ -1693,7 +1699,7 @@ window.renderTabelLeaderboard = function() {
                 '</div>' +
             '</div>' +
             '<div style="text-align:right; flex-shrink:0; z-index:2;">' +
-                '<div style="font-size:20px; font-weight:900; color:#0b3954; font-family:\'Bebas Neue\', sans-serif;">' + Number(siswa.xp || 0).toLocaleString('id-ID') + ' XP</div>' +
+                '<div style="font-size:20px; font-weight:900; color:#0b3954; font-family:\'Bebas Neue\', sans-serif;">' + xpTotalSiswa.toLocaleString('id-ID') + ' XP</div>' +
                 '<div style="font-size:11px; color:#475569; font-weight:bold;">🔥 ' + totalDikerjakan + ' Soal Selesai</div>' +
             '</div>' +
         '</div>';
