@@ -3118,7 +3118,7 @@ window.prosesGenerateQuizAI = function() {
     let parsedQuestions = [];
 
     blocks.forEach(function(b) {
-        let lines = b.trim().split("\n").map(l => l.trim()).filter(l => l.length > 0);
+        let lines = b.trim().split("\n").map(function(l) { return l.trim(); }).filter(function(l) { return l.length > 0; });
         if (lines.length === 0) return;
 
         let qObj = { type: 'mc', question: '', options: [], correctIndex: 0, correctIndices: [], correctAnswers: [], explanation: '' };
@@ -3130,25 +3130,24 @@ window.prosesGenerateQuizAI = function() {
                 qObj.question = line.substring(5).trim();
             } else if (low.startsWith("tipe:")) {
                 let t = low.substring(5).trim();
-                if (t === "is" || t === "isian singkat") qObj.type = "short_answer";
-                else if (t === "essay" || t === "esai") qObj.type = "essay";
+                if (t === "is" || t === "isian singkat" || t === "isian") qObj.type = "short_answer";
+                else if (t === "essay" || t === "esai" || t === "uraian") qObj.type = "essay";
+                else if (t === "pgk" || t.indexOf("kompleks") !== -1) qObj.type = "pgk";
             } else if (low.startsWith("kunci:")) {
                 isParsingOptions = false;
                 let k = line.substring(6).trim();
                 if (qObj.type === "short_answer" || qObj.type === "essay" || qObj.options.length === 0) {
-                    if (qObj.type === "mc") qObj.type = "short_answer"; // Fallback jika tidak ada opsi
-                    qObj.correctAnswers = k.split("|").map(s => s.trim());
-                } else if (qObj.type === 'pgk' && qObj.correctIndices.length > 0) {
-                    // Abaikan jika sudah ditarik via keterangan (benar) di opsi
+                    if (qObj.type === "mc") qObj.type = "short_answer";
+                    qObj.correctAnswers = k.split("|").map(function(s) { return s.trim(); });
                 } else {
-                    let cleanK = k.toUpperCase();
-                    let matchH = cleanK.match(/[A-E]/g);
-                    // Deteksi PGK Koma "Kunci: A, C, D"
-                    if (cleanK.includes(',') && matchH && matchH.length > 1) {
-                        qObj.type = 'pgk';
-                        qObj.correctIndices = matchH.map(ch => ch.charCodeAt(0) - 65).filter(idx => idx >= 0 && idx < 10);
-                    } else {
-                        let code = cleanK.charCodeAt(0) - 65;
+                    let normHuruf = window.normalisasiKunciPGK(k, qObj.options);
+                    if (qObj.type === "pgk" || normHuruf.length > 1) {
+                        qObj.type = "pgk";
+                        if (normHuruf.length > 0) {
+                            qObj.correctIndices = normHuruf.map(function(ch) { return ch.charCodeAt(0) - 65; }).filter(function(idx) { return idx >= 0 && idx < 10; });
+                        }
+                    } else if (normHuruf.length === 1) {
+                        let code = normHuruf[0].charCodeAt(0) - 65;
                         if (code >= 0 && code < 10) qObj.correctIndex = code;
                     }
                 }
@@ -3161,19 +3160,28 @@ window.prosesGenerateQuizAI = function() {
                 let optText = line.substring(2).trim();
                 let optIdx = optLabel.charCodeAt(0) - 65;
 
-                // Deteksi (Benar) dan (Salah)
-                if (optText.toLowerCase().endsWith('(benar)')) {
+                if (/[\(\[]\s*benar\s*[\)\]][\.\;\,\s]*$/i.test(optText)) {
                     qObj.type = 'pgk';
-                    optText = optText.substring(0, optText.length - 7).trim();
+                    optText = optText.replace(/[\(\[]\s*benar\s*[\)\]][\.\;\,\s]*$/i, '').trim();
                     qObj.correctIndices.push(optIdx);
-                } else if (optText.toLowerCase().endsWith('(salah)')) {
+                } else if (/[\(\[]\s*salah\s*[\)\]][\.\;\,\s]*$/i.test(optText)) {
                     qObj.type = 'pgk';
-                    optText = optText.substring(0, optText.length - 7).trim();
+                    optText = optText.replace(/[\(\[]\s*salah\s*[\)\]][\.\;\,\s]*$/i, '').trim();
                 }
-                qObj.options.push(optText); // Inline quiz opsi hanya berupa teks string
+                qObj.options.push(optText);
             } else {
                 if (isParsingOptions && qObj.options.length > 0) {
-                    qObj.options[qObj.options.length - 1] += ' ' + line;
+                    let gabungan = qObj.options[qObj.options.length - 1] + ' ' + line;
+                    let lastIdx = qObj.options.length - 1;
+                    if (/[\(\[]\s*benar\s*[\)\]][\.\;\,\s]*$/i.test(gabungan)) {
+                        qObj.type = 'pgk';
+                        gabungan = gabungan.replace(/[\(\[]\s*benar\s*[\)\]][\.\;\,\s]*$/i, '').trim();
+                        qObj.correctIndices.push(lastIdx);
+                    } else if (/[\(\[]\s*salah\s*[\)\]][\.\;\,\s]*$/i.test(gabungan)) {
+                        qObj.type = 'pgk';
+                        gabungan = gabungan.replace(/[\(\[]\s*salah\s*[\)\]][\.\;\,\s]*$/i, '').trim();
+                    }
+                    qObj.options[lastIdx] = gabungan;
                 } else if (qObj.explanation) {
                     qObj.explanation += ' ' + line;
                 } else if (qObj.question && qObj.options.length === 0) {
@@ -3182,7 +3190,7 @@ window.prosesGenerateQuizAI = function() {
             }
         });
 
-        if (qObj.type === 'pgk') qObj.correctIndices = [...new Set(qObj.correctIndices)];
+        if (qObj.type === 'pgk') qObj.correctIndices = Array.from(new Set(qObj.correctIndices)).sort(function(a, b) { return a - b; });
         if (qObj.question) parsedQuestions.push(qObj);
     });
 
@@ -3191,7 +3199,7 @@ window.prosesGenerateQuizAI = function() {
     if (!window.contentBlocksData[window.targetQuizBlockIndex].questions) {
         window.contentBlocksData[window.targetQuizBlockIndex].questions = [];
     }
-    window.contentBlocksData[window.targetQuizBlockIndex].questions.push(...parsedQuestions);
+    window.contentBlocksData[window.targetQuizBlockIndex].questions.push.apply(window.contentBlocksData[window.targetQuizBlockIndex].questions, parsedQuestions);
 
     window.tutupModal("modal-ai-quiz");
     window.renderBlocks();
@@ -3210,18 +3218,17 @@ window.togglePembahasanInline = function(blockIdx, qIdx, isStudent) {
     if (isHidden) {
         box.style.display = 'block';
         if (icon) icon.innerText = '− Tutup';
-        q.isBahasOpen = true; // Ingat statenya
+        q.isBahasOpen = true;
 
-        // Jika siswa belum jawab tapi maksa buka pembahasan, anggap SALAH lalu kunci
         if (isStudent) {
             let card = document.getElementById('inline-q-' + blockIdx + '-' + qIdx);
             if (card && !card.classList.contains('answered')) {
                 card.classList.add('answered');
                 let allBtns = card.querySelectorAll('.quiz-option-btn');
-                allBtns.forEach((b, i) => {
+                allBtns.forEach(function(b, i) {
                     b.disabled = true;
                     b.style.cursor = 'not-allowed';
-                    if (i === q.correctIndex) b.classList.add('selected-neutral'); 
+                    if (i === q.correctIndex) b.classList.add('selected-neutral');
                 });
                 let inpIsian = card.querySelector('input[type="text"]');
                 if (inpIsian) {
@@ -3240,7 +3247,6 @@ window.togglePembahasanInline = function(blockIdx, qIdx, isStudent) {
         if (icon) icon.innerText = '+ Buka';
         q.isBahasOpen = false;
     }
-    // Ingat status open/close tanpa membuang cache renderBlocks penuh
     sessionStorage.setItem('cache_room_' + window.guruAktif + '_' + window.babAktif, JSON.stringify({ blocksObj: window.contentBlocksData, floatingBoxesObj: window.floatingBoxesData }));
 };
 
@@ -3256,14 +3262,112 @@ window.jawabKuisInline = function(btnEl, blockIdx, qIdx, optIdx, correctIdx) {
         if (i === correctIdx) b.classList.add("selected-correct");
         else if (i === optIdx) b.classList.add("selected-wrong");
     });
-    
+
     let navBtn = document.getElementById("nav-btn-inline-" + blockIdx + "-" + qIdx);
     if (navBtn) navBtn.classList.add("nav-answered");
 
-    // Jika salah menjawab, Buka Pembahasan otomatis
-    if (optIdx !== correctIdx) {
+    if (optIdx === correctIdx) {
+        if (typeof window.tambahXPSiswa === "function") {
+            window.tambahXPSiswa(10, "kuis_inline", [{ type: "PG", sudahBenar: true }]);
+        }
+    } else {
         let box = document.getElementById('bahas-box-' + blockIdx + '-' + qIdx);
         if (box && box.style.display === 'none') {
+            window.togglePembahasanInline(blockIdx, qIdx, true);
+        }
+    }
+};
+
+window.jawabKuisInlineIsian = function(inputEl, blockIdx, qIdx) {
+    let blok = window.contentBlocksData[blockIdx];
+    if (!blok || !blok.questions || !blok.questions[qIdx]) return;
+    let q = blok.questions[qIdx];
+    let val = (inputEl.value || "").trim().toLowerCase();
+    let kunciArr = (q.correctAnswers || []).map(function(k) { return k.toLowerCase().trim(); });
+
+    if (kunciArr.indexOf(val) !== -1 && val !== "") {
+        inputEl.style.borderColor = "#27ae60";
+        inputEl.style.background = "#d4edda";
+        inputEl.disabled = true;
+        let navBtn = document.getElementById("nav-btn-inline-" + blockIdx + "-" + qIdx);
+        if (navBtn) navBtn.classList.add("nav-answered");
+        if (typeof window.tambahXPSiswa === "function") {
+            window.tambahXPSiswa(50, "kuis_inline", [{ type: "IS", sudahBenar: true }]);
+        }
+    } else {
+        inputEl.style.borderColor = "#e74c3c";
+        inputEl.style.background = "#f8d7da";
+    }
+};
+
+window.updateKunciInline = function(blockIdx, qIdx, optIdx) {
+    let blok = window.contentBlocksData[blockIdx];
+    if (blok && blok.questions && blok.questions[qIdx]) {
+        blok.questions[qIdx].correctIndex = optIdx;
+        if (window.simpanKeDB) window.simpanKeDB();
+    }
+};
+
+window.updateKunciInlinePGK = function(blockIdx, qIdx, optIdx, isChecked) {
+    let blok = window.contentBlocksData[blockIdx];
+    if (blok && blok.questions && blok.questions[qIdx]) {
+        let q = blok.questions[qIdx];
+        if (!Array.isArray(q.correctIndices)) q.correctIndices = [];
+        let numIdx = parseInt(optIdx, 10);
+        if (isChecked) {
+            if (!q.correctIndices.includes(numIdx)) q.correctIndices.push(numIdx);
+        } else {
+            q.correctIndices = q.correctIndices.filter(function(i) { return parseInt(i, 10) !== numIdx; });
+        }
+        q.correctIndices.sort(function(a, b) { return a - b; });
+        if (window.simpanKeDB) window.simpanKeDB();
+    }
+};
+
+window.koreksiKuisInlinePGK = function(blockIdx, qIdx) {
+    let blok = window.contentBlocksData[blockIdx];
+    if (!blok || !blok.questions || !blok.questions[qIdx]) return;
+    let q = blok.questions[qIdx];
+    let card = document.getElementById("inline-q-" + blockIdx + "-" + qIdx);
+    if (!card || card.classList.contains("answered")) return;
+
+    let checkboxes = card.querySelectorAll(".chk-inline-pgk-" + blockIdx + "-" + qIdx);
+    let dipilih = [];
+    checkboxes.forEach(function(cb) {
+        if (cb.checked) dipilih.push(parseInt(cb.value, 10));
+    });
+
+    if (dipilih.length === 0) return alert("Pilih minimal satu jawaban terlebih dahulu!");
+
+    card.classList.add("answered");
+    let rawKunci = (Array.isArray(q.correctIndices) && q.correctIndices.length > 0) ? q.correctIndices : (q.correct || []);
+    let isAllCorrect = window.apakahJawabanPGKBenar(dipilih, rawKunci, q.options);
+    let normKunciHuruf = window.normalisasiKunciPGK(rawKunci, q.options);
+
+    checkboxes.forEach(function(cb) {
+        cb.disabled = true;
+        let idx = parseInt(cb.value, 10);
+        let hurufIdx = String.fromCharCode(65 + idx);
+        let lbl = document.getElementById("lbl-inline-pgk-" + blockIdx + "-" + qIdx + "-" + idx);
+        if (lbl) {
+            if (normKunciHuruf.includes(hurufIdx)) lbl.classList.add("selected-correct");
+            else if (cb.checked) lbl.classList.add("selected-wrong");
+        }
+    });
+
+    let btnSubmit = document.getElementById("btn-submit-pgk-" + blockIdx + "-" + qIdx);
+    if (btnSubmit) btnSubmit.style.display = "none";
+
+    let navBtn = document.getElementById("nav-btn-inline-" + blockIdx + "-" + qIdx);
+    if (navBtn) navBtn.classList.add("nav-answered");
+
+    if (isAllCorrect) {
+        if (typeof window.tambahXPSiswa === "function") {
+            window.tambahXPSiswa(20, "kuis_inline", [{ type: "PGK", sudahBenar: true }]);
+        }
+    } else {
+        let box = document.getElementById("bahas-box-" + blockIdx + "-" + qIdx);
+        if (box && box.style.display === "none") {
             window.togglePembahasanInline(blockIdx, qIdx, true);
         }
     }
@@ -3434,25 +3538,38 @@ window.simpanPopupPengumuman = function() {
    KOMPRESI GAMBAR & PASTE LISTENER
    ========================================= */
 window.kompresGambar = function(file, callback) {
+    if (!file) return;
+    const isGif = (file.type === 'image/gif') || (file.name && /\.gif$/i.test(file.name));
+
     const reader = new FileReader();
     reader.onload = function(e) {
+        // Jika file bertipe GIF, pertahankan DataURL asli agar animasi GIF tetap bergerak hidup!
+        if (isGif) {
+            if (file.size > 2.5 * 1024 * 1024) {
+                alert("⚠️ Ukuran file GIF terlalu besar (Maksimal 2.5 MB). Silakan pilih GIF dengan ukuran lebih kecil.");
+                return;
+            }
+            callback(e.target.result);
+            return;
+        }
+
         const img = new Image();
         img.onload = function() {
             const canvas = document.createElement('canvas');
             const MAX_WIDTH = 1000; const MAX_HEIGHT = 1000;
             let width = img.width; let height = img.height;
-            if (width > height) { 
-                if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; } 
-            } else { 
-                if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; } 
+            if (width > height) {
+                if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
+            } else {
+                if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; }
             }
             canvas.width = width; canvas.height = height;
             const ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0, width, height);
-            callback(canvas.toDataURL('image/jpeg', 0.7)); 
-        }
+            callback(canvas.toDataURL('image/jpeg', 0.7));
+        };
         img.src = e.target.result;
-    }
+    };
     reader.readAsDataURL(file);
 };
 
@@ -7745,13 +7862,21 @@ window.konversiSoalKeTeksMentah = function(soalArr) {
             lines.push("Tipe: Essay");
             lines.push("Kunci: " + (q.correct || []).join(" "));
         } else if (q.type === 'PGK') {
-            (q.options || []).forEach(function(opt) {
-                let isBenar = (q.correct || []).includes(opt.label);
-                lines.push(opt.label + ". " + opt.text + (isBenar ? " (benar)" : " (salah)"));
+            let normKunci = window.normalisasiKunciPGK(q.correct || [], q.options || []);
+            (q.options || []).forEach(function(opt, idx) {
+                let lbl = (opt && opt.label) ? String(opt.label).toUpperCase() : String.fromCharCode(65 + idx);
+                let txt = (opt && opt.text !== undefined) ? opt.text : String(opt || "");
+                let isBenar = normKunci.includes(lbl);
+                lines.push(lbl + ". " + txt + (isBenar ? " (benar)" : " (salah)"));
             });
+            if (normKunci.length > 0) {
+                lines.push("Kunci: " + normKunci.join(", "));
+            }
         } else {
-            (q.options || []).forEach(function(opt) {
-                lines.push(opt.label + ". " + opt.text);
+            (q.options || []).forEach(function(opt, idx) {
+                let lbl = (opt && opt.label) ? opt.label : String.fromCharCode(65 + idx);
+                let txt = (opt && opt.text !== undefined) ? opt.text : String(opt || "");
+                lines.push(lbl + ". " + txt);
             });
             lines.push("Kunci: " + ((q.correct && q.correct[0]) ? q.correct[0] : "A"));
         }
@@ -7762,7 +7887,6 @@ window.konversiSoalKeTeksMentah = function(soalArr) {
     }).join("\n\n");
 };
 
-// Render Dropdown "🗂️ Pilih Bank Ujian Tersimpan" di Bawah Kiri
 window.renderDropdownBankUjianTersimpan = function() {
     let sel = document.getElementById('select-bank-ujian-tersimpan');
     if (!sel) return;
@@ -7786,7 +7910,6 @@ window.renderDropdownBankUjianTersimpan = function() {
     window.updateHeaderInfoManajerUjian();
 };
 
-// Saat Guru Memilih Bank Ujian Tersimpan dari Dropdown Kiri Bawah
 window.pilihBankUjianTersimpan = function(namaPaket) {
     window.selectedBankUjianName = namaPaket || "";
     let inputNama = document.getElementById('admin-bu-nama');
@@ -7828,46 +7951,47 @@ window.analisisSoalOtomatis = function() {
     let infoBox = document.getElementById('info-analisis-soal');
     let bobotBox = document.getElementById('box-bobot-soal');
     let previewWrap = document.getElementById('preview-bank-ujian-wrapper');
-    
+
     let blocks = rawText.split(/\n\s*\n|\n---\n/);
     let questions = [];
-    
+
     blocks.forEach(function(block) {
         let lines = block.trim().split('\n').map(function(l) { return l.trim(); }).filter(function(l) { return l.length > 0; });
-        if(lines.length === 0) return;
-        
+        if (lines.length === 0) return;
+
         let qObj = { type: 'PG', question: '', options: [], correct: [], explanation: '' };
         let isParsingOptions = false;
-        
+
         lines.forEach(function(line) {
             let lowerLine = line.toLowerCase();
-            
+
             if (lowerLine.startsWith('soal:')) {
                 qObj.question = line.substring(5).trim();
-            } 
+            }
             else if (lowerLine.startsWith('tipe:')) {
                 let type = lowerLine.substring(5).trim();
-                if(type === 'is' || type === 'isian singkat') qObj.type = 'IS';
-                else if(type === 'essay' || type === 'esai') qObj.type = 'Essay';
+                if (type === 'is' || type === 'isian singkat' || type === 'isian') qObj.type = 'IS';
+                else if (type === 'essay' || type === 'esai' || type === 'uraian') qObj.type = 'Essay';
+                else if (type === 'pgk' || type.indexOf('kompleks') !== -1) qObj.type = 'PGK';
             }
             else if (lowerLine.startsWith('kunci:')) {
                 isParsingOptions = false;
                 let kunciStr = line.substring(6).trim();
-                if(qObj.type === 'IS') {
+                if (qObj.type === 'IS') {
                     qObj.correct = kunciStr.split('|').map(function(s) { return s.trim(); });
                 } else if (qObj.type === 'Essay') {
                     qObj.correct = [kunciStr];
-                } else if (qObj.type === 'PGK' && qObj.correct.length > 0) {
-                    // Jika tipe sudah terbaca PGK (lewat opsi (benar) / (salah)), abaikan kunci manual ini agar tidak tertimpa
                 } else {
-                    let cleanKunci = kunciStr.toUpperCase();
-                    let matchHuruf = cleanKunci.match(/[A-E]/g);
-                    
-                    // Deteksi Format PGK Cerdas: "Kunci: A, C, D" (Mengandung lebih dari 1 huruf dan dipisah koma)
-                    if (cleanKunci.includes(',') && matchHuruf && matchHuruf.length > 1) {
+                    let normHuruf = window.normalisasiKunciPGK(kunciStr, qObj.options);
+                    if (qObj.type === 'PGK' || normHuruf.length > 1) {
                         qObj.type = 'PGK';
-                        qObj.correct = [...new Set(matchHuruf)];
+                        if (normHuruf.length > 0) {
+                            qObj.correct = Array.from(new Set(qObj.correct.concat(normHuruf))).sort();
+                        }
+                    } else if (normHuruf.length === 1) {
+                        qObj.correct = [normHuruf[0]];
                     } else {
+                        let cleanKunci = kunciStr.toUpperCase();
                         qObj.correct = [cleanKunci.replace(/[^A-E]/g, '').charAt(0) || cleanKunci];
                     }
                 }
@@ -7876,25 +8000,35 @@ window.analisisSoalOtomatis = function() {
                 isParsingOptions = false;
                 qObj.explanation = line.substring(11).trim();
             }
-            else if (/^[a-eA-E]\./.test(line)) { 
+            else if (/^[a-eA-E][\.\)]/.test(line)) {
                 isParsingOptions = true;
                 let optLabel = line.charAt(0).toUpperCase();
                 let optText = line.substring(2).trim();
-                
-                if(optText.toLowerCase().endsWith('(benar)')) {
+
+                if (/[\(\[]\s*benar\s*[\)\]][\.\;\,\s]*$/i.test(optText)) {
                     qObj.type = 'PGK';
-                    optText = optText.substring(0, optText.length - 7).trim();
+                    optText = optText.replace(/[\(\[]\s*benar\s*[\)\]][\.\;\,\s]*$/i, '').trim();
                     qObj.correct.push(optLabel);
-                } else if (optText.toLowerCase().endsWith('(salah)')) {
+                } else if (/[\(\[]\s*salah\s*[\)\]][\.\;\,\s]*$/i.test(optText)) {
                     qObj.type = 'PGK';
-                    optText = optText.substring(0, optText.length - 7).trim();
+                    optText = optText.replace(/[\(\[]\s*salah\s*[\)\]][\.\;\,\s]*$/i, '').trim();
                 }
-                
+
                 qObj.options.push({ label: optLabel, text: optText });
             }
             else {
-                if(isParsingOptions && qObj.options.length > 0) {
-                    qObj.options[qObj.options.length-1].text += ' ' + line;
+                if (isParsingOptions && qObj.options.length > 0) {
+                    let lastOpt = qObj.options[qObj.options.length - 1];
+                    let gabungan = lastOpt.text + ' ' + line;
+                    if (/[\(\[]\s*benar\s*[\)\]][\.\;\,\s]*$/i.test(gabungan)) {
+                        qObj.type = 'PGK';
+                        gabungan = gabungan.replace(/[\(\[]\s*benar\s*[\)\]][\.\;\,\s]*$/i, '').trim();
+                        qObj.correct.push(lastOpt.label);
+                    } else if (/[\(\[]\s*salah\s*[\)\]][\.\;\,\s]*$/i.test(gabungan)) {
+                        qObj.type = 'PGK';
+                        gabungan = gabungan.replace(/[\(\[]\s*salah\s*[\)\]][\.\;\,\s]*$/i, '').trim();
+                    }
+                    lastOpt.text = gabungan;
                 } else if (qObj.explanation) {
                     qObj.explanation += ' ' + line;
                 } else if (qObj.question && qObj.options.length === 0) {
@@ -7902,9 +8036,9 @@ window.analisisSoalOtomatis = function() {
                 }
             }
         });
-        
-        if(qObj.type === 'PGK') qObj.correct = [...new Set(qObj.correct)];
-        if(qObj.question) questions.push(qObj);
+
+        if (qObj.type === 'PGK') qObj.correct = window.normalisasiKunciPGK(qObj.correct, qObj.options);
+        if (qObj.question) questions.push(qObj);
     });
     
     window.tempSoalUjianParsed = questions;
@@ -8227,43 +8361,48 @@ window.simpanKeBankSoalPusat = function() {
     let kesulitan = document.getElementById('admin-bs-kesulitan').value;
     let rawText = document.getElementById('admin-bs-text').value;
 
-    if(!bab) return alert("Nama Bab wajib diisi!");
-    if(!rawText) return alert("Soal tidak boleh kosong!");
+    if (!bab) return alert("Nama Bab wajib diisi!");
+    if (!rawText) return alert("Soal tidak boleh kosong!");
 
     let blocks = rawText.split(/\n\s*\n|\n---\n/);
     let questions = [];
-    
+
     blocks.forEach(function(block) {
         let lines = block.trim().split('\n').map(function(l) { return l.trim(); }).filter(function(l) { return l.length > 0; });
-        if(lines.length === 0) return;
-        
+        if (lines.length === 0) return;
+
         let qObj = { type: 'PG', question: '', options: [], correct: [], explanation: '' };
         let isParsingOptions = false;
-        
+
         lines.forEach(function(line) {
             let lowerLine = line.toLowerCase();
-            if (lowerLine.startsWith('soal:')) { qObj.question = line.substring(5).trim(); } 
+            if (lowerLine.startsWith('soal:')) {
+                qObj.question = line.substring(5).trim();
+            }
             else if (lowerLine.startsWith('tipe:')) {
                 let type = lowerLine.substring(5).trim();
-                if(type === 'is' || type === 'isian singkat') qObj.type = 'IS';
-                else if(type === 'essay' || type === 'esai') qObj.type = 'Essay';
+                if (type === 'is' || type === 'isian singkat' || type === 'isian') qObj.type = 'IS';
+                else if (type === 'essay' || type === 'esai' || type === 'uraian') qObj.type = 'Essay';
+                else if (type === 'pgk' || type.indexOf('kompleks') !== -1) qObj.type = 'PGK';
             }
             else if (lowerLine.startsWith('kunci:')) {
                 isParsingOptions = false;
                 let kunciStr = line.substring(6).trim();
-                if(qObj.type === 'IS') {
+                if (qObj.type === 'IS') {
                     qObj.correct = kunciStr.split('|').map(function(s) { return s.trim(); });
                 } else if (qObj.type === 'Essay') {
                     qObj.correct = [kunciStr];
-                } else if (qObj.type === 'PGK' && qObj.correct.length > 0) {
-                    // Abaikan kunci manual jika sudah terekstrak dari teks (benar)/(salah) di opsi
                 } else {
-                    let cleanKunci = kunciStr.toUpperCase();
-                    let matchHuruf = cleanKunci.match(/[A-E]/g);
-                    if (cleanKunci.includes(',') && matchHuruf && matchHuruf.length > 1) {
+                    let normHuruf = window.normalisasiKunciPGK(kunciStr, qObj.options);
+                    if (qObj.type === 'PGK' || normHuruf.length > 1) {
                         qObj.type = 'PGK';
-                        qObj.correct = [...new Set(matchHuruf)];
+                        if (normHuruf.length > 0) {
+                            qObj.correct = Array.from(new Set(qObj.correct.concat(normHuruf))).sort();
+                        }
+                    } else if (normHuruf.length === 1) {
+                        qObj.correct = [normHuruf[0]];
                     } else {
+                        let cleanKunci = kunciStr.toUpperCase();
                         qObj.correct = [cleanKunci.replace(/[^A-E]/g, '').charAt(0) || cleanKunci];
                     }
                 }
@@ -8272,29 +8411,44 @@ window.simpanKeBankSoalPusat = function() {
                 isParsingOptions = false;
                 qObj.explanation = line.substring(11).trim();
             }
-            else if (/^[a-eA-E]\./.test(line)) { 
+            else if (/^[a-eA-E][\.\)]/.test(line)) {
                 isParsingOptions = true;
                 let optLabel = line.charAt(0).toUpperCase();
                 let optText = line.substring(2).trim();
-                if(optText.toLowerCase().endsWith('(benar)')) {
-                    qObj.type = 'PGK'; optText = optText.substring(0, optText.length - 7).trim(); qObj.correct.push(optLabel);
-                } else if (optText.toLowerCase().endsWith('(salah)')) {
-                    qObj.type = 'PGK'; optText = optText.substring(0, optText.length - 7).trim();
+                if (/[\(\[]\s*benar\s*[\)\]][\.\;\,\s]*$/i.test(optText)) {
+                    qObj.type = 'PGK';
+                    optText = optText.replace(/[\(\[]\s*benar\s*[\)\]][\.\;\,\s]*$/i, '').trim();
+                    qObj.correct.push(optLabel);
+                } else if (/[\(\[]\s*salah\s*[\)\]][\.\;\,\s]*$/i.test(optText)) {
+                    qObj.type = 'PGK';
+                    optText = optText.replace(/[\(\[]\s*salah\s*[\)\]][\.\;\,\s]*$/i, '').trim();
                 }
                 qObj.options.push({ label: optLabel, text: optText });
             }
             else {
-                if(isParsingOptions && qObj.options.length > 0) qObj.options[qObj.options.length-1].text += ' ' + line;
+                if (isParsingOptions && qObj.options.length > 0) {
+                    let lastOpt = qObj.options[qObj.options.length - 1];
+                    let gabungan = lastOpt.text + ' ' + line;
+                    if (/[\(\[]\s*benar\s*[\)\]][\.\;\,\s]*$/i.test(gabungan)) {
+                        qObj.type = 'PGK';
+                        gabungan = gabungan.replace(/[\(\[]\s*benar\s*[\)\]][\.\;\,\s]*$/i, '').trim();
+                        qObj.correct.push(lastOpt.label);
+                    } else if (/[\(\[]\s*salah\s*[\)\]][\.\;\,\s]*$/i.test(gabungan)) {
+                        qObj.type = 'PGK';
+                        gabungan = gabungan.replace(/[\(\[]\s*salah\s*[\)\]][\.\;\,\s]*$/i, '').trim();
+                    }
+                    lastOpt.text = gabungan;
+                }
                 else if (qObj.explanation) qObj.explanation += ' ' + line;
                 else if (qObj.question && qObj.options.length === 0) qObj.question += '<br>' + line;
             }
         });
-        
-        if(qObj.type === 'PGK') qObj.correct = [...new Set(qObj.correct)];
-        if(qObj.question) questions.push(qObj);
+
+        if (qObj.type === 'PGK') qObj.correct = window.normalisasiKunciPGK(qObj.correct, qObj.options);
+        if (qObj.question) questions.push(qObj);
     });
 
-    if(questions.length === 0) return alert("Gagal mengekstrak soal. Pastikan format teks benar!");
+    if (questions.length === 0) return alert("Gagal mengekstrak soal. Pastikan format teks benar!");
 
     let key = window.kunciEditBankLatihan || (kelas + '_' + mapel + '_' + bab + '_' + kesulitan);
     if(!window.adminBankLatihanData[key]) {
@@ -9548,27 +9702,31 @@ window.kumpulkanUjianSiswa = function(isForce, isKicked) {
         let totalNilai = 0;
         let totalMax = 0;
         let hasilDetail = [];
+        let soalBenarUjian = [];
+        let totalXPUjian = 0;
 
         pkt.soal.forEach(function(q, idx) {
             let ans = (pkt.jawaban && pkt.jawaban[idx] !== undefined) ? pkt.jawaban[idx] : "";
             let poin = 0;
             let maxPoin = 0;
             let statusJawab = "Salah";
+            let isCorrect = false;
 
             if (q.type === "PG") {
                 maxPoin = bobotPG;
-                if (ans === (q.correct && q.correct[0])) {
+                let normAns = window.normalisasiKunciPGK(ans, q.options);
+                let normKey = window.normalisasiKunciPGK(q.correct, q.options);
+                if (normAns.length === 1 && normKey.length > 0 && normAns[0] === normKey[0]) {
                     poin = bobotPG;
                     statusJawab = "Benar";
+                    isCorrect = true;
                 }
             } else if (q.type === "PGK") {
                 maxPoin = bobotPGK;
-                if (Array.isArray(ans) && Array.isArray(q.correct)) {
-                    let benarAll = (ans.length === q.correct.length) && ans.every(function(a) { return q.correct.includes(a); });
-                    if (benarAll) {
-                        poin = bobotPGK;
-                        statusJawab = "Benar Sempurna";
-                    }
+                if (window.apakahJawabanPGKBenar(ans, q.correct, q.options)) {
+                    poin = bobotPGK;
+                    statusJawab = "Benar Sempurna";
+                    isCorrect = true;
                 }
             } else if (q.type === "IS") {
                 maxPoin = bobotIS;
@@ -9576,6 +9734,7 @@ window.kumpulkanUjianSiswa = function(isForce, isKicked) {
                 if (ansClean && q.correct && q.correct.some(function(k) { return String(k).trim().toLowerCase() === ansClean; })) {
                     poin = bobotIS;
                     statusJawab = "Benar";
+                    isCorrect = true;
                 }
             } else if (q.type === "Essay") {
                 maxPoin = bobotES;
@@ -9583,15 +9742,23 @@ window.kumpulkanUjianSiswa = function(isForce, isKicked) {
                 statusJawab = "Menunggu Guru";
             }
 
+            if (isCorrect) {
+                let xpItem = window.dapatkanPoinXPPerSoal(q.type);
+                totalXPUjian += xpItem;
+                soalBenarUjian.push({ type: q.type || "PG", sudahBenar: true });
+            }
+
             totalNilai += poin;
             totalMax += maxPoin;
+
+            let tampilanJawab = Array.isArray(ans) ? window.normalisasiKunciPGK(ans, q.options).join(", ") : (ans || "-");
 
             hasilDetail.push({
                 nomor: (typeof q.originalIndex === "number" ? q.originalIndex : idx) + 1,
                 soal: q.question || "",
                 tipe: q.type || "PG",
-                jawabSiswa: ans || "-",
-                jawabanSiswa: ans || "-",
+                jawabSiswa: tampilanJawab || "-",
+                jawabanSiswa: tampilanJawab || "-",
                 kunci: q.correct || [],
                 pembahasan: q.explanation || "Tidak ada pembahasan.",
                 poin: poin,
@@ -9615,7 +9782,9 @@ window.kumpulkanUjianSiswa = function(isForce, isKicked) {
             namaAsli: pkt.nama,
             kelasAsli: pkt.kelas,
             paketAsli: pkt.paket,
+            usernameSiswa: sessionStorage.getItem("username") || "",
             nilaiAkhir: nilaiAkhir,
+            xpSudahDiberikan: totalXPUjian,
             pelanggaran: window.violationCount || 0,
             waktuKumpul: new Date().toISOString(),
             detail: hasilDetail,
@@ -9628,10 +9797,10 @@ window.kumpulkanUjianSiswa = function(isForce, isKicked) {
         window.adminRekapNilaiData[safeKelas][safePaket][safeNama] = payloadRekap;
 
         function selesaikanKeluarRuangUjian() {
-            // Tambah XP secara terisolasi setelah nilai ujian aman di server
+            // Tambah XP secara terisolasi HANYA untuk soal yang dijawab benar
             try {
-                if (sessionStorage.getItem("statusLogin") === "siswa" && typeof window.tambahXPSiswa === "function") {
-                    window.tambahXPSiswa(Math.round(nilaiAkhir), "ujian", pkt.soal);
+                if (sessionStorage.getItem("statusLogin") === "siswa" && typeof window.tambahXPSiswa === "function" && totalXPUjian > 0) {
+                    window.tambahXPSiswa(totalXPUjian, "ujian", soalBenarUjian);
                 }
             } catch (xpErr) {
                 console.warn("Isolasi XP:", xpErr);
@@ -9646,7 +9815,7 @@ window.kumpulkanUjianSiswa = function(isForce, isKicked) {
             let dNav = document.getElementById("cbt-nav-drawer");
             if (dNav) dNav.classList.remove("show-nav");
 
-            window.alertAmanUjian("✅ Ujian Berhasil Dikumpulkan!\n\nNilai sementara Anda: " + nilaiAkhir);
+            window.alertAmanUjian("✅ Ujian Berhasil Dikumpulkan!\n\nNilai sementara Anda: " + nilaiAkhir + "\nBonus Soal Benar: +" + totalXPUjian + " XP");
 
             let room = document.getElementById("ujian-strict-room");
             let header = document.getElementById("header-wrap");
@@ -12539,7 +12708,98 @@ window.kalkulasiLencanaSains = function(xp) {
     return { nama: "Cendekiawan", ikon: "⚛️", batas: 'Max', warna: "#c0392b", bg: "#fdedec", border: "#fadbd8", deskripsi: "Pangkat ilmuwan tertinggi. Menguasai seluruh elemen sains dengan sempurna!" };
 };
 
-window.tambahXPSiswa = function(jumlahXP, aktivitas, arrSoal) {
+// 1. STANDAR POIN XP PER 1 SOAL BENAR (PG = 10, PGK = 20, IS = 50, Essay = 100)
+window.dapatkanPoinXPPerSoal = function(tipeSoal) {
+    let t = String(tipeSoal || "PG").trim().toUpperCase();
+    if (t === "PGK") return 20;
+    if (t === "IS" || t === "SHORT_ANSWER" || t === "ISIAN" || t === "ISIAN SINGKAT") return 50;
+    if (t === "ESSAY" || t === "ESAI" || t === "URAIAN") return 100;
+    return 10; // Default PG / MC
+};
+
+// 2. NORMALISASI JAWABAN & KUNCI PGK AGAR TIDAK PERNAH SALAH BACA FORMAT
+window.normalisasiKunciPGK = function(inputVal, daftarOpsi) {
+    if (inputVal === undefined || inputVal === null) return [];
+    let rawList = [];
+
+    if (Array.isArray(inputVal)) {
+        inputVal.forEach(function(item) {
+            if (typeof item === "string" && (item.indexOf(",") !== -1 || item.indexOf("|") !== -1 || item.indexOf(";") !== -1)) {
+                item.split(/[,|;]+/).forEach(function(sub) { rawList.push(sub.trim()); });
+            } else {
+                rawList.push(item);
+            }
+        });
+    } else if (typeof inputVal === "string") {
+        let bersih = inputVal.trim();
+        if (!bersih) return [];
+        if (bersih.indexOf(",") !== -1 || bersih.indexOf("|") !== -1 || bersih.indexOf(";") !== -1 || /\bdan\b/i.test(bersih)) {
+            bersih.split(/[,|;]|\bdan\b/i).forEach(function(sub) { rawList.push(sub.trim()); });
+        } else if (/^[A-Ea-e\s]+$/.test(bersih) && bersih.replace(/\s+/g, "").length > 1) {
+            bersih.replace(/\s+/g, "").split("").forEach(function(ch) { rawList.push(ch); });
+        } else {
+            rawList.push(bersih);
+        }
+    } else if (typeof inputVal === "number") {
+        rawList.push(inputVal);
+    }
+
+    let hasilHuruf = [];
+    rawList.forEach(function(val) {
+        if (typeof val === "number" && !isNaN(val) && val >= 0 && val < 26) {
+            hasilHuruf.push(String.fromCharCode(65 + val));
+            return;
+        }
+        let s = String(val || "").trim();
+        if (!s) return;
+
+        // Jika berupa angka indeks dalam string ("0", "1", "2")
+        if (/^\d+$/.test(s)) {
+            let idx = parseInt(s, 10);
+            if (idx >= 0 && idx < 26) {
+                hasilHuruf.push(String.fromCharCode(65 + idx));
+                return;
+            }
+        }
+        // Jika berupa huruf tunggal A-Z
+        if (/^[a-zA-Z]$/.test(s)) {
+            hasilHuruf.push(s.toUpperCase());
+            return;
+        }
+        // Jika diawali label opsi seperti "A. Mitokondria" atau "B) Ribosom"
+        let matchAwal = s.match(/^([a-zA-Z])[\.\)\:\-\s]/);
+        if (matchAwal && matchAwal[1]) {
+            hasilHuruf.push(matchAwal[1].toUpperCase());
+            return;
+        }
+        // Jika berupa teks opsi penuh, cocokkan dengan daftarOpsi pada soal
+        if (Array.isArray(daftarOpsi) && daftarOpsi.length > 0) {
+            let sLow = s.toLowerCase();
+            for (let i = 0; i < daftarOpsi.length; i++) {
+                let opt = daftarOpsi[i];
+                let optText = (typeof opt === "object" && opt !== null) ? String(opt.text || "").trim() : String(opt || "").trim();
+                let optLabel = (typeof opt === "object" && opt !== null && opt.label) ? String(opt.label).trim().toUpperCase() : String.fromCharCode(65 + i);
+                if (optText.toLowerCase() === sLow) {
+                    hasilHuruf.push(optLabel);
+                    return;
+                }
+            }
+        }
+    });
+
+    return Array.from(new Set(hasilHuruf)).sort();
+};
+
+window.apakahJawabanPGKBenar = function(jawabanSiswa, kunciSoal, daftarOpsi) {
+    let normSiswa = window.normalisasiKunciPGK(jawabanSiswa, daftarOpsi);
+    let normKunci = window.normalisasiKunciPGK(kunciSoal, daftarOpsi);
+    if (normKunci.length === 0 || normSiswa.length === 0) return false;
+    if (normSiswa.length !== normKunci.length) return false;
+    return normSiswa.every(function(huruf, i) { return huruf === normKunci[i]; });
+};
+
+// 3. PENAMBAHAN XP SISWA (HANYA MENCATAT SOAL YANG DIJAWAB BENAR)
+window.tambahXPSiswa = function(jumlahXP, aktivitas, arrSoalBenar) {
     try {
         let uName = sessionStorage.getItem("username");
         let stat = sessionStorage.getItem("statusLogin");
@@ -12551,14 +12811,32 @@ window.tambahXPSiswa = function(jumlahXP, aktivitas, arrSoal) {
         if (!lb) return;
 
         let tambahan = Number(jumlahXP) || 0;
+
+        // Jika dipanggil dari latihan/kuis dengan daftar soal yang benar, pastikan XP sesuai rumus per soal benar
+        if (aktivitas === "latihan" && Array.isArray(arrSoalBenar)) {
+            let hitungXPBenar = 0;
+            arrSoalBenar.forEach(function(q) {
+                if (q && q. sudahBenar !== false) {
+                    hitungXPBenar += window.dapatkanPoinXPPerSoal(q.type);
+                }
+            });
+            if (hitungXPBenar > 0 || arrSoalBenar.length === 0) {
+                tambahan = hitungXPBenar;
+            }
+        }
+
+        if (tambahan <= 0 && (!arrSoalBenar || arrSoalBenar.length === 0)) return;
+
         lb.xpTotal = (Number(lb.xpTotal !== undefined ? lb.xpTotal : lb.xp) || 0) + tambahan;
         lb.xpTersedia = (Number(lb.xpTersedia !== undefined ? lb.xpTersedia : lb.xp) || 0) + tambahan;
         lb.xp = lb.xpTotal;
 
-        if (arrSoal && Array.isArray(arrSoal)) {
+        if (arrSoalBenar && Array.isArray(arrSoalBenar)) {
             if (!lb.statSoal) lb.statSoal = { PG: 0, PGK: 0, IS: 0, Essay: 0 };
-            arrSoal.forEach(function(q) {
-                let t = q.type || "PG";
+            arrSoalBenar.forEach(function(q) {
+                if (!q || q.sudahBenar === false) return;
+                let rawT = String(q.type || "PG").toUpperCase();
+                let t = rawT === "PGK" ? "PGK" : ((rawT === "IS" || rawT === "SHORT_ANSWER") ? "IS" : ((rawT === "ESSAY" || rawT === "ESAI") ? "Essay" : "PG"));
                 if (lb.statSoal[t] !== undefined) lb.statSoal[t]++;
             });
         }
