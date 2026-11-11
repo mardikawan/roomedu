@@ -162,8 +162,14 @@ window.ekstrakFiturSoal = function(teksMentah, tipeSoal) {
         .replace(/\.{2,}/g, ' ')
         .replace(/^(perhatikan (gambar|tabel|grafik|diagram|data|pernyataan)[^!.,]*[\!.,]\s*)/i, '')
         .replace(/^(berdasarkan (informasi|perbandingan|fakta|karakteristik|ciri|mekanisme|prinsip|data|gambar|tabel|grafik|peta silsilah|uraian)\s+(tersebut|di atas|berikut)[,\s]*)/i, '')
+        .replace(/\b(harus\s+mempertimbangkan|perlu\s+mempertimbangkan|perlu\s+memperhatikan|harus\s+memperhatikan)\b/gi, 'aspek yang dipertimbangkan pada ')
+        .replace(/\b(berfungsi\s+untuk|berperan\s+dalam|bertujuan\s+untuk|bermanfaat\s+untuk)\b/gi, 'fungsi dan peran ')
+        .replace(/\b(dipengaruhi\s+oleh|disebabkan\s+oleh|diakibatkan\s+oleh)\b/gi, 'faktor penyebab ')
+        .replace(/\b(ditandai\s+oleh|ditandai\s+dengan|ditunjukkan\s+oleh|memiliki\s+ciri)\b/gi, 'karakteristik ')
+        .replace(/\b(tersusun\s+atas|terdiri\s+atas|terdiri\s+dari|mengandung)\b/gi, 'komponen penyusun ')
+        .replace(/\b(terletak\s+pada|terletak\s+di|berada\s+di|berlangsung\s+di)\b/gi, 'lokasi ')
         .replace(/\b(pernyataan|penjelasan|kesimpulan|interpretasi|alasan|hubungan|perbedaan|konsekuensi|dampak|langkah|tindakan|kondisi|proses|struktur|organel|bagian|enzim|hormon|senyawa|molekul|zat|kelompok|organisme|spesies|penyakit|kelainan|tahap|fase|mekanisme)\s+(manakah\s+)?(yang\s+)?(paling\s+)?(tepat|benar|sesuai|mungkin(\s+terjadi)?|langsung|utama|berkaitan)\s*(mengenai|untuk|pada|terhadap|dari|dalam|adalah|ialah|yaitu)?\b/gi, '$1 ')
-        .replace(/\b(disebut(\s+dengan\s+istilah|\s+sebagai)?|dinamakan|diistilahkan\s+sebagai|dikenal\s+(dengan\s+nama|sebagai|dengan\s+istilah)|diklasifikasikan\s+sebagai|digolongkan\s+ke\s+dalam|merupakan\s+contoh\s+dari|adalah|merupakan|ialah|yaitu|yakni|berfungsi\s+untuk|berperan\s+dalam|bertujuan\s+untuk)\b/gi, ' ')
+        .replace(/\b(disebut(\s+dengan\s+istilah|\s+sebagai)?|dinamakan|diistilahkan\s+sebagai|dikenal\s+(dengan\s+nama|sebagai|dengan\s+istilah)|diklasifikasikan\s+sebagai|digolongkan\s+ke\s+dalam|merupakan\s+contoh\s+dari|adalah|merupakan|ialah|yaitu|yakni|berarti)\b/gi, ' ')
         .replace(/\b(apa|apakah|manakah|bagaimana|mengapa|dimana|di mana|siapa|kapan|berapakah|tentukan|sebutkan|jelaskan|hitunglah|carilah|selesaikan)\b/gi, ' ')
         .replace(/\b(kecuali|bukan\s+merupakan|tidak\s+termasuk)\b/gi, ' ')
         .replace(/^[?.!,:;\-\s]+/g, '')
@@ -397,139 +403,195 @@ window.rakitKompetensiDanIndikator = function(fitur, levelKog, namaMapel) {
 
 window.eksekusiGenerateKisiKisi = function(jenisUjian, tapel, mapel, kelasFase, cp) {
     let st = document.getElementById('save-status-bar');
-    if(st) st.innerHTML = "<span style='color:#27ae60;'>⚡ Menyusun Kisi-kisi...</span>";
+    if (st) st.innerHTML = "<span style='color:#27ae60;'>⚡ Menyusun Kisi-kisi...</span>";
 
     let jmlPG = 0, jmlUraian = 0;
-    window.tempSoalUjianParsed.forEach(q => { if(q.type === 'PG' || q.type === 'PGK') jmlPG++; else jmlUraian++; });
+    window.tempSoalUjianParsed.forEach(function(q) {
+        if (q.type === 'PG' || q.type === 'PGK') jmlPG++;
+        else jmlUraian++;
+    });
 
-    let hasilAnalisis = window.tempSoalUjianParsed.map((q, idx) => {
+    let hasilAnalisis = window.tempSoalUjianParsed.map(function(q, idx) {
         let fitur = window.ekstrakFiturSoal(q.question, q.type);
         let levelKog = window.inferensiLevelKognitif(fitur);
-        
+
         let rumusan = window.rakitKompetensiDanIndikator(fitur, levelKog, mapel);
         let bentukSoal = q.type === "PG" ? "PG" : (q.type === "PGK" ? "PGK" : (q.type === "IS" ? "Isian" : "Uraian"));
-        
+
         let kunci = (q.correct && q.correct.length > 0) ? q.correct.join(', ') : '-';
-        if (bentukSoal === 'Uraian' || (bentukSoal === 'Isian' && kunci.length > 25)) kunci = (q.correct && q.correct[0]) ? q.correct[0] : "Terlampir";
+        if (bentukSoal === 'Uraian' || (bentukSoal === 'Isian' && kunci.length > 25)) {
+            kunci = (q.correct && q.correct[0]) ? q.correct[0] : "Terlampir";
+        }
 
         let teksSoalLengkap = (q.question || "").replace(/\n/g, '<br>');
         if (q.type === 'PG' || q.type === 'PGK') {
-            teksSoalLengkap += "<br><br>";
-            if(q.options && q.options.length > 0) {
-                q.options.forEach(opt => {
-                    teksSoalLengkap += `<b>${opt.label}.</b> ${opt.text}<br>`;
+            teksSoalLengkap += "<br>";
+            if (q.options && q.options.length > 0) {
+                q.options.forEach(function(opt) {
+                    teksSoalLengkap += '<b>' + opt.label + '.</b> ' + opt.text + '<br>';
                 });
             }
         }
 
         return {
-            nomor: idx + 1, kompetensi: rumusan.kompetensi, indikator: rumusan.indikator,
-            bentukSoal: bentukSoal, teksSoalLengkap: teksSoalLengkap, kunci: kunci, levelKog: levelKog
+            nomor: idx + 1,
+            kompetensi: rumusan.kompetensi,
+            indikator: rumusan.indikator,
+            bentukSoal: bentukSoal,
+            teksSoalLengkap: teksSoalLengkap,
+            kunci: kunci,
+            levelKog: levelKog
         };
     });
 
-    // Otomasi Rowspan untuk Kompetensi yang sama agar tabel rapi
-    for (let i = 0; i < hasilAnalisis.length; i++) {
-        if (i > 0 && hasilAnalisis[i].kompetensi === hasilAnalisis[i - 1].kompetensi) {
-            hasilAnalisis[i].kompRowspan = 0; 
-        } else {
-            let spanCount = 1;
-            for (let j = i + 1; j < hasilAnalisis.length; j++) {
-                if (hasilAnalisis[j].kompetensi === hasilAnalisis[i].kompetensi) spanCount++; else break;
-            }
-            hasilAnalisis[i].kompRowspan = spanCount;
-        }
+    // Bagi soal menjadi per halaman cetak agar rowspan Capaian Pembelajaran & Kompetensi
+    // selalu tertutup rapat di dalam bingkai tabel tiap halaman (tidak pernah tembus ke bawah!)
+    let daftarHalaman = [];
+    let cursor = 0;
+    let ukuranHalamanPertama = 4; // Halaman 1 memuat Kop Surat + 4 soal
+    let ukuranHalamanLanjut = 5;  // Halaman berikutnya memuat 5 soal per halaman
+
+    while (cursor < hasilAnalisis.length) {
+        let limit = (daftarHalaman.length === 0) ? ukuranHalamanPertama : ukuranHalamanLanjut;
+        daftarHalaman.push(hasilAnalisis.slice(cursor, cursor + limit));
+        cursor += limit;
+    }
+    if (daftarHalaman.length === 0) daftarHalaman.push([]);
+
+    // Jika teks CP sangat panjang (> 420 karakter), bagi secara proporsional ke halaman 1 dan 2
+    // agar tinggi teks CP tidak pernah melebihi tinggi baris soal di halaman 1
+    let cpBersih = (cp || "-").trim();
+    let kataCP = cpBersih.split(/\s+/);
+    let potonganCPPerHalaman = [];
+
+    if (kataCP.length > 55 && daftarHalaman.length > 1) {
+        let batasKataHal1 = 50;
+        potonganCPPerHalaman[0] = kataCP.slice(0, batasKataHal1).join(' ');
+        potonganCPPerHalaman[1] = kataCP.slice(batasKataHal1).join(' ');
+    } else {
+        potonganCPPerHalaman[0] = cpBersih;
     }
 
-    let barisTabel = "";
-    let totalSoal = hasilAnalisis.length;
+    let stringRincianSoal = jmlPG + ' soal Pilihan Ganda dan ' + jmlUraian + ' soal Uraian';
+    if (jmlUraian === 0) stringRincianSoal = jmlPG + ' soal Pilihan Ganda';
+    if (jmlPG === 0) stringRincianSoal = jmlUraian + ' soal Uraian';
 
-    hasilAnalisis.forEach((item, idx) => {
-        let tdCapaian = (idx === 0) ? `<td rowspan="${totalSoal}" contenteditable="true" style="text-align:justify; vertical-align:top;">${cp.replace(/\n/g, '<br>')}</td>` : "";
-        let tdKompetensi = (item.kompRowspan > 0) ? `<td rowspan="${item.kompRowspan}" contenteditable="true" style="vertical-align:top; text-align:left;">${item.kompetensi}</td>` : "";
+    let htmlSemuaHalaman = "";
 
-        barisTabel += `
-            <tr>
-                ${tdCapaian}
-                ${tdKompetensi}
-                <td contenteditable="true" style="vertical-align:top; text-align:left;">${item.indikator}</td>
-                <td contenteditable="true" style="text-align:center; vertical-align:top;">${item.bentukSoal}</td>
-                <td style="text-align:center; vertical-align:top;">${item.nomor}</td>
-                <td contenteditable="true" style="text-align:left; vertical-align:top;">${item.teksSoalLengkap}</td>
-                <td contenteditable="true" style="text-align:center; font-weight:bold; vertical-align:top;">${item.kunci}</td>
-                <td contenteditable="true" style="text-align:center; font-weight:bold; vertical-align:top;">${item.levelKog}</td>
-            </tr>
-        `;
+    daftarHalaman.forEach(function(kelompokSoal, pageIdx) {
+        // Hitung rowspan Kompetensi khusus di dalam halaman ini saja (tidak lintas halaman)
+        for (let i = 0; i < kelompokSoal.length; i++) {
+            if (i > 0 && kelompokSoal[i].kompetensi === kelompokSoal[i - 1].kompetensi) {
+                kelompokSoal[i].kompRowspan = 0;
+            } else {
+                let spanCount = 1;
+                for (let j = i + 1; j < kelompokSoal.length; j++) {
+                    if (kelompokSoal[j].kompetensi === kelompokSoal[i].kompetensi) spanCount++;
+                    else break;
+                }
+                kelompokSoal[i].kompRowspan = spanCount;
+            }
+        }
+
+        let teksCPHalamanIni = potonganCPPerHalaman[pageIdx] !== undefined
+            ? potonganCPPerHalaman[pageIdx]
+            : "";
+
+        let barisHalaman = "";
+        kelompokSoal.forEach(function(item, rIdx) {
+            let tdCapaian = (rIdx === 0)
+                ? '<td rowspan="' + kelompokSoal.length + '" contenteditable="true" style="text-align:justify; vertical-align:top;">' + teksCPHalamanIni.replace(/\n/g, '<br>') + '</td>'
+                : '';
+            let tdKompetensi = (item.kompRowspan > 0)
+                ? '<td rowspan="' + item.kompRowspan + '" contenteditable="true" style="vertical-align:top; text-align:left;">' + item.kompetensi + '</td>'
+                : '';
+
+            barisHalaman +=
+                '<tr>' +
+                    tdCapaian +
+                    tdKompetensi +
+                    '<td contenteditable="true" style="vertical-align:top; text-align:left;">' + item.indikator + '</td>' +
+                    '<td contenteditable="true" style="text-align:center; vertical-align:top;">' + item.bentukSoal + '</td>' +
+                    '<td style="text-align:center; vertical-align:top;">' + item.nomor + '</td>' +
+                    '<td contenteditable="true" style="text-align:left; vertical-align:top;">' + item.teksSoalLengkap + '</td>' +
+                    '<td contenteditable="true" style="text-align:center; font-weight:bold; vertical-align:top;">' + item.kunci + '</td>' +
+                    '<td contenteditable="true" style="text-align:center; font-weight:bold; vertical-align:top;">' + item.levelKog + '</td>' +
+                '</tr>';
+        });
+
+        let kopHTML = (pageIdx === 0)
+            ? '<h2 contenteditable="true">KISI-KISI SOAL ' + jenisUjian + '</h2>' +
+              '<h3 contenteditable="true">SMAS BODHI DHARMA BATAM - TAHUN PELAJARAN ' + tapel + '</h3>' +
+              '<table class="kop-info">' +
+                  '<tr><td width="130">Mata Pelajaran</td><td width="15">:</td><td contenteditable="true">' + mapel + '</td></tr>' +
+                  '<tr><td>Kelas / Fase</td><td>:</td><td contenteditable="true">' + kelasFase + '</td></tr>' +
+                  '<tr><td>Jumlah Soal</td><td>:</td><td contenteditable="true">' + stringRincianSoal + '</td></tr>' +
+              '</table>'
+            : '';
+
+        let classPageBreak = (pageIdx < daftarHalaman.length - 1) ? 'kisi-sheet page-break-sheet' : 'kisi-sheet';
+
+        htmlSemuaHalaman +=
+            '<div class="' + classPageBreak + '">' +
+                kopHTML +
+                '<table class="kisi-table">' +
+                    '<thead>' +
+                        '<tr>' +
+                            '<th width="14%">Capaian Pembelajaran</th>' +
+                            '<th width="13%">Kompetensi</th>' +
+                            '<th width="17%">Indikator Soal</th>' +
+                            '<th width="5%">Bentuk Soal</th>' +
+                            '<th width="5%">Nomor</th>' +
+                            '<th width="34%">Soal</th>' +
+                            '<th width="6%">Kunci</th>' +
+                            '<th width="6%">Level Kognitif</th>' +
+                        '</tr>' +
+                    '</thead>' +
+                    '<tbody>' +
+                        barisHalaman +
+                    '</tbody>' +
+                '</table>' +
+            '</div>';
     });
 
-    let stringRincianSoal = `${jmlPG} soal Pilihan Ganda dan ${jmlUraian} soal Uraian`;
-    if(jmlUraian === 0) stringRincianSoal = `${jmlPG} soal Pilihan Ganda`;
-    if(jmlPG === 0) stringRincianSoal = `${jmlUraian} soal Uraian`;
-
-    // Injeksi CSS Khusus Cetak (Kop terikat tabel, halaman memecah secara natural)
     let htmlDoc = `
     <html><head><title>Kisi-Kisi Ujian - ${mapel}</title>
     <style>
-        body { font-family: 'Times New Roman', Times, serif; padding: 25px; line-height: 1.35; color: black; background: #fff; }
+        body { font-family: 'Times New Roman', Times, serif; padding: 20px; line-height: 1.32; color: black; background: #e2e8f0; margin: 0; }
         .no-print-bar { background: #0b3954; color: white; padding: 12px 20px; font-family: sans-serif; font-size: 13px; display: flex; justify-content: space-between; align-items: center; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
         .no-print-bar button { background: #27ae60; color: white; border: none; padding: 8px 18px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 13px; }
-        h2 { text-align: center; margin-bottom: 4px; font-size: 13pt; font-weight: bold; text-transform: uppercase; }
-        h3 { text-align: center; margin-top: 0; margin-bottom: 30px; font-size: 13pt; font-weight: bold; text-transform: uppercase; }
-        .kop-info { width: 100%; margin-bottom: 20px; font-weight: bold; font-size: 11pt; border-collapse: collapse; }
-        .kop-info td { padding: 3px 0; border: none !important; }
-        table.kisi-table { width: 100%; border-collapse: collapse; font-size: 10.5pt; margin-top: 15px; }
-        table.kisi-table th, table.kisi-table td { border: 1px solid black; padding: 7px 8px; vertical-align: top; }
-        table.kisi-table th { background-color: #ffffff; text-align: center; font-weight: bold; padding: 10px 8px; }
+        .kisi-sheet { background: #ffffff; padding: 18px 22px; margin: 0 auto 24px auto; max-width: 1080px; box-shadow: 0 4px 14px rgba(0,0,0,0.1); box-sizing: border-box; }
+        h2 { text-align: center; margin-top: 0; margin-bottom: 4px; font-size: 13pt; font-weight: bold; text-transform: uppercase; }
+        h3 { text-align: center; margin-top: 0; margin-bottom: 20px; font-size: 13pt; font-weight: bold; text-transform: uppercase; }
+        .kop-info { width: 100%; margin-bottom: 14px; font-weight: bold; font-size: 10.5pt; border-collapse: collapse; }
+        .kop-info td { padding: 2px 0; border: none !important; }
+        table.kisi-table { width: 100%; border-collapse: collapse; font-size: 10pt; border: 1.5px solid black; }
+        table.kisi-table th, table.kisi-table td { border: 1px solid black; padding: 6px 8px; vertical-align: top; }
+        table.kisi-table th { background-color: #ffffff; text-align: center; font-weight: bold; padding: 8px 6px; }
         td[contenteditable="true"]:focus { outline: 2px solid #3498db; background: #f0f8ff; }
-        
+
         @media print {
             .no-print-bar { display: none !important; }
-            body { padding: 0; margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            @page { size: landscape; margin: 12mm 15mm; }
-            
-            h2, h3, .kop-info { page-break-after: avoid !important; page-break-inside: avoid !important; }
-            
-            table.kisi-table { page-break-before: avoid !important; page-break-inside: auto !important; }
+            body { padding: 0; margin: 0; background: #ffffff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            @page { size: A4 landscape; margin: 10mm 12mm; }
+            .kisi-sheet { box-shadow: none !important; margin: 0 !important; padding: 0 !important; max-width: 100% !important; width: 100% !important; }
+            .page-break-sheet { page-break-after: always !important; break-after: page !important; }
+            table.kisi-table { page-break-inside: auto !important; border: 1.5px solid black !important; }
+            tr { page-break-inside: avoid !important; break-inside: avoid !important; }
             thead { display: table-header-group !important; }
-            
-            tr { page-break-inside: avoid; page-break-after: auto; }
-            td { page-break-inside: auto; }
         }
     </style>
     </head><body>
         <div class="no-print-bar">
-            <span>💡 <b>Mode Validasi Guru:</b> Anda bebas mengedit teks (Kompetensi, Indikator, Soal) langsung di dalam tabel sebelum mencetak.</span>
+            <span>💡 <b>Mode Validasi Guru:</b> Setiap lembar telah dikunci batas bawah tabelnya agar tidak pernah tembus halaman. Anda bebas mengedit teks sebelum mencetak.</span>
             <button onclick="window.print()">🖨️ Cetak / Simpan PDF</button>
         </div>
-        <h2 contenteditable="true">KISI-KISI SOAL ${jenisUjian}</h2>
-        <h3 contenteditable="true">SMAS BODHI DHARMA BATAM - TAHUN PELAJARAN ${tapel}</h3>
-        <table class="kop-info">
-            <tr><td width="130">Mata Pelajaran</td><td width="15">:</td><td contenteditable="true">${mapel}</td></tr>
-            <tr><td>Kelas / Fase</td><td>:</td><td contenteditable="true">${kelasFase}</td></tr>
-            <tr><td>Jumlah Soal</td><td>:</td><td contenteditable="true">${stringRincianSoal}</td></tr>
-        </table>
-        <table class="kisi-table">
-            <thead>
-                <tr>
-                    <th width="14%">Capaian Pembelajaran</th>
-                    <th width="13%">Kompetensi</th>
-                    <th width="17%">Indikator Soal</th>
-                    <th width="5%">Bentuk Soal</th>
-                    <th width="5%">Nomor</th>
-                    <th width="34%">Soal</th>
-                    <th width="6%">Kunci</th>
-                    <th width="6%">Level Kognitif</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${barisTabel}
-            </tbody>
-        </table>
+        ${htmlSemuaHalaman}
     </body></html>`;
 
     let win = window.open('', '_blank');
     if (win) { win.document.write(htmlDoc); win.document.close(); }
-    
+
     window.tutupModal('modal-kisi-kisi');
-    if(st) st.innerHTML = "Cloud Sync: Ready";
+    if (st) st.innerHTML = "Cloud Sync: Ready";
 };

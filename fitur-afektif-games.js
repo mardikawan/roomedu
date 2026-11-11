@@ -69,55 +69,167 @@ setInterval(function() {
 }, 30000);
 
 // =========================================================================
-// 2. MESIN PEMBACA VALIDASI JAWABAN SISWA
+// 2. MESIN PEMBACA VALIDASI JAWABAN SISWA (ANTI-LOLOS & ANTI-HURUF BERULANG)
 // =========================================================================
+
+// Master List Jawaban Menghindar, Malas Mengetik, & Tidak Nyambung
+window.DAFTAR_JAWABAN_TERLARANG_CHECKIN = [
+    // 1. Variasi Tidak Tahu / Menolak Berpikir
+    "tidak tau", "tidaktau", "tidak tahu", "tidaktahu", "gak tau", "gaktau", "gak tahu", "gaktahu",
+    "ga tau", "gatau", "ga tahu", "gatahu", "nggak tau", "nggak tahu", "ngga tau", "ngga tahu",
+    "enggak tau", "enggak tahu", "enga tau", "tak tau", "taktau", "tak tahu", "ndak tau", "ndak tahu",
+    "kurang tau", "kurang tahu", "entah", "entahlah", "ntah", "ntahlah", "mana saya tau", "mana saya tahu",
+    "mana ku tau", "mana kutahu", "mana aku tau", "mana gua tau", "mana gw tau", "au ah", "tau ah",
+    "tahu ah", "apa ya", "apaan ya", "bingung", "bingung mau nulis apa", "bingung ngetik apa",
+    "gak ngerti", "ga ngerti", "tidak mengerti", "tidak paham", "kurang paham", "lupa", "udah lupa",
+    "sudah lupa", "gak inget", "ga inget", "tidak ingat",
+
+    // 2. Variasi Kepo, Rahasia, & Menghindar
+    "kepo deh", "kepo aja", "kepo banget", "kepo bgt", "kepo lu", "kepo kamu", "kepo amat",
+    "jangan kepo", "kepo", "rahasia", "rahasia dong", "rahasia negara", "privasi", "urusan saya",
+    "urusan pribadi", "bukan urusan", "mau tau aja", "mau tahu aja", "mau tau banget", "kasih tau gak ya",
+    "ada deh", "adalah pokoknya", "pokoknya ada", "secret", "private",
+
+    // 3. Variasi Jawaban Singkat / Mengelak ("Deh", "Aja", "Gitu", "Oke", "Biasa")
+    "ya oke aja", "oke aja", "ok aja", "oke deh", "ok deh", "okey deh", "okay deh", "iya deh",
+    "iya aja", "yaudah", "ya udah", "yaudah deh", "yasudah", "ya sudah", "gitu deh", "gitu aja",
+    "begitu saja", "begitu deh", "ya gitu", "ya gitu deh", "ya gitu aja", "gak deh", "ga deh",
+    "nggak deh", "enggak deh", "biasa aja", "biasa saja", "b aja", "b saja", "standar aja",
+    "normal aja", "aman aja", "sama aja", "sama saja", "seperti biasa", "kaya biasa", "kayak biasa",
+    "kyk biasa", "nothing special", "lumayan aja", "lumayan deh", "gitu gitu aja", "begitu begitu saja",
+    "ok ok aja", "fine fine aja", "aman terkendali",
+
+    // 4. Variasi Tidak Ada Cerita / Kosong
+    "tidak ada", "tidakada", "gak ada", "gakada", "ga ada", "gaada", "nggak ada", "ngga ada",
+    "enggak ada", "tak ada", "tiada", "kosong", "zonk", "nihil", "nothing", "none", "no comment",
+    "belum ada", "blm ada", "tidak ada apa apa", "gak ada apa apa", "ga ada apa apa", "tidak ada cerita",
+    "gak ada cerita", "ga ada cerita",
+
+    // 5. Variasi Malas Ngetik, Demi XP, & Ketikan Asal / Slang Tidak Nyambung
+    "malas ngetik", "males ngetik", "malas mengetik", "capek ngetik", "cape ngetik", "pegel ngetik",
+    "biar dapat xp", "biar dapet xp", "demi xp", "cari xp", "buat xp", "ambil poin", "biar lewat",
+    "biar panjang", "biar cukup", "biar lolos", "yang penting panjang", "yg penting panjang",
+    "nambahin kata", "asal ketik", "asal ngetik", "isi asal", "ketik asal", "random aja",
+    "test", "testing", "tes doang", "coba coba", "skip", "lanjut", "next", "pass", "bodo amat",
+    "bodoh amat", "terserah", "serah deh", "serah lu", "whatever", "idk", "idc", "gaje",
+    "gak jelas", "ga jelas", "tidak jelas", "apaan sih", "apa sih", "apasi", "wkwk", "wkwkwk",
+    "hahaha", "hehehe", "hihihi", "awokawok", "bjir", "anjir", "anjay", "lorem ipsum",
+    "qwerty", "asdfg", "zxcvb", "bla bla", "blah blah"
+];
+
+// Fungsi pelebur modifikasi huruf & angka alay:
+// Mengubah "tiiidddaaakkk taaauuu", "tidakk tau", "t1d4k t4u" -> "tidak tau"
+// Mengubah "biasaa ajaaaa" -> "biasa aja"
+window.normalisasiTeksCheckin = function(str) {
+    let s = String(str || "").toLowerCase();
+    // Konversi angka leet ke huruf
+    s = s.replace(/0/g, "o").replace(/1/g, "i").replace(/3/g, "e").replace(/4/g, "a")
+         .replace(/5/g, "s").replace(/6/g, "g").replace(/7/g, "t").replace(/8/g, "b").replace(/9/g, "g")
+         .replace(/@/g, "a").replace(/\$/g, "s").replace(/!/g, "i");
+    // Hapus tanda baca menjadi spasi
+    let bersihSpasi = s.replace(/[^a-z\s]/g, " ").replace(/\s+/g, " ").trim();
+    // Lebur huruf berulang berurutan (contoh: "tidakk" -> "tidak", "ajaaaa" -> "aja", "tiiidak" -> "tidak")
+    let leburHuruf = bersihSpasi.replace(/(.)\1+/g, "$1");
+    return {
+        normal: bersihSpasi,
+        lebur: leburHuruf
+    };
+};
+
 window.validasiTeksCheckinSiswa = function(teks) {
     let bersih = (teks || "").trim();
 
-    if (bersih.length < 20) {
+    if (bersih.length < 25) {
         return {
             valid: false,
-            pesan: "⚠️ Jawabanmu masih terlalu singkat. Yuk ceritakan lebih lengkap!"
-        };
-    }
-
-    let polaTerlarang = /\b(tidak\s*ada|gak\s*ada|tak\s*ada|nggak\s*ada|ga\s*ada|enggak\s*ada|tiada|tidak\s*tau|gak\s*tau|tak\s*tau|nggak\s*tau|ga\s*tau|tidak\s*tahu|gak\s*tahu|tak\s*tahu|kurang\s*tau|kurang\s*tahu|entahlah|entah|rahasia|kosong|malas\s*ngetik|apa\s*ya)\b/i;
-    if (polaTerlarang.test(bersih)) {
-        return {
-            valid: false,
-            pesan: "⚠️ Kalimat tidak boleh mengandung kata 'tidak ada', 'gak ada', 'tidak tau', 'gak tau', dan sejenisnya. Yuk renungkan dan ceritakan dengan jujur!"
+            pesan: "⚠️ Ceritamu masih terlalu singkat. Yuk tuliskan pengalaman dan perasaanmu dengan kalimat yang utuh!"
         };
     }
 
     let tanpaSpasi = bersih.toLowerCase().replace(/\s+/g, '');
     let hurufUnik = new Set(tanpaSpasi.split('')).size;
-    if (hurufUnik < 5 || /(.)\1{4,}/.test(tanpaSpasi)) {
+    // Tolak jika ketikan huruf berulang berlebihan seperti "tidakkkkk" atau "biasaaaa" (> 2 huruf kembar berurutan)
+    if (hurufUnik < 6 || /(.)\1{2,}/i.test(bersih)) {
         return {
             valid: false,
-            pesan: "⚠️ Sistem mendeteksi ketikan huruf berulang/acak. Tuliskan kalimat yang bermakna ya!"
+            pesan: "⚠️ Tuliskan kalimat dengan ejaan yang wajar tanpa memanjangkan huruf secara berulang ya!"
         };
     }
 
-    let jumlahKata = bersih.split(/\s+/).filter(function(k) { return k.length > 1; }).length;
-    if (jumlahKata < 4) {
+    let norm = window.normalisasiTeksCheckin(bersih);
+
+    // Cek terhadap seluruh daftar jawaban yang dihindari (baik pada teks normal maupun teks yang sudah dilebur huruf kembarnya)
+    for (let i = 0; i < window.DAFTAR_JAWABAN_TERLARANG_CHECKIN.length; i++) {
+        let frasa = window.DAFTAR_JAWABAN_TERLARANG_CHECKIN[i];
+        let frasaLebur = frasa.replace(/(.)\1+/g, "$1");
+
+        let regexNormal = new RegExp("(^|\\s)" + frasa.replace(/\s+/g, "\\s+") + "(\\s|$)", "i");
+        let regexLebur = new RegExp("(^|\\s)" + frasaLebur.replace(/\s+/g, "\\s+") + "(\\s|$)", "i");
+
+        if (regexNormal.test(norm.normal) || regexLebur.test(norm.lebur)) {
+            return {
+                valid: false,
+                pesan: "⚠️ Yuk ceritakan perasaan dan pengalaman nyatamu secara jujur dan bermakna (hindari jawaban singkat/menghindar)!"
+            };
+        }
+    }
+
+    // Cek jumlah kata bermakna & pengulangan kata (mencegah spam copy-paste kata yang sama)
+    let kataArr = norm.normal.split(/\s+/).filter(function(k) { return k.length >= 2; });
+    if (kataArr.length < 5) {
         return {
             valid: false,
-            pesan: "⚠️ Yuk ceritakan lebih lengkap dalam bentuk kalimat yang utuh!"
+            pesan: "⚠️ Yuk ceritakan lebih lengkap dalam bentuk kalimat yang utuh (minimal 5 kata yang jelas)!"
         };
     }
 
-    return { valid: true, pesan: "✓ Cerita sudah baik dan siap dikirim." };
+    // Pastikan setiap kata panjang memiliki huruf vokal & konsonan (mencegah ketikan acak "asdfghjkl")
+    let adaKataAcak = kataArr.some(function(k) {
+        if (k.length >= 4) {
+            let adaVokal = /[aiueo]/.test(k);
+            let adaKonsonan = /[bcdfghjklmnpqrstvwxyz]/.test(k);
+            return !adaVokal || !adaKonsonan;
+        }
+        return false;
+    });
+    if (adaKataAcak) {
+        return {
+            valid: false,
+            pesan: "⚠️ Terdapat kata yang tidak terbaca maknanya. Gunakan bahasa yang jelas dan baik ya!"
+        };
+    }
+
+    // Cegah siswa mengulang-ulang kata yang sama untuk mengejar panjang kalimat
+    let kataLeburArr = norm.lebur.split(/\s+/).filter(function(k) { return k.length >= 2; });
+    let kataUnikSet = new Set(kataLeburArr);
+    let frekuensiKata = {};
+    let maxUlangKata = 0;
+    kataLeburArr.forEach(function(k) {
+        frekuensiKata[k] = (frekuensiKata[k] || 0) + 1;
+        if (frekuensiKata[k] > maxUlangKata) maxUlangKata = frekuensiKata[k];
+    });
+
+    if (kataUnikSet.size < 4 || (kataLeburArr.length >= 6 && (kataUnikSet.size / kataLeburArr.length) < 0.55) || maxUlangKata > 3) {
+        return {
+            valid: false,
+            pesan: "⚠️ Kalimatmu mengandung terlalu banyak pengulangan kata. Yuk ceritakan secara bervariasi dan jujur!"
+        };
+    }
+
+    return { valid: true, pesan: "" };
 };
 
+// Tidak menampilkan tulisan peringatan/daftar kata terlarang di bawah kolom saat siswa sedang mengetik
 window.pantauKetikanCheckin = function(idTextarea, idInfo) {
     let el = document.getElementById(idTextarea);
     let info = document.getElementById(idInfo);
-    if (!el || !info) return;
-
+    if (info) {
+        info.innerText = "";
+        info.style.display = "none";
+    }
+    if (!el) return;
     let hasil = window.validasiTeksCheckinSiswa(el.value);
-    info.innerText = hasil.pesan;
-    info.style.color = hasil.valid ? "#27ae60" : "#c0392b";
-    el.style.borderColor = hasil.valid ? "#27ae60" : "#e74c3c";
+    el.style.borderColor = hasil.valid ? "#27ae60" : "#cbd5e1";
 };
 
 // =========================================================================
@@ -1667,9 +1779,10 @@ window.renderTabelLeaderboard = function() {
         let namaPanggilan = (siswa.namaPanggilan || "").trim();
         let namaUtama = namaPanggilan || namaAsli;
 
-        let htmlNamaLengkapSamping = "";
+        // Nama lengkap dienter ke bawah nama panggilan
+        let htmlNamaLengkapBawah = "";
         if (namaPanggilan && namaAsli && namaPanggilan.toLowerCase() !== namaAsli.toLowerCase()) {
-            htmlNamaLengkapSamping = '<span style="font-size:11px; font-weight:600; color:#475569; margin-left:6px;">(' + namaAsli + ')</span>';
+            htmlNamaLengkapBawah = '<div style="font-size:12px; font-weight:600; color:#475569; margin-top:1px; line-height:1.3;">(' + namaAsli + ')</div>';
         }
 
         let statSoal = siswa.statSoal || { PG: 0, PGK: 0, IS: 0, Essay: 0 };
@@ -1685,9 +1798,8 @@ window.renderTabelLeaderboard = function() {
         let styleDefault = itemBorder ? '' : ('background:' + bgRank + '; border:1px solid ' + borderRank + ';');
         let ikonOrnamen = itemBorder ? (' <span title="' + itemBorder.nama + '">' + itemBorder.ikonKanan + '</span>') : '';
 
-        let avatarHtml = window.buatHTMLBingkaiAvatar(siswa.foto, siswa.equippedBorder, 48, lencana.warna);
+        let avatarHtml = window.buatHTMLBingkaiAvatar(siswa.foto, siswa.equippedBorder, 50, lencana.warna);
 
-        // Tombol Visit di samping informasi XP (Hanya muncul untuk baris siswa lain)
         let uKeySafe = String(siswa._userKey || "").replace(/'/g, "\\'");
         let isSelf = (uKeySafe.toLowerCase() === currentUsername);
         let btnVisitHtml = (!isSelf && uKeySafe)
@@ -1695,24 +1807,28 @@ window.renderTabelLeaderboard = function() {
             : '';
 
         html +=
-        '<div class="' + classBorder + '" style="display:flex; align-items:center; gap:14px; ' + styleDefault + ' padding:13px 16px; border-radius:12px; position:relative;">' +
-            '<div style="font-size:20px; font-weight:900; color:' + (i < 3 ? '#d35400' : '#64748b') + '; width:28px; text-align:center; z-index:2; flex-shrink:0;">' + medali + '</div>' +
-            avatarHtml +
-            '<div style="flex:1; min-width:0; z-index:2;">' +
-                '<div style="font-weight:800; font-size:15px; color:#1e293b; display:flex; align-items:baseline; flex-wrap:wrap; row-gap:2px;">' +
-                    '<span>' + namaUtama + ikonOrnamen + '</span>' +
-                    htmlNamaLengkapSamping +
-                '</div>' +
-                '<div style="font-size:11px; color:#475569; margin-top:3px;">' +
-                    '<span style="background:' + lencana.bg + '; color:' + lencana.warna + '; border:1px solid ' + lencana.border + '; padding:1px 6px; border-radius:10px; font-weight:bold;">' + lencana.ikon + ' ' + lencana.nama + '</span> - <b>' + siswa.kelas + '</b>' +
-                '</div>' +
+        '<div class="' + classBorder + '" style="display:flex; align-items:flex-start; gap:12px; ' + styleDefault + ' padding:14px 15px; border-radius:12px; position:relative;">' +
+            '<div style="display:flex; align-items:center; gap:10px; flex-shrink:0; z-index:2; margin-top:2px;">' +
+                '<div style="font-size:20px; font-weight:900; color:' + (i < 3 ? '#d35400' : '#64748b') + '; width:24px; text-align:center;">' + medali + '</div>' +
+                avatarHtml +
             '</div>' +
-            '<div style="display:flex; align-items:center; gap:10px; flex-shrink:0; z-index:2;">' +
-                '<div style="text-align:right;">' +
-                    '<div style="font-size:20px; font-weight:900; color:#0b3954; font-family:\'Bebas Neue\', sans-serif;">' + xpTotalSiswa.toLocaleString('id-ID') + ' XP</div>' +
-                    '<div style="font-size:11px; color:#475569; font-weight:bold;">🔥 ' + totalDikerjakan + ' Soal Selesai</div>' +
+            '<div style="flex:1; min-width:0; z-index:2; display:flex; flex-direction:column; gap:4px;">' +
+                '<div style="font-weight:800; font-size:15px; color:#1e293b; line-height:1.25; word-break:break-word;">' +
+                    namaUtama + ikonOrnamen +
+                    htmlNamaLengkapBawah +
                 '</div>' +
-                btnVisitHtml +
+                '<div style="font-size:11px; color:#475569; display:flex; align-items:center; flex-wrap:wrap; gap:5px;">' +
+                    '<span style="background:' + lencana.bg + '; color:' + lencana.warna + '; border:1px solid ' + lencana.border + '; padding:1px 7px; border-radius:10px; font-weight:bold;">' + lencana.ikon + ' ' + lencana.nama + '</span>' +
+                    '<span>• <b>' + siswa.kelas + '</b></span>' +
+                '</div>' +
+                '<!-- Jumlah XP, Soal Selesai, & Tombol Visit Tepat di Bawah Nama -->' +
+                '<div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-top:4px; padding-top:6px; border-top:1px dashed rgba(100,116,139,0.25);">' +
+                    '<div style="display:flex; align-items:baseline; gap:8px; flex-wrap:wrap;">' +
+                        '<span style="font-size:20px; font-weight:900; color:#0b3954; font-family:\'Bebas Neue\', sans-serif; letter-spacing:0.5px;">' + xpTotalSiswa.toLocaleString('id-ID') + ' XP</span>' +
+                        '<span style="font-size:11px; color:#475569; font-weight:bold;">🔥 ' + totalDikerjakan + ' Soal Selesai</span>' +
+                    '</div>' +
+                    btnVisitHtml +
+                '</div>' +
             '</div>' +
         '</div>';
     });
