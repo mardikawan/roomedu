@@ -8,14 +8,14 @@
 window.MY_PET_CATALOG = {
     pets: [
         { id: "kadal",   namaDefault: "Gecko",  spesies: "Kadal",   zona: "land",  rarity: "Common",    harga: 1200,  scale: 0.72, favSnack: "snack_kadal",   warnaRarity: "#64748b", bgRarity: "#f1f5f9" },
-        { id: "kucing",  namaDefault: "Mochi",  spesies: "Kucing",  zona: "land",  rarity: "Common",    harga: 1600,  scale: 0.82, favSnack: "snack_kucing",  warnaRarity: "#64748b", bgRarity: "#f1f5f9" },
-        { id: "anjing",  namaDefault: "Bobi",   spesies: "Anjing",  zona: "land",  rarity: "Common",    harga: 1800,  scale: 0.86, favSnack: "snack_anjing",  warnaRarity: "#64748b", bgRarity: "#f1f5f9" },
-        { id: "ikan",    namaDefault: "Nemo",   spesies: "Ikan",    zona: "water", rarity: "Uncommon",  harga: 3200,  scale: 0.78, favSnack: "snack_ikan",    warnaRarity: "#0284c7", bgRarity: "#e0f2fe" },
-        { id: "monyet",  namaDefault: "Koko",   spesies: "Monyet",  zona: "land",  rarity: "Uncommon",  harga: 4000,  scale: 0.84, favSnack: "snack_monyet",  warnaRarity: "#16a34a", bgRarity: "#dcfce7" },
-        { id: "buaya",   namaDefault: "Croco",  spesies: "Buaya",   zona: "water", rarity: "Rare",      harga: 5800,  scale: 0.94, favSnack: "snack_buaya",   warnaRarity: "#059669", bgRarity: "#d1fae5" },
-        { id: "beruang", namaDefault: "Bubu",   spesies: "Beruang", zona: "land",  rarity: "Rare",      harga: 6500,  scale: 0.98, favSnack: "snack_beruang", warnaRarity: "#2563eb", bgRarity: "#dbeafe" },
-        { id: "gajah",   namaDefault: "Dumbo",  spesies: "Gajah",   zona: "land",  rarity: "Epic",      harga: 9000,  scale: 1.12, favSnack: "snack_gajah",   warnaRarity: "#9333ea", bgRarity: "#f3e8ff" },
-        { id: "naga",    namaDefault: "Ember",  spesies: "Naga",    zona: "land",  rarity: "Legendary", harga: 14000, scale: 1.05, favSnack: "snack_naga",    warnaRarity: "#d97706", bgRarity: "#fef3c7" }
+        { id: "kucing",  namaDefault: "Mochi",  spesies: "Kucing",  zona: "land",  rarity: "Common",    harga: 16000,  scale: 0.82, favSnack: "snack_kucing",  warnaRarity: "#64748b", bgRarity: "#f1f5f9" },
+        { id: "anjing",  namaDefault: "Bobi",   spesies: "Anjing",  zona: "land",  rarity: "Common",    harga: 18000,  scale: 0.86, favSnack: "snack_anjing",  warnaRarity: "#64748b", bgRarity: "#f1f5f9" },
+        { id: "ikan",    namaDefault: "Nemo",   spesies: "Ikan",    zona: "water", rarity: "Uncommon",  harga: 32000,  scale: 0.78, favSnack: "snack_ikan",    warnaRarity: "#0284c7", bgRarity: "#e0f2fe" },
+        { id: "monyet",  namaDefault: "Koko",   spesies: "Monyet",  zona: "land",  rarity: "Uncommon",  harga: 40000,  scale: 0.84, favSnack: "snack_monyet",  warnaRarity: "#16a34a", bgRarity: "#dcfce7" },
+        { id: "buaya",   namaDefault: "Croco",  spesies: "Buaya",   zona: "water", rarity: "Rare",      harga: 58000,  scale: 0.94, favSnack: "snack_buaya",   warnaRarity: "#059669", bgRarity: "#d1fae5" },
+        { id: "beruang", namaDefault: "Bubu",   spesies: "Beruang", zona: "land",  rarity: "Rare",      harga: 650000,  scale: 0.98, favSnack: "snack_beruang", warnaRarity: "#2563eb", bgRarity: "#dbeafe" },
+        { id: "gajah",   namaDefault: "Dumbo",  spesies: "Gajah",   zona: "land",  rarity: "Epic",      harga: 1000000,  scale: 1.12, favSnack: "snack_gajah",   warnaRarity: "#9333ea", bgRarity: "#f3e8ff" },
+        { id: "",    namaDefault: "Ember",  spesies: "Naga",    zona: "land",  rarity: "Legendary", harga: 5000000, scale: 1.05, favSnack: "snack_naga",    warnaRarity: "#d97706", bgRarity: "#fef3c7" }
     ],
     foods: [
         { id: "food_biscuit", nama: "Biskuit Pet",  kenyang: 15,  mood: 2,  tahan: "3 jam 45 menit",  harga: 20,  ikon: "🍪", tipe: "main" },
@@ -42,27 +42,27 @@ window.MY_PET_CATALOG = {
         { id: "toy_frisbee",   nama: "Frisbee",           harga: 450,  ikon: "🥏", animasi: "happy",  deskripsi: "Pet melompat mengejar frisbee." },
         { id: "toy_bunyi",     nama: "Mainan Berbunyi",   harga: 350,  ikon: "🐤", animasi: "idle",   deskripsi: "Pet menepuk dan bereaksi pada suara." },
         { id: "toy_sabun",     nama: "Gelembung Sabun",   harga: 400,  ikon: "🫧", animasi: "happy",  deskripsi: "Pet mengejar gelembung melayang." },
-        { id: "toy_boneka",    nama: "Boneka Plush",      harga: 500,  ikon: "🧸", animasi: "sleepy", deskripsi: "Pet memeluk boneka." },
-        { id: "toy_bulu",      nama: "Tongkat Bulu",      harga: 400,  ikon: "🪶", animasi: "happy",  deskripsi: "Pet mengikuti gerakan bulu." },
-        { id: "toy_terowongan",nama: "Terowongan Bermain",harga: 700,  ikon: "🕳️", animasi: "idle",   deskripsi: "Pet masuk terowongan." },
-        { id: "toy_alatmusik", nama: "Alat Musik Mini",   harga: 650,  ikon: "🪘", animasi: "happy",  deskripsi: "Pet memainkan alat musik." },
-        { id: "toy_kotakmusik",nama: "Kotak Musik",       harga: 700,  ikon: "🎶", animasi: "happy",  deskripsi: "Pet bergoyang mengikuti musik." },
-        { id: "toy_keyboard",  nama: "Mini Keyboard",     harga: 900,  ikon: "🎹", animasi: "happy",  deskripsi: "Pet menekan tuts." },
-        { id: "toy_mp3",       nama: "Pemutar Musik",     harga: 850,  ikon: "🎧", animasi: "happy",  deskripsi: "Pet menari dengan irama lagu." },
-        { id: "toy_garuk",     nama: "Tiang Garukan",     harga: 900,  ikon: "🪵", animasi: "idle",   deskripsi: "Pet meregangkan tubuh dan menggaruk." },
-        { id: "toy_panjat",    nama: "Rangka Panjat",     harga: 1200, ikon: "🪜", animasi: "happy",  deskripsi: "Pet memanjat dan melompat." },
-        { id: "toy_bintang",   nama: "Proyektor Bintang", harga: 1000, ikon: "🌌", animasi: "sleepy", deskripsi: "Pet memandangi proyeksi bintang." }
+        { id: "toy_boneka",    nama: "Boneka Plush",      harga: 5000,  ikon: "🧸", animasi: "sleepy", deskripsi: "Pet memeluk boneka." },
+        { id: "toy_bulu",      nama: "Tongkat Bulu",      harga: 4000,  ikon: "🪶", animasi: "happy",  deskripsi: "Pet mengikuti gerakan bulu." },
+        { id: "toy_terowongan",nama: "Terowongan Bermain",harga: 7000,  ikon: "🕳️", animasi: "idle",   deskripsi: "Pet masuk terowongan." },
+        { id: "toy_alatmusik", nama: "Alat Musik Mini",   harga: 6500,  ikon: "🪘", animasi: "happy",  deskripsi: "Pet memainkan alat musik." },
+        { id: "toy_kotakmusik",nama: "Kotak Musik",       harga: 7000,  ikon: "🎶", animasi: "happy",  deskripsi: "Pet bergoyang mengikuti musik." },
+        { id: "toy_keyboard",  nama: "Mini Keyboard",     harga: 9000,  ikon: "🎹", animasi: "happy",  deskripsi: "Pet menekan tuts." },
+        { id: "toy_mp3",       nama: "Pemutar Musik",     harga: 85000,  ikon: "🎧", animasi: "happy",  deskripsi: "Pet menari dengan irama lagu." },
+        { id: "toy_garuk",     nama: "Tiang Garukan",     harga: 90000,  ikon: "🪵", animasi: "idle",   deskripsi: "Pet meregangkan tubuh dan menggaruk." },
+        { id: "toy_panjat",    nama: "Rangka Panjat",     harga: 120000, ikon: "🪜", animasi: "happy",  deskripsi: "Pet memanjat dan melompat." },
+        { id: "toy_bintang",   nama: "Proyektor Bintang", harga: 100000, ikon: "🌌", animasi: "sleepy", deskripsi: "Pet memandangi proyeksi bintang." }
     ],
     decorations: [
         { id: "dec_bed",      nama: "Tempat Tidur Pet",  harga: 250,  ikon: "🛏️", slot: "Kiri Tanah" },
-        { id: "dec_pillow",   nama: "Bantal Lucu",       harga: 200,  ikon: "🛋️", slot: "Tengah Tanah" },
-        { id: "dec_tree",     nama: "Pohon Panjat",      harga: 500,  ikon: "🌳", slot: "Kiri Belakang" },
-        { id: "dec_woodhouse",nama: "Rumah Kayu Mini",   harga: 700,  ikon: "🛖", slot: "Kiri Tanah" },
-        { id: "dec_pond",     nama: "Kolam Mini",        harga: 900,  ikon: "🏝️", slot: "Kanan Tanah" },
-        { id: "dec_fountain", nama: "Air Mancur",        harga: 1200, ikon: "⛲", slot: "Kanan Tanah" },
-        { id: "dec_flower",   nama: "Taman Bunga",       harga: 1500, ikon: "🌷", slot: "Tengah Belakang" },
-        { id: "dec_crystal",  nama: "Kristal Bercahaya", harga: 2000, ikon: "💎", slot: "Kanan Belakang" },
-        { id: "dec_castle",   nama: "Istana Mini",       harga: 3000, ikon: "🏰", slot: "Kiri Belakang" },
+        { id: "dec_pillow",   nama: "Bantal Lucu",       harga: 2000,  ikon: "🛋️", slot: "Tengah Tanah" },
+        { id: "dec_tree",     nama: "Pohon Panjat",      harga: 5000,  ikon: "🌳", slot: "Kiri Belakang" },
+        { id: "dec_woodhouse",nama: "Rumah Kayu Mini",   harga: 7000,  ikon: "🛖", slot: "Kiri Tanah" },
+        { id: "dec_pond",     nama: "Kolam Mini",        harga: 9000,  ikon: "🏝️", slot: "Kanan Tanah" },
+        { id: "dec_fountain", nama: "Air Mancur",        harga: 12000, ikon: "⛲", slot: "Kanan Tanah" },
+        { id: "dec_flower",   nama: "Taman Bunga",       harga: 15000, ikon: "🌷", slot: "Tengah Belakang" },
+        { id: "dec_crystal",  nama: "Kristal Bercahaya", harga: 20000, ikon: "💎", slot: "Kanan Belakang" },
+        { id: "dec_castle",   nama: "Istana Mini",       harga: 3000000, ikon: "🏰", slot: "Kiri Belakang" },
         { id: "dec_painting", nama: "Lukisan Dinding",   harga: 600,  ikon: "🖼️", slot: "Dinding Belakang" }
     ],
     wardrobe: [
@@ -70,44 +70,44 @@ window.MY_PET_CATALOG = {
         { id: "head_casual",  nama: "Topi Kasual",         slot: "head",    harga: 400,  ikon: "🧢", deskripsi: "Topi santai untuk jalan-jalan." },
         { id: "head_pesta",   nama: "Topi Pesta",          slot: "head",    harga: 300,  ikon: "🥳", deskripsi: "Topi kerucut perayaan." },
         { id: "head_flower",  nama: "Flower Crown",        slot: "head",    harga: 650,  ikon: "🌸", deskripsi: "Mahkota rangkaian bunga segar." },
-        { id: "head_wizard",  nama: "Wizard Hat",          slot: "head",    harga: 750,  ikon: "🧙", deskripsi: "Topi penyihir berbintang." },
-        { id: "head_wisuda",  nama: "Topi Wisuda",         slot: "head",    harga: 500,  ikon: "🎓", deskripsi: "Toga topi kelulusan." },
-        { id: "head_crown",   nama: "Royal Crown",         slot: "head",    harga: 1800, ikon: "👑", deskripsi: "Mahkota emas kerajaan." },
-        { id: "head_bajak",   nama: "Topi Bajak Laut",     slot: "head",    harga: 700,  ikon: "🏴‍☠️", deskripsi: "Topi kapten kapal." },
+        { id: "head_wizard",  nama: "Wizard Hat",          slot: "head",    harga: 7500,  ikon: "🧙", deskripsi: "Topi penyihir berbintang." },
+        { id: "head_wisuda",  nama: "Topi Wisuda",         slot: "head",    harga: 5000,  ikon: "🎓", deskripsi: "Toga topi kelulusan." },
+        { id: "head_crown",   nama: "Royal Crown",         slot: "head",    harga: 18000, ikon: "👑", deskripsi: "Mahkota emas kerajaan." },
+        { id: "head_bajak",   nama: "Topi Bajak Laut",     slot: "head",    harga: 70000,  ikon: "🏴‍☠️", deskripsi: "Topi kapten kapal." },
 
         { id: "eyes_round",   nama: "Kacamata Bulat",      slot: "eyes",    harga: 300,  ikon: "👓", deskripsi: "Kacamata bulat gaya ilmuwan." },
         { id: "eyes_star",    nama: "Kacamata Bintang",    slot: "eyes",    harga: 500,  ikon: "🤩", deskripsi: "Bingkai bintang ceria." },
-        { id: "eyes_goggles", nama: "Goggles Penjelajah",  slot: "eyes",    harga: 600,  ikon: "🥽", deskripsi: "Pelindung petualang." },
-        { id: "eyes_monocle", nama: "Monocle Emas",        slot: "eyes",    harga: 900,  ikon: "🧐", deskripsi: "Lensa tunggal berlapis emas." },
-        { id: "eyes_halo",    nama: "Halo Bercahaya",      slot: "eyes",    harga: 1200, ikon: "😇", deskripsi: "Cincin melayang di atas kepala." },
+        { id: "eyes_goggles", nama: "Goggles Penjelajah",  slot: "eyes",    harga: 6000,  ikon: "🥽", deskripsi: "Pelindung petualang." },
+        { id: "eyes_monocle", nama: "Monocle Emas",        slot: "eyes",    harga: 9000,  ikon: "🧐", deskripsi: "Lensa tunggal berlapis emas." },
+        { id: "eyes_halo",    nama: "Halo Bercahaya",      slot: "eyes",    harga: 12000, ikon: "😇", deskripsi: "Cincin melayang di atas kepala." },
 
         { id: "neck_dasi",    nama: "Dasi Pita",           slot: "neck",    harga: 200,  ikon: "🎀", deskripsi: "Pita mungil di leher." },
         { id: "neck_syal",    nama: "Syal",                slot: "neck",    harga: 300,  ikon: "🧣", deskripsi: "Syal rajut penghangat tubuh." },
         { id: "neck_kalung",  nama: "Kalung Bintang",      slot: "neck",    harga: 350,  ikon: "⭐", deskripsi: "Kalung dengan liontin bintang." },
         { id: "neck_ransel",  nama: "Ransel Mini",         slot: "neck",    harga: 600,  ikon: "🎒", deskripsi: "Tas ransel petualang." },
         { id: "neck_hp",      nama: "Headphone",           slot: "neck",    harga: 500,  ikon: "🎧", deskripsi: "Headset musik modis." },
-        { id: "neck_sayap",   nama: "Sayap Peri",          slot: "neck",    harga: 900,  ikon: "🦋", deskripsi: "Sayap hias transparan." },
-        { id: "neck_sepatu",  nama: "Sepatu Mini",         slot: "neck",    harga: 450,  ikon: "👟", deskripsi: "Alas kaki mungil." },
-        { id: "neck_jubah",   nama: "Jubah Pendek",        slot: "neck",    harga: 800,  ikon: "🧥", deskripsi: "Jubah kain sebahu." },
+        { id: "neck_sayap",   nama: "Sayap Peri",          slot: "neck",    harga: 9000,  ikon: "🦋", deskripsi: "Sayap hias transparan." },
+        { id: "neck_sepatu",  nama: "Sepatu Mini",         slot: "neck",    harga: 4500,  ikon: "👟", deskripsi: "Alas kaki mungil." },
+        { id: "neck_jubah",   nama: "Jubah Pendek",        slot: "neck",    harga: 8000,  ikon: "🧥", deskripsi: "Jubah kain sebahu." },
 
         { id: "body_tshirt",  nama: "Kaos Kasual",         slot: "body",    harga: 500,  ikon: "👕", deskripsi: "Kaos santai sehari-hari." },
         { id: "body_hoodie",  nama: "Hoodie",              slot: "body",    harga: 800,  ikon: "🧥", deskripsi: "Jaket hoodie hangat." },
         { id: "body_labcoat", nama: "Jas Laboratorium",    slot: "body",    harga: 900,  ikon: "🥼", deskripsi: "Jas putih peneliti." },
         { id: "body_explorer",nama: "Seragam Penjelajah",  slot: "body",    harga: 1100, ikon: "🦺", deskripsi: "Rompi lapangan lengkap." },
         { id: "body_winter",  nama: "Mantel Musim Dingin", slot: "body",    harga: 1200, ikon: "🧣", deskripsi: "Mantel tebal berbulu." },
-        { id: "body_grad",    nama: "Jubah Wisuda",        slot: "body",    harga: 1400, ikon: "🎓", deskripsi: "Jubah kelulusan." },
-        { id: "body_festival",nama: "Seragam Festival",    slot: "body",    harga: 1600, ikon: "👘", deskripsi: "Pakaian meriah festival." },
-        { id: "body_batik",   nama: "Baju Batik",          slot: "body",    harga: 900,  ikon: "👔", deskripsi: "Batik motif elegan." },
-        { id: "body_koki",    nama: "Kostum Koki",         slot: "body",    harga: 1000, ikon: "🧑‍🍳", deskripsi: "Celemek dan seragam dapur." },
-        { id: "body_detektif",nama: "Kostum Detektif",     slot: "body",    harga: 1800, ikon: "🕵️", deskripsi: "Mantel investigasi." },
+        { id: "body_grad",    nama: "Jubah Wisuda",        slot: "body",    harga: 140000, ikon: "🎓", deskripsi: "Jubah kelulusan." },
+        { id: "body_festival",nama: "Seragam Festival",    slot: "body",    harga: 160000, ikon: "👘", deskripsi: "Pakaian meriah festival." },
+        { id: "body_batik",   nama: "Baju Batik",          slot: "body",    harga: 90000,  ikon: "👔", deskripsi: "Batik motif elegan." },
+        { id: "body_koki",    nama: "Kostum Koki",         slot: "body",    harga: 100000, ikon: "🧑‍🍳", deskripsi: "Celemek dan seragam dapur." },
+        { id: "body_detektif",nama: "Kostum Detektif",     slot: "body",    harga: 180000, ikon: "🕵️", deskripsi: "Mantel investigasi." },
 
-        { id: "cost_dino",    nama: "Dino Suit",           slot: "costume", harga: 2200, ikon: "🦖", deskripsi: "Kostum dinosaurus imut." },
-        { id: "cost_hero",    nama: "Superhero",           slot: "costume", harga: 2500, ikon: "🦸", deskripsi: "Pakaian pahlawan berjubah." },
-        { id: "cost_astro",   nama: "Astronaut",           slot: "costume", harga: 3000, ikon: "🧑‍🚀", deskripsi: "Baju antariksa lengkap." },
-        { id: "cost_knight",  nama: "Royal Knight",        slot: "costume", harga: 3500, ikon: "⚔️", deskripsi: "Zirah kesatria kerajaan." },
-        { id: "cost_royal",   nama: "Royal Costume",       slot: "costume", harga: 4500, ikon: "🤴", deskripsi: "Jubah beludru & aksen emas." },
-        { id: "cost_penyihir",nama: "Penyihir Fantasi",    slot: "costume", harga: 2600, ikon: "🪄", deskripsi: "Jubah bintang magis." },
-        { id: "cost_pirate",  nama: "Bajak Laut",          slot: "costume", harga: 2200, ikon: "🏴‍☠️", deskripsi: "Pakaian kapten lautan." }
+        { id: "cost_dino",    nama: "Dino Suit",           slot: "costume", harga: 220000, ikon: "🦖", deskripsi: "Kostum dinosaurus imut." },
+        { id: "cost_hero",    nama: "Superhero",           slot: "costume", harga: 250000, ikon: "🦸", deskripsi: "Pakaian pahlawan berjubah." },
+        { id: "cost_astro",   nama: "Astronaut",           slot: "costume", harga: 300000, ikon: "🧑‍🚀", deskripsi: "Baju antariksa lengkap." },
+        { id: "cost_knight",  nama: "Royal Knight",        slot: "costume", harga: 350000, ikon: "⚔️", deskripsi: "Zirah kesatria kerajaan." },
+        { id: "cost_royal",   nama: "Royal Costume",       slot: "costume", harga: 450000, ikon: "🤴", deskripsi: "Jubah beludru & aksen emas." },
+        { id: "cost_penyihir",nama: "Penyihir Fantasi",    slot: "costume", harga: 260000, ikon: "🪄", deskripsi: "Jubah bintang magis." },
+        { id: "cost_pirate",  nama: "Bajak Laut",          slot: "costume", harga: 220000, ikon: "🏴‍☠️", deskripsi: "Pakaian kapten lautan." }
     ]
 };
 
@@ -750,7 +750,7 @@ window.bangunVisualPet25DSVG = function(petId, outfit, animState, ukuranPx) {
         buaya:   { main: "#10b981", dark: "#047857", belly: "#fef08a", cheek: "#fb7185", accent: "#065f46" },
         beruang: { main: "#78350f", dark: "#451a03", belly: "#fde68a", cheek: "#fb7185", accent: "#b45309" },
         gajah:   { main: "#94a3b8", dark: "#475569", belly: "#e2e8f0", cheek: "#f472b6", accent: "#cbd5e1" },
-        naga:    { main: "#ef4444", dark: "#991b1b", belly: "#fde047", cheek: "#fb923c", accent: "#f59e0b" }
+        :    { main: "#ef4444", dark: "#991b1b", belly: "#fde047", cheek: "#fb923c", accent: "#f59e0b" }
     }[petId] || { main: "#60a5fa", dark: "#2563eb", belly: "#dbeafe", cheek: "#fb7185", accent: "#1d4ed8" };
 
     // A. LAYER BELAKANG (Jubah Kostum, Sayap Peri, Ransel, Ekor Spesies)
@@ -774,7 +774,7 @@ window.bangunVisualPet25DSVG = function(petId, outfit, animState, ukuranPx) {
     }
 
     // Ekor & Sayap Bawaan Spesies
-    if (petId === "naga") {
+    if (petId === "") {
         backLayer +=
             '<g class="pet-wing-left"><path d="M175,275 C95,210 60,255 85,325 C115,310 145,320 175,315 Z" fill="#f97316" stroke="#991b1b" stroke-width="6"/></g>' +
             '<g class="pet-wing-right"><path d="M337,275 C417,210 452,255 427,325 C397,310 367,320 337,315 Z" fill="#f97316" stroke="#991b1b" stroke-width="6"/></g>' +
@@ -838,7 +838,7 @@ window.bangunVisualPet25DSVG = function(petId, outfit, animState, ukuranPx) {
         earsLayer =
             '<g class="pet-ear-left"><ellipse cx="112" cy="195" rx="58" ry="74" fill="' + palet.main + '" stroke="' + palet.dark + '" stroke-width="6"/><ellipse cx="116" cy="198" rx="38" ry="50" fill="#fbcfe8"/></g>' +
             '<g class="pet-ear-right"><ellipse cx="400" cy="195" rx="58" ry="74" fill="' + palet.main + '" stroke="' + palet.dark + '" stroke-width="6"/><ellipse cx="396" cy="198" rx="38" ry="50" fill="#fbcfe8"/></g>';
-    } else if (petId === "naga") {
+    } else if (petId === "") {
         earsLayer =
             '<g class="pet-ear-left"><path d="M175,125 Q135,55 190,75 Q205,95 205,120 Z" fill="#facc15" stroke="#b45309" stroke-width="5"/></g>' +
             '<g class="pet-ear-right"><path d="M337,125 Q377,55 322,75 Q307,95 307,120 Z" fill="#facc15" stroke="#b45309" stroke-width="5"/></g>';
@@ -851,7 +851,7 @@ window.bangunVisualPet25DSVG = function(petId, outfit, animState, ukuranPx) {
         '<ellipse cx="256" cy="355" rx="95" ry="88" fill="url(#gradBody_' + petId + ')" stroke="' + palet.dark + '" stroke-width="6"/>' +
         '<ellipse cx="256" cy="362" rx="62" ry="62" fill="' + palet.belly + '"/>';
 
-    if (petId === "naga" || petId === "kadal" || petId === "buaya") {
+    if (petId === "" || petId === "kadal" || petId === "buaya") {
         bodyLayer +=
             '<line x1="205" y1="340" x2="307" y2="340" stroke="' + palet.accent + '" stroke-width="3" opacity="0.45"/>' +
             '<line x1="200" y1="365" x2="312" y2="365" stroke="' + palet.accent + '" stroke-width="3" opacity="0.45"/>' +
