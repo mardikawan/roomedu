@@ -51,7 +51,7 @@ window.perbaruiTombolCheckinUI = function() {
         btn.style.opacity = "0.95";
         btn.disabled = true;
         btn.onclick = null;
-        btn.innerHTML = "✅ <span>Checked</span>";
+        btn.innerHTML = "✅ <span>Checked (+100 Coin)</span>";
     } else {
         btn.style.background = "#f1c40f";
         btn.style.color = "#0b3954";
@@ -60,7 +60,7 @@ window.perbaruiTombolCheckinUI = function() {
         btn.style.opacity = "1";
         btn.disabled = false;
         btn.onclick = function() { window.bukaModalCheckinSiswa(); };
-        btn.innerHTML = "😊 <span>Check-in</span>";
+        btn.innerHTML = "😊 <span>Check-in +100 Coin</span>";
     }
 };
 
@@ -69,12 +69,10 @@ setInterval(function() {
 }, 30000);
 
 // =========================================================================
-// 2. MESIN PEMBACA VALIDASI JAWABAN SISWA (ANTI-LOLOS & ANTI-HURUF BERULANG)
+// 2. MESIN PEMBACA VALIDASI JAWABAN SISWA (ANTI-ASAL KETIK & KONTEKSTUAL)
 // =========================================================================
 
-// Master List Jawaban Menghindar, Malas Mengetik, & Tidak Nyambung
 window.DAFTAR_JAWABAN_TERLARANG_CHECKIN = [
-    // 1. Variasi Tidak Tahu / Menolak Berpikir
     "tidak tau", "tidaktau", "tidak tahu", "tidaktahu", "gak tau", "gaktau", "gak tahu", "gaktahu",
     "ga tau", "gatau", "ga tahu", "gatahu", "nggak tau", "nggak tahu", "ngga tau", "ngga tahu",
     "enggak tau", "enggak tahu", "enga tau", "tak tau", "taktau", "tak tahu", "ndak tau", "ndak tahu",
@@ -83,14 +81,10 @@ window.DAFTAR_JAWABAN_TERLARANG_CHECKIN = [
     "tahu ah", "apa ya", "apaan ya", "bingung", "bingung mau nulis apa", "bingung ngetik apa",
     "gak ngerti", "ga ngerti", "tidak mengerti", "tidak paham", "kurang paham", "lupa", "udah lupa",
     "sudah lupa", "gak inget", "ga inget", "tidak ingat",
-
-    // 2. Variasi Kepo, Rahasia, & Menghindar
     "kepo deh", "kepo aja", "kepo banget", "kepo bgt", "kepo lu", "kepo kamu", "kepo amat",
     "jangan kepo", "kepo", "rahasia", "rahasia dong", "rahasia negara", "privasi", "urusan saya",
     "urusan pribadi", "bukan urusan", "mau tau aja", "mau tahu aja", "mau tau banget", "kasih tau gak ya",
     "ada deh", "adalah pokoknya", "pokoknya ada", "secret", "private",
-
-    // 3. Variasi Jawaban Singkat / Mengelak ("Deh", "Aja", "Gitu", "Oke", "Biasa")
     "ya oke aja", "oke aja", "ok aja", "oke deh", "ok deh", "okey deh", "okay deh", "iya deh",
     "iya aja", "yaudah", "ya udah", "yaudah deh", "yasudah", "ya sudah", "gitu deh", "gitu aja",
     "begitu saja", "begitu deh", "ya gitu", "ya gitu deh", "ya gitu aja", "gak deh", "ga deh",
@@ -98,108 +92,168 @@ window.DAFTAR_JAWABAN_TERLARANG_CHECKIN = [
     "normal aja", "aman aja", "sama aja", "sama saja", "seperti biasa", "kaya biasa", "kayak biasa",
     "kyk biasa", "nothing special", "lumayan aja", "lumayan deh", "gitu gitu aja", "begitu begitu saja",
     "ok ok aja", "fine fine aja", "aman terkendali",
-
-    // 4. Variasi Tidak Ada Cerita / Kosong
     "tidak ada", "tidakada", "gak ada", "gakada", "ga ada", "gaada", "nggak ada", "ngga ada",
     "enggak ada", "tak ada", "tiada", "kosong", "zonk", "nihil", "nothing", "none", "no comment",
     "belum ada", "blm ada", "tidak ada apa apa", "gak ada apa apa", "ga ada apa apa", "tidak ada cerita",
     "gak ada cerita", "ga ada cerita",
-
-    // 5. Variasi Malas Ngetik, Demi XP, & Ketikan Asal / Slang Tidak Nyambung
     "malas ngetik", "males ngetik", "malas mengetik", "capek ngetik", "cape ngetik", "pegel ngetik",
     "biar dapat xp", "biar dapet xp", "demi xp", "cari xp", "buat xp", "ambil poin", "biar lewat",
     "biar panjang", "biar cukup", "biar lolos", "yang penting panjang", "yg penting panjang",
-    "nambahin kata", "asal ketik", "asal ngetik", "isi asal", "ketik asal", "random aja",
-    "test", "testing", "tes doang", "coba coba", "skip", "lanjut", "next", "pass", "bodo amat",
-    "bodoh amat", "terserah", "serah deh", "serah lu", "whatever", "idk", "idc", "gaje",
+    "yang penting isi", "yg penting isi", "asal ketik", "asal ngetik", "isi asal", "ketik asal",
+    "random aja", "test", "testing", "tes doang", "coba coba", "skip", "lanjut", "next", "pass",
+    "bodo amat", "bodoh amat", "terserah", "serah deh", "serah lu", "whatever", "idk", "idc", "gaje",
     "gak jelas", "ga jelas", "tidak jelas", "apaan sih", "apa sih", "apasi", "wkwk", "wkwkwk",
     "hahaha", "hehehe", "hihihi", "awokawok", "bjir", "anjir", "anjay", "lorem ipsum",
     "qwerty", "asdfg", "zxcvb", "bla bla", "blah blah"
 ];
 
-// Fungsi pelebur modifikasi huruf & angka alay:
-// Mengubah "tiiidddaaakkk taaauuu", "tidakk tau", "t1d4k t4u" -> "tidak tau"
-// Mengubah "biasaa ajaaaa" -> "biasa aja"
+// Kamus Kata Kunci Refleksi & Konteks Kehidupan Siswa (Memastikan Kalimat Nyambung & Bermakna)
+window.KAMUS_KATA_BERMAKNA_CHECKIN = [
+    "saya", "aku", "kami", "kita", "hari", "ini", "kemarin", "tadi", "pagi", "siang", "malam", "karena", "sebab",
+    "saat", "ketika", "waktu", "setelah", "sebelum", "belajar", "sekolah", "kelas", "guru", "teman", "sahabat",
+    "keluarga", "orang", "tua", "ayah", "ibu", "mama", "papa", "kakak", "adik", "rumah", "tugas", "ulangan",
+    "ujian", "nilai", "materi", "biologi", "fisika", "kimia", "matematika", "soal", "paham", "mengerti", "bisa",
+    "berhasil", "selesai", "lulus", "tidur", "istirahat", "makan", "sehat", "sakit", "lelah", "capek", "mengantuk",
+    "semangat", "senang", "bahagia", "gembira", "syukur", "bersyukur", "nikmat", "berdoa", "doa", "tuhan", "masih",
+    "bernapas", "hidup", "senyum", "tersenyum", "membantu", "menolong", "berbagi", "cerita", "bicara", "ngobrol",
+    "main", "bermain", "olahraga", "latihan", "musik", "buku", "baca", "menulis", "mencoba", "berusaha", "sabar",
+    "tenang", "ikhlas", "memaafkan", "maaf", "emosi", "marah", "sedih", "kecewa", "kesal", "takut", "cemas",
+    "khawatir", "fokus", "konsentrasi", "baik", "lebih", "positif", "pikiran", "hati", "perasaan", "suasana",
+    "nyaman", "damai", "ceria", "ramah", "sopansantun", "sopan", "mendengarkan", "semoga", "besok", "depan",
+    "target", "impian", "cita", "harapan", "usaha", "kerja", "keras", "kelompok", "diskusi", "praktikum", "hujan",
+    "cuaca", "jalan", "pulang", "berangkat", "bangun", "tepat", "terlambat", "hadir", "nilai", "poin", "game"
+];
+
+window.POLA_KEYBOARD_ASAL_CHECKIN = [
+    "qwer", "wert", "erty", "rtyu", "tyui", "yuio", "uiop",
+    "asdf", "sdfg", "dfgh", "fghj", "ghjk", "hjkl",
+    "zxcv", "xcvb", "cvbn", "vbnm", "abcd", "bcde", "cdef", "efgh", "ijkl", "mnop", "qrst", "uvwx"
+];
+
 window.normalisasiTeksCheckin = function(str) {
     let s = String(str || "").toLowerCase();
-    // Konversi angka leet ke huruf
     s = s.replace(/0/g, "o").replace(/1/g, "i").replace(/3/g, "e").replace(/4/g, "a")
          .replace(/5/g, "s").replace(/6/g, "g").replace(/7/g, "t").replace(/8/g, "b").replace(/9/g, "g")
-         .replace(/@/g, "a").replace(/\$/g, "s").replace(/!/g, "i");
-    // Hapus tanda baca menjadi spasi
+         .replace(/@/g, "a").replace(/!/g, "i");
     let bersihSpasi = s.replace(/[^a-z\s]/g, " ").replace(/\s+/g, " ").trim();
-    // Lebur huruf berulang berurutan (contoh: "tidakk" -> "tidak", "ajaaaa" -> "aja", "tiiidak" -> "tidak")
-    let leburHuruf = bersihSpasi.replace(/(.)\1+/g, "$1");
+    let leburHuruf = bersihSpasi.replace(/(.)\1+/g, function(m, c) { return c; });
     return {
         normal: bersihSpasi,
         lebur: leburHuruf
     };
 };
 
-window.validasiTeksCheckinSiswa = function(teks) {
+// Deteksi apakah sebuah kata merupakan ketikan jari acak (gibberish) atau kata wajar bahasa Indonesia
+window.apakahKataWajarIndonesia = function(kata) {
+    if (!kata || kata.length < 2) return false;
+    // Tolak jika mengandung deretan tombol keyboard bersebelahan
+    for (let i = 0; i < window.POLA_KEYBOARD_ASAL_CHECKIN.length; i++) {
+        if (kata.indexOf(window.POLA_KEYBOARD_ASAL_CHECKIN[i]) !== -1) return false;
+    }
+    // Tolak jika ada 4 konsonan berurutan tanpa vokal (kecuali 'nggr'/'nytr' yang sangat jarang, misal 'konstruksi' -> nstr)
+    let bersihDigraf = kata.replace(/ng|ny|sy|kh|st|tr|pr|kr|br|dr|gr|fl|pl|kl|bl|gl/g, "k");
+    if (/[bcdfghjklmnpqrstvwxyz]{3,}/.test(bersihDigraf)) return false;
+    // Tolak jika ada 4 vokal berurutan
+    if (/[aiueo]{4,}/.test(kata)) return false;
+
+    if (kata.length >= 3) {
+        let vokalCount = (kata.match(/[aiueo]/g) || []).length;
+        let konsonanCount = (kata.match(/[bcdfghjklmnpqrstvwxyz]/g) || []).length;
+        if (vokalCount === 0 || konsonanCount === 0) return false;
+        let rasioVokal = vokalCount / kata.length;
+        if (rasioVokal < 0.18 || rasioVokal > 0.78) return false;
+    }
+    // Tolak kata bersuku kata kembar berulang tidak bermakna seperti 'babibu', 'lalala', 'nanana', 'mamama'
+    if (kata.length >= 6 && /^([bcdfghjklmnpqrstvwxyz][aiueo])\1{2,}$/.test(kata)) return false;
+    return true;
+};
+
+window.validasiTeksCheckinSiswa = function(teks, wajibTopik) {
     let bersih = (teks || "").trim();
 
-    if (bersih.length < 25) {
+    if (wajibTopik && !window.checkinState.topikKonteks) {
         return {
             valid: false,
-            pesan: "⚠️ Ceritamu masih terlalu singkat. Yuk tuliskan pengalaman dan perasaanmu dengan kalimat yang utuh!"
+            skor: 15,
+            pesan: "⚠️ Pilih minimal satu Topik Konteks di atas (misal: Pelajaran, Teman, Keluarga, atau Kesehatan) terlebih dahulu!"
+        };
+    }
+
+    if (bersih.length < 30) {
+        let kurang = 30 - bersih.length;
+        return {
+            valid: false,
+            skor: Math.min(40, Math.round((bersih.length / 30) * 40)),
+            pesan: "⚠️ Ceritamu masih terlalu singkat (kurang " + kurang + " karakter lagi). Yuk ceritakan alasan atau kejadiannya secara utuh!"
         };
     }
 
     let tanpaSpasi = bersih.toLowerCase().replace(/\s+/g, '');
     let hurufUnik = new Set(tanpaSpasi.split('')).size;
-    // Tolak jika ketikan huruf berulang berlebihan seperti "tidakkkkk" atau "biasaaaa" (> 2 huruf kembar berurutan)
-    if (hurufUnik < 6 || /(.)\1{2,}/i.test(bersih)) {
+    if (hurufUnik < 7 || /(.)\1{2,}/i.test(bersih)) {
         return {
             valid: false,
-            pesan: "⚠️ Tuliskan kalimat dengan ejaan yang wajar tanpa memanjangkan huruf secara berulang ya!"
+            skor: 25,
+            pesan: "⚠️ Hindari memanjangkan huruf secara berulang (seperti 'aaaa' atau 'kkkk'). Tulis kalimat yang wajar ya!"
         };
     }
 
     let norm = window.normalisasiTeksCheckin(bersih);
+    let padNormal = " " + norm.normal + " ";
+    let padLebur = " " + norm.lebur + " ";
 
-    // Cek terhadap seluruh daftar jawaban yang dihindari (baik pada teks normal maupun teks yang sudah dilebur huruf kembarnya)
     for (let i = 0; i < window.DAFTAR_JAWABAN_TERLARANG_CHECKIN.length; i++) {
         let frasa = window.DAFTAR_JAWABAN_TERLARANG_CHECKIN[i];
-        let frasaLebur = frasa.replace(/(.)\1+/g, "$1");
-
-        let regexNormal = new RegExp("(^|\\s)" + frasa.replace(/\s+/g, "\\s+") + "(\\s|$)", "i");
-        let regexLebur = new RegExp("(^|\\s)" + frasaLebur.replace(/\s+/g, "\\s+") + "(\\s|$)", "i");
-
-        if (regexNormal.test(norm.normal) || regexLebur.test(norm.lebur)) {
+        let frasaLebur = frasa.replace(/(.)\1+/g, function(m, c) { return c; });
+        if (padNormal.indexOf(" " + frasa + " ") !== -1 || padLebur.indexOf(" " + frasaLebur + " ") !== -1) {
             return {
                 valid: false,
-                pesan: "⚠️ Yuk ceritakan perasaan dan pengalaman nyatamu secara jujur dan bermakna (hindari jawaban singkat/menghindar)!"
+                skor: 20,
+                pesan: "⚠️ Terdeteksi jawaban singkat/menghindar ('" + frasa + "'). Yuk ceritakan pengalaman nyatamu dengan jujur!"
             };
         }
     }
 
-    // Cek jumlah kata bermakna & pengulangan kata (mencegah spam copy-paste kata yang sama)
     let kataArr = norm.normal.split(/\s+/).filter(function(k) { return k.length >= 2; });
-    if (kataArr.length < 5) {
+    if (kataArr.length < 6) {
         return {
             valid: false,
-            pesan: "⚠️ Yuk ceritakan lebih lengkap dalam bentuk kalimat yang utuh (minimal 5 kata yang jelas)!"
+            skor: 45,
+            pesan: "⚠️ Tuliskan minimal 6 kata yang membentuk kalimat cerita yang jelas (saat ini baru " + kataArr.length + " kata)."
         };
     }
 
-    // Pastikan setiap kata panjang memiliki huruf vokal & konsonan (mencegah ketikan acak "asdfghjkl")
-    let adaKataAcak = kataArr.some(function(k) {
-        if (k.length >= 4) {
-            let adaVokal = /[aiueo]/.test(k);
-            let adaKonsonan = /[bcdfghjklmnpqrstvwxyz]/.test(k);
-            return !adaVokal || !adaKonsonan;
+    // Cek proporsi kata yang wajar menurut fonologi Bahasa Indonesia
+    let kataTidakWajar = [];
+    let jmlKataKamus = 0;
+    kataArr.forEach(function(k) {
+        if (!window.apakahKataWajarIndonesia(k)) {
+            kataTidakWajar.push(k);
         }
-        return false;
+        let kLebur = k.replace(/(.)\1+/g, function(m, c) { return c; });
+        if (window.KAMUS_KATA_BERMAKNA_CHECKIN.indexOf(k) !== -1 || window.KAMUS_KATA_BERMAKNA_CHECKIN.indexOf(kLebur) !== -1) {
+            jmlKataKamus++;
+        } else if (/^(me|ber|ter|pe|di|ke|se)[a-z]{3,}(kan|i|an|nya)?/.test(k)) {
+            jmlKataKamus++;
+        }
     });
-    if (adaKataAcak) {
+
+    if (kataTidakWajar.length > 0) {
         return {
             valid: false,
-            pesan: "⚠️ Terdapat kata yang tidak terbaca maknanya. Gunakan bahasa yang jelas dan baik ya!"
+            skor: 30,
+            pesan: "⚠️ Kata '" + kataTidakWajar[0] + "' tidak terbaca sebagai kata bahasa Indonesia yang jelas. Hindari mengetik huruf acak ya!"
         };
     }
 
-    // Cegah siswa mengulang-ulang kata yang sama untuk mengejar panjang kalimat
+    if (jmlKataKamus < 2) {
+        return {
+            valid: false,
+            skor: 55,
+            pesan: "⚠️ Kalimatmu belum menjelaskan konteks yang nyata. Gunakan kata hubung seperti 'karena', 'saat', 'hari ini', atau sebutkan aktivitasmu!"
+        };
+    }
+
     let kataLeburArr = norm.lebur.split(/\s+/).filter(function(k) { return k.length >= 2; });
     let kataUnikSet = new Set(kataLeburArr);
     let frekuensiKata = {};
@@ -209,43 +263,74 @@ window.validasiTeksCheckinSiswa = function(teks) {
         if (frekuensiKata[k] > maxUlangKata) maxUlangKata = frekuensiKata[k];
     });
 
-    if (kataUnikSet.size < 4 || (kataLeburArr.length >= 6 && (kataUnikSet.size / kataLeburArr.length) < 0.55) || maxUlangKata > 3) {
+    if (kataUnikSet.size < 5 || (kataLeburArr.length >= 6 && (kataUnikSet.size / kataLeburArr.length) < 0.6) || maxUlangKata > 3) {
         return {
             valid: false,
-            pesan: "⚠️ Kalimatmu mengandung terlalu banyak pengulangan kata. Yuk ceritakan secara bervariasi dan jujur!"
+            skor: 50,
+            pesan: "⚠️ Jangan mengulang-ulang kata yang sama. Ceritakan alasan dan pengalamanmu secara bervariasi!"
         };
     }
 
-    return { valid: true, pesan: "" };
+    return { valid: true, skor: 100, pesan: "✅ Cerita refleksi sangat jelas, jujur, dan bermakna!" };
 };
 
-// Tidak menampilkan tulisan peringatan/daftar kata terlarang di bawah kolom saat siswa sedang mengetik
-window.pantauKetikanCheckin = function(idTextarea, idInfo) {
+window.pantauKetikanCheckin = function(idTextarea, idInfo, wajibTopik) {
     let el = document.getElementById(idTextarea);
     let info = document.getElementById(idInfo);
-    if (info) {
-        info.innerText = "";
-        info.style.display = "none";
-    }
     if (!el) return;
-    let hasil = window.validasiTeksCheckinSiswa(el.value);
-    el.style.borderColor = hasil.valid ? "#27ae60" : "#cbd5e1";
+
+    let hasil = window.validasiTeksCheckinSiswa(el.value, wajibTopik);
+    el.style.borderColor = hasil.valid ? "#27ae60" : (el.value.length > 5 ? "#f39c12" : "#cbd5e1");
+
+    if (info) {
+        info.style.display = "block";
+        let barColor = hasil.valid ? "#27ae60" : (hasil.skor >= 45 ? "#f39c12" : "#e74c3c");
+        info.innerHTML =
+            '<div style="width:100%; height:6px; background:#e2e8f0; border-radius:4px; overflow:hidden; margin-bottom:5px;">' +
+                '<div style="width:' + hasil.skor + '%; height:100%; background:' + barColor + '; transition:width 0.25s;"></div>' +
+            '</div>' +
+            '<div style="color:' + (hasil.valid ? "#16a34a" : "#64748b") + '; font-size:11px; font-weight:700;">' +
+                (hasil.valid ? hasil.pesan : hasil.pesan.replace("⚠️ ", "💡 Panduan: ")) +
+            '</div>';
+    }
+};
+
+window.pilihTopikKonteksCheckin = function(namaTopik, btnEl) {
+    window.checkinState.topikKonteks = namaTopik;
+    document.querySelectorAll(".chip-topik-checkin").forEach(function(b) {
+        b.style.background = "#f8fafc";
+        b.style.color = "#475569";
+        b.style.borderColor = "#cbd5e1";
+    });
+    if (btnEl) {
+        btnEl.style.background = "#0b3954";
+        btnEl.style.color = "#f1c40f";
+        btnEl.style.borderColor = "#0b3954";
+    }
+    let inp1 = document.getElementById("checkin-input-1");
+    if (inp1) {
+        if (!inp1.value.trim()) {
+            inp1.placeholder = "Ceritakan hal tentang " + namaTopik + " yang membuatmu merasa " + (window.checkinState.labelEmosi || "seperti ini") + " karena...";
+        }
+        window.pantauKetikanCheckin("checkin-input-1", "checkin-info-1", true);
+        inp1.focus();
+    }
 };
 
 // =========================================================================
-// 3. ALUR MODAL CHECK-IN EMOSI SISWA
+// 3. ALUR MODAL CHECK-IN EMOSI SISWA (+100 COIN & +100 XP)
 // =========================================================================
 window.bukaModalCheckinSiswa = function() {
     if (window.apakahSudahCheckinHariIni()) return;
 
     let stat = sessionStorage.getItem("statusLogin");
     if (stat !== "siswa" && stat !== "admin") {
-        alert("🔒 Silakan login menggunakan akun Siswa terlebih dahulu untuk melakukan Check-in!");
+        alert("🔒 Silakan login menggunakan akun Siswa terlebih dahulu untuk melakukan Check-in (+100 Coin)!");
         if (typeof window.bukaModalLoginSistem === "function") window.bukaModalLoginSistem();
         return;
     }
 
-    window.checkinState = { emosi: "", labelEmosi: "", ikon: "", jawaban1: "", jawaban2: "" };
+    window.checkinState = { emosi: "", labelEmosi: "", ikon: "", topikKonteks: "", jawaban1: "", jawaban2: "" };
     window.renderStepPilihEmosiCheckin();
     window.bukaModal("modal-checkin-siswa");
 };
@@ -256,6 +341,7 @@ window.renderStepPilihEmosiCheckin = function() {
 
     body.innerHTML =
         '<div style="text-align:center; padding:10px 5px;">' +
+            '<div style="display:inline-block; background:#fef9e7; color:#d97706; border:1px solid #facc15; padding:3px 12px; border-radius:20px; font-size:11px; font-weight:800; margin-bottom:8px;">🪙 Hadiah Refleksi Jujur: +100 Coin & +100 XP</div>' +
             '<h3 style="margin:0 0 8px 0; color:#0b3954; font-size:20px;">Bagaimana kabarmu hari ini?</h3>' +
             '<p style="margin:0 0 20px 0; font-size:13px; color:#64748b;">Pilih satu emoji yang paling menggambarkan perasaanmu saat ini:</p>' +
             '<div style="display:grid; grid-template-columns:repeat(2, 1fr); gap:12px;">' +
@@ -286,8 +372,8 @@ window.pilihEmosiCheckin = function(kodeEmosi) {
             ikon: "😊",
             warna: "#d35400",
             bg: "#fef9e7",
-            q1: "Ceritakan apa yang membuatmu bahagia hari ini, apa yang kamu syukuri hari ini?",
-            q2: "Wah, senang mendengarnya. Apa yang bisa kamu lakukan untuk menyebarkan kebahagiaan kamu kepada sekitarmu?",
+            q1: "Ceritakan apa yang membuatmu bahagia dan kamu syukuri hari ini (gunakan kata 'karena' atau 'saat'):",
+            q2: "Wah, senang mendengarnya! Apa tindakan positif yang akan kamu lakukan hari ini untuk menyebarkan semangat tersebut?",
             pesanPenutup: "Tetap semangat ya, jangan lupa untuk tersenyum. Selamat belajar!"
         },
         sedih: {
@@ -295,27 +381,27 @@ window.pilihEmosiCheckin = function(kodeEmosi) {
             ikon: "😢",
             warna: "#2980b9",
             bg: "#ebf5fb",
-            q1: "Apa hal yang membuatmu sedih?",
-            q2: "Bagaimana respon awalmu dan bagaimana caramu menyikapinya?",
-            pesanPenutup: "Bersedih adalah emosi yang nyata dan benar. Yang penting jangan berlarut-larut dalam kesedihan ya. Banyak hal yang dapat kita syukuri, sesederhana masih bisa bernapas hari ini. Semangat!"
+            q1: "Ceritakan kejadian atau alasan apa yang sedang membuatmu merasa sedih hari ini:",
+            q2: "Bagaimana caramu menenangkan diri dan menyikapi situasi tersebut agar kembali kuat?",
+            pesanPenutup: "Bersedih adalah emosi yang nyata dan wajar. Yang penting jangan berlarut-larut dalam kesedihan ya. Banyak hal yang dapat kita syukuri, sesederhana masih bisa bernapas hari ini. Semangat!"
         },
         marah: {
             label: "Marah",
             ikon: "😠",
             warna: "#c0392b",
             bg: "#fdedec",
-            q1: "Apakah sekarang perasaannya sudah lebih baik? Apa hal yang membuatmu marah?",
-            q2: "Marah adalah respon yang wajar ketika sesuatu terjadi di luar harapan kita. Apakah kamu sudah mencoba belajar memaafkan keadaan?",
-            pesanPenutup: "Tidak apa untuk marah. Tapi ingat, marah yang tidak dimaafkan akan menjadi masalah untuk kita sendiri, bukan orang lain. Yuk ingat kembali apa hal yang bisa membuat kita happy dan semangat lagi!"
+            q1: "Apakah sekarang perasaanmu sudah lebih tenang? Ceritakan hal apa yang memicu rasa kesal/marahmu:",
+            q2: "Apa langkah yang kamu pilih untuk meredakan amarah tersebut dan memaafkan keadaan?",
+            pesanPenutup: "Tidak apa untuk merasa marah. Tapi ingat, marah yang dipendam akan merugikan diri kita sendiri. Yuk tarik napas dalam-dalam dan fokus kembali pada hal yang membuatmu bahagia!"
         },
         biasa: {
             label: "Biasa Saja",
             ikon: "😐",
             warna: "#475569",
             bg: "#f8fafc",
-            q1: "Apa hal yang bisa kamu syukuri kemarin?",
+            q1: "Ceritakan satu kegiatan atau hal baik yang paling kamu syukuri dari hari kemarin/hari ini:",
             q2: "",
-            pesanPenutup: "Bersyukur adalah salah satu cara menjaga hati kita tetap damai dan tenang. Mengingat hal-hal menyenangkan dapat membuat hati kita kembali semangat!"
+            pesanPenutup: "Bersyukur adalah kunci menjaga hati tetap damai dan tenang. Mengingat hal-hal kecil yang baik akan membuat langkah belajarmu hari ini jauh lebih ringan!"
         }
     };
 
@@ -325,18 +411,33 @@ window.pilihEmosiCheckin = function(kodeEmosi) {
     window.checkinState.emosi = kodeEmosi;
     window.checkinState.labelEmosi = cfg.label;
     window.checkinState.ikon = cfg.ikon;
+    window.checkinState.topikKonteks = "";
     window.checkinState.cfg = cfg;
+
+    let daftarTopik = [
+        { label: "📚 Pelajaran & Tugas", val: "Pelajaran & Sekolah" },
+        { label: "👥 Teman & Pergaulan", val: "Teman & Pergaulan" },
+        { label: "🏠 Keluarga di Rumah", val: "Keluarga di Rumah" },
+        { label: "💪 Kesehatan & Fisik", val: "Kesehatan & Istirahat" },
+        { label: "🎯 Hobi & Kegiatan", val: "Hobi & Kegiatan" }
+    ];
+
+    let chipsHtml = daftarTopik.map(function(t) {
+        return '<button type="button" class="chip-topik-checkin" onclick="window.pilihTopikKonteksCheckin(\'' + t.val + '\', this)" style="background:#f8fafc; color:#475569; border:1.5px solid #cbd5e1; border-radius:18px; padding:5px 11px; font-size:11px; font-weight:700; cursor:pointer; transition:0.15s;">' + t.label + '</button>';
+    }).join("");
 
     let body = document.getElementById("checkin-modal-body");
     body.innerHTML =
         '<div style="text-align:left;">' +
-            '<div style="display:flex; align-items:center; justify-content:space-between; background:' + cfg.bg + '; padding:10px 14px; border-radius:10px; margin-bottom:14px;">' +
+            '<div style="display:flex; align-items:center; justify-content:space-between; background:' + cfg.bg + '; padding:10px 14px; border-radius:10px; margin-bottom:12px;">' +
                 '<span style="font-weight:800; color:' + cfg.warna + '; font-size:15px;">' + cfg.ikon + ' Perasaan: ' + cfg.label + '</span>' +
                 '<button type="button" onclick="window.renderStepPilihEmosiCheckin()" style="background:transparent; border:1px solid ' + cfg.warna + '; color:' + cfg.warna + '; border-radius:6px; padding:3px 8px; font-size:11px; font-weight:bold; cursor:pointer;">Ganti Emoji</button>' +
             '</div>' +
-            '<label style="font-weight:700; font-size:14px; color:#1e293b; display:block; margin-bottom:8px; line-height:1.4;">' + cfg.q1 + '</label>' +
-            '<textarea id="checkin-input-1" class="input-box" rows="4" placeholder="Ketik ceritamu di sini dengan jujur dan jelas..." style="margin-bottom:6px; font-size:13px;" oninput="window.pantauKetikanCheckin(\'checkin-input-1\', \'checkin-info-1\')"></textarea>' +
-            '<div id="checkin-info-1" style="font-size:11px; font-weight:bold; color:#7f8c8d; margin-bottom:14px;">Ceritakan dengan jujur dan jelas.</div>' +
+            '<label style="font-weight:800; font-size:12px; color:#475569; display:block; margin-bottom:6px;">1. Pilih Topik yang Berkaitan dengan Perasaanmu:</label>' +
+            '<div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px;">' + chipsHtml + '</div>' +
+            '<label style="font-weight:700; font-size:13px; color:#1e293b; display:block; margin-bottom:6px; line-height:1.4;">2. ' + cfg.q1 + '</label>' +
+            '<textarea id="checkin-input-1" class="input-box" rows="4" placeholder="Pilih topik di atas lalu ketik ceritamu secara jujur dan jelas (minimal 6 kata bermakna)..." style="margin-bottom:6px; font-size:13px;" oninput="window.pantauKetikanCheckin(\'checkin-input-1\', \'checkin-info-1\', true)"></textarea>' +
+            '<div id="checkin-info-1" style="margin-bottom:14px;"></div>' +
             '<button type="button" class="btn-action" style="background:#0b3954; width:100%; padding:11px; font-size:14px;" onclick="window.lanjutStepCheckinKedua()">Lanjutkan ➔</button>' +
         '</div>';
 };
@@ -345,14 +446,15 @@ window.lanjutStepCheckinKedua = function() {
     let inp1 = document.getElementById("checkin-input-1");
     if (!inp1) return;
 
-    let cek1 = window.validasiTeksCheckinSiswa(inp1.value);
+    let cek1 = window.validasiTeksCheckinSiswa(inp1.value, true);
     if (!cek1.valid) {
         alert(cek1.pesan);
         inp1.focus();
         return;
     }
 
-    window.checkinState.jawaban1 = inp1.value.trim();
+    let prefixTopik = window.checkinState.topikKonteks ? ("[" + window.checkinState.topikKonteks + "] ") : "";
+    window.checkinState.jawaban1 = prefixTopik + inp1.value.trim();
     let cfg = window.checkinState.cfg;
 
     if (!cfg.q2) {
@@ -367,8 +469,8 @@ window.lanjutStepCheckinKedua = function() {
                 cfg.ikon + ' ' + cfg.label + ' — Langkah Terakhir' +
             '</div>' +
             '<label style="font-weight:700; font-size:14px; color:#1e293b; display:block; margin-bottom:8px; line-height:1.4;">' + cfg.q2 + '</label>' +
-            '<textarea id="checkin-input-2" class="input-box" rows="4" placeholder="Ketik jawabanmu di sini dengan jujur dan jelas..." style="margin-bottom:6px; font-size:13px;" oninput="window.pantauKetikanCheckin(\'checkin-input-2\', \'checkin-info-2\')"></textarea>' +
-            '<div id="checkin-info-2" style="font-size:11px; font-weight:bold; color:#7f8c8d; margin-bottom:14px;">Ceritakan dengan jujur dan jelas.</div>' +
+            '<textarea id="checkin-input-2" class="input-box" rows="4" placeholder="Tuliskan sikap atau rencana positifmu dengan kalimat yang jelas..." style="margin-bottom:6px; font-size:13px;" oninput="window.pantauKetikanCheckin(\'checkin-input-2\', \'checkin-info-2\', false)"></textarea>' +
+            '<div id="checkin-info-2" style="margin-bottom:14px;"></div>' +
             '<button type="button" class="btn-action" style="background:#0b3954; width:100%; padding:11px; font-size:14px;" onclick="window.verifikasiStepKeduaCheckin()">Lanjutkan ➔</button>' +
         '</div>';
 };
@@ -377,7 +479,7 @@ window.verifikasiStepKeduaCheckin = function() {
     let inp2 = document.getElementById("checkin-input-2");
     if (!inp2) return;
 
-    let cek2 = window.validasiTeksCheckinSiswa(inp2.value);
+    let cek2 = window.validasiTeksCheckinSiswa(inp2.value, false);
     if (!cek2.valid) {
         alert(cek2.pesan);
         inp2.focus();
@@ -399,7 +501,7 @@ window.renderStepPenutupCheckin = function() {
             '<div style="background:' + cfg.bg + '; border-left:4px solid ' + cfg.warna + '; padding:16px; border-radius:10px; font-size:14px; color:#1e293b; line-height:1.6; font-weight:600; margin-bottom:20px; text-align:left;">' +
                 cfg.pesanPenutup +
             '</div>' +
-            '<button type="button" class="btn-action" style="background:#27ae60; width:100%; font-size:16px; padding:14px; border-radius:30px; font-weight:900; box-shadow:0 6px 15px rgba(39,174,96,0.35);" onclick="window.selesaikanCheckinHarian()">🔥 Semangat Belajar!</button>' +
+            '<button type="button" class="btn-action" style="background:#27ae60; width:100%; font-size:16px; padding:14px; border-radius:30px; font-weight:900; box-shadow:0 6px 15px rgba(39,174,96,0.35);" onclick="window.selesaikanCheckinHarian()">🔥 Klaim +100 Coin & Semangat Belajar!</button>' +
         '</div>';
 };
 
@@ -459,15 +561,15 @@ window.selesaikanCheckinHarian = function() {
 
     window.tutupModal("modal-checkin-siswa");
     window.perbaruiTombolCheckinUI();
-    alert("🎉 Check-in Berhasil! Kamu mendapatkan +100 XP dan +100 Coin!");
+    alert("🎉 Check-in Berhasil! Kamu mendapatkan +100 Coin dan +100 XP!");
 };
 
 // =========================================================================
-// 4. DASBOR PERKEMBANGAN SISWA (KOGNITIF & AFEKTIF FORMAT EXCEL)
+// 4. DASBOR PERKEMBANGAN SISWA (KOGNITIF & AFEKTIF SINKRON REAL-TIME)
 // =========================================================================
 window.bukaModalPerkembanganSiswa = function() {
     window.bukaModal("modal-perkembangan-siswa");
-    window.gantiTabPerkembanganSiswa("afektif");
+    window.gantiTabPerkembanganSiswa("kognitif");
 };
 
 window.gantiTabPerkembanganSiswa = function(tab) {
@@ -479,8 +581,10 @@ window.gantiTabPerkembanganSiswa = function(tab) {
     if (tab === "kognitif") {
         if (btnKog) { btnKog.style.background = "#0b3954"; btnKog.style.color = "white"; }
         if (btnAfe) { btnAfe.style.background = "#ffffff"; btnAfe.style.color = "#333"; }
-        if (viewKog) viewKog.style.display = "block";
+        if (viewKog) viewKog.style.display = "flex";
         if (viewAfe) viewAfe.style.display = "none";
+        window.muatFilterKognitifAdmin();
+        window.renderTabelKognitifAdmin();
     } else {
         if (btnAfe) { btnAfe.style.background = "#27ae60"; btnAfe.style.color = "white"; }
         if (btnKog) { btnKog.style.background = "#ffffff"; btnKog.style.color = "#333"; }
@@ -489,6 +593,385 @@ window.gantiTabPerkembanganSiswa = function(tab) {
         window.muatFilterKelasAfektif();
         window.renderTabelAfektifAdmin();
     }
+};
+
+// --- MESIN ANALITIK PERKEMBANGAN KOGNITIF SISWA ---
+window.muatFilterKognitifAdmin = function() {
+    let selKls = document.getElementById("filter-kognitif-kelas");
+    if (!selKls) return;
+    let prevKls = selKls.value || "Semua";
+    let kelasSet = new Set();
+
+    Object.keys(window.adminData || {}).forEach(function(k) { kelasSet.add(k); });
+    Object.keys(window.adminRekapNilaiData || {}).forEach(function(k) { kelasSet.add(k); });
+
+    let htmlKls = '<option value="Semua">🏫 Semua Kelas</option>';
+    Array.from(kelasSet).sort().forEach(function(k) {
+        let sel = (k === prevKls) ? "selected" : "";
+        htmlKls += '<option value="' + k + '" ' + sel + '>' + k + '</option>';
+    });
+    selKls.innerHTML = htmlKls;
+    window.perbaruiDropdownUjianKognitif();
+};
+
+window.ubahFilterKelasKognitif = function() {
+    window.perbaruiDropdownUjianKognitif();
+    window.renderTabelKognitifAdmin();
+};
+
+window.perbaruiDropdownUjianKognitif = function() {
+    let selKls = document.getElementById("filter-kognitif-kelas");
+    let selUjian = document.getElementById("filter-kognitif-ujian");
+    if (!selUjian) return;
+
+    let filterKelas = selKls ? selKls.value : "Semua";
+    let prevUjian = selUjian.value || "Semua";
+    let ujianSet = new Set();
+
+    let daftarKelas = filterKelas === "Semua"
+        ? Object.keys(window.adminData || {}).concat(Object.keys(window.adminRekapNilaiData || {}))
+        : [filterKelas];
+
+    daftarKelas.forEach(function(kls) {
+        if (typeof window.ambilKolomLedgerKelas === "function") {
+            (window.ambilKolomLedgerKelas(kls) || []).forEach(function(u) { ujianSet.add(u); });
+        }
+        let objRekap = (typeof window.ambilObjekRekapKelas === "function") ? window.ambilObjekRekapKelas(kls) : ((window.adminRekapNilaiData && window.adminRekapNilaiData[kls]) || {});
+        Object.keys(objRekap || {}).forEach(function(u) { ujianSet.add(u); });
+    });
+
+    let htmlUjian = '<option value="Semua">📚 Semua Evaluasi (Ledger NA)</option>';
+    Array.from(ujianSet).forEach(function(u) {
+        let sel = (u === prevUjian) ? "selected" : "";
+        htmlUjian += '<option value="' + u + '" ' + sel + '>📝 ' + u + '</option>';
+    });
+    selUjian.innerHTML = htmlUjian;
+};
+
+// Kumpulkan profil kognitif lengkap satu siswa dari seluruh sumber nilai
+window.hitungProfilKognitifSatuSiswa = function(kls, namaSiswa) {
+    let kolomUjian = (typeof window.ambilKolomLedgerKelas === "function") ? window.ambilKolomLedgerKelas(kls) : [];
+    let rekapKelas = (typeof window.ambilObjekRekapKelas === "function") ? window.ambilObjekRekapKelas(kls) : {};
+    Object.keys(rekapKelas).forEach(function(pkt) {
+        let safePkt = (typeof window.sanitasiKeyRekapFirebase === "function") ? window.sanitasiKeyRekapFirebase(pkt).toLowerCase() : pkt.toLowerCase();
+        let sudah = kolomUjian.some(function(x) {
+            let sx = (typeof window.sanitasiKeyRekapFirebase === "function") ? window.sanitasiKeyRekapFirebase(x).toLowerCase() : x.toLowerCase();
+            return sx === safePkt;
+        });
+        if (!sudah) kolomUjian.push(pkt);
+    });
+
+    let riwayatUjian = [];
+    let sumKuis = 0, cntKuis = 0;
+    let sumPH = 0, cntPH = 0;
+    let sumSAS = 0, cntSAS = 0;
+
+    let tipeStatUjian = {
+        PG: { benar: 0, total: 0 },
+        PGK: { benar: 0, total: 0 },
+        IS: { benar: 0, total: 0 },
+        Essay: { benar: 0, total: 0 }
+    };
+
+    kolomUjian.forEach(function(namaPaket) {
+        let objPaket = (typeof window.ambilObjekRekapPaket === "function") ? window.ambilObjekRekapPaket(kls, namaPaket) : (rekapKelas[namaPaket] || {});
+        let rec = (typeof window.ambilDataSiswaDiObjekRekap === "function") ? window.ambilDataSiswaDiObjekRekap(objPaket, namaSiswa) : objPaket[namaSiswa];
+
+        if (rec && rec.nilaiAkhir !== undefined) {
+            let nilai = parseFloat(rec.nilaiAkhir);
+            if (!isNaN(nilai)) {
+                let kat = (typeof window.deteksiKategoriKolomLedger === "function") ? window.deteksiKategoriKolomLedger(namaPaket) : "PH";
+                if (kat === "KUIS") { sumKuis += nilai; cntKuis++; }
+                else if (kat === "SAS") { sumSAS += nilai; cntSAS++; }
+                else { sumPH += nilai; cntPH++; }
+
+                riwayatUjian.push({
+                    paket: rec.paketAsli || namaPaket,
+                    kategori: kat,
+                    nilai: nilai,
+                    waktu: rec.waktuKumpul || "-",
+                    pelanggaran: Number(rec.pelanggaran) || 0
+                });
+
+                // Ekstrak akurasi per tipe soal jika ada detail jawaban ujian
+                let detailArr = rec.detailJawaban || rec.rincianJawaban || [];
+                if (Array.isArray(detailArr)) {
+                    detailArr.forEach(function(dj) {
+                        if (!dj) return;
+                        let t = dj.type || dj.tipe || "PG";
+                        if (t === "mc") t = "PG";
+                        else if (t === "short_answer") t = "IS";
+                        else if (t === "pgk") t = "PGK";
+                        else if (t === "essay") t = "Essay";
+                        if (!tipeStatUjian[t]) tipeStatUjian[t] = { benar: 0, total: 0 };
+                        tipeStatUjian[t].total++;
+                        if (dj.isCorrect || dj.benar || Number(dj.skor) > 0) {
+                            tipeStatUjian[t].benar++;
+                        }
+                    });
+                }
+            }
+        }
+    });
+
+    let hasilNA = (typeof window.hitungNilaiAkhirRumusLedger === "function")
+        ? window.hitungNilaiAkhirRumusLedger(kls, namaSiswa, kolomUjian)
+        : { adaNilai: riwayatUjian.length > 0, nilaiAkhir: riwayatUjian.length > 0 ? (riwayatUjian.reduce(function(a, b) { return a + b.nilai; }, 0) / riwayatUjian.length) : 0 };
+
+    // Cari data latihan mandiri & XP dari Leaderboard
+    let lbSiswa = null;
+    let trimTarget = String(namaSiswa || "").trim().toLowerCase();
+    Object.values(window.leaderboardSiswaData || {}).forEach(function(item) {
+        if (item && (String(item.namaLengkap || "").trim().toLowerCase() === trimTarget) && item.kelas === kls) {
+            lbSiswa = item;
+        }
+    });
+
+    let statLatihan = (lbSiswa && lbSiswa.statSoal) ? lbSiswa.statSoal : { PG: 0, PGK: 0, IS: 0, Essay: 0 };
+    let totalLatihan = (Number(statLatihan.PG) || 0) + (Number(statLatihan.PGK) || 0) + (Number(statLatihan.IS) || 0) + (Number(statLatihan.Essay) || 0);
+    let xpSiswa = lbSiswa ? (Number(lbSiswa.xpTotal !== undefined ? lbSiswa.xpTotal : lbSiswa.xp) || 0) : 0;
+
+    // Hitung tren kognitif (Ujian terakhir vs Ujian sebelumnya)
+    let selisihTren = 0;
+    let statusTren = "Stabil";
+    if (riwayatUjian.length >= 2) {
+        let terakhir = riwayatUjian[riwayatUjian.length - 1].nilai;
+        let sebelumnya = riwayatUjian[riwayatUjian.length - 2].nilai;
+        selisihTren = terakhir - sebelumnya;
+        if (selisihTren >= 2.5) statusTren = "Naik";
+        else if (selisihTren <= -2.5) statusTren = "Turun";
+    }
+
+    return {
+        nama: namaSiswa,
+        kelas: kls,
+        riwayatUjian: riwayatUjian,
+        jmlUjian: riwayatUjian.length,
+        avgKuis: cntKuis > 0 ? (sumKuis / cntKuis) : null,
+        avgPH: cntPH > 0 ? (sumPH / cntPH) : null,
+        avgSAS: cntSAS > 0 ? (sumSAS / cntSAS) : null,
+        adaNilai: hasilNA.adaNilai,
+        nilaiAkhir: hasilNA.nilaiAkhir,
+        selisihTren: selisihTren,
+        statusTren: statusTren,
+        tipeStatUjian: tipeStatUjian,
+        statLatihan: statLatihan,
+        totalLatihan: totalLatihan,
+        xpSiswa: xpSiswa
+    };
+};
+
+window.renderTabelKognitifAdmin = function() {
+    let tbody = document.getElementById("body-tabel-kognitif-excel");
+    let statBox = document.getElementById("rekap-statistik-kognitif");
+    if (!tbody) return;
+
+    let filterKelas = document.getElementById("filter-kognitif-kelas") ? document.getElementById("filter-kognitif-kelas").value : "Semua";
+    let filterUjian = document.getElementById("filter-kognitif-ujian") ? document.getElementById("filter-kognitif-ujian").value : "Semua";
+    let filterStatus = document.getElementById("filter-kognitif-status") ? document.getElementById("filter-kognitif-status").value : "Semua";
+    let kataCari = document.getElementById("filter-kognitif-cari") ? document.getElementById("filter-kognitif-cari").value.trim().toLowerCase() : "";
+
+    let semuaKelas = filterKelas === "Semua" ? Object.keys(window.adminData || {}).sort() : [filterKelas];
+    let daftarProfil = [];
+
+    semuaKelas.forEach(function(kls) {
+        let siswaKelas = (window.adminData && window.adminData[kls]) ? window.adminData[kls].slice().sort() : [];
+        // Tambahkan juga siswa yang ada di rekap nilai meskipun belum diinput ke daftar kelas
+        let rekapKls = (typeof window.ambilObjekRekapKelas === "function") ? window.ambilObjekRekapKelas(kls) : {};
+        Object.values(rekapKls || {}).forEach(function(paketMap) {
+            Object.keys(paketMap || {}).forEach(function(nKey) {
+                let rec = paketMap[nKey];
+                let namaAsli = (rec && rec.namaAsli) ? rec.namaAsli : nKey;
+                let sudahAda = siswaKelas.some(function(s) { return s.trim().toLowerCase() === namaAsli.trim().toLowerCase(); });
+                if (!sudahAda) siswaKelas.push(namaAsli);
+            });
+        });
+
+        siswaKelas.forEach(function(nama) {
+            let p = window.hitungProfilKognitifSatuSiswa(kls, nama);
+            let kkm = (typeof window.dapatkanKKMKelas === "function") ? window.dapatkanKKMKelas(kls) : 70;
+            p.kkm = kkm;
+
+            if (filterUjian !== "Semua") {
+                let ujianCocok = p.riwayatUjian.find(function(u) { return u.paket === filterUjian; });
+                p.skorTampil = ujianCocok ? ujianCocok.nilai : null;
+                p.adaSkorTampil = Boolean(ujianCocok);
+            } else {
+                p.skorTampil = p.adaNilai ? p.nilaiAkhir : null;
+                p.adaSkorTampil = p.adaNilai;
+            }
+
+            p.isTuntas = p.adaSkorTampil && (p.skorTampil >= kkm);
+            daftarProfil.push(p);
+        });
+    });
+
+    // Terapkan filter pencarian & status
+    let terfilter = daftarProfil.filter(function(p) {
+        if (kataCari && p.nama.toLowerCase().indexOf(kataCari) === -1) return false;
+        if (filterStatus === "Tuntas" && (!p.adaSkorTampil || !p.isTuntas)) return false;
+        if (filterStatus === "Remedial" && (!p.adaSkorTampil || p.isTuntas)) return false;
+        if (filterStatus === "Naik" && p.statusTren !== "Naik") return false;
+        if (filterStatus === "Turun" && p.statusTren !== "Turun") return false;
+        return true;
+    });
+
+    // Hitung statistik agregat
+    let jmlAdaNilai = 0, totalNilai = 0, jmlTuntas = 0, jmlRemedial = 0, jmlNaik = 0, jmlTurun = 0, totalSoalLatihanKelas = 0;
+    terfilter.forEach(function(p) {
+        totalSoalLatihanKelas += p.totalLatihan;
+        if (p.adaSkorTampil) {
+            jmlAdaNilai++;
+            totalNilai += p.skorTampil;
+            if (p.isTuntas) jmlTuntas++;
+            else jmlRemedial++;
+        }
+        if (p.statusTren === "Naik") jmlNaik++;
+        else if (p.statusTren === "Turun") jmlTurun++;
+    });
+
+    let rataKelas = jmlAdaNilai > 0 ? (totalNilai / jmlAdaNilai).toFixed(1) : "0.0";
+    let pctTuntas = jmlAdaNilai > 0 ? Math.round((jmlTuntas / jmlAdaNilai) * 100) : 0;
+
+    if (statBox) {
+        statBox.innerHTML =
+            '<div style="flex:1; min-width:170px; background:#eaf2f8; border:1px solid #3498db; border-radius:8px; padding:10px 14px;">' +
+                '<div style="font-size:11px; font-weight:bold; color:#2980b9;">📊 Rata-rata Capaian Kognitif</div>' +
+                '<div style="font-size:22px; font-weight:900; color:#0b3954;">' + rataKelas + ' <span style="font-size:11px; font-weight:normal; color:#475569;">(' + jmlAdaNilai + ' Siswa Dinilai)</span></div>' +
+            '</div>' +
+            '<div style="flex:1; min-width:170px; background:#e8f8f5; border:1px solid #16a085; border-radius:8px; padding:10px 14px;">' +
+                '<div style="font-size:11px; font-weight:bold; color:#16a085;">✅ Ketuntasan KKM</div>' +
+                '<div style="font-size:22px; font-weight:900; color:#0b3954;">' + pctTuntas + '% <span style="font-size:11px; font-weight:700; color:#16a085;">(' + jmlTuntas + ' Tuntas / ' + jmlRemedial + ' Remedial)</span></div>' +
+            '</div>' +
+            '<div style="flex:1; min-width:170px; background:#fef9e7; border:1px solid #f1c40f; border-radius:8px; padding:10px 14px;">' +
+                '<div style="font-size:11px; font-weight:bold; color:#d35400;">📈 Dinamika Tren Nilai</div>' +
+                '<div style="font-size:18px; font-weight:900; color:#1e293b;">📈 ' + jmlNaik + ' Naik <span style="font-size:12px; color:#94a3b8;">|</span> <span style="color:#c0392b;">📉 ' + jmlTurun + ' Turun</span></div>' +
+            '</div>' +
+            '<div style="flex:1; min-width:170px; background:#f5eef8; border:1px solid #8e44ad; border-radius:8px; padding:10px 14px;">' +
+                '<div style="font-size:11px; font-weight:bold; color:#8e44ad;">🔥 Total Latihan Mandiri</div>' +
+                '<div style="font-size:22px; font-weight:900; color:#1e293b;">' + totalSoalLatihanKelas.toLocaleString("id-ID") + ' <span style="font-size:11px; font-weight:normal; color:#64748b;">Soal Dikerjakan</span></div>' +
+            '</div>';
+    }
+
+    if (terfilter.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:25px; color:#7f8c8d; font-weight:bold;">Belum ada data kognitif siswa untuk filter ini.</td></tr>';
+        return;
+    }
+
+    let html = "";
+    terfilter.forEach(function(p, idx) {
+        let kompStr =
+            '<span title="Rata-rata Kuis (40%)">K: <b>' + (p.avgKuis !== null ? p.avgKuis.toFixed(0) : '-') + '</b></span> • ' +
+            '<span title="Rata-rata PH (30%)">PH: <b>' + (p.avgPH !== null ? p.avgPH.toFixed(0) : '-') + '</b></span> • ' +
+            '<span title="Rata-rata SAS (30%)">SAS: <b>' + (p.avgSAS !== null ? p.avgSAS.toFixed(0) : '-') + '</b></span>';
+
+        let skorHtml = p.adaSkorTampil
+            ? '<div style="font-size:16px; font-weight:900; color:' + (p.isTuntas ? '#16a085' : '#c0392b') + ';">' + p.skorTampil.toFixed(1) + '</div>' +
+              '<span style="font-size:10px; font-weight:800; padding:1px 6px; border-radius:8px; background:' + (p.isTuntas ? '#d1fae5' : '#fee2e2') + '; color:' + (p.isTuntas ? '#065f46' : '#991b1b') + ';">' + (p.isTuntas ? 'Tuntas (≥' + p.kkm + ')' : 'Remedial (<' + p.kkm + ')') + '</span>'
+            : '<span style="color:#94a3b8; font-weight:bold;">Belum Ujian</span>';
+
+        let trenHtml = '<span style="color:#64748b; font-size:11px; font-weight:bold;">➖ Stabil</span>';
+        if (p.jmlUjian < 2) {
+            trenHtml = '<span style="color:#94a3b8; font-size:11px;">Data Baru (' + p.jmlUjian + 'x)</span>';
+        } else if (p.statusTren === "Naik") {
+            trenHtml = '<span style="background:#dcfce7; color:#15803d; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:800;">📈 +' + p.selisihTren.toFixed(1) + '</span>';
+        } else if (p.statusTren === "Turun") {
+            trenHtml = '<span style="background:#fee2e2; color:#b91c1c; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:800;">📉 ' + p.selisihTren.toFixed(1) + '</span>';
+        }
+
+        let rincianLatihan =
+            '<div style="font-size:11px; font-weight:700; color:#1e293b;">PG:' + (p.statLatihan.PG || 0) + ' | PGK:' + (p.statLatihan.PGK || 0) + ' | IS:' + (p.statLatihan.IS || 0) + ' | ES:' + (p.statLatihan.Essay || 0) + '</div>' +
+            '<div style="font-size:10px; color:#0b3954; font-weight:800; margin-top:2px;">⚡ Total: ' + p.totalLatihan + ' Soal (' + p.xpSiswa.toLocaleString("id-ID") + ' XP)</div>';
+
+        // Rekomendasi Pedagogis Otomatis berdasarkan Skor & Tren
+        let levelKog = "Belum Terukur";
+        let rekomTeks = "Arahkan siswa mengikuti ujian/latihan mandiri untuk memetakan kemampuan awal.";
+        let badgeLevelBg = "#f1f5f9", badgeLevelCol = "#475569";
+
+        if (p.adaSkorTampil) {
+            if (p.skorTampil >= 88) {
+                levelKog = "🌟 Sangat Mahir (C4–C6 HOTS)";
+                badgeLevelBg = "#dcfce7"; badgeLevelCol = "#15803d";
+                rekomTeks = "Penguasaan konsep sangat kuat. Berikan tantangan soal tingkat HOTS / Olimpiade atau jadikan tutor sebaya.";
+            } else if (p.isTuntas) {
+                levelKog = "✅ Mahir (C3 Aplikasi)";
+                badgeLevelBg = "#dbeafe"; badgeLevelCol = "#1d4ed8";
+                rekomTeks = p.statusTren === "Turun"
+                    ? "Nilai sudah tuntas KKM namun tren menurun. Perlu penguatan konsistensi pada soal analisis (PGK/Essay)."
+                    : "Capaian kognitif stabil di atas KKM. Pertahankan latihan rutin menuju level analisis HOTS.";
+            } else if (p.skorTampil >= p.kkm - 12) {
+                levelKog = "⚠️ Cukup (C2 Pemahaman Dasar)";
+                badgeLevelBg = "#fef3c7"; badgeLevelCol = "#b45309";
+                rekomTeks = "Hampir mencapai KKM. Berikan remedial terfokus pada materi yang salah dan latihan mandiri tingkat C2.";
+            } else {
+                levelKog = "🆘 Perlu Bimbingan Khusus (C1)";
+                badgeLevelBg = "#fee2e2"; badgeLevelCol = "#b91c1c";
+                rekomTeks = "Perlu pendampingan konsep dasar (C1–C2) secara bertahap dan wajib menuntaskan program Remedial.";
+            }
+        }
+
+        let safeKls = p.kelas.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+        let safeNama = p.nama.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+
+        html +=
+            '<tr>' +
+                '<td style="text-align:center; font-weight:bold; color:#7f8c8d;">' + (idx + 1) + '</td>' +
+                '<td style="font-weight:800; color:#1e293b;">' + p.nama + '</td>' +
+                '<td style="text-align:center;"><span style="background:#eaf2f8; color:#2980b9; padding:2px 8px; border-radius:4px; font-weight:bold; font-size:11px;">' + p.kelas + '</span></td>' +
+                '<td style="text-align:center; font-weight:800; color:#334155;">' + p.jmlUjian + 'x</td>' +
+                '<td style="text-align:center; font-size:11px; color:#475569; white-space:nowrap;">' + kompStr + '</td>' +
+                '<td style="text-align:center;">' + skorHtml + '</td>' +
+                '<td style="text-align:center; white-space:nowrap;">' + trenHtml + '</td>' +
+                '<td style="text-align:center; white-space:nowrap;">' + rincianLatihan + '</td>' +
+                '<td style="min-width:250px;">' +
+                    '<span style="display:inline-block; background:' + badgeLevelBg + '; color:' + badgeLevelCol + '; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:800; margin-bottom:4px;">' + levelKog + '</span>' +
+                    '<div style="font-size:11px; color:#475569; line-height:1.35;">' + rekomTeks + '</div>' +
+                '</td>' +
+                '<td style="text-align:center;">' +
+                    '<button type="button" class="btn-action" style="background:#0b3954; width:auto; padding:5px 10px; font-size:11px;" onclick="window.bukaDetailRiwayatKognitifSiswa(\'' + safeKls + '\', \'' + safeNama + '\')">🔍 Detail</button>' +
+                '</td>' +
+            '</tr>';
+    });
+
+    tbody.innerHTML = html;
+};
+
+window.bukaDetailRiwayatKognitifSiswa = function(kls, nama) {
+    let p = window.hitungProfilKognitifSatuSiswa(kls, nama);
+    if (!p.riwayatUjian || p.riwayatUjian.length === 0) {
+        return alert("📋 Siswa " + nama + " (" + kls + ") belum memiliki riwayat nilai ujian yang tercatat.");
+    }
+
+    let teks = "📈 RIWAYAT PERKEMBANGAN KOGNITIF SISWA\n" +
+               "Nama : " + nama + "\n" +
+               "Kelas : " + kls + "\n" +
+               "Nilai Akhir (NA Ledger) : " + p.nilaiAkhir.toFixed(1) + "\n" +
+               "----------------------------------------\n";
+
+    p.riwayatUjian.forEach(function(r, i) {
+        teks += (i + 1) + ". [" + r.kategori + "] " + r.paket + " ➔ Nilai: " + r.nilai.toFixed(1) + (r.pelanggaran > 0 ? " (⚠️ " + r.pelanggaran + "x Pelanggaran)" : "") + "\n";
+    });
+
+    teks += "----------------------------------------\n" +
+            "Akumulasi Soal Latihan Mandiri: " + p.totalLatihan + " Soal (" + p.xpSiswa.toLocaleString("id-ID") + " XP)";
+    alert(teks);
+};
+
+window.exportExcelKognitifSiswa = function() {
+    let table = document.getElementById("tabel-kognitif-excel");
+    if (!table) return;
+
+    let html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">' +
+        '<head><meta charset="utf-8"><style>table{border-collapse:collapse;font-family:Calibri,sans-serif;font-size:12px;}th,td{border:1px solid #000;padding:6px;vertical-align:top;}th{background:#0b3954;color:#fff;font-weight:bold;}</style></head>' +
+        '<body><h3>Laporan Analisis Perkembangan Kognitif Siswa</h3>' + table.outerHTML + '</body></html>';
+
+    let blob = new Blob([html], { type: "application/vnd.ms-excel" });
+    let link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "Analisis_Kognitif_Siswa.xls";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 };
 
 window.muatFilterKelasAfektif = function() {
@@ -1422,7 +1905,7 @@ window.kalkulasiLencanaSains = function(xp) {
     return { nama: "Profesor", ikon: "👑", batas: "Max", warna: "#b45309", bg: "#fffbeb", border: "#f59e0b", deskripsi: "Pangkat mahaguru tertinggi (> 10.000.000 XP). Legenda Sains Sejati!" };
 };
 
-// KATALOG 20 PAKET BINGKAI (MENCAKUP BINGKAI KARTU BERMOTIF/BATIK/LEKUKAN + BINGKAI AVATAR)
+// KATALOG 27 PAKET BINGKAI (MENCAKUP BINGKAI KARTU BERMOTIF/BATIK/LEKUKAN + BINGKAI AVATAR)
 window.KATALOG_BORDER_SHOP = [
     // TIER 1: STANDARD (1.000 XP) - Pola Geometris Halus & Bingkai Avatar Cincin Mengilap
     { id: "b1",  no: 1,  tier: "Standard",  harga: 1000,    nama: "1. Silver Clean",     ikonKanan: "✨", classCss: "sbd-border-1",  avatarCss: "av-frame-1" },
@@ -1450,7 +1933,16 @@ window.KATALOG_BORDER_SHOP = [
     { id: "b17", no: 17, tier: "Legendary", harga: 1000000, nama: "17. Seraphim Wings",  ikonKanan: "🪽", classCss: "sbd-border-17", avatarCss: "av-frame-17" },
     { id: "b18", no: 18, tier: "Legendary", harga: 1000000, nama: "18. Astral Archon",   ikonKanan: "🌌", classCss: "sbd-border-18", avatarCss: "av-frame-18" },
     { id: "b19", no: 19, tier: "Legendary", harga: 1000000, nama: "19. Inferno Dragon",  ikonKanan: "🐉", classCss: "sbd-border-19", avatarCss: "av-frame-19" },
-    { id: "b20", no: 20, tier: "Legendary", harga: 1000000, nama: "20. Celestial Void",  ikonKanan: "⚜️", classCss: "sbd-border-20", avatarCss: "av-frame-20" }
+    { id: "b20", no: 20, tier: "Legendary", harga: 1000000, nama: "20. Celestial Void",  ikonKanan: "⚜️", classCss: "sbd-border-20", avatarCss: "av-frame-20" },
+
+    // TIER 5: THEME (500.000 XP) - Anime & Kosmik Custom (Ornamen SVG)
+    { id: "b21", no: 21, tier: "Theme",     harga: 500000,  nama: "21. Ninja Way (Naruto)", ikonKanan: "🍃", classCss: "sbd-border-21", avatarCss: "av-frame-21" },
+    { id: "b22", no: 22, tier: "Theme",     harga: 500000,  nama: "22. Demon Slayer (KNY)", ikonKanan: "⚔️", classCss: "sbd-border-22", avatarCss: "av-frame-22" },
+    { id: "b23", no: 23, tier: "Theme",     harga: 500000,  nama: "23. Pirate King (OP)",   ikonKanan: "⚓", classCss: "sbd-border-23", avatarCss: "av-frame-23" },
+    { id: "b24", no: 24, tier: "Theme",     harga: 500000,  nama: "24. Sorcerer (JJK)",     ikonKanan: "🤞", classCss: "sbd-border-24", avatarCss: "av-frame-24" },
+    { id: "b25", no: 25, tier: "Theme",     harga: 500000,  nama: "25. Scout Legion (AOT)", ikonKanan: "🛡️", classCss: "sbd-border-25", avatarCss: "av-frame-25" },
+    { id: "b26", no: 26, tier: "Theme",     harga: 500000,  nama: "26. Super Saiyan (DB)",  ikonKanan: "🐉", classCss: "sbd-border-26", avatarCss: "av-frame-26" },
+    { id: "b27", no: 27, tier: "Theme",     harga: 500000,  nama: "27. Cyberpunk Neon",     ikonKanan: "🤖", classCss: "sbd-border-27", avatarCss: "av-frame-27" }
 ];
 
 window.cariDataBorderById = function(borderId) {
@@ -1501,6 +1993,7 @@ window.pastikanAreaShopDiProfilAda = function() {
                 '<button type="button" class="shop-tier-btn active" onclick="window.renderIsiShopBorder(\'Standard\', this)">⭐ Standard (1rb)</button>' +
                 '<button type="button" class="shop-tier-btn" onclick="window.renderIsiShopBorder(\'Elite\', this)">👑 Elite (10rb)</button>' +
                 '<button type="button" class="shop-tier-btn" onclick="window.renderIsiShopBorder(\'Special\', this)">🔮 Special (50rb)</button>' +
+                '<button type="button" class="shop-tier-btn" onclick="window.renderIsiShopBorder(\'Theme\', this)">🎌 Theme (500rb)</button>' +
                 '<button type="button" class="shop-tier-btn" onclick="window.renderIsiShopBorder(\'Legendary\', this)">🐉 Legendary (1jt)</button>' +
             '</div>' +
             '<div id="shop-border-list" style="display:grid; grid-template-columns:1fr; gap:12px; max-height:310px; overflow-y:auto; padding:4px;"></div>' +
@@ -1834,3 +2327,737 @@ window.renderTabelLeaderboard = function() {
     });
     container.innerHTML = html;
 };
+/* =========================================================================
+   MODUL TAMBAHAN:
+   1. SINKRONISASI XP & COIN KUIS CONTENT BLOCK (PG=5, PGK=10, IS=10, ESSAY=50)
+   2. SISTEM ANTI-MACRO / ANTI-AUTOCLICKER 5 LAPIS & ACARA KHUSUS "PANEN XP" (+200 XP & +200 COIN)
+   3. NOTIFIKASI ANGKATAN (X, XI, XII), SINAR MENGGANGGU, & TOMBOL "OKE" -> "SIP" (RESET TIAP MASUK WEB)
+   ========================================================================= */
+
+// -------------------------------------------------------------------------
+// A. PASTIKAN TAMBAH XP SISWA SELALU MENAMBAH XP LEADERBOARD + COIN BELANJA
+// -------------------------------------------------------------------------
+window.tambahXPSiswa = function(jumlahPoin, sumber, rincianSoalArr) {
+    let stat = sessionStorage.getItem("statusLogin");
+    let uName = sessionStorage.getItem("username");
+    if (stat !== "siswa" || !uName || uName.toLowerCase() === "sbd" || uName.toLowerCase() === "tamu") return;
+
+    let poin = Math.max(0, Number(jumlahPoin) || 0);
+    if (poin <= 0) return;
+
+    let lb = (typeof window.pastikanStrukturDualXPDanPet === "function")
+        ? window.pastikanStrukturDualXPDanPet(uName)
+        : ((window.leaderboardSiswaData && window.leaderboardSiswaData[uName]) ? window.leaderboardSiswaData[uName] : null);
+
+    if (!lb) {
+        let akun = (window.akunSiswaData && window.akunSiswaData[uName]) ? window.akunSiswaData[uName] : {};
+        if (!window.leaderboardSiswaData) window.leaderboardSiswaData = {};
+        window.leaderboardSiswaData[uName] = {
+            kelas: akun.kelas || "Umum",
+            namaLengkap: akun.namaLengkap || uName,
+            xp: 0,
+            xpTotal: 0,
+            coin: 0,
+            xpTersedia: 0,
+            statSoal: { PG: 0, PGK: 0, IS: 0, Essay: 0 }
+        };
+        lb = window.leaderboardSiswaData[uName];
+    }
+
+    lb.xpTotal = (Number(lb.xpTotal !== undefined ? lb.xpTotal : lb.xp) || 0) + poin;
+    lb.xp = lb.xpTotal;
+    lb.coin = (Number(lb.coin !== undefined ? lb.coin : lb.xpTersedia) || 0) + poin;
+    lb.xpTersedia = lb.coin;
+
+    if (!lb.statSoal) lb.statSoal = { PG: 0, PGK: 0, IS: 0, Essay: 0 };
+    if (Array.isArray(rincianSoalArr)) {
+        rincianSoalArr.forEach(function(item) {
+            if (!item || !item.sudahBenar) return;
+            let t = String(item.type || "PG").toUpperCase();
+            if (t === "MC" || t === "PG") lb.statSoal.PG = (Number(lb.statSoal.PG) || 0) + 1;
+            else if (t === "PGK") lb.statSoal.PGK = (Number(lb.statSoal.PGK) || 0) + 1;
+            else if (t === "IS" || t === "SHORT_ANSWER" || t === "ISIAN") lb.statSoal.IS = (Number(lb.statSoal.IS) || 0) + 1;
+            else if (t === "ESSAY" || t === "ESAI") lb.statSoal.Essay = (Number(lb.statSoal.Essay) || 0) + 1;
+        });
+    }
+
+    if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
+        window.simpanLeaderboardSiswaKeDB(uName, lb);
+    }
+    if (typeof window.perbaruiTampilanSaldoXPPet === "function") {
+        window.perbaruiTampilanSaldoXPPet();
+    }
+    if (typeof window.perbaruiUIHeaderProfilSiswa === "function") {
+        window.perbaruiUIHeaderProfilSiswa();
+    }
+};
+
+// Floating Badge Saat Siswa Mendapat XP & Coin di Kuis Materi / Latihan
+window.tampilkanBadgeHadiahKuis = function(anchorEl, teksHadiah) {
+    let toast = document.createElement("div");
+    toast.style.cssText = "position:fixed; bottom:85px; right:24px; background:linear-gradient(135deg, #0b3954, #16a085); color:#ffffff; border:2px solid #f1c40f; padding:10px 18px; border-radius:30px; font-family:'Poppins',sans-serif; font-size:13px; font-weight:800; box-shadow:0 8px 25px rgba(0,0,0,0.28); z-index:1000095; transition:all 0.4s ease;";
+    toast.innerHTML = teksHadiah;
+    document.body.appendChild(toast);
+    setTimeout(function() {
+        toast.style.opacity = "0";
+        toast.style.transform = "translateY(15px)";
+        setTimeout(function() { if (toast.parentNode) toast.remove(); }, 400);
+    }, 2400);
+};
+
+// -------------------------------------------------------------------------
+// B. SISTEM KEAMANAN ANTI-MACRO & WAJIB JEDA MINIMAL 2 DETIK ANTAR JAWABAN
+// -------------------------------------------------------------------------
+window.antiMacroGuard = {
+    lastClickTime: 0,
+    intervals: [],
+    fastClickStrikes: 0,
+    macroFlagged: false,
+    isLockedChallenge: false
+};
+
+window.resetAntiMacroSession = function() {
+    window.antiMacroGuard = {
+        lastClickTime: 0,
+        intervals: [],
+        fastClickStrikes: 0,
+        macroFlagged: false,
+        isLockedChallenge: false
+    };
+};
+
+window.verifikasiKlikManusiaAsli = function(evt, minBacaMs) {
+    let batasMin = Math.max(2000, Number(minBacaMs) || 2000); // Wajib minimal jeda 2 detik (2000 ms) antar menjawab soal!
+    let now = Date.now();
+    let guard = window.antiMacroGuard;
+
+    if (guard.isLockedChallenge) return false;
+
+    if (evt && evt.isTrusted === false) {
+        guard.macroFlagged = true;
+        window.munculkanChallengeAntiMacro("Terdeteksi eksekusi script/macro otomatis pada browser!");
+        return false;
+    }
+
+    let selisih = guard.lastClickTime ? (now - guard.lastClickTime) : 99999;
+
+    // Jika menjawab lagi kurang dari 2 detik, langsung tolak klik tersebut!
+    if (selisih < batasMin) {
+        guard.fastClickStrikes++;
+        let sisaDetik = ((batasMin - selisih) / 1000).toFixed(1);
+        window.tampilkanBadgeHadiahKuis(null, "⏳ Tahan! Minimal jeda menjawab 2 detik (Tunggu " + sisaDetik + " dtk). Baca soal dengan teliti!");
+
+        if (guard.fastClickStrikes >= 3) {
+            guard.macroFlagged = true;
+            window.munculkanChallengeAntiMacro("Kamu menekan jawaban secara membabi buta tanpa jeda (< 2 detik/soal)! Baca dan pahami soal sebelum menjawab.");
+        }
+        return false;
+    }
+
+    guard.lastClickTime = now;
+    guard.fastClickStrikes = Math.max(0, guard.fastClickStrikes - 1);
+
+    if (selisih < 30000) {
+        guard.intervals.push(selisih);
+        if (guard.intervals.length > 8) guard.intervals.shift();
+        if (guard.intervals.length >= 6) {
+            let avg = guard.intervals.reduce(function(a, b) { return a + b; }, 0) / guard.intervals.length;
+            let variance = guard.intervals.reduce(function(a, b) { return a + Math.pow(b - avg, 2); }, 0) / guard.intervals.length;
+            if (Math.sqrt(variance) < 130) {
+                guard.macroFlagged = true;
+                window.munculkanChallengeAntiMacro("Pola ketukan terdeteksi memiliki jeda waktu konstan seperti Macro Otomatis!");
+                return false;
+            }
+        }
+    }
+    return true;
+};
+
+// Pencegat Global Fase Capture: Menangkal Klik Membabi Buta (< 2 Detik) di Latihan, Ujian, dan Kuis Materi
+document.addEventListener("click", function(e) {
+    if (sessionStorage.getItem("statusLogin") === "admin") return;
+    let btnOpsi = e.target.closest(".quiz-option-btn");
+    if (!btnOpsi || btnOpsi.disabled) return;
+
+    // Jika opsi adalah label PGK yang hanya mencentang checkbox, izinkan centang tapi cegat tombol kirim PGK-nya
+    if (btnOpsi.tagName === "LABEL" && btnOpsi.querySelector('input[type="checkbox"]')) return;
+
+    if (!window.verifikasiKlikManusiaAsli(e, 2000)) {
+        e.stopImmediatePropagation();
+        e.preventDefault();
+        return false;
+    }
+    if (window.sesiLatihanSiswa) {
+        window.sesiLatihanSiswa._humanClicks = (window.sesiLatihanSiswa._humanClicks || 0) + 1;
+    }
+}, true);
+
+window.munculkanChallengeAntiMacro = function(alasan) {
+    let guard = window.antiMacroGuard;
+    guard.isLockedChallenge = true;
+
+    let old = document.getElementById("modal-anti-macro-challenge");
+    if (old) old.remove();
+
+    let kodeAcak = String(Math.floor(1000 + Math.random() * 9000));
+    let posTombol = Math.floor(Math.random() * 3);
+
+    let modal = document.createElement("div");
+    modal.id = "modal-anti-macro-challenge";
+    modal.className = "modal-overlay";
+    modal.style.display = "flex";
+    modal.style.zIndex = "10000999";
+
+    modal.innerHTML =
+        '<div class="modal-box" style="width:430px; max-width:92vw; text-align:center; border:3px solid #e74c3c; border-radius:16px; overflow:hidden;">' +
+            '<div class="modal-header" style="background:#c0392b; color:white; padding:14px 18px;">' +
+                '<h3 style="margin:0; font-size:16px;">🛡️ Peringatan Kecepatan & Anti-Macro</h3>' +
+            '</div>' +
+            '<div class="modal-body" style="padding:20px; background:#fff;">' +
+                '<div style="font-size:44px; margin-bottom:8px;">⏳🚫</div>' +
+                '<p style="font-size:13px; color:#c0392b; font-weight:800; margin:0 0 10px 0;">' + alasan + '</p>' +
+                '<p style="font-size:12px; color:#475569; margin:0 0 14px 0; line-height:1.5;">Ketik 4 angka di bawah ini untuk membuka kunci soal:</p>' +
+                '<div style="font-size:28px; font-weight:900; letter-spacing:8px; background:#f1f5f9; color:#0b3954; padding:10px; border-radius:10px; border:2px dashed #94a3b8; margin-bottom:12px; user-select:none;">' + kodeAcak + '</div>' +
+                '<input type="text" id="input-verif-antimacro" class="input-box" placeholder="Ketik 4 angka di atas..." style="text-align:center; font-size:18px; font-weight:900; margin-bottom:12px;">' +
+                '<div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;">' +
+                    (posTombol === 0 ? '<button type="button" id="btn-lolos-antimacro" class="btn-action" style="background:#27ae60;">Verifikasi</button>' : '<button type="button" class="btn-action" style="background:#94a3b8;">Batal</button>') +
+                    (posTombol === 1 ? '<button type="button" id="btn-lolos-antimacro" class="btn-action" style="background:#27ae60;">Verifikasi</button>' : '<button type="button" class="btn-action" style="background:#94a3b8;">Reset</button>') +
+                    (posTombol === 2 ? '<button type="button" id="btn-lolos-antimacro" class="btn-action" style="background:#27ae60;">Verifikasi</button>' : '<button type="button" class="btn-action" style="background:#94a3b8;">Tutup</button>') +
+                '</div>' +
+            '</div>' +
+        '</div>';
+
+    document.body.appendChild(modal);
+
+    document.getElementById("btn-lolos-antimacro").onclick = function(e) {
+        if (e && e.isTrusted === false) return;
+        let val = (document.getElementById("input-verif-antimacro").value || "").trim();
+        if (val !== kodeAcak) {
+            window.tampilkanCustomDialog("alert", "⚠️ Kode verifikasi salah! Ketik 4 angka yang tampil di layar.", null, null);
+            return;
+        }
+        guard.isLockedChallenge = false;
+        guard.fastClickStrikes = 0;
+        guard.intervals = [];
+        guard.lastClickTime = Date.now();
+        modal.remove();
+    };
+};
+
+// -------------------------------------------------------------------------
+// C. KUIS PADA CONTENT BLOCK MENDAPATKAN XP & COIN SETARA LATIHAN
+// -------------------------------------------------------------------------
+window.jawabKuisInline = function(btnEl, blockIdx, qIdx, optIdx, correctIdx) {
+    let card = document.getElementById("inline-q-" + blockIdx + "-" + qIdx);
+    if (!card || card.classList.contains("answered")) return;
+
+    card.classList.add("answered");
+    let allBtns = card.querySelectorAll(".quiz-option-btn");
+    allBtns.forEach(function(b, i) {
+        b.disabled = true;
+        b.style.cursor = "not-allowed";
+        if (i === correctIdx) b.classList.add("selected-correct");
+        else if (i === optIdx) b.classList.add("selected-wrong");
+    });
+
+    let navBtn = document.getElementById("nav-btn-inline-" + blockIdx + "-" + qIdx);
+    if (navBtn) navBtn.classList.add("nav-answered");
+
+    if (optIdx === correctIdx) {
+        window.tambahXPSiswa(5, "kuis_inline_pg", [{ type: "PG", sudahBenar: true }]);
+        window.tampilkanBadgeHadiahKuis(btnEl, "🎉 Benar! +5 XP & +5 Coin");
+    } else {
+        let box = document.getElementById("bahas-box-" + blockIdx + "-" + qIdx);
+        if (box && box.style.display === "none") {
+            window.togglePembahasanInline(blockIdx, qIdx, true);
+        }
+    }
+};
+
+window.koreksiKuisInlinePGK = function(blockIdx, qIdx) {
+    if (!window.verifikasiKlikManusiaAsli(window.event, 2000)) return;
+
+    let blok = window.contentBlocksData[blockIdx];
+    if (!blok || !blok.questions || !blok.questions[qIdx]) return;
+    let q = blok.questions[qIdx];
+    let card = document.getElementById("inline-q-" + blockIdx + "-" + qIdx);
+    if (!card || card.classList.contains("answered")) return;
+
+    let checkboxes = card.querySelectorAll(".chk-inline-pgk-" + blockIdx + "-" + qIdx);
+    let dipilih = [];
+    checkboxes.forEach(function(cb) {
+        if (cb.checked) dipilih.push(parseInt(cb.value, 10));
+    });
+
+    if (dipilih.length === 0) return window.tampilkanCustomDialog("alert", "Pilih minimal satu jawaban terlebih dahulu!", null, null);
+
+    card.classList.add("answered");
+    let rawKunci = (Array.isArray(q.correctIndices) && q.correctIndices.length > 0) ? q.correctIndices : (q.correct || []);
+    let isAllCorrect = (typeof window.apakahJawabanPGKBenar === "function")
+        ? window.apakahJawabanPGKBenar(dipilih, rawKunci, q.options)
+        : (dipilih.length === rawKunci.length && dipilih.every(function(v) { return rawKunci.includes(v); }));
+    let normKunciHuruf = (typeof window.normalisasiKunciPGK === "function")
+        ? window.normalisasiKunciPGK(rawKunci, q.options)
+        : rawKunci.map(function(idx) { return String.fromCharCode(65 + Number(idx)); });
+
+    checkboxes.forEach(function(cb) {
+        cb.disabled = true;
+        let idx = parseInt(cb.value, 10);
+        let hurufIdx = String.fromCharCode(65 + idx);
+        let lbl = document.getElementById("lbl-inline-pgk-" + blockIdx + "-" + qIdx + "-" + idx);
+        if (lbl) {
+            if (normKunciHuruf.includes(hurufIdx) || rawKunci.includes(idx)) lbl.classList.add("selected-correct");
+            else if (cb.checked) lbl.classList.add("selected-wrong");
+        }
+    });
+
+    let btnSubmit = document.getElementById("btn-submit-pgk-" + blockIdx + "-" + qIdx);
+    if (btnSubmit) btnSubmit.style.display = "none";
+
+    let navBtn = document.getElementById("nav-btn-inline-" + blockIdx + "-" + qIdx);
+    if (navBtn) navBtn.classList.add("nav-answered");
+
+    if (isAllCorrect) {
+        window.tambahXPSiswa(10, "kuis_inline_pgk", [{ type: "PGK", sudahBenar: true }]);
+        window.tampilkanBadgeHadiahKuis(btnSubmit, "🎉 PGK Tepat! +10 XP & +10 Coin");
+    } else {
+        let box = document.getElementById("bahas-box-" + blockIdx + "-" + qIdx);
+        if (box && box.style.display === "none") {
+            window.togglePembahasanInline(blockIdx, qIdx, true);
+        }
+    }
+};
+
+window.jawabKuisInlineIsian = function(inputEl, blockIdx, qIdx) {
+    if (!window.verifikasiKlikManusiaAsli(window.event, 2000)) return;
+
+    let blok = window.contentBlocksData[blockIdx];
+    if (!blok || !blok.questions || !blok.questions[qIdx]) return;
+    let q = blok.questions[qIdx];
+    let card = document.getElementById("inline-q-" + blockIdx + "-" + qIdx);
+    if (card && card.classList.contains("answered")) return;
+
+    let val = (inputEl.value || "").trim().toLowerCase();
+    if (!val) return;
+
+    let kunciArr = (q.correctAnswers || q.correct || []).map(function(k) { return String(k).toLowerCase().trim(); });
+
+    if (kunciArr.indexOf(val) !== -1) {
+        if (card) card.classList.add("answered");
+        inputEl.style.borderColor = "#27ae60";
+        inputEl.style.background = "#d4edda";
+        inputEl.disabled = true;
+        let navBtn = document.getElementById("nav-btn-inline-" + blockIdx + "-" + qIdx);
+        if (navBtn) navBtn.classList.add("nav-answered");
+        window.tambahXPSiswa(10, "kuis_inline_is", [{ type: "IS", sudahBenar: true }]);
+        window.tampilkanBadgeHadiahKuis(inputEl, "🎉 Isian Benar! +10 XP & +10 Coin");
+    } else {
+        inputEl.style.borderColor = "#e74c3c";
+        inputEl.style.background = "#f8d7da";
+    }
+};
+
+// -------------------------------------------------------------------------
+// D. ACARA KHUSUS "PANEN XP" (+200 XP & +200 COIN UNTUK >=50 SOAL & BENAR >=40)
+// -------------------------------------------------------------------------
+window.pastikanBannerPanenXPLatihanAda = function() {
+    let modalLat = document.getElementById("modal-enter-latihan");
+    if (!modalLat || document.getElementById("banner-event-panen-xp")) return;
+    let inpJml = document.getElementById("latihan-jumlah-soal");
+    if (!inpJml) return;
+
+    let banner = document.createElement("div");
+    banner.id = "banner-event-panen-xp";
+    banner.style.cssText = "background:linear-gradient(135deg, #fef9e7, #fdebd0); border:2px solid #f39c12; border-radius:10px; padding:12px; margin-top:4px;";
+    banner.innerHTML =
+        '<div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;">' +
+            '<div>' +
+                '<div style="font-size:13px; font-weight:900; color:#d35400;">🌾 ACARA KHUSUS: PANEN XP RAYA!</div>' +
+                '<div style="font-size:11px; color:#475569; line-height:1.4; margin-top:2px;">Kerjakan minimal <b>50 Soal</b> dan raih minimal <b>40 Benar</b> (jeda minimal 2 detik/soal) untuk klaim bonus <b>+200 XP & +200 Coin</b>!</div>' +
+            '</div>' +
+            '<button type="button" class="btn-action" style="background:#d35400; color:#fff; width:auto; padding:6px 12px; font-size:11px; border-radius:18px; white-space:nowrap;" onclick="document.getElementById(\'latihan-jumlah-soal\').value=50; window.tampilkanBadgeHadiahKuis(this, \'🌾 Mode Panen XP (50 Soal) Diaktifkan!\');">🔥 Set 50 Soal</button>' +
+        '</div>';
+    inpJml.parentElement.after(banner);
+};
+
+document.addEventListener("DOMContentLoaded", function() {
+    window.pastikanBannerPanenXPLatihanAda();
+    let modalRes = document.getElementById("modal-quiz-result");
+    if (modalRes) {
+        let obsRes = new MutationObserver(function() {
+            if (modalRes.style.display === "flex") window.evaluasiBonusPanenXPLatihan();
+        });
+        obsRes.observe(modalRes, { attributes: true, attributeFilter: ["style"] });
+    }
+});
+
+if (!window._wrappedMulaiLatihanPanen) {
+    window._wrappedMulaiLatihanPanen = window.mulaiLatihanSiswa;
+    window.mulaiLatihanSiswa = function() {
+        window.resetAntiMacroSession();
+        if (window._wrappedMulaiLatihanPanen) window._wrappedMulaiLatihanPanen();
+        setTimeout(function() {
+            if (window.sesiLatihanSiswa) {
+                window.sesiLatihanSiswa._startTimeMs = Date.now();
+                window.sesiLatihanSiswa._panenClaimed = false;
+            }
+        }, 200);
+    };
+}
+
+window.evaluasiBonusPanenXPLatihan = function() {
+    let sesi = window.sesiLatihanSiswa;
+    if (!sesi || sesi._panenClaimed) return;
+
+    let totalSoal = parseInt(document.getElementById("quiz-result-total") ? document.getElementById("quiz-result-total").innerText : "0", 10) || 0;
+    let totalBenar = parseInt(document.getElementById("quiz-result-correct") ? document.getElementById("quiz-result-correct").innerText : "0", 10) || 0;
+    let msgBox = document.getElementById("quiz-result-adaptive-msg");
+
+    if (totalSoal < 50) return;
+
+    let durasiDetik = sesi._startTimeMs ? ((Date.now() - sesi._startTimeMs) / 1000) : 999;
+    let rataDetikPerSoal = durasiDetik / Math.max(1, totalSoal);
+
+    if (window.antiMacroGuard.macroFlagged || rataDetikPerSoal < 2.0) {
+        if (msgBox) {
+            msgBox.innerHTML += '<div style="margin-top:8px; padding:8px; background:#fee2e2; color:#991b1b; border:1px solid #ef4444; border-radius:6px; font-weight:800;">🚫 Bonus Panen XP Dibatalkan: Terdeteksi pengerjaan terlalu cepat / indikasi Macro (' + rataDetikPerSoal.toFixed(1) + ' dtk/soal).</div>';
+        }
+        return;
+    }
+
+    if (totalSoal >= 50 && totalBenar >= 40) {
+        sesi._panenClaimed = true;
+        window.tambahXPSiswa(200, "bonus_panen_xp");
+        if (msgBox) {
+            msgBox.innerHTML += '<div style="margin-top:8px; padding:10px; background:linear-gradient(135deg, #fef9e7, #dcfce7); color:#15803d; border:2px solid #22c55e; border-radius:8px; font-weight:900; font-size:13px;">🌾 BONUS PANEN XP RAYA TERCAPAI! (' + totalBenar + '/' + totalSoal + ' Benar)<br>Kamu mendapatkan tambahan <b>+200 XP & +200 Coin</b>!</div>';
+        }
+        window.tampilkanBadgeHadiahKuis(null, "🌾 PANEN XP RAYA! +200 XP & +200 Coin!");
+    }
+};
+
+// -------------------------------------------------------------------------
+// E. PERBAIKAN FILTER NOTIFIKASI PER KELAS / ANGKATAN & MATIKAN SINAR DI ADMIN
+// -------------------------------------------------------------------------
+window.ackNotifSesiIni = new Set();
+
+window.bacaTargetNotifikasi = function(notif) {
+    if (!notif) return "Semua";
+    return String(notif.targetKelas || notif.target || notif.kelas || notif.untuk || "Semua").trim();
+};
+
+window.apakahNotifCocokUntukSiswa = function(notif, kelasSiswa, isAdmin) {
+    if (!notif) return false;
+    if (isAdmin) return true;
+
+    let rawTarget = window.bacaTargetNotifikasi(notif);
+    let cleanTarget = rawTarget.replace(/^🏫\s*/, "").replace(/^kelas\s+/i, "").trim().toUpperCase();
+    let kls = String(kelasSiswa || "").replace(/^kelas\s+/i, "").trim().toUpperCase();
+
+    if (cleanTarget === "SEMUA" || cleanTarget === "SEMUA KELAS & ANGKATAN" || cleanTarget === "UMUM") {
+        return true;
+    }
+
+    // Jika siswa belum login atau berstatus Tamu/Umum, jangan tampilkan notifikasi khusus kelas!
+    if (!kls || kls === "UMUM" || kls === "TAMU") {
+        return false;
+    }
+
+    if (cleanTarget === "ANGKATAN_X" || cleanTarget === "ANGKATAN KELAS X" || cleanTarget === "X") {
+        return kls === "X" || kls.indexOf("X ") === 0 || kls.indexOf("X-") === 0 || kls.indexOf("10") === 0;
+    }
+    if (cleanTarget === "ANGKATAN_XI" || cleanTarget === "ANGKATAN KELAS XI" || cleanTarget === "XI") {
+        return kls === "XI" || kls.indexOf("XI ") === 0 || kls.indexOf("XI-") === 0 || kls.indexOf("11") === 0;
+    }
+    if (cleanTarget === "ANGKATAN_XII" || cleanTarget === "ANGKATAN KELAS XII" || cleanTarget === "XII") {
+        return kls === "XII" || kls.indexOf("XII ") === 0 || kls.indexOf("XII-") === 0 || kls.indexOf("12") === 0;
+    }
+
+    return cleanTarget === kls;
+};
+
+window.ambilDaftarNotifSiswaAktif = function() {
+    let stat = sessionStorage.getItem("statusLogin");
+    let uName = (sessionStorage.getItem("username") || "").toLowerCase();
+    let isAdmin = (stat === "admin" || (typeof window.isAdminSession === "function" && window.isAdminSession()));
+    let kelasSiswa = "";
+
+    if (stat === "siswa" && uName) {
+        if (window.akunSiswaData && window.akunSiswaData[uName] && window.akunSiswaData[uName].kelas) {
+            kelasSiswa = window.akunSiswaData[uName].kelas;
+        } else if (window.leaderboardSiswaData && window.leaderboardSiswaData[uName] && window.leaderboardSiswaData[uName].kelas) {
+            kelasSiswa = window.leaderboardSiswaData[uName].kelas;
+        }
+    }
+
+    let rawList = Array.isArray(window.adminNotifikasiData) ? window.adminNotifikasiData : Object.values(window.adminNotifikasiData || {});
+    return rawList.filter(function(n) {
+        return window.apakahNotifCocokUntukSiswa(n, kelasSiswa, isAdmin);
+    });
+};
+
+window.perbaruiSinarTombolNotifikasi = function() {
+    let btnNotif = document.getElementById("btn-header-notif");
+    let badgeNotif = document.getElementById("badge-header-notif");
+    if (!btnNotif) return;
+
+    let isAdmin = (sessionStorage.getItem("statusLogin") === "admin") ||
+                  (typeof window.isAdminSession === "function" && window.isAdminSession()) ||
+                  document.body.classList.contains("mode-edit-aktif");
+
+    // Matikan efek sinar mengganggu saat Mode Admin
+    if (isAdmin) {
+        btnNotif.classList.remove("notif-glow-active");
+        if (badgeNotif) badgeNotif.style.display = "none";
+        return;
+    }
+
+    let daftar = window.ambilDaftarNotifSiswaAktif();
+    let belumDiOke = daftar.filter(function(n, idx) {
+        let nId = n.id || ("notif_" + (n.judul || "") + "_" + idx);
+        return !window.ackNotifSesiIni.has(nId);
+    });
+
+    if (badgeNotif) {
+        if (belumDiOke.length > 0) {
+            badgeNotif.style.display = "inline-block";
+            badgeNotif.innerText = String(belumDiOke.length);
+        } else {
+            badgeNotif.style.display = "none";
+        }
+    }
+
+    if (belumDiOke.length > 0) {
+        btnNotif.classList.add("notif-glow-active");
+    } else {
+        btnNotif.classList.remove("notif-glow-active");
+    }
+};
+
+window.klikOkeSatuNotifikasi = function(notifId, btnEl) {
+    window.ackNotifSesiIni.add(notifId);
+    if (btnEl) {
+        btnEl.innerText = "✓ Sip";
+        btnEl.className = "btn-notif-ack-sip";
+        btnEl.disabled = true;
+        btnEl.onclick = null;
+    }
+    window.perbaruiSinarTombolNotifikasi();
+};
+
+window.bukaModalNotifikasiSiswa = function() {
+    window.bukaModal("modal-notifikasi-siswa");
+    let cont = document.getElementById("list-notifikasi-siswa-container");
+    if (!cont) return;
+
+    let daftar = window.ambilDaftarNotifSiswaAktif().slice().reverse();
+    if (daftar.length === 0) {
+        cont.innerHTML = '<div style="text-align:center; padding:30px; color:#64748b; font-weight:700;">🔔 Belum ada pengumuman atau tugas baru untuk kelasmu.</div>';
+        window.perbaruiSinarTombolNotifikasi();
+        return;
+    }
+
+    let labelTargetMap = {
+        "Semua": "🌍 Semua Kelas & Angkatan",
+        "ANGKATAN_X": "🎓 Angkatan Kelas X",
+        "ANGKATAN_XI": "🎓 Angkatan Kelas XI",
+        "ANGKATAN_XII": "🎓 Angkatan Kelas XII"
+    };
+
+    let html = "";
+    daftar.forEach(function(n, idx) {
+        let nId = n.id || ("notif_" + (n.judul || "") + "_" + idx);
+        let sudahSip = window.ackNotifSesiIni.has(nId);
+        let targetRaw = window.bacaTargetNotifikasi(n);
+        let labelTarget = labelTargetMap[targetRaw] || ("🏫 Kelas " + targetRaw.replace(/^kelas\s+/i, ""));
+        let safeId = String(nId).replace(/'/g, "\\'");
+
+        let btnAckHtml = sudahSip
+            ? '<button type="button" class="btn-notif-ack-sip" disabled>✓ Sip</button>'
+            : '<button type="button" class="btn-notif-ack-oke" onclick="window.klikOkeSatuNotifikasi(\'' + safeId + '\', this)">Oke</button>';
+
+        html +=
+            '<div style="background:white; border:2px solid ' + (sudahSip ? '#e2e8f0' : '#f39c12') + '; border-left:5px solid ' + (sudahSip ? '#94a3b8' : '#e67e22') + '; border-radius:12px; padding:14px 16px; display:flex; justify-content:space-between; align-items:center; gap:14px; box-shadow:0 4px 12px rgba(0,0,0,0.04);">' +
+                '<div style="flex:1; min-width:0;">' +
+                    '<div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:4px;">' +
+                        '<span style="background:#eaf2f8; color:#2980b9; font-size:10px; font-weight:800; padding:2px 8px; border-radius:10px;">' + labelTarget + '</span>' +
+                        '<span style="font-size:11px; color:#94a3b8; font-weight:600;">' + (n.waktu || n.tanggal || "") + '</span>' +
+                    '</div>' +
+                    '<h4 style="margin:0 0 6px 0; color:#0b3954; font-size:15px;">' + (n.judul || "Pengumuman") + '</h4>' +
+                    '<div style="font-size:13px; color:#334155; line-height:1.5; word-break:break-word;">' + (n.html || n.isi || "") + '</div>' +
+                '</div>' +
+                '<div style="flex-shrink:0;">' +
+                    btnAckHtml +
+                '</div>' +
+            '</div>';
+    });
+
+    cont.innerHTML = html;
+};
+
+// Pastikan Dropdown Target Penerima Menyertakan Angkatan X, XI, XII SETELAH fungsi bawaan selesai
+window.isiOpsiTargetNotifAdminLengkap = function() {
+    let sel = document.getElementById("notif-admin-target-kelas");
+    if (!sel) return;
+    let prev = sel.value || "Semua";
+
+    let html =
+        '<option value="Semua">📢 Semua Kelas & Angkatan</option>' +
+        '<option value="ANGKATAN_X">🎓 Angkatan Kelas X (Semua Kelas X)</option>' +
+        '<option value="ANGKATAN_XI">🎓 Angkatan Kelas XI (Semua Kelas XI)</option>' +
+        '<option value="ANGKATAN_XII">🎓 Angkatan Kelas XII (Semua Kelas XII)</option>';
+
+    Object.keys(window.adminData || {}).sort().forEach(function(kls) {
+        let labelBersih = kls.replace(/^kelas\s+/i, "");
+        html += '<option value="' + kls + '">🏫 Kelas ' + labelBersih + '</option>';
+    });
+
+    sel.innerHTML = html;
+    if (prev) sel.value = prev;
+};
+
+// Pastikan saat guru menerbitkan notifikasi, properti target, kelas, dan targetKelas tersimpan seragam
+window.kirimNotifikasiAdminKeSiswa = function() {
+    let selTarget = document.getElementById("notif-admin-target-kelas");
+    let inpJudul = document.getElementById("notif-admin-judul");
+    let editor = document.getElementById("notif-admin-editor");
+    if (!selTarget || !inpJudul || !editor) return;
+
+    let targetVal = selTarget.value || "Semua";
+    let judulVal = inpJudul.value.trim();
+    let htmlVal = editor.innerHTML.trim();
+
+    if (!judulVal) return window.tampilkanCustomDialog("alert", "⚠️ Judul notifikasi wajib diisi!", null, null);
+
+    let now = new Date();
+    let waktuStr = String(now.getDate()).padStart(2, "0") + "/" + String(now.getMonth() + 1).padStart(2, "0") + "/" + now.getFullYear() + " " + String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0");
+
+    if (!Array.isArray(window.adminNotifikasiData)) {
+        window.adminNotifikasiData = Object.values(window.adminNotifikasiData || {});
+    }
+
+    window.adminNotifikasiData.push({
+        id: "notif_" + Date.now(),
+        target: targetVal,
+        kelas: targetVal,
+        targetKelas: targetVal,
+        judul: judulVal,
+        html: htmlVal,
+        isi: htmlVal,
+        waktu: waktuStr
+    });
+
+    inpJudul.value = "";
+    editor.innerHTML = "";
+
+    if (typeof window.simpanNotifikasiAdminKeDB === "function") window.simpanNotifikasiAdminKeDB();
+    if (typeof window.renderDaftarNotifAdmin === "function") window.renderDaftarNotifAdmin();
+    window.tampilkanCustomDialog("alert", "✅ Notifikasi berhasil diterbitkan untuk: " + targetVal, null, null);
+};
+
+if (!window._baseRenderDaftarNotifAdmin) {
+    window._baseRenderDaftarNotifAdmin = window.renderDaftarNotifAdmin;
+}
+window.renderDaftarNotifAdmin = function() {
+    if (window._baseRenderDaftarNotifAdmin) window._baseRenderDaftarNotifAdmin();
+    window.isiOpsiTargetNotifAdminLengkap(); // Dipanggil SETELAH fungsi dasar agar opsi Angkatan X-XII tidak tertimpa!
+    window.perbaruiSinarTombolNotifikasi();
+};
+
+if (!window._baseHitungBadgeNotif) {
+    window._baseHitungBadgeNotif = window.hitungDanUpdateBadgeNotifikasi;
+}
+window.hitungDanUpdateBadgeNotifikasi = function() {
+    if (window._baseHitungBadgeNotif) window._baseHitungBadgeNotif();
+    window.perbaruiSinarTombolNotifikasi();
+};
+
+// Override Modal Notifikasi Siswa agar Menampilkan Tombol "Oke" -> "Sip" di Samping Tiap Notifikasi
+window.bukaModalNotifikasiSiswa = function() {
+    window.bukaModal("modal-notifikasi-siswa");
+    let cont = document.getElementById("list-notifikasi-siswa-container");
+    if (!cont) return;
+
+    let daftar = window.ambilDaftarNotifSiswaAktif().slice().reverse();
+    if (daftar.length === 0) {
+        cont.innerHTML = '<div style="text-align:center; padding:30px; color:#64748b; font-weight:700;">🔔 Belum ada pengumuman atau tugas baru untuk kelasmu.</div>';
+        window.perbaruiSinarTombolNotifikasi();
+        return;
+    }
+
+    let labelTargetMap = {
+        "Semua": "🌍 Semua Kelas & Angkatan",
+        "ANGKATAN_X": "🎓 Angkatan Kelas X",
+        "ANGKATAN_XI": "🎓 Angkatan Kelas XI",
+        "ANGKATAN_XII": "🎓 Angkatan Kelas XII"
+    };
+
+    let html = "";
+    daftar.forEach(function(n, idx) {
+        let nId = n.id || ("notif_idx_" + idx);
+        let sudahSip = window.ackNotifSesiIni.has(nId);
+        let labelTarget = labelTargetMap[n.targetKelas] || ("🏫 Kelas " + (n.targetKelas || "Semua"));
+        let safeId = String(nId).replace(/'/g, "\\'");
+
+        let btnAckHtml = sudahSip
+            ? '<button type="button" class="btn-notif-ack-sip" disabled>✓ Sip</button>'
+            : '<button type="button" class="btn-notif-ack-oke" onclick="window.klikOkeSatuNotifikasi(\'' + safeId + '\', this)">Oke</button>';
+
+        html +=
+            '<div style="background:white; border:2px solid ' + (sudahSip ? '#e2e8f0' : '#f39c12') + '; border-left:5px solid ' + (sudahSip ? '#94a3b8' : '#e67e22') + '; border-radius:12px; padding:14px 16px; display:flex; justify-content:space-between; align-items:center; gap:14px; box-shadow:0 4px 12px rgba(0,0,0,0.04);">' +
+                '<div style="flex:1; min-width:0;">' +
+                    '<div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:4px;">' +
+                        '<span style="background:#eaf2f8; color:#2980b9; font-size:10px; font-weight:800; padding:2px 8px; border-radius:10px;">' + labelTarget + '</span>' +
+                        '<span style="font-size:11px; color:#94a3b8; font-weight:600;">' + (n.waktu || "") + '</span>' +
+                    '</div>' +
+                    '<h4 style="margin:0 0 6px 0; color:#0b3954; font-size:15px;">' + (n.judul || "Pengumuman") + '</h4>' +
+                    '<div style="font-size:13px; color:#334155; line-height:1.5; word-break:break-word;">' + (n.html || n.isi || "") + '</div>' +
+                '</div>' +
+                '<div style="flex-shrink:0;">' +
+                    btnAckHtml +
+                '</div>' +
+            '</div>';
+    });
+
+    cont.innerHTML = html;
+};
+
+// Pastikan Dropdown Target Penerima di Ruang Administrasi Memiliki Opsi Angkatan Kelas X, XI, dan XII
+window.isiOpsiTargetNotifAdminLengkap = function() {
+    let sel = document.getElementById("notif-admin-target-kelas");
+    if (!sel) return;
+    let prev = sel.value || "Semua";
+
+    let html =
+        '<option value="Semua">🌍 Semua Kelas & Angkatan</option>' +
+        '<option value="ANGKATAN_X">🎓 Angkatan Kelas X (Semua Kelas X)</option>' +
+        '<option value="ANGKATAN_XI">🎓 Angkatan Kelas XI (Semua Kelas XI)</option>' +
+        '<option value="ANGKATAN_XII">🎓 Angkatan Kelas XII (Semua Kelas XII)</option>';
+
+    Object.keys(window.adminData || {}).sort().forEach(function(kls) {
+        html += '<option value="' + kls + '">🏫 Kelas ' + kls + '</option>';
+    });
+
+    sel.innerHTML = html;
+    if (prev) sel.value = prev;
+};
+
+if (!window._baseRenderDaftarNotifAdmin) {
+    window._baseRenderDaftarNotifAdmin = window.renderDaftarNotifAdmin;
+}
+window.renderDaftarNotifAdmin = function() {
+    window.isiOpsiTargetNotifAdminLengkap();
+    if (window._baseRenderDaftarNotifAdmin) window._baseRenderDaftarNotifAdmin();
+    window.perbaruiSinarTombolNotifikasi();
+};
+
+if (!window._baseHitungBadgeNotif) {
+    window._baseHitungBadgeNotif = window.hitungDanUpdateBadgeNotifikasi;
+}
+window.hitungDanUpdateBadgeNotifikasi = function() {
+    if (window._baseHitungBadgeNotif) window._baseHitungBadgeNotif();
+    window.perbaruiSinarTombolNotifikasi();
+};
+
+setInterval(function() {
+    window.perbaruiSinarTombolNotifikasi();
+}, 3000);

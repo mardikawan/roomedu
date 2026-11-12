@@ -751,31 +751,7 @@ window.simpanNotifikasiAdminKeDB = function() {
     });
 };
 
-// 6. Tarik Data Absensi Siswa
-onValue(ref(db, basePath + '/admin_absensi'), function(snap) {
-    window.adminAbsensiData = snap.exists() ? snap.val() : {};
-    if (typeof window.renderAbsensiAdmin === "function" && document.getElementById('modal-administrasi') && document.getElementById('modal-administrasi').style.display === 'flex') {
-        window.renderAbsensiAdmin();
-    }
-});
-
-// 7. Tarik Data Agenda Mengajar
-onValue(ref(db, basePath + '/admin_agenda'), function(snap) {
-    window.adminAgendaData = snap.exists() ? snap.val() : {};
-    if (typeof window.renderAgendaAdmin === "function" && document.getElementById('modal-administrasi') && document.getElementById('modal-administrasi').style.display === 'flex') {
-        window.renderAgendaAdmin();
-    }
-});
-
-// 8. Tarik Data Bank Ujian
-onValue(ref(db, basePath + '/admin_bank_ujian'), function(snap) {
-    window.adminBankUjianData = snap.exists() ? snap.val() : {};
-    if (typeof window.renderManajerUjian === "function" && document.getElementById('modal-manajer-ujian') && document.getElementById('modal-manajer-ujian').style.display === 'flex') {
-        window.renderManajerUjian();
-    }
-});
-
-// 9. Tarik Data Ujian yang Sedang Aktif
+// 9. Tarik Data Ujian yang Sedang Aktif (Ringan & Dibutuhkan Siswa/Guru)
 onValue(ref(db, basePath + '/admin_ujian_aktif'), function(snap) {
     window.adminUjianAktifData = snap.exists() ? snap.val() : {};
     if (typeof window.renderKontrolUjian === "function" && document.getElementById('modal-manajer-ujian') && document.getElementById('modal-manajer-ujian').style.display === 'flex') {
@@ -783,32 +759,91 @@ onValue(ref(db, basePath + '/admin_ujian_aktif'), function(snap) {
     }
 });
 
-// 10. Tarik Data Rekap Nilai Ujian & Ledger
-onValue(ref(db, basePath + '/admin_rekap_nilai'), function(snap) {
-    window.adminRekapNilaiData = snap.exists() ? snap.val() : {};
-    let modalRN = document.getElementById('modal-rekap-nilai');
-    if (modalRN && modalRN.style.display === 'flex') {
-        if (typeof window.renderDropdownRekap === "function") window.renderDropdownRekap();
-        if (typeof window.renderRekapNilai === "function") window.renderRekapNilai();
-    }
-    let modalAdm = document.getElementById('modal-administrasi');
-    if (modalAdm && modalAdm.style.display === 'flex') {
-        if (typeof window.renderLedgerSiswa === "function") window.renderLedgerSiswa();
-        if (typeof window.renderRemedialTabAdmin === "function") window.renderRemedialTabAdmin();
-    }
-});
+// MESIN ON-DEMAND LISTENER DATA BERAT (MENCEGAH LAG SAAT AWAL BUKA WEB)
+window._heavyListenersAttached = {
+    bankUjian: false,
+    adminBerat: false
+};
 
-// 11. Tarik Data Live Monitor
-onValue(ref(db, basePath + '/admin_live_monitor'), function(snap) {
-    window.adminLiveMonitorData = snap.exists() ? snap.val() : {};
-    if (typeof window.perbaruiBadgeNotifMonitor === "function") window.perbaruiBadgeNotifMonitor();
+// Tarik Bank Ujian hanya saat masuk ruang ujian atau saat Admin membuka Manajer Ujian
+window.pastikanListenerBankUjianAktif = function() {
+    if (window._heavyListenersAttached.bankUjian) return;
+    window._heavyListenersAttached.bankUjian = true;
 
-    let modalMU = document.getElementById('modal-manajer-ujian');
-    let isMonitorOpen = (modalMU && modalMU.style.display === 'flex' && document.getElementById('tab-ujian-monitor') && document.getElementById('tab-ujian-monitor').style.display !== 'none');
-    if (isMonitorOpen && typeof window.renderIsiLiveMonitor === "function") {
-        window.renderIsiLiveMonitor();
-    }
-});
+    onValue(ref(db, basePath + '/admin_bank_ujian'), function(snap) {
+        window.adminBankUjianData = snap.exists() ? snap.val() : {};
+        if (typeof window.renderManajerUjian === "function" && document.getElementById('modal-manajer-ujian') && document.getElementById('modal-manajer-ujian').style.display === 'flex') {
+            window.renderManajerUjian();
+        }
+    });
+};
+
+// Tarik Data Administrasi Berat (Absensi, Agenda, Rekap Nilai, Live Monitor) khusus untuk Admin / Saat Modal Dibuka
+window.pastikanListenerAdminBeratAktif = function() {
+    window.pastikanListenerBankUjianAktif();
+    if (window._heavyListenersAttached.adminBerat) return;
+    window._heavyListenersAttached.adminBerat = true;
+
+    onValue(ref(db, basePath + '/admin_absensi'), function(snap) {
+        window.adminAbsensiData = snap.exists() ? snap.val() : {};
+        if (typeof window.renderAbsensiAdmin === "function" && document.getElementById('modal-administrasi') && document.getElementById('modal-administrasi').style.display === 'flex') {
+            window.renderAbsensiAdmin();
+        }
+    });
+
+    onValue(ref(db, basePath + '/admin_agenda'), function(snap) {
+        window.adminAgendaData = snap.exists() ? snap.val() : {};
+        if (typeof window.renderAgendaAdmin === "function" && document.getElementById('modal-administrasi') && document.getElementById('modal-administrasi').style.display === 'flex') {
+            window.renderAgendaAdmin();
+        }
+    });
+
+    onValue(ref(db, basePath + '/admin_rekap_nilai'), function(snap) {
+        window.adminRekapNilaiData = snap.exists() ? snap.val() : {};
+        let modalRN = document.getElementById('modal-rekap-nilai');
+        if (modalRN && modalRN.style.display === 'flex') {
+            if (typeof window.renderDropdownRekap === "function") window.renderDropdownRekap();
+            if (typeof window.renderRekapNilai === "function") window.renderRekapNilai();
+        }
+        let modalAdm = document.getElementById('modal-administrasi');
+        if (modalAdm && modalAdm.style.display === 'flex') {
+            if (typeof window.renderLedgerSiswa === "function") window.renderLedgerSiswa();
+            if (typeof window.renderRemedialTabAdmin === "function") window.renderRemedialTabAdmin();
+        }
+        let modalPS = document.getElementById('modal-perkembangan-siswa');
+        if (modalPS && modalPS.style.display === 'flex' && typeof window.renderTabelKognitifAdmin === "function") {
+            window.muatFilterKognitifAdmin();
+            window.renderTabelKognitifAdmin();
+        }
+    });
+
+    onValue(ref(db, basePath + '/admin_live_monitor'), function(snap) {
+        window.adminLiveMonitorData = snap.exists() ? snap.val() : {};
+        if (typeof window.perbaruiBadgeNotifMonitor === "function") window.perbaruiBadgeNotifMonitor();
+
+        let modalMU = document.getElementById('modal-manajer-ujian');
+        let isMonitorOpen = (modalMU && modalMU.style.display === 'flex' && document.getElementById('tab-ujian-monitor') && document.getElementById('tab-ujian-monitor').style.display !== 'none');
+        if (isMonitorOpen && typeof window.renderIsiLiveMonitor === "function") {
+            window.renderIsiLiveMonitor();
+        }
+    });
+};
+
+// Jika yang login adalah Admin, tunda penarikan data berat selama 2.5 detik agar halaman utama terbuka instan lebih dulu
+if (sessionStorage.getItem("statusLogin") === "admin") {
+    setTimeout(function() {
+        window.pastikanListenerAdminBeratAktif();
+    }, 2500);
+}
+
+// Aktifkan otomatis tepat saat tombol Ujian atau menu Admin diklik
+document.addEventListener('click', function(e) {
+    let t = e.target.closest('[onclick*="modal-enter-ujian"], [onclick*="bukaModalMasukUjianSiswa"]');
+    if (t) window.pastikanListenerBankUjianAktif();
+
+    let adm = e.target.closest('#admin-menu-bar span, [onclick*="modal-rekap-nilai"], [onclick*="modal-manajer-ujian"], [onclick*="bukaModalAdministrasi"], [onclick*="bukaModalPerkembanganSiswa"]');
+    if (adm) window.pastikanListenerAdminBeratAktif();
+}, true);
 
 // Fungsi Kirim Status Siswa ke Live Monitor (Mulai, Melanggar, Selesai)
 window.simpanStatusLiveMonitorKeDB = function(paket, kelas, nama, payload) {

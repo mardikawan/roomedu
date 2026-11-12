@@ -1,0 +1,260 @@
+```html
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modul Interaktif Terpadu</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&family=Quicksand:wght@500;700&display=swap');
+        
+        body { font-family: 'Quicksand', sans-serif; }
+        .font-poppins { font-family: 'Poppins', sans-serif; }
+        
+        /* State Visual Interaktif Global */
+        .part-highlight {
+            filter: drop-shadow(0 0 8px rgba(52, 152, 219, 0.8));
+            stroke: #3498db !important;
+            stroke-width: 4px !important;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            z-index: 10;
+        }
+        
+        .part-dim { opacity: 0.3; transition: all 0.3s ease; }
+        .part-normal { transition: all 0.3s ease; cursor: pointer; }
+        .part-normal:hover { filter: drop-shadow(0 0 5px rgba(0,0,0,0.3)); opacity: 0.9; }
+
+        /* Pustaka Animasi Global (Bisa dipakai oleh berbagai materi) */
+        .anim-grow-up { transform-origin: center bottom; animation: growUp 3s ease-in-out forwards; }
+        .anim-grow-down { transform-origin: center top; animation: growDown 3s ease-in-out forwards; }
+        .anim-pulse { animation: pulseHeart 1.5s infinite; }
+
+        @keyframes growUp {
+            0% { transform: scaleY(1) translateY(0); }
+            100% { transform: scaleY(1.8) translateY(-15px); fill: #16a34a; }
+        }
+        @keyframes growDown {
+            0% { transform: scaleY(1) translateY(0); }
+            100% { transform: scaleY(1.5) translateY(15px); fill: #e2e8f0; }
+        }
+        @keyframes pulseHeart {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen p-4 md:p-8 flex flex-col items-center">
+
+    <!-- Header Materi Dinamis -->
+    <div class="max-w-4xl w-full bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-6 text-center">
+        <span id="ui-kategori" class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">Memuat...</span>
+        <h1 id="ui-judul" class="text-2xl md:text-3xl font-extrabold text-slate-800 mt-4 mb-2 font-poppins">Memuat Materi...</h1>
+        <p id="ui-instruksi" class="text-slate-500 text-sm md:text-base">Silakan tunggu sebentar.</p>
+    </div>
+
+    <!-- Panggung SVG (Visualisasi) Dinamis -->
+    <div id="ui-canvas-container" class="max-w-4xl w-full grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <!-- SVG dan Konten akan di-inject di sini oleh JavaScript -->
+    </div>
+
+    <!-- Info Panel Dinamis -->
+    <div class="max-w-4xl w-full bg-slate-800 text-white rounded-xl shadow-lg p-6 border-l-4 border-blue-500 min-h-[140px]">
+        <div id="info-title" class="text-xl font-bold font-poppins text-blue-300 mb-2">Pusat Informasi</div>
+        <p id="info-desc" class="text-slate-300 leading-relaxed text-sm md:text-base">Pilih bagian pada gambar untuk mempelajari fungsinya secara detail.</p>
+    </div>
+
+    <!-- ENGINE MATERI INTERAKTIF -->
+    <script>
+        /* =========================================================================
+           1. DATABASE MATERI (Tambahkan materi baru di dalam objek ini)
+           ========================================================================= */
+        const MateriDB = {
+            
+            // Materi 1: Struktur Biji
+            "struktur-biji": {
+                kategori: "Biologi Tumbuhan",
+                judul: "Struktur Biji Dikotil vs Monokotil",
+                instruksi: "Sentuh bagian biji untuk melihat fungsinya. Tekan tombol kontrol untuk simulasi pertumbuhan awal.",
+                infoBawaan: {
+                    judul: "Pusat Informasi Anatomi",
+                    desc: "Silakan klik atau sentuh salah satu bagian biji pada ilustrasi di atas untuk mempelajari anatomi dan fungsinya secara detail."
+                },
+                parts: {
+                    'testa': { judul: 'Kulit Biji (Testa / Perikarp)', desc: 'Melindungi jaringan internal biji dari kerusakan mekanis, serangan patogen, dan kekeringan. Pada jagung (monokotil), kulit biji menyatu dengan perikarp.' },
+                    'kotiledon': { judul: 'Kotiledon / Skutelum', desc: 'Pada dikotil membelah menjadi dua keping penyimpan cadangan makanan utama. Pada monokotil (Skutelum), bertugas menyerap nutrisi dari endosperma untuk embrio.' },
+                    'endosperma': { judul: 'Endosperma', desc: 'Jaringan penyimpan cadangan makanan utama (pati) pada biji monokotil untuk mensuplai energi saat perkecambahan.' },
+                    'plumula': { judul: 'Plumula (Pucuk Lembaga)', desc: 'Bagian embrio yang akan tumbuh dan berkembang menjadi tunas, batang, dan daun sejati.' },
+                    'radikula': { judul: 'Radikula (Akar Lembaga)', desc: 'Bagian embrio yang akan tumbuh pertama kali menembus kulit biji untuk menjadi akar primer.' },
+                    'hipokotil': { judul: 'Hipokotil & Epikotil', desc: 'Sumbu embrio (batang lembaga). Batas pertumbuhan poros akar dan poros pucuk daun.' }
+                },
+                // Desain Canvas HTML (Bisa 1 kolom, 2 kolom, dsb)
+                canvasHTML: `
+                    <!-- Kiri: Dikotil -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col items-center">
+                        <h2 class="text-xl font-bold text-emerald-600 mb-4 font-poppins">Dikotil (Kacang)</h2>
+                        <div class="w-full max-w-[280px] aspect-square relative">
+                            <svg viewBox="0 0 200 200" class="w-full h-full drop-shadow-md">
+                                <g>
+                                    <path class="part-normal svg-part" data-part="testa" d="M100,15 C40,15 15,90 35,150 C55,185 85,190 100,180 C115,190 145,185 165,150 C185,90 160,15 100,15 Z" fill="#b45309" stroke="#78350f" stroke-width="2"/>
+                                    <path class="part-normal svg-part" data-part="kotiledon" d="M98,20 C45,20 25,90 42,145 C58,175 82,180 98,172 Z M102,20 C155,20 175,90 158,145 C142,175 118,180 102,172 Z" fill="#fef08a" stroke="#ca8a04" stroke-width="1.5"/>
+                                    <path id="dikotil-plumula" class="part-normal svg-part" data-part="plumula" d="M100,75 C85,60 90,40 100,35 C110,40 115,60 100,75 Z" fill="#4ade80" stroke="#16a34a" stroke-width="1.5"/>
+                                    <path class="part-normal svg-part" data-part="hipokotil" d="M95,75 Q100,100 96,125 Q100,125 104,125 Q100,100 105,75 Z" fill="#dcfce7" stroke="#86efac" stroke-width="1"/>
+                                    <path id="dikotil-radikula" class="part-normal svg-part" data-part="radikula" d="M96,125 Q92,150 90,165 Q100,175 110,165 Q108,150 104,125 Z" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+                                </g>
+                            </svg>
+                        </div>
+                        <button onclick="Engine.jalankanAnimasi('kecambah-dikotil')" class="mt-4 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 font-bold py-2 px-6 rounded-full transition text-sm">🌱 Simulasi Kecambah</button>
+                    </div>
+                    <!-- Kanan: Monokotil -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col items-center">
+                        <h2 class="text-xl font-bold text-amber-500 mb-4 font-poppins">Monokotil (Jagung)</h2>
+                        <div class="w-full max-w-[280px] aspect-square relative">
+                            <svg viewBox="0 0 200 200" class="w-full h-full drop-shadow-md">
+                                <g>
+                                    <path class="part-normal svg-part" data-part="testa" d="M100,10 C50,15 35,70 40,140 Q45,185 100,190 Q155,185 160,140 C165,70 150,15 100,10 Z" fill="#d97706" stroke="#92400e" stroke-width="2"/>
+                                    <path class="part-normal svg-part" data-part="endosperma" d="M98,15 C55,20 42,70 46,130 Q70,120 100,135 Q130,120 154,130 C158,70 145,20 102,15 Z" fill="#facc15" stroke="#ca8a04" stroke-width="1.5"/>
+                                    <path class="part-normal svg-part" data-part="kotiledon" d="M46,130 Q70,120 100,135 Q130,120 154,130 C150,170 130,185 100,185 C70,185 50,170 46,130 Z" fill="#fef08a" stroke="#eab308" stroke-width="1"/>
+                                    <path id="monokotil-plumula" class="part-normal svg-part" data-part="plumula" d="M90,140 Q100,110 110,140 Z" fill="#4ade80" stroke="#16a34a" stroke-width="1.5"/>
+                                    <rect class="part-normal svg-part" data-part="hipokotil" x="94" y="140" width="12" height="15" fill="#dcfce7"/>
+                                    <path id="monokotil-radikula" class="part-normal svg-part" data-part="radikula" d="M92,155 Q100,180 108,155 Z" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+                                </g>
+                            </svg>
+                        </div>
+                        <button onclick="Engine.jalankanAnimasi('kecambah-monokotil')" class="mt-4 bg-amber-100 text-amber-700 hover:bg-amber-200 font-bold py-2 px-6 rounded-full transition text-sm">🌽 Simulasi Kecambah</button>
+                    </div>
+                `,
+                // Pustaka Animasi Khusus Materi Ini
+                actions: {
+                    'kecambah-dikotil': function() {
+                        const plumula = document.getElementById('dikotil-plumula');
+                        const radikula = document.getElementById('dikotil-radikula');
+                        plumula.classList.remove('anim-grow-up'); radikula.classList.remove('anim-grow-down');
+                        void plumula.offsetWidth; // trigger reflow
+                        plumula.classList.add('anim-grow-up'); radikula.classList.add('anim-grow-down');
+                        Engine.updateInfo('🌱 Proses Germinasi Dikotil', 'Air mengaktifkan enzim untuk memecah cadangan makanan pada kotiledon. Radikula menembus kulit ke bawah, Plumula tumbuh ke atas.');
+                    },
+                    'kecambah-monokotil': function() {
+                        const plumula = document.getElementById('monokotil-plumula');
+                        const radikula = document.getElementById('monokotil-radikula');
+                        plumula.classList.remove('anim-grow-up'); radikula.classList.remove('anim-grow-down');
+                        void plumula.offsetWidth;
+                        plumula.classList.add('anim-grow-up'); radikula.classList.add('anim-grow-down');
+                        Engine.updateInfo('🌽 Proses Germinasi Monokotil', 'Skutelum menyerap pati dari Endosperma. Radikula menembus koleoriza ke arah bawah, sementara plumula dilindungi koleoptil tumbuh menembus tanah.');
+                    }
+                }
+            },
+            
+            // Template Kosong untuk Materi 2 (Contoh Struktur Sel, Sistem Jantung, dsb)
+            // "sel-hewan": { ... }
+
+        };
+
+        /* =========================================================================
+           2. SISTEM PENGGERAK UTAMA (Engine)
+           ========================================================================= */
+        const Engine = {
+            currentModule: null,
+            
+            init: function() {
+                // Tarik parameter dari URL (misal: materi-interaktif.html?id=struktur-biji)
+                const urlParams = new URLSearchParams(window.location.search);
+                const materiId = urlParams.get('id') || 'struktur-biji'; // Default ke struktur-biji
+                this.loadMateri(materiId);
+            },
+
+            loadMateri: function(materiId) {
+                const data = MateriDB[materiId];
+                if (!data) {
+                    document.getElementById('ui-judul').innerText = "Materi Tidak Ditemukan";
+                    document.getElementById('ui-instruksi').innerText = "Pastikan tautan parameter URL (?id=...) sudah benar.";
+                    return;
+                }
+
+                this.currentModule = data;
+                
+                // Render UI Teks
+                document.getElementById('ui-kategori').innerText = data.kategori;
+                document.getElementById('ui-judul').innerText = data.judul;
+                document.getElementById('ui-instruksi').innerHTML = data.instruksi;
+                
+                // Render Canvas SVG
+                const canvas = document.getElementById('ui-canvas-container');
+                canvas.innerHTML = data.canvasHTML;
+                
+                // Sesuaikan grid kolom otomatis jika hanya 1 canvas
+                if (canvas.children.length === 1) {
+                    canvas.classList.remove('md:grid-cols-2');
+                    canvas.classList.add('justify-items-center');
+                }
+
+                // Reset Panel Info Bawaan
+                this.resetInfo();
+                this.bindInteractions();
+            },
+
+            bindInteractions: function() {
+                const parts = document.querySelectorAll('.svg-part');
+                parts.forEach(part => {
+                    part.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        // Redupkan semua part
+                        parts.forEach(p => {
+                            p.classList.remove('part-highlight');
+                            p.classList.add('part-dim');
+                        });
+                        
+                        // Sorot (Highlight) part yang sama persis berdasarkan data-part
+                        const targetType = part.getAttribute('data-part');
+                        document.querySelectorAll(`[data-part="${targetType}"]`).forEach(p => {
+                            p.classList.remove('part-dim');
+                            p.classList.add('part-highlight');
+                        });
+
+                        // Tarik info dari database modul aktif
+                        if(this.currentModule.parts[targetType]) {
+                            this.updateInfo(
+                                this.currentModule.parts[targetType].judul,
+                                this.currentModule.parts[targetType].desc
+                            );
+                        }
+                    });
+                });
+
+                // Reset ketika klik di luar (body)
+                document.body.addEventListener('click', () => {
+                    parts.forEach(p => p.classList.remove('part-highlight', 'part-dim'));
+                    this.resetInfo();
+                });
+            },
+
+            updateInfo: function(title, desc) {
+                document.getElementById('info-title').innerHTML = title;
+                document.getElementById('info-desc').innerHTML = desc;
+            },
+
+            resetInfo: function() {
+                if(this.currentModule && this.currentModule.infoBawaan) {
+                    this.updateInfo(this.currentModule.infoBawaan.judul, this.currentModule.infoBawaan.desc);
+                } else {
+                    this.updateInfo("Pusat Informasi", "Pilih elemen di atas untuk melihat detail.");
+                }
+            },
+
+            jalankanAnimasi: function(actionId) {
+                event.stopPropagation(); // Mencegah reset panel info ter-trigger
+                if(this.currentModule && this.currentModule.actions && this.currentModule.actions[actionId]) {
+                    this.currentModule.actions[actionId]();
+                }
+            }
+        };
+
+        // Jalankan aplikasi saat file selesai dimuat
+        document.addEventListener('DOMContentLoaded', () => Engine.init());
+
+    </script>
+</body>
+</html>
+
+```

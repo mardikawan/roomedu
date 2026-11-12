@@ -7,107 +7,170 @@
 
 window.MY_PET_CATALOG = {
     pets: [
-        { id: "kadal",   namaDefault: "Gecko",  spesies: "Kadal",   zona: "land",  rarity: "Common",    harga: 1200,  scale: 0.72, favSnack: "snack_kadal",   warnaRarity: "#64748b", bgRarity: "#f1f5f9" },
-        { id: "kucing",  namaDefault: "Mochi",  spesies: "Kucing",  zona: "land",  rarity: "Common",    harga: 1600,  scale: 0.82, favSnack: "snack_kucing",  warnaRarity: "#64748b", bgRarity: "#f1f5f9" },
-        { id: "anjing",  namaDefault: "Bobi",   spesies: "Anjing",  zona: "land",  rarity: "Common",    harga: 1800,  scale: 0.86, favSnack: "snack_anjing",  warnaRarity: "#64748b", bgRarity: "#f1f5f9" },
-        { id: "ikan",    namaDefault: "Nemo",   spesies: "Ikan",    zona: "water", rarity: "Uncommon",  harga: 3200,  scale: 0.78, favSnack: "snack_ikan",    warnaRarity: "#0284c7", bgRarity: "#e0f2fe" },
-        { id: "monyet",  namaDefault: "Koko",   spesies: "Monyet",  zona: "land",  rarity: "Uncommon",  harga: 4000,  scale: 0.84, favSnack: "snack_monyet",  warnaRarity: "#16a34a", bgRarity: "#dcfce7" },
-        { id: "buaya",   namaDefault: "Croco",  spesies: "Buaya",   zona: "water", rarity: "Rare",      harga: 5800,  scale: 0.94, favSnack: "snack_buaya",   warnaRarity: "#059669", bgRarity: "#d1fae5" },
-        { id: "beruang", namaDefault: "Bubu",   spesies: "Beruang", zona: "land",  rarity: "Rare",      harga: 6500,  scale: 0.98, favSnack: "snack_beruang", warnaRarity: "#2563eb", bgRarity: "#dbeafe" },
-        { id: "gajah",   namaDefault: "Dumbo",  spesies: "Gajah",   zona: "land",  rarity: "Epic",      harga: 9000,  scale: 1.12, favSnack: "snack_gajah",   warnaRarity: "#9333ea", bgRarity: "#f3e8ff" },
-        { id: "naga",    namaDefault: "Ember",  spesies: "Naga",    zona: "land",  rarity: "Legendary", harga: 14000, scale: 1.05, favSnack: "snack_naga",    warnaRarity: "#d97706", bgRarity: "#fef3c7" }
+        { id: "kadal",    namaDefault: "Gecko",     spesies: "Kadal",      zona: "land",  rarity: "Common",    harga: 12000,   scale: 0.72, favSnack: "snack_kadal",    warnaRarity: "#64748b", bgRarity: "#f1f5f9" },
+        { id: "kucing",   namaDefault: "Mochi",     spesies: "Kucing",     zona: "land",  rarity: "Common",    harga: 16000,   scale: 0.82, favSnack: "snack_kucing",   warnaRarity: "#64748b", bgRarity: "#f1f5f9" },
+        { id: "anjing",   namaDefault: "Bobi",      spesies: "Anjing",     zona: "land",  rarity: "Common",    harga: 18000,   scale: 0.86, favSnack: "snack_anjing",   warnaRarity: "#64748b", bgRarity: "#f1f5f9" },
+        { id: "ikan",     namaDefault: "Nemo",      spesies: "Ikan",       zona: "water", rarity: "Uncommon",  harga: 32000,   scale: 0.78, favSnack: "snack_ikan",     warnaRarity: "#0284c7", bgRarity: "#e0f2fe" },
+        { id: "monyet",   namaDefault: "Koko",      spesies: "Monyet",     zona: "land",  rarity: "Uncommon",  harga: 40000,   scale: 0.84, favSnack: "snack_monyet",   warnaRarity: "#16a34a", bgRarity: "#dcfce7" },
+        { id: "buaya",    namaDefault: "Croco",     spesies: "Buaya",      zona: "water", rarity: "Rare",      harga: 58000,   scale: 0.94, favSnack: "snack_buaya",    warnaRarity: "#059669", bgRarity: "#d1fae5" },
+        { id: "beruang",  namaDefault: "Bubu",      spesies: "Beruang",    zona: "land",  rarity: "Rare",      harga: 65000,   scale: 0.98, favSnack: "snack_beruang",  warnaRarity: "#2563eb", bgRarity: "#dbeafe" },
+        { id: "gajah",    namaDefault: "Dumbo",     spesies: "Gajah",      zona: "land",  rarity: "Epic",      harga: 90000,   scale: 1.08, favSnack: "snack_gajah",    warnaRarity: "#9333ea", bgRarity: "#f3e8ff" },
+        { id: "naga",     namaDefault: "Ember",     spesies: "Naga",       zona: "land",  rarity: "Legendary", harga: 140000,  scale: 1.05, favSnack: "snack_naga",     warnaRarity: "#d97706", bgRarity: "#fef3c7" },
+        { id: "kecoa",    namaDefault: "Oggy",      spesies: "Kecoa",      zona: "land",  rarity: "Common",    harga: 5000,    scale: 0.62, favSnack: "snack_kecoa",    warnaRarity: "#64748b", bgRarity: "#f1f5f9" },
+        { id: "tikus",    namaDefault: "Jerry",     spesies: "Tikus",      zona: "land",  rarity: "Common",    harga: 8000,    scale: 0.68, favSnack: "snack_tikus",    warnaRarity: "#64748b", bgRarity: "#f1f5f9" },
+        { id: "kelinci",  namaDefault: "Bugs",      spesies: "Kelinci",    zona: "land",  rarity: "Common",    harga: 15000,   scale: 0.80, favSnack: "snack_kelinci",  warnaRarity: "#64748b", bgRarity: "#f1f5f9" },
+        { id: "pipit",    namaDefault: "Pipi",      spesies: "Br. Pipit",  zona: "land",  rarity: "Uncommon",  harga: 25000,   scale: 0.54, favSnack: "snack_pipit",    warnaRarity: "#16a34a", bgRarity: "#dcfce7" },
+        { id: "ular",     namaDefault: "Slyther",   spesies: "Ular",       zona: "land",  rarity: "Rare",      harga: 60000,   scale: 0.88, favSnack: "snack_ular",     warnaRarity: "#2563eb", bgRarity: "#dbeafe" },
+        { id: "panda",    namaDefault: "Po",        spesies: "Panda",      zona: "land",  rarity: "Epic",      harga: 95000,   scale: 1.02, favSnack: "snack_panda",    warnaRarity: "#9333ea", bgRarity: "#f3e8ff" },
+        { id: "elang",    namaDefault: "Garuda",    spesies: "Elang",      zona: "land",  rarity: "Epic",      harga: 98000,   scale: 1.00, favSnack: "snack_elang",    warnaRarity: "#9333ea", bgRarity: "#f3e8ff" },
+        { id: "shibainu", namaDefault: "Doge",      spesies: "Shiba Inu",  zona: "land",  rarity: "Special",   harga: 500000,  scale: 0.90, favSnack: "snack_shibainu", warnaRarity: "#ec4899", bgRarity: "#fce7f3" },
+        { id: "merak_s",  namaDefault: "Pavo",      spesies: "Merak Biru", zona: "land",  rarity: "Special",   harga: 500000,  scale: 0.96, favSnack: "snack_merak_s",  warnaRarity: "#ec4899", bgRarity: "#fce7f3" },
+        { id: "merak_l",  namaDefault: "Lord Shen", spesies: "Merak Emas", zona: "land",  rarity: "Legendary", harga: 1000000, scale: 1.00, favSnack: "snack_merak_l",  warnaRarity: "#d97706", bgRarity: "#fef3c7" }
     ],
     foods: [
-        { id: "food_biscuit", nama: "Biskuit Pet",  kenyang: 15,  mood: 2,  tahan: "3 jam 45 menit",  harga: 20,  ikon: "🍪", tipe: "main" },
-        { id: "food_daily",   nama: "Pakan Harian", kenyang: 25,  mood: 4,  tahan: "6 jam 15 menit",  harga: 40,  ikon: "🥫", tipe: "main" },
-        { id: "food_fresh",   nama: "Fresh Meal",   kenyang: 40,  mood: 6,  tahan: "10 jam",          harga: 60,  ikon: "🥗", tipe: "main" },
-        { id: "food_nutri",   nama: "Nutri Bowl",   kenyang: 55,  mood: 8,  tahan: "13 jam 45 menit", harga: 80,  ikon: "🍲", tipe: "main" },
-        { id: "food_feast",   nama: "Hearty Feast", kenyang: 75,  mood: 12, tahan: "18 jam 45 menit", harga: 100, ikon: "🍗", tipe: "main" },
-        { id: "food_golden",  nama: "Golden Meal",  kenyang: 100, mood: 20, tahan: "25 jam",          harga: 120, ikon: "🍱", tipe: "main" }
+        { id: "food_biscuit", nama: "Biskuit Pet",  kenyang: 15,  mood: 2,  tahan: "3 jam 45 menit",  harga: 200,  ikon: "🍪", tipe: "main" },
+        { id: "food_daily",   nama: "Pakan Harian", kenyang: 25,  mood: 4,  tahan: "6 jam 15 menit",  harga: 400,  ikon: "🥫", tipe: "main" },
+        { id: "food_fresh",   nama: "Fresh Meal",   kenyang: 40,  mood: 6,  tahan: "10 jam",          harga: 600,  ikon: "🥗", tipe: "main" },
+        { id: "food_nutri",   nama: "Nutri Bowl",   kenyang: 55,  mood: 8,  tahan: "13 jam 45 menit", harga: 800,  ikon: "🍲", tipe: "main" },
+        { id: "food_feast",   nama: "Hearty Feast", kenyang: 75,  mood: 12, tahan: "18 jam 45 menit", harga: 1000, ikon: "🍗", tipe: "main" },
+        { id: "food_golden",  nama: "Golden Meal",  kenyang: 100, mood: 20, tahan: "25 jam",          harga: 1200, ikon: "🍱", tipe: "main" }
     ],
     snacks: [
-        { id: "snack_anjing",  nama: "Dog Biscuit",  favPet: "anjing",  favLabel: "Anjing",  kenyang: 5, mood: 10, harga: 25, ikon: "🦴", tipe: "snack" },
-        { id: "snack_kucing",  nama: "Fish Treat",   favPet: "kucing",  favLabel: "Kucing",  kenyang: 5, mood: 10, harga: 30, ikon: "🐟", tipe: "snack" },
-        { id: "snack_ikan",    nama: "Fish Flakes",  favPet: "ikan",    favLabel: "Ikan",    kenyang: 5, mood: 10, harga: 25, ikon: "🐠", tipe: "snack" },
-        { id: "snack_monyet",  nama: "Banana Snack", favPet: "monyet",  favLabel: "Monyet",  kenyang: 5, mood: 10, harga: 20, ikon: "🍌", tipe: "snack" },
-        { id: "snack_buaya",   nama: "Prime Meat",   favPet: "buaya",   favLabel: "Buaya",   kenyang: 5, mood: 10, harga: 40, ikon: "🥩", tipe: "snack" },
-        { id: "snack_naga",    nama: "Ember Berry",  favPet: "naga",    favLabel: "Naga",    kenyang: 5, mood: 10, harga: 45, ikon: "🍒", tipe: "snack" },
-        { id: "snack_beruang", nama: "Honey Berry",  favPet: "beruang", favLabel: "Beruang", kenyang: 5, mood: 10, harga: 35, ikon: "🍯", tipe: "snack" },
-        { id: "snack_gajah",   nama: "Bamboo Snack", favPet: "gajah",   favLabel: "Gajah",   kenyang: 5, mood: 10, harga: 30, ikon: "🎍", tipe: "snack" },
-        { id: "snack_kadal",   nama: "Cricket Snack",favPet: "kadal",   favLabel: "Kadal",   kenyang: 5, mood: 10, harga: 25, ikon: "🦗", tipe: "snack" }
+        { id: "snack_anjing",   nama: "Dog Biscuit",   favPet: "anjing",   favLabel: "Anjing",     kenyang: 5, mood: 10, harga: 250, ikon: "🦴", tipe: "snack" },
+        { id: "snack_kucing",   nama: "Fish Treat",    favPet: "kucing",   favLabel: "Kucing",     kenyang: 5, mood: 10, harga: 300, ikon: "🐟", tipe: "snack" },
+        { id: "snack_ikan",     nama: "Fish Flakes",   favPet: "ikan",     favLabel: "Ikan",       kenyang: 5, mood: 10, harga: 250, ikon: "🐠", tipe: "snack" },
+        { id: "snack_monyet",   nama: "Banana Snack",  favPet: "monyet",   favLabel: "Monyet",     kenyang: 5, mood: 10, harga: 200, ikon: "🍌", tipe: "snack" },
+        { id: "snack_buaya",    nama: "Prime Meat",    favPet: "buaya",    favLabel: "Buaya",      kenyang: 5, mood: 10, harga: 400, ikon: "🥩", tipe: "snack" },
+        { id: "snack_naga",     nama: "Ember Berry",   favPet: "naga",     favLabel: "Naga",       kenyang: 5, mood: 10, harga: 450, ikon: "🍒", tipe: "snack" },
+        { id: "snack_beruang",  nama: "Honey Berry",   favPet: "beruang",  favLabel: "Beruang",    kenyang: 5, mood: 10, harga: 350, ikon: "🍯", tipe: "snack" },
+        { id: "snack_gajah",    nama: "Peanut Crunch", favPet: "gajah",    favLabel: "Gajah",      kenyang: 5, mood: 10, harga: 300, ikon: "🥜", tipe: "snack" },
+        { id: "snack_kadal",    nama: "Cricket Snack", favPet: "kadal",    favLabel: "Kadal",      kenyang: 5, mood: 10, harga: 250, ikon: "🦗", tipe: "snack" },
+        { id: "snack_kecoa",    nama: "Sugar Crumb",   favPet: "kecoa",    favLabel: "Kecoa",      kenyang: 5, mood: 10, harga: 150, ikon: "🧁", tipe: "snack" },
+        { id: "snack_tikus",    nama: "Cheddar Cube",  favPet: "tikus",    favLabel: "Tikus",      kenyang: 5, mood: 10, harga: 200, ikon: "🧀", tipe: "snack" },
+        { id: "snack_kelinci",  nama: "Crisp Carrot",  favPet: "kelinci",  favLabel: "Kelinci",    kenyang: 5, mood: 10, harga: 250, ikon: "🥕", tipe: "snack" },
+        { id: "snack_pipit",    nama: "Millet Seed",   favPet: "pipit",    favLabel: "Br. Pipit",  kenyang: 5, mood: 10, harga: 200, ikon: "🌾", tipe: "snack" },
+        { id: "snack_ular",     nama: "Quail Egg",     favPet: "ular",     favLabel: "Ular",       kenyang: 5, mood: 10, harga: 350, ikon: "🥚", tipe: "snack" },
+        { id: "snack_panda",    nama: "Bamboo Shoot",  favPet: "panda",    favLabel: "Panda",      kenyang: 5, mood: 10, harga: 400, ikon: "🎍", tipe: "snack" },
+        { id: "snack_elang",    nama: "Fresh Salmon",  favPet: "elang",    favLabel: "Elang",      kenyang: 5, mood: 10, harga: 450, ikon: "🍣", tipe: "snack" },
+        { id: "snack_shibainu", nama: "Wagyu Treat",   favPet: "shibainu", favLabel: "Shiba Inu",  kenyang: 5, mood: 10, harga: 600, ikon: "🥓", tipe: "snack" },
+        { id: "snack_merak_s",  nama: "Royal Fig",     favPet: "merak_s",  favLabel: "Merak Biru", kenyang: 5, mood: 10, harga: 600, ikon: "🫐", tipe: "snack" },
+        { id: "snack_merak_l",  nama: "Golden Nectar", favPet: "merak_l",  favLabel: "Merak Emas", kenyang: 5, mood: 10, harga: 800, ikon: "🏵️", tipe: "snack" }
     ],
     toys: [
-        { id: "toy_bola",      nama: "Bola",              harga: 300,  ikon: "🎾", animasi: "happy",  deskripsi: "Pet mengejar dan menyentuh bola." },
-        { id: "toy_benang",    nama: "Gulungan Benang",   harga: 250,  ikon: "🧶", animasi: "happy",  deskripsi: "Pet bermain dan mengejar benang." },
-        { id: "toy_frisbee",   nama: "Frisbee",           harga: 450,  ikon: "🥏", animasi: "happy",  deskripsi: "Pet melompat mengejar frisbee." },
-        { id: "toy_bunyi",     nama: "Mainan Berbunyi",   harga: 350,  ikon: "🐤", animasi: "idle",   deskripsi: "Pet menepuk dan bereaksi pada suara." },
-        { id: "toy_sabun",     nama: "Gelembung Sabun",   harga: 400,  ikon: "🫧", animasi: "happy",  deskripsi: "Pet mengejar gelembung melayang." },
-        { id: "toy_boneka",    nama: "Boneka Plush",      harga: 500,  ikon: "🧸", animasi: "sleepy", deskripsi: "Pet memeluk boneka." },
-        { id: "toy_bulu",      nama: "Tongkat Bulu",      harga: 400,  ikon: "🪶", animasi: "happy",  deskripsi: "Pet mengikuti gerakan bulu." },
-        { id: "toy_terowongan",nama: "Terowongan Bermain",harga: 700,  ikon: "🕳️", animasi: "idle",   deskripsi: "Pet masuk terowongan." },
-        { id: "toy_alatmusik", nama: "Alat Musik Mini",   harga: 650,  ikon: "🪘", animasi: "happy",  deskripsi: "Pet memainkan alat musik." },
-        { id: "toy_kotakmusik",nama: "Kotak Musik",       harga: 700,  ikon: "🎶", animasi: "happy",  deskripsi: "Pet bergoyang mengikuti musik." },
-        { id: "toy_keyboard",  nama: "Mini Keyboard",     harga: 900,  ikon: "🎹", animasi: "happy",  deskripsi: "Pet menekan tuts." },
-        { id: "toy_mp3",       nama: "Pemutar Musik",     harga: 850,  ikon: "🎧", animasi: "happy",  deskripsi: "Pet menari dengan irama lagu." },
-        { id: "toy_garuk",     nama: "Tiang Garukan",     harga: 900,  ikon: "🪵", animasi: "idle",   deskripsi: "Pet meregangkan tubuh dan menggaruk." },
-        { id: "toy_panjat",    nama: "Rangka Panjat",     harga: 1200, ikon: "🪜", animasi: "happy",  deskripsi: "Pet memanjat dan melompat." },
-        { id: "toy_bintang",   nama: "Proyektor Bintang", harga: 1000, ikon: "🌌", animasi: "sleepy", deskripsi: "Pet memandangi proyeksi bintang." }
+        { id: "toy_bola",      nama: "Bola",              harga: 3000,  ikon: "🎾", animasi: "happy",  deskripsi: "Pet mengejar dan menyentuh bola." },
+        { id: "toy_benang",    nama: "Gulungan Benang",   harga: 2500,  ikon: "🧶", animasi: "happy",  deskripsi: "Pet bermain dan mengejar benang." },
+        { id: "toy_frisbee",   nama: "Frisbee",           harga: 4500,  ikon: "🥏", animasi: "happy",  deskripsi: "Pet melompat mengejar frisbee." },
+        { id: "toy_bunyi",     nama: "Mainan Berbunyi",   harga: 3500,  ikon: "🐤", animasi: "idle",   deskripsi: "Pet menepuk dan bereaksi pada suara." },
+        { id: "toy_sabun",     nama: "Gelembung Sabun",   harga: 4000,  ikon: "🫧", animasi: "happy",  deskripsi: "Pet mengejar gelembung melayang." },
+        { id: "toy_boneka",    nama: "Boneka Plush",      harga: 5000,  ikon: "🧸", animasi: "sleepy", deskripsi: "Pet memeluk boneka." },
+        { id: "toy_bulu",      nama: "Tongkat Bulu",      harga: 4000,  ikon: "🪶", animasi: "happy",  deskripsi: "Pet mengikuti gerakan bulu." },
+        { id: "toy_terowongan",nama: "Terowongan Bermain",harga: 7000,  ikon: "🕳️", animasi: "idle",   deskripsi: "Pet masuk terowongan." },
+        { id: "toy_alatmusik", nama: "Alat Musik Mini",   harga: 6500,  ikon: "🪘", animasi: "happy",  deskripsi: "Pet memainkan alat musik." },
+        { id: "toy_kotakmusik",nama: "Kotak Musik",       harga: 7000,  ikon: "🎶", animasi: "happy",  deskripsi: "Pet bergoyang mengikuti musik." },
+        { id: "toy_keyboard",  nama: "Mini Keyboard",     harga: 9000,  ikon: "🎹", animasi: "happy",  deskripsi: "Pet menekan tuts." },
+        { id: "toy_mp3",       nama: "Pemutar Musik",     harga: 8500,  ikon: "🎧", animasi: "happy",  deskripsi: "Pet menari dengan irama lagu." },
+        { id: "toy_garuk",     nama: "Tiang Garukan",     harga: 9000,  ikon: "🪵", animasi: "idle",   deskripsi: "Pet meregangkan tubuh dan menggaruk." },
+        { id: "toy_panjat",    nama: "Rangka Panjat",     harga: 12000, ikon: "🪜", animasi: "happy",  deskripsi: "Pet memanjat dan melompat." },
+        { id: "toy_bintang",   nama: "Proyektor Bintang", harga: 10000, ikon: "🌌", animasi: "sleepy", deskripsi: "Pet memandangi proyeksi bintang." }
     ],
     decorations: [
-        { id: "dec_bed",      nama: "Tempat Tidur Pet",  harga: 250,  ikon: "🛏️", slot: "Kiri Tanah" },
-        { id: "dec_pillow",   nama: "Bantal Lucu",       harga: 200,  ikon: "🛋️", slot: "Tengah Tanah" },
-        { id: "dec_tree",     nama: "Pohon Panjat",      harga: 500,  ikon: "🌳", slot: "Kiri Belakang" },
-        { id: "dec_woodhouse",nama: "Rumah Kayu Mini",   harga: 700,  ikon: "🛖", slot: "Kiri Tanah" },
-        { id: "dec_pond",     nama: "Kolam Mini",        harga: 900,  ikon: "🏝️", slot: "Kanan Tanah" },
-        { id: "dec_fountain", nama: "Air Mancur",        harga: 1200, ikon: "⛲", slot: "Kanan Tanah" },
-        { id: "dec_flower",   nama: "Taman Bunga",       harga: 1500, ikon: "🌷", slot: "Tengah Belakang" },
-        { id: "dec_crystal",  nama: "Kristal Bercahaya", harga: 2000, ikon: "💎", slot: "Kanan Belakang" },
-        { id: "dec_castle",   nama: "Istana Mini",       harga: 3000, ikon: "🏰", slot: "Kiri Belakang" },
-        { id: "dec_painting", nama: "Lukisan Dinding",   harga: 600,  ikon: "🖼️", slot: "Dinding Belakang" }
+        { id: "dec_bed",      nama: "Tempat Tidur Pet",  harga: 2500,  ikon: "🛏️", slot: "Kiri Tanah" },
+        { id: "dec_pillow",   nama: "Bantal Lucu",       harga: 2000,  ikon: "🛋️", slot: "Tengah Tanah" },
+        { id: "dec_tree",     nama: "Pohon Panjat",      harga: 5000,  ikon: "🌳", slot: "Kiri Belakang" },
+        { id: "dec_woodhouse",nama: "Rumah Kayu Mini",   harga: 7000,  ikon: "🛖", slot: "Kiri Tanah" },
+        { id: "dec_pond",     nama: "Kolam Mini",        harga: 9000,  ikon: "🏝️", slot: "Kanan Tanah" },
+        { id: "dec_fountain", nama: "Air Mancur",        harga: 12000, ikon: "⛲", slot: "Kanan Tanah" },
+        { id: "dec_flower",   nama: "Taman Bunga",       harga: 15000, ikon: "🌷", slot: "Tengah Belakang" },
+        { id: "dec_crystal",  nama: "Kristal Bercahaya", harga: 20000, ikon: "💎", slot: "Kanan Belakang" },
+        { id: "dec_castle",   nama: "Istana Mini",       harga: 30000, ikon: "🏰", slot: "Kiri Belakang" },
+        { id: "dec_painting", nama: "Lukisan Dinding",   harga: 6000,  ikon: "🖼️", slot: "Dinding Belakang" },
+        // Item Dekorasi Ekstra Tema Habitat Baru
+        { id: "dec_coral",    nama: "Terumbu Karang",    harga: 8000,  ikon: "🪸", slot: "Kiri Tanah" },
+        { id: "dec_crab",     nama: "Kepiting Lucu",     harga: 6500,  ikon: "🦀", slot: "Tengah Tanah" },
+        { id: "dec_seagrass", nama: "Padang Lamun",      harga: 7000,  ikon: "🌿", slot: "Kanan Belakang" },
+        { id: "dec_bubbles",  nama: "Gelembung Udara",   harga: 5000,  ikon: "🫧", slot: "Tengah Belakang" },
+        { id: "dec_fish",     nama: "Kumpulan Ikan",     harga: 12000, ikon: "🐟", slot: "Kiri Belakang" },
+        { id: "dec_volcano",  nama: "Lava Mini",         harga: 15000, ikon: "🌋", slot: "Kanan Tanah" },
+        { id: "dec_mushroom", nama: "Jamur Menyala",     harga: 9000,  ikon: "🍄", slot: "Kiri Tanah" },
+        { id: "dec_alienplant",nama:"Tumbuhan Alien",    harga: 11000, ikon: "🪴", slot: "Tengah Belakang" },
+        { id: "dec_meteor",   nama: "Batu Meteor",       harga: 10000, ikon: "☄️", slot: "Kanan Belakang" },
+        { id: "dec_ufo",      nama: "UFO Mainan",        harga: 18000, ikon: "🛸", slot: "Kiri Belakang" },
+        // 20 DEKORASI EKSPANSI BARU
+        { id: "dec_campfire", nama: "Api Unggun",        harga: 7500,  ikon: "🔥", slot: "Kiri Tanah" },
+        { id: "dec_tent",     nama: "Tenda Kemah",       harga: 12000, ikon: "⛺", slot: "Tengah Belakang" },
+        { id: "dec_log",      nama: "Batang Pohon",      harga: 4000,  ikon: "🪵", slot: "Kanan Tanah" },
+        { id: "dec_bush",     nama: "Semak Berries",     harga: 5500,  ikon: "🍒", slot: "Kiri Belakang" },
+        { id: "dec_rock",     nama: "Batu Lumut",        harga: 3000,  ikon: "🪨", slot: "Tengah Tanah" },
+        { id: "dec_starfish", nama: "Bintang Laut",      harga: 4500,  ikon: "⭐", slot: "Kanan Tanah" },
+        { id: "dec_pearl",    nama: "Kerang Mutiara",    harga: 15000, ikon: "🦪", slot: "Kiri Tanah" },
+        { id: "dec_anchor",   nama: "Jangkar Karat",     harga: 8500,  ikon: "⚓", slot: "Kiri Belakang" },
+        { id: "dec_sandcastle",nama: "Istana Pasir",     harga: 9500,  ikon: "🏖️", slot: "Tengah Tanah" },
+        { id: "dec_surfboard",nama: "Papan Selancar",    harga: 11000, ikon: "🏄", slot: "Kanan Belakang" },
+        { id: "dec_cactus",   nama: "Kaktus Hijau",      harga: 6000,  ikon: "🌵", slot: "Kiri Belakang" },
+        { id: "dec_skull",    nama: "Tengkorak Gurun",   harga: 7000,  ikon: "💀", slot: "Kanan Tanah" },
+        { id: "dec_chest",    nama: "Harta Karun",       harga: 25000, ikon: "🪙", slot: "Tengah Tanah" },
+        { id: "dec_oasis",    nama: "Oasis Kecil",       harga: 18000, ikon: "🏝️", slot: "Kiri Tanah" },
+        { id: "dec_lamp",     nama: "Lampu Jin",         harga: 22000, ikon: "🪔", slot: "Tengah Belakang" },
+        { id: "dec_satellite",nama: "Satelit Mini",      harga: 16000, ikon: "🛰️", slot: "Kanan Belakang" },
+        { id: "dec_crater",   nama: "Kawah Bulan",       harga: 8000,  ikon: "🕳️", slot: "Tengah Tanah" },
+        { id: "dec_telescope",nama: "Teleskop Bintang",  harga: 14000, ikon: "🔭", slot: "Kiri Tanah" },
+        { id: "dec_robot",    nama: "Robot Penjelajah",  harga: 20000, ikon: "🤖", slot: "Kiri Belakang" },
+        { id: "dec_portal",   nama: "Portal Dimensi",    harga: 35000, ikon: "🌀", slot: "Tengah Belakang" }
     ],
     wardrobe: [
-        { id: "head_bandana", nama: "Bandana",             slot: "head",    harga: 250,  ikon: "🧣", deskripsi: "Kain keren di dahi pet." },
-        { id: "head_casual",  nama: "Topi Kasual",         slot: "head",    harga: 400,  ikon: "🧢", deskripsi: "Topi santai untuk jalan-jalan." },
-        { id: "head_pesta",   nama: "Topi Pesta",          slot: "head",    harga: 300,  ikon: "🥳", deskripsi: "Topi kerucut perayaan." },
-        { id: "head_flower",  nama: "Flower Crown",        slot: "head",    harga: 650,  ikon: "🌸", deskripsi: "Mahkota rangkaian bunga segar." },
-        { id: "head_wizard",  nama: "Wizard Hat",          slot: "head",    harga: 750,  ikon: "🧙", deskripsi: "Topi penyihir berbintang." },
-        { id: "head_wisuda",  nama: "Topi Wisuda",         slot: "head",    harga: 500,  ikon: "🎓", deskripsi: "Toga topi kelulusan." },
-        { id: "head_crown",   nama: "Royal Crown",         slot: "head",    harga: 1800, ikon: "👑", deskripsi: "Mahkota emas kerajaan." },
-        { id: "head_bajak",   nama: "Topi Bajak Laut",     slot: "head",    harga: 700,  ikon: "🏴‍☠️", deskripsi: "Topi kapten kapal." },
+        { id: "head_bandana", nama: "Bandana",             slot: "head",    harga: 2500,  ikon: "🧣", deskripsi: "Kain keren di dahi pet." },
+        { id: "head_casual",  nama: "Topi Kasual",         slot: "head",    harga: 4000,  ikon: "🧢", deskripsi: "Topi santai untuk jalan-jalan." },
+        { id: "head_pesta",   nama: "Topi Pesta",          slot: "head",    harga: 3000,  ikon: "🥳", deskripsi: "Topi kerucut perayaan." },
+        { id: "head_flower",  nama: "Flower Crown",        slot: "head",    harga: 6500,  ikon: "🌸", deskripsi: "Mahkota rangkaian bunga segar." },
+        { id: "head_wizard",  nama: "Wizard Hat",          slot: "head",    harga: 7500,  ikon: "🧙", deskripsi: "Topi penyihir berbintang." },
+        { id: "head_wisuda",  nama: "Topi Wisuda",         slot: "head",    harga: 5000,  ikon: "🎓", deskripsi: "Toga topi kelulusan." },
+        { id: "head_crown",   nama: "Royal Crown",         slot: "head",    harga: 18000, ikon: "👑", deskripsi: "Mahkota emas kerajaan." },
+        { id: "head_bajak",   nama: "Topi Bajak Laut",     slot: "head",    harga: 7000,  ikon: "🏴‍☠️", deskripsi: "Topi kapten kapal." },
 
-        { id: "eyes_round",   nama: "Kacamata Bulat",      slot: "eyes",    harga: 300,  ikon: "👓", deskripsi: "Kacamata bulat gaya ilmuwan." },
-        { id: "eyes_star",    nama: "Kacamata Bintang",    slot: "eyes",    harga: 500,  ikon: "🤩", deskripsi: "Bingkai bintang ceria." },
-        { id: "eyes_goggles", nama: "Goggles Penjelajah",  slot: "eyes",    harga: 600,  ikon: "🥽", deskripsi: "Pelindung petualang." },
-        { id: "eyes_monocle", nama: "Monocle Emas",        slot: "eyes",    harga: 900,  ikon: "🧐", deskripsi: "Lensa tunggal berlapis emas." },
-        { id: "eyes_halo",    nama: "Halo Bercahaya",      slot: "eyes",    harga: 1200, ikon: "😇", deskripsi: "Cincin melayang di atas kepala." },
+        { id: "eyes_round",   nama: "Kacamata Bulat",      slot: "eyes",    harga: 3000,  ikon: "👓", deskripsi: "Kacamata bulat gaya ilmuwan." },
+        { id: "eyes_star",    nama: "Kacamata Bintang",    slot: "eyes",    harga: 5000,  ikon: "🤩", deskripsi: "Bingkai bintang ceria." },
+        { id: "eyes_goggles", nama: "Goggles Penjelajah",  slot: "eyes",    harga: 6000,  ikon: "🥽", deskripsi: "Pelindung petualang." },
+        { id: "eyes_monocle", nama: "Monocle Emas",        slot: "eyes",    harga: 9000,  ikon: "🧐", deskripsi: "Lensa tunggal berlapis emas." },
+        { id: "eyes_halo",    nama: "Halo Bercahaya",      slot: "eyes",    harga: 12000, ikon: "😇", deskripsi: "Cincin melayang di atas kepala." },
 
-        { id: "neck_dasi",    nama: "Dasi Pita",           slot: "neck",    harga: 200,  ikon: "🎀", deskripsi: "Pita mungil di leher." },
-        { id: "neck_syal",    nama: "Syal",                slot: "neck",    harga: 300,  ikon: "🧣", deskripsi: "Syal rajut penghangat tubuh." },
-        { id: "neck_kalung",  nama: "Kalung Bintang",      slot: "neck",    harga: 350,  ikon: "⭐", deskripsi: "Kalung dengan liontin bintang." },
-        { id: "neck_ransel",  nama: "Ransel Mini",         slot: "neck",    harga: 600,  ikon: "🎒", deskripsi: "Tas ransel petualang." },
-        { id: "neck_hp",      nama: "Headphone",           slot: "neck",    harga: 500,  ikon: "🎧", deskripsi: "Headset musik modis." },
-        { id: "neck_sayap",   nama: "Sayap Peri",          slot: "neck",    harga: 900,  ikon: "🦋", deskripsi: "Sayap hias transparan." },
-        { id: "neck_sepatu",  nama: "Sepatu Mini",         slot: "neck",    harga: 450,  ikon: "👟", deskripsi: "Alas kaki mungil." },
-        { id: "neck_jubah",   nama: "Jubah Pendek",        slot: "neck",    harga: 800,  ikon: "🧥", deskripsi: "Jubah kain sebahu." },
+        { id: "neck_dasi",    nama: "Dasi Pita",           slot: "neck",    harga: 2000,  ikon: "🎀", deskripsi: "Pita mungil di leher." },
+        { id: "neck_syal",    nama: "Syal",                slot: "neck",    harga: 3000,  ikon: "🧣", deskripsi: "Syal rajut penghangat tubuh." },
+        { id: "neck_kalung",  nama: "Kalung Bintang",      slot: "neck",    harga: 3500,  ikon: "⭐", deskripsi: "Kalung dengan liontin bintang." },
+        { id: "neck_ransel",  nama: "Ransel Mini",         slot: "neck",    harga: 6000,  ikon: "🎒", deskripsi: "Tas ransel petualang." },
+        { id: "neck_hp",      nama: "Headphone",           slot: "neck",    harga: 5000,  ikon: "🎧", deskripsi: "Headset musik modis." },
+        { id: "neck_sayap",   nama: "Sayap Peri",          slot: "neck",    harga: 9000,  ikon: "🦋", deskripsi: "Sayap hias transparan." },
+        { id: "neck_sepatu",  nama: "Sepatu Mini",         slot: "neck",    harga: 4500,  ikon: "👟", deskripsi: "Alas kaki mungil." },
+        { id: "neck_jubah",   nama: "Jubah Pendek",        slot: "neck",    harga: 8000,  ikon: "🧥", deskripsi: "Jubah kain sebahu." },
 
-        { id: "body_tshirt",  nama: "Kaos Kasual",         slot: "body",    harga: 500,  ikon: "👕", deskripsi: "Kaos santai sehari-hari." },
-        { id: "body_hoodie",  nama: "Hoodie",              slot: "body",    harga: 800,  ikon: "🧥", deskripsi: "Jaket hoodie hangat." },
-        { id: "body_labcoat", nama: "Jas Laboratorium",    slot: "body",    harga: 900,  ikon: "🥼", deskripsi: "Jas putih peneliti." },
-        { id: "body_explorer",nama: "Seragam Penjelajah",  slot: "body",    harga: 1100, ikon: "🦺", deskripsi: "Rompi lapangan lengkap." },
-        { id: "body_winter",  nama: "Mantel Musim Dingin", slot: "body",    harga: 1200, ikon: "🧣", deskripsi: "Mantel tebal berbulu." },
-        { id: "body_grad",    nama: "Jubah Wisuda",        slot: "body",    harga: 1400, ikon: "🎓", deskripsi: "Jubah kelulusan." },
-        { id: "body_festival",nama: "Seragam Festival",    slot: "body",    harga: 1600, ikon: "👘", deskripsi: "Pakaian meriah festival." },
-        { id: "body_batik",   nama: "Baju Batik",          slot: "body",    harga: 900,  ikon: "👔", deskripsi: "Batik motif elegan." },
-        { id: "body_koki",    nama: "Kostum Koki",         slot: "body",    harga: 1000, ikon: "🧑‍🍳", deskripsi: "Celemek dan seragam dapur." },
-        { id: "body_detektif",nama: "Kostum Detektif",     slot: "body",    harga: 1800, ikon: "🕵️", deskripsi: "Mantel investigasi." },
+        { id: "body_tshirt",  nama: "Kaos Kasual",         slot: "body",    harga: 5000,  ikon: "👕", deskripsi: "Kaos santai sehari-hari." },
+        { id: "body_hoodie",  nama: "Hoodie",              slot: "body",    harga: 8000,  ikon: "🧥", deskripsi: "Jaket hoodie hangat." },
+        { id: "body_labcoat", nama: "Jas Laboratorium",    slot: "body",    harga: 9000,  ikon: "🥼", deskripsi: "Jas putih peneliti." },
+        { id: "body_explorer",nama: "Seragam Penjelajah",  slot: "body",    harga: 11000, ikon: "🦺", deskripsi: "Rompi lapangan lengkap." },
+        { id: "body_winter",  nama: "Mantel Musim Dingin", slot: "body",    harga: 12000, ikon: "🧣", deskripsi: "Mantel tebal berbulu." },
+        { id: "body_grad",    nama: "Jubah Wisuda",        slot: "body",    harga: 14000, ikon: "🎓", deskripsi: "Jubah kelulusan." },
+        { id: "body_festival",nama: "Seragam Festival",    slot: "body",    harga: 16000, ikon: "👘", deskripsi: "Pakaian meriah festival." },
+        { id: "body_batik",   nama: "Baju Batik",          slot: "body",    harga: 9000,  ikon: "👔", deskripsi: "Batik motif elegan." },
+        { id: "body_koki",    nama: "Kostum Koki",         slot: "body",    harga: 10000, ikon: "🧑‍🍳", deskripsi: "Celemek dan seragam dapur." },
+        { id: "body_detektif",nama: "Kostum Detektif",     slot: "body",    harga: 18000, ikon: "🕵️", deskripsi: "Mantel investigasi." },
 
-        { id: "cost_dino",    nama: "Dino Suit",           slot: "costume", harga: 2200, ikon: "🦖", deskripsi: "Kostum dinosaurus imut." },
-        { id: "cost_hero",    nama: "Superhero",           slot: "costume", harga: 2500, ikon: "🦸", deskripsi: "Pakaian pahlawan berjubah." },
-        { id: "cost_astro",   nama: "Astronaut",           slot: "costume", harga: 3000, ikon: "🧑‍🚀", deskripsi: "Baju antariksa lengkap." },
-        { id: "cost_knight",  nama: "Royal Knight",        slot: "costume", harga: 3500, ikon: "⚔️", deskripsi: "Zirah kesatria kerajaan." },
-        { id: "cost_royal",   nama: "Royal Costume",       slot: "costume", harga: 4500, ikon: "🤴", deskripsi: "Jubah beludru & aksen emas." },
-        { id: "cost_penyihir",nama: "Penyihir Fantasi",    slot: "costume", harga: 2600, ikon: "🪄", deskripsi: "Jubah bintang magis." },
-        { id: "cost_pirate",  nama: "Bajak Laut",          slot: "costume", harga: 2200, ikon: "🏴‍☠️", deskripsi: "Pakaian kapten lautan." }
+        { id: "cost_dino",    nama: "Dino Suit",           slot: "costume", harga: 22000, ikon: "🦖", deskripsi: "Kostum dinosaurus imut." },
+        { id: "cost_hero",    nama: "Superhero",           slot: "costume", harga: 25000, ikon: "🦸", deskripsi: "Pakaian pahlawan berjubah." },
+        { id: "cost_astro",   nama: "Astronaut",           slot: "costume", harga: 30000, ikon: "🧑‍🚀", deskripsi: "Baju antariksa lengkap." },
+        { id: "cost_knight",  nama: "Royal Knight",        slot: "costume", harga: 35000, ikon: "⚔️", deskripsi: "Zirah kesatria kerajaan." },
+        { id: "cost_royal",   nama: "Royal Costume",       slot: "costume", harga: 45000, ikon: "🤴", deskripsi: "Jubah beludru & aksen emas." },
+        { id: "cost_penyihir",nama: "Penyihir Fantasi",    slot: "costume", harga: 26000, ikon: "🪄", deskripsi: "Jubah bintang magis." },
+        { id: "cost_pirate",  nama: "Bajak Laut",          slot: "costume", harga: 22000, ikon: "🏴‍☠️", deskripsi: "Pakaian kapten lautan." }
+    ],
+    themes: [
+        { id: "thm_volcano", nama: "Gunung Berapi", harga: 50000, ikon: "🌋", deskripsi: "Lahar panas dan bebatuan vulkanik." },
+        { id: "thm_jungle",  nama: "Hutan Tropis",  harga: 45000, ikon: "🌴", deskripsi: "Lebatnya pepohonan eksotis." },
+        { id: "thm_underwater",nama:"Bawah Laut",   harga: 50000, ikon: "🌊", deskripsi: "Terumbu karang dan keindahan samudera." },
+        { id: "thm_beach",   nama: "Pantai Tropis", harga: 40000, ikon: "🏖️", deskripsi: "Pasir putih dan deburan ombak." },
+        { id: "thm_cloud",   nama: "Negeri Awan",   harga: 60000, ikon: "☁️", deskripsi: "Melayang di atas awan langit biru." },
+        { id: "thm_wood",    nama: "Kabin Kayu",    harga: 35000, ikon: "🪵", deskripsi: "Hangat dan nyaman di dalam ruangan." },
+        { id: "thm_desert",  nama: "Gurun Pasir",   harga: 40000, ikon: "🏜️", deskripsi: "Oase di tengah panasnya matahari." },
+        { id: "thm_space",   nama: "Luar Angkasa",  harga: 80000, ikon: "🚀", deskripsi: "Bintang-bintang dan planet asing." },
+        { id: "thm_underground",nama:"Dalam Tanah", harga: 45000, ikon: "🪨", deskripsi: "Gua kristal dan jamur bercahaya." }
     ]
 };
 
@@ -407,21 +470,30 @@ window.pastikanStrukturDualXPDanPet = function(uName) {
     // 3. Struktur dasar My Pet milik siswa (Habitat Universal Tanpa Batas)
     if (!lb.myPetData || typeof lb.myPetData !== "object") {
         lb.myPetData = {
-            activePetId: "",
-            ownedPets: {},
-            foodInventory: {},
-            ownedToys: [],
-            ownedDecorations: [],
-            activeDecorations: [],
-            ownedWardrobe: []
+            activePetId: "", activeTheme: "default", ownedPets: {}, foodInventory: {}, ownedToys: [], ownedDecorations: [], activeDecorations: [], ownedWardrobe: [], ownedThemes: []
         };
     } else {
         if (!lb.myPetData.ownedPets) lb.myPetData.ownedPets = {};
         if (!lb.myPetData.foodInventory) lb.myPetData.foodInventory = {};
+        if (!lb.myPetData.activeTheme) lb.myPetData.activeTheme = "default";
+        if (!Array.isArray(lb.myPetData.ownedThemes)) lb.myPetData.ownedThemes = [];
         if (!Array.isArray(lb.myPetData.ownedToys)) lb.myPetData.ownedToys = Object.values(lb.myPetData.ownedToys || {});
         if (!Array.isArray(lb.myPetData.ownedDecorations)) lb.myPetData.ownedDecorations = Object.values(lb.myPetData.ownedDecorations || {});
-        if (!Array.isArray(lb.myPetData.activeDecorations)) lb.myPetData.activeDecorations = Object.values(lb.myPetData.activeDecorations || {});
         if (!Array.isArray(lb.myPetData.ownedWardrobe)) lb.myPetData.ownedWardrobe = Object.values(lb.myPetData.ownedWardrobe || {});
+        
+        // Migrasi Active Decorations dari Array String ke Array Object (Untuk menyimpan koordinat X/Y Drag)
+        let rawActiveDec = Object.values(lb.myPetData.activeDecorations || {});
+        lb.myPetData.activeDecorations = rawActiveDec.map(function(dec) {
+            if (typeof dec === "string") {
+                let dCfg = window.MY_PET_CATALOG.decorations.find(x => x.id === dec);
+                let defSlot = dCfg ? dCfg.slot : "";
+                let left = "50%", bottom = "20%";
+                if (defSlot.includes("Kiri")) left = "20%"; else if (defSlot.includes("Kanan")) left = "80%";
+                if (defSlot.includes("Belakang")) bottom = "45%";
+                return { id: dec, left: left, bottom: bottom };
+            }
+            return dec;
+        });
     }
 
     return lb;
@@ -739,323 +811,753 @@ window.bangunVisualPet25DSVG = function(petId, outfit, animState, ukuranPx) {
     let size = ukuranPx || 120;
 
     let spScale = catPet.scale || 1.0;
-    let translateY = Math.round((1 - spScale) * 210);
+    let translateY = Math.round((1 - spScale) * 200);
 
     let palet = {
-        kadal:   { main: "#4ade80", dark: "#16a34a", belly: "#dcfce7", cheek: "#fb7185", accent: "#15803d" },
-        kucing:  { main: "#fb923c", dark: "#ea580c", belly: "#ffedd5", cheek: "#f43f5e", accent: "#9a3412" },
-        anjing:  { main: "#d97706", dark: "#92400e", belly: "#fef3c7", cheek: "#fb7185", accent: "#78350f" },
-        ikan:    { main: "#38bdf8", dark: "#0284c7", belly: "#e0f2fe", cheek: "#fb7185", accent: "#f97316" },
-        monyet:  { main: "#a16207", dark: "#713f12", belly: "#fde68a", cheek: "#f43f5e", accent: "#fef08a" },
-        buaya:   { main: "#10b981", dark: "#047857", belly: "#fef08a", cheek: "#fb7185", accent: "#065f46" },
-        beruang: { main: "#78350f", dark: "#451a03", belly: "#fde68a", cheek: "#fb7185", accent: "#b45309" },
-        gajah:   { main: "#94a3b8", dark: "#475569", belly: "#e2e8f0", cheek: "#f472b6", accent: "#cbd5e1" },
-        naga:    { main: "#ef4444", dark: "#991b1b", belly: "#fde047", cheek: "#fb923c", accent: "#f59e0b" }
-    }[petId] || { main: "#60a5fa", dark: "#2563eb", belly: "#dbeafe", cheek: "#fb7185", accent: "#1d4ed8" };
+        kadal:    { main: "#4ade80", dark: "#15803d", belly: "#dcfce7", cheek: "#fb7185", accent: "#166534" },
+        kucing:   { main: "#fb923c", dark: "#c2410c", belly: "#ffedd5", cheek: "#f43f5e", accent: "#ea580c" },
+        anjing:   { main: "#d97706", dark: "#78350f", belly: "#fef3c7", cheek: "#fb7185", accent: "#92400e" },
+        ikan:     { main: "#38bdf8", dark: "#0369a1", belly: "#e0f2fe", cheek: "#fb7185", accent: "#f97316" },
+        monyet:   { main: "#a16207", dark: "#713f12", belly: "#fde68a", cheek: "#f43f5e", accent: "#fef08a" },
+        buaya:    { main: "#10b981", dark: "#065f46", belly: "#fef08a", cheek: "#fb7185", accent: "#047857" },
+        beruang:  { main: "#92400e", dark: "#451a03", belly: "#fde68a", cheek: "#fb7185", accent: "#b45309" },
+        gajah:    { main: "#94a3b8", dark: "#475569", belly: "#e2e8f0", cheek: "#f472b6", accent: "#64748b" },
+        naga:     { main: "#ef4444", dark: "#991b1b", belly: "#fde047", cheek: "#fb923c", accent: "#f59e0b" },
+        kecoa:    { main: "#9a3412", dark: "#431407", belly: "#fed7aa", cheek: "#fb7185", accent: "#7c2d12" },
+        tikus:    { main: "#94a3b8", dark: "#475569", belly: "#f1f5f9", cheek: "#f472b6", accent: "#fda4af" },
+        kelinci:  { main: "#f8fafc", dark: "#94a3b8", belly: "#ffffff", cheek: "#f472b6", accent: "#fbcfe8" },
+        pipit:    { main: "#fb923c", dark: "#9a3412", belly: "#ffedd5", cheek: "#f43f5e", accent: "#f59e0b" },
+        ular:     { main: "#22c55e", dark: "#14532d", belly: "#fef08a", cheek: "#fb7185", accent: "#15803d" },
+        panda:    { main: "#ffffff", dark: "#0f172a", belly: "#f8fafc", cheek: "#f472b6", accent: "#1e293b" },
+        elang:    { main: "#78350f", dark: "#451a03", belly: "#fef3c7", cheek: "#fb923c", accent: "#f59e0b" },
+        shibainu: { main: "#e67e22", dark: "#7c2d12", belly: "#fffbeb", cheek: "#fb7185", accent: "#d97706" },
+        merak_s:  { main: "#0284c7", dark: "#0c4a6e", belly: "#bae6fd", cheek: "#f472b6", accent: "#10b981" },
+        merak_l:  { main: "#f59e0b", dark: "#78350f", belly: "#fef08a", cheek: "#ef4444", accent: "#dc2626" }
+    }[petId] || { main: "#60a5fa", dark: "#1d4ed8", belly: "#dbeafe", cheek: "#fb7185", accent: "#2563eb" };
 
-    // A. LAYER BELAKANG (Jubah Kostum, Sayap Peri, Ransel, Ekor Spesies)
+    function buildEyes(lx, ly, rx, ry, rEye) {
+        let r = rEye || 15;
+        let rHi = Math.max(4, Math.round(r * 0.38));
+        let rSub = Math.max(2, Math.round(r * 0.18));
+        if (state === "happy") {
+            return '<path d="M' + (lx - r) + ',' + ly + ' Q' + lx + ',' + (ly - r * 1.3) + ' ' + (lx + r) + ',' + ly + '" fill="none" stroke="#0f172a" stroke-width="6" stroke-linecap="round"/>' +
+                   '<path d="M' + (rx - r) + ',' + ry + ' Q' + rx + ',' + (ry - r * 1.3) + ' ' + (rx + r) + ',' + ry + '" fill="none" stroke="#0f172a" stroke-width="6" stroke-linecap="round"/>';
+        }
+        if (state === "sleepy") {
+            return '<path d="M' + (lx - r) + ',' + ly + ' Q' + lx + ',' + (ly + r * 0.8) + ' ' + (lx + r) + ',' + ly + '" fill="none" stroke="#0f172a" stroke-width="5.5" stroke-linecap="round"/>' +
+                   '<path d="M' + (rx - r) + ',' + ry + ' Q' + rx + ',' + (ry + r * 0.8) + ' ' + (rx + r) + ',' + ry + '" fill="none" stroke="#0f172a" stroke-width="5.5" stroke-linecap="round"/>';
+        }
+        if (state === "hungry" || state === "critical") {
+            return '<circle cx="' + lx + '" cy="' + ly + '" r="' + (r - 1) + '" fill="#0f172a"/><circle cx="' + (lx - 4) + '" cy="' + (ly - 4) + '" r="' + (rHi - 1) + '" fill="#ffffff"/>' +
+                   '<circle cx="' + rx + '" cy="' + ry + '" r="' + (r - 1) + '" fill="#0f172a"/><circle cx="' + (rx - 4) + '" cy="' + (ry - 4) + '" r="' + (rHi - 1) + '" fill="#ffffff"/>' +
+                   '<line x1="' + (lx - r) + '" y1="' + (ly - r - 5) + '" x2="' + (lx + r) + '" y2="' + (ly - r + 2) + '" stroke="#0f172a" stroke-width="4.5" stroke-linecap="round"/>' +
+                   '<line x1="' + (rx + r) + '" y1="' + (ry - r - 5) + '" x2="' + (rx - r) + '" y2="' + (ry - r + 2) + '" stroke="#0f172a" stroke-width="4.5" stroke-linecap="round"/>';
+        }
+        return '<g class="pet-eyes-blink">' +
+                   '<circle cx="' + lx + '" cy="' + ly + '" r="' + r + '" fill="#0f172a"/>' +
+                   '<circle cx="' + (lx - r * 0.32) + '" cy="' + (ly - r * 0.35) + '" r="' + rHi + '" fill="#ffffff"/>' +
+                   '<circle cx="' + (lx + r * 0.3) + '" cy="' + (ly + r * 0.3) + '" r="' + rSub + '" fill="#ffffff"/>' +
+                   '<circle cx="' + rx + '" cy="' + ry + '" r="' + r + '" fill="#0f172a"/>' +
+                   '<circle cx="' + (rx - r * 0.32) + '" cy="' + (ry - r * 0.35) + '" r="' + rHi + '" fill="#ffffff"/>' +
+                   '<circle cx="' + (rx + r * 0.3) + '" cy="' + (ry + r * 0.3) + '" r="' + rSub + '" fill="#ffffff"/>' +
+               '</g>';
+    }
+
+    function buildMouth(mx, my, scaleM) {
+        let sc = scaleM || 1;
+        if (state === "happy") {
+            return '<path d="M' + (mx - 20 * sc) + ',' + my + ' Q' + mx + ',' + (my + 26 * sc) + ' ' + (mx + 20 * sc) + ',' + my + ' Z" fill="#ef4444" stroke="#0f172a" stroke-width="4.5"/>';
+        }
+        if (state === "eating") {
+            return '<ellipse class="pet-mouth-chew" cx="' + mx + '" cy="' + (my + 6 * sc) + '" rx="' + (16 * sc) + '" ry="' + (13 * sc) + '" fill="#ef4444" stroke="#0f172a" stroke-width="4.5"/>';
+        }
+        if (state === "sleepy") {
+            return '<circle cx="' + mx + '" cy="' + (my + 6 * sc) + '" r="' + (7 * sc) + '" fill="#fda4af" stroke="#0f172a" stroke-width="4"/>';
+        }
+        if (state === "hungry" || state === "critical") {
+            return '<path d="M' + (mx - 16 * sc) + ',' + (my + 12 * sc) + ' Q' + mx + ',' + (my - 4 * sc) + ' ' + (mx + 16 * sc) + ',' + (my + 12 * sc) + '" fill="none" stroke="#0f172a" stroke-width="4.5" stroke-linecap="round"/>';
+        }
+        return '<path d="M' + (mx - 16 * sc) + ',' + my + ' Q' + mx + ',' + (my + 14 * sc) + ' ' + (mx + 16 * sc) + ',' + my + '" fill="none" stroke="#0f172a" stroke-width="4.5" stroke-linecap="round"/>';
+    }
+
     let backLayer = "";
-    if (eq.costume === "cost_hero") {
-        backLayer += '<path class="pet-cape-part" d="M165,260 L105,435 L407,435 L347,260 Z" fill="#dc2626" stroke="#991b1b" stroke-width="6"/>';
-    } else if (eq.costume === "cost_royal") {
-        backLayer += '<path class="pet-cape-part" d="M150,255 L95,442 L417,442 L362,255 Z" fill="#7e22ce" stroke="#facc15" stroke-width="8"/>';
-    } else if (eq.costume === "cost_penyihir") {
-        backLayer += '<path class="pet-cape-part" d="M155,258 L100,438 L412,438 L357,258 Z" fill="#312e81" stroke="#c084fc" stroke-width="6"/>';
-    } else if (eq.neck === "neck_jubah") {
-        backLayer += '<path class="pet-cape-part" d="M168,265 L125,385 L387,385 L344,265 Z" fill="#0284c7" stroke="#bae6fd" stroke-width="5"/>';
-    }
-
-    if (eq.neck === "neck_sayap") {
-        backLayer +=
-            '<g class="pet-wing-left"><ellipse cx="135" cy="285" rx="58" ry="34" transform="rotate(-25 135 285)" fill="rgba(244,114,182,0.55)" stroke="#ec4899" stroke-width="4"/><ellipse cx="145" cy="330" rx="42" ry="24" transform="rotate(15 145 330)" fill="rgba(192,132,252,0.55)" stroke="#a855f7" stroke-width="4"/></g>' +
-            '<g class="pet-wing-right"><ellipse cx="377" cy="285" rx="58" ry="34" transform="rotate(25 377 285)" fill="rgba(244,114,182,0.55)" stroke="#ec4899" stroke-width="4"/><ellipse cx="367" cy="330" rx="42" ry="24" transform="rotate(-15 367 330)" fill="rgba(192,132,252,0.55)" stroke="#a855f7" stroke-width="4"/></g>';
-    } else if (eq.neck === "neck_ransel") {
-        backLayer += '<rect x="142" y="285" width="228" height="95" rx="22" fill="#e11d48" stroke="#881337" stroke-width="5"/>';
-    }
-
-    // Ekor & Sayap Bawaan Spesies
-    if (petId === "naga") {
-        backLayer +=
-            '<g class="pet-wing-left"><path d="M175,275 C95,210 60,255 85,325 C115,310 145,320 175,315 Z" fill="#f97316" stroke="#991b1b" stroke-width="6"/></g>' +
-            '<g class="pet-wing-right"><path d="M337,275 C417,210 452,255 427,325 C397,310 367,320 337,315 Z" fill="#f97316" stroke="#991b1b" stroke-width="6"/></g>' +
-            '<g class="pet-tail-part"><path d="M330,390 Q425,405 435,340" fill="none" stroke="' + palet.main + '" stroke-width="26" stroke-linecap="round"/>' +
-            '<path d="M435,340 C450,310 475,335 450,360 C435,370 420,355 435,340 Z" fill="#facc15" stroke="#ea580c" stroke-width="4"/></g>';
-    } else if (petId === "ikan") {
-        backLayer +=
-            '<g class="pet-tail-part"><path d="M340,350 L435,295 C450,335 450,375 435,415 Z" fill="#f97316" stroke="#c2410c" stroke-width="6" stroke-linejoin="round"/>' +
-            '<path d="M345,350 L412,320 M345,355 L412,388" stroke="#fde047" stroke-width="4" stroke-linecap="round"/></g>';
-    } else if (petId === "buaya") {
-        backLayer +=
-            '<g class="pet-tail-part"><path d="M330,392 Q435,405 445,345 Q420,335 390,355" fill="' + palet.main + '" stroke="' + palet.dark + '" stroke-width="6" stroke-linejoin="round"/>' +
-            '<polygon points="375,360 390,336 402,356" fill="#047857"/><polygon points="408,354 424,332 434,352" fill="#047857"/></g>';
-    } else if (petId === "kadal") {
-        backLayer += '<g class="pet-tail-part"><path d="M330,395 Q430,415 425,355 Q420,325 395,340" fill="none" stroke="' + palet.main + '" stroke-width="24" stroke-linecap="round"/></g>';
-    } else if (petId === "kucing") {
-        backLayer += '<g class="pet-tail-part"><path d="M335,390 Q420,360 405,285" fill="none" stroke="' + palet.main + '" stroke-width="22" stroke-linecap="round"/></g>';
-    } else if (petId === "anjing") {
-        backLayer += '<g class="pet-tail-part"><path d="M335,380 Q405,345 390,305" fill="none" stroke="' + palet.main + '" stroke-width="24" stroke-linecap="round"/></g>';
-    } else if (petId === "monyet") {
-        backLayer += '<g class="pet-tail-part"><path d="M330,390 Q435,370 425,290 Q415,255 390,280" fill="none" stroke="' + palet.dark + '" stroke-width="18" stroke-linecap="round"/></g>';
-    } else if (petId === "beruang") {
-        backLayer += '<circle class="pet-tail-part" cx="355" cy="390" r="20" fill="' + palet.dark + '"/>';
-    } else if (petId === "gajah") {
-        backLayer += '<g class="pet-tail-part"><path d="M355,390 Q405,405 410,430" fill="none" stroke="' + palet.dark + '" stroke-width="14" stroke-linecap="round"/></g>';
-    }
-
-    if (eq.costume === "cost_dino") {
-        backLayer += '<polygon points="150,240 120,255 155,275" fill="#facc15"/><polygon points="145,295 112,315 152,330" fill="#facc15"/>';
-    }
-
-    // B. TELINGA / SIRIP / TANDUK SPESIES
-    let earsLayer = "";
-    if (petId === "kucing") {
-        earsLayer =
-            '<g class="pet-ear-left"><polygon points="155,175 135,85 215,130" fill="' + palet.main + '" stroke="' + palet.dark + '" stroke-width="6" stroke-linejoin="round"/><polygon points="162,162 148,105 202,135" fill="#fda4af"/></g>' +
-            '<g class="pet-ear-right"><polygon points="357,175 377,85 297,130" fill="' + palet.main + '" stroke="' + palet.dark + '" stroke-width="6" stroke-linejoin="round"/><polygon points="350,162 364,105 310,135" fill="#fda4af"/></g>';
-    } else if (petId === "anjing") {
-        earsLayer =
-            '<g class="pet-ear-left"><ellipse cx="140" cy="185" rx="34" ry="62" transform="rotate(18 140 185)" fill="' + palet.dark + '"/></g>' +
-            '<g class="pet-ear-right"><ellipse cx="372" cy="185" rx="34" ry="62" transform="rotate(-18 372 185)" fill="' + palet.dark + '"/></g>';
-    } else if (petId === "ikan") {
-        earsLayer =
-            '<path d="M210,110 Q256,52 302,110 Z" fill="#f97316" stroke="#c2410c" stroke-width="5" stroke-linejoin="round"/>' +
-            '<g class="pet-ear-left"><ellipse cx="135" cy="205" rx="28" ry="16" transform="rotate(-25 135 205)" fill="#f97316" stroke="#c2410c" stroke-width="5"/></g>' +
-            '<g class="pet-ear-right"><ellipse cx="377" cy="205" rx="28" ry="16" transform="rotate(25 377 205)" fill="#f97316" stroke="#c2410c" stroke-width="5"/></g>';
-    } else if (petId === "buaya") {
-        earsLayer =
-            '<circle cx="195" cy="112" r="22" fill="' + palet.main + '" stroke="' + palet.dark + '" stroke-width="5"/>' +
-            '<circle cx="317" cy="112" r="22" fill="' + palet.main + '" stroke="' + palet.dark + '" stroke-width="5"/>' +
-            '<polygon points="232,102 246,74 256,102" fill="#047857"/><polygon points="256,102 268,74 280,102" fill="#047857"/>';
-    } else if (petId === "monyet") {
-        earsLayer =
-            '<g class="pet-ear-left"><circle cx="128" cy="195" r="36" fill="' + palet.main + '" stroke="' + palet.dark + '" stroke-width="6"/><circle cx="128" cy="195" r="22" fill="#fde68a"/></g>' +
-            '<g class="pet-ear-right"><circle cx="384" cy="195" r="36" fill="' + palet.main + '" stroke="' + palet.dark + '" stroke-width="6"/><circle cx="384" cy="195" r="22" fill="#fde68a"/></g>';
-    } else if (petId === "beruang") {
-        earsLayer =
-            '<g class="pet-ear-left"><circle cx="155" cy="115" r="38" fill="' + palet.main + '" stroke="' + palet.dark + '" stroke-width="6"/><circle cx="155" cy="115" r="20" fill="' + palet.belly + '"/></g>' +
-            '<g class="pet-ear-right"><circle cx="357" cy="115" r="38" fill="' + palet.main + '" stroke="' + palet.dark + '" stroke-width="6"/><circle cx="357" cy="115" r="20" fill="' + palet.belly + '"/></g>';
-    } else if (petId === "gajah") {
-        earsLayer =
-            '<g class="pet-ear-left"><ellipse cx="112" cy="195" rx="58" ry="74" fill="' + palet.main + '" stroke="' + palet.dark + '" stroke-width="6"/><ellipse cx="116" cy="198" rx="38" ry="50" fill="#fbcfe8"/></g>' +
-            '<g class="pet-ear-right"><ellipse cx="400" cy="195" rx="58" ry="74" fill="' + palet.main + '" stroke="' + palet.dark + '" stroke-width="6"/><ellipse cx="396" cy="198" rx="38" ry="50" fill="#fbcfe8"/></g>';
-    } else if (petId === "naga") {
-        earsLayer =
-            '<g class="pet-ear-left"><path d="M175,125 Q135,55 190,75 Q205,95 205,120 Z" fill="#facc15" stroke="#b45309" stroke-width="5"/></g>' +
-            '<g class="pet-ear-right"><path d="M337,125 Q377,55 322,75 Q307,95 307,120 Z" fill="#facc15" stroke="#b45309" stroke-width="5"/></g>';
-    } else if (petId === "kadal") {
-        earsLayer = '<path d="M235,98 L256,68 L277,98 Z" fill="#16a34a"/>';
-    }
-
-    // C. TUBUH & PERUT 2.5D CHIBI
-    let bodyLayer =
-        '<ellipse cx="256" cy="355" rx="95" ry="88" fill="url(#gradBody_' + petId + ')" stroke="' + palet.dark + '" stroke-width="6"/>' +
-        '<ellipse cx="256" cy="362" rx="62" ry="62" fill="' + palet.belly + '"/>';
-
-    if (petId === "naga" || petId === "kadal" || petId === "buaya") {
-        bodyLayer +=
-            '<line x1="205" y1="340" x2="307" y2="340" stroke="' + palet.accent + '" stroke-width="3" opacity="0.45"/>' +
-            '<line x1="200" y1="365" x2="312" y2="365" stroke="' + palet.accent + '" stroke-width="3" opacity="0.45"/>' +
-            '<line x1="210" y1="390" x2="302" y2="390" stroke="' + palet.accent + '" stroke-width="3" opacity="0.45"/>';
-    } else if (petId === "ikan") {
-        bodyLayer +=
-            '<path d="M210,335 Q230,350 210,365" fill="none" stroke="#0284c7" stroke-width="4" stroke-linecap="round"/>' +
-            '<path d="M302,335 Q282,350 302,365" fill="none" stroke="#0284c7" stroke-width="4" stroke-linecap="round"/>';
-    }
-
-    // D. LAYER PAKAIAN (10 BODY ITEMS) & KOSTUM LENGKAP (7 COSTUME ITEMS)
+    let bodyLayer = "";
+    let limbsLayer = "";
+    let headLayer = "";
     let clothesLayer = "";
-    let activeBodyId = eq.costume || eq.body || "";
-
-    if (activeBodyId === "body_tshirt") {
-        clothesLayer = '<path d="M163,315 Q256,335 349,315 L342,395 Q256,410 170,395 Z" fill="#3b82f6" stroke="#1d4ed8" stroke-width="4"/><circle cx="256" cy="358" r="14" fill="#fef08a"/>';
-    } else if (activeBodyId === "body_hoodie") {
-        clothesLayer = '<path d="M160,305 Q256,325 352,305 L346,405 Q256,420 166,405 Z" fill="#f97316" stroke="#c2410c" stroke-width="4"/><path d="M215,365 L297,365 L288,402 L224,402 Z" fill="#ea580c"/><line x1="240" y1="315" x2="240" y2="350" stroke="#ffffff" stroke-width="4" stroke-linecap="round"/><line x1="272" y1="315" x2="272" y2="350" stroke="#ffffff" stroke-width="4" stroke-linecap="round"/>';
-    } else if (activeBodyId === "body_labcoat") {
-        clothesLayer = '<path d="M160,305 Q256,325 352,305 L348,412 L272,412 L272,320 L240,320 L240,412 L164,412 Z" fill="#ffffff" stroke="#94a3b8" stroke-width="4"/><polygon points="240,315 215,355 240,365" fill="#e2e8f0" stroke="#94a3b8" stroke-width="2"/><polygon points="272,315 297,355 272,365" fill="#e2e8f0" stroke="#94a3b8" stroke-width="2"/><rect x="285" y="355" width="26" height="28" rx="3" fill="#f8fafc" stroke="#64748b" stroke-width="2"/><line x1="293" y1="348" x2="293" y2="360" stroke="#ef4444" stroke-width="4"/>';
-    } else if (activeBodyId === "body_explorer") {
-        clothesLayer = '<path d="M162,310 Q256,330 350,310 L345,405 Q256,418 167,405 Z" fill="#d97706" stroke="#78350f" stroke-width="4"/><rect x="190" y="350" width="34" height="32" rx="4" fill="#b45309" stroke="#78350f" stroke-width="2"/><rect x="288" y="350" width="34" height="32" rx="4" fill="#b45309" stroke="#78350f" stroke-width="2"/>';
-    } else if (activeBodyId === "body_winter") {
-        clothesLayer = '<path d="M158,305 Q256,325 354,305 L348,410 Q256,422 164,410 Z" fill="#0284c7" stroke="#0369a1" stroke-width="4"/><rect x="155" y="292" width="202" height="24" rx="12" fill="#f8fafc" stroke="#cbd5e1" stroke-width="3"/>';
-    } else if (activeBodyId === "body_grad") {
-        clothesLayer = '<path d="M158,305 Q256,325 354,305 L350,415 L162,415 Z" fill="#1e293b" stroke="#0f172a" stroke-width="4"/><path d="M210,310 L256,365 L302,310" fill="none" stroke="#facc15" stroke-width="8" stroke-linecap="round"/>';
-    } else if (activeBodyId === "body_festival") {
-        clothesLayer = '<path d="M160,308 Q256,328 352,308 L346,410 Q256,422 166,410 Z" fill="#e11d48" stroke="#9f1239" stroke-width="4"/><path d="M166,375 L346,375" stroke="#facc15" stroke-width="10"/>';
-    } else if (activeBodyId === "body_batik") {
-        clothesLayer = '<path d="M160,306 Q256,326 352,306 L346,410 Q256,422 166,410 Z" fill="#78350f" stroke="#451a03" stroke-width="4"/><circle cx="210" cy="350" r="10" fill="none" stroke="#facc15" stroke-width="3"/><circle cx="256" cy="365" r="10" fill="none" stroke="#facc15" stroke-width="3"/><circle cx="302" cy="350" r="10" fill="none" stroke="#facc15" stroke-width="3"/><line x1="256" y1="320" x2="256" y2="414" stroke="#facc15" stroke-width="4"/>';
-    } else if (activeBodyId === "body_koki") {
-        clothesLayer = '<path d="M160,306 Q256,326 352,306 L346,410 Q256,422 166,410 Z" fill="#ffffff" stroke="#cbd5e1" stroke-width="4"/><path d="M195,308 L256,335 L317,308" fill="none" stroke="#ef4444" stroke-width="7" stroke-linecap="round"/><circle cx="242" cy="355" r="5" fill="#1e293b"/><circle cx="270" cy="355" r="5" fill="#1e293b"/><circle cx="242" cy="380" r="5" fill="#1e293b"/><circle cx="270" cy="380" r="5" fill="#1e293b"/>';
-    } else if (activeBodyId === "body_detektif") {
-        clothesLayer = '<path d="M158,305 Q256,325 354,305 L348,412 Q256,424 164,412 Z" fill="#a16207" stroke="#713f12" stroke-width="4"/><polygon points="180,308 256,352 332,308" fill="#ca8a04" stroke="#713f12" stroke-width="3"/><line x1="256" y1="350" x2="256" y2="415" stroke="#451a03" stroke-width="4"/>';
-    } else if (activeBodyId === "cost_hero") {
-        clothesLayer = '<path d="M160,305 Q256,325 352,305 L345,408 Q256,422 167,408 Z" fill="#2563eb" stroke="#1e3a8a" stroke-width="4"/><path d="M166,388 L346,388" stroke="#facc15" stroke-width="12"/><polygon points="256,330 264,348 284,348 268,360 274,378 256,366 238,378 244,360 228,348 248,348" fill="#facc15" stroke="#b45309" stroke-width="2"/>';
-    } else if (activeBodyId === "cost_astro") {
-        clothesLayer = '<path d="M156,302 Q256,322 356,302 L350,412 Q256,426 162,412 Z" fill="#f8fafc" stroke="#64748b" stroke-width="5"/><rect x="218" y="335" width="76" height="46" rx="8" fill="#cbd5e1" stroke="#475569" stroke-width="3"/><circle cx="238" cy="358" r="8" fill="#ef4444"/><circle cx="262" cy="358" r="8" fill="#22c55e"/><circle cx="282" cy="358" r="6" fill="#3b82f6"/>';
-    } else if (activeBodyId === "cost_knight") {
-        clothesLayer = '<path d="M156,302 Q256,325 356,302 L348,412 Q256,426 164,412 Z" fill="#94a3b8" stroke="#334155" stroke-width="5"/><ellipse cx="162" cy="318" rx="26" ry="18" fill="#cbd5e1" stroke="#334155" stroke-width="4"/><ellipse cx="350" cy="318" rx="26" ry="18" fill="#cbd5e1" stroke="#334155" stroke-width="4"/><polygon points="256,328 278,360 256,392 234,360" fill="#facc15" stroke="#b45309" stroke-width="3"/>';
-    } else if (activeBodyId === "cost_dino") {
-        clothesLayer = '<path d="M158,302 Q256,322 354,302 L348,412 Q256,426 164,412 Z" fill="#22c55e" stroke="#15803d" stroke-width="5"/><ellipse cx="256" cy="365" rx="52" ry="44" fill="#fef08a"/>';
-    } else if (activeBodyId === "cost_royal") {
-        clothesLayer = '<path d="M158,302 Q256,325 354,302 L348,414 Q256,426 164,414 Z" fill="#b91c1c" stroke="#facc15" stroke-width="5"/><rect x="156" y="294" width="200" height="20" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/><circle cx="256" cy="352" r="14" fill="#38bdf8" stroke="#facc15" stroke-width="4"/>';
-    } else if (activeBodyId === "cost_penyihir") {
-        clothesLayer = '<path d="M158,302 Q256,325 354,302 L348,414 Q256,426 164,414 Z" fill="#4c1d95" stroke="#c084fc" stroke-width="5"/><polygon points="256,335 262,352 280,352 266,362 271,378 256,368 241,378 246,362 232,352 250,352" fill="#fde047"/>';
-    } else if (activeBodyId === "cost_pirate") {
-        clothesLayer = '<path d="M158,302 Q256,325 354,302 L348,414 Q256,426 164,414 Z" fill="#991b1b" stroke="#0f172a" stroke-width="5"/><path d="M165,382 L347,382" stroke="#b45309" stroke-width="14"/><rect x="242" y="372" width="28" height="20" fill="none" stroke="#facc15" stroke-width="4"/>';
-    }
-
-    // E. TANGAN, SIRIP, KAKI, & AKSESORI LEHER/TUBUH (8 NECK ITEMS)
-    let warnaSepatu = (eq.neck === "neck_sepatu") ? "#ef4444" : palet.main;
-    let strokeSepatu = (eq.neck === "neck_sepatu") ? "#991b1b" : palet.dark;
-    let limbsLayer =
-        '<ellipse cx="162" cy="340" rx="24" ry="18" transform="rotate(-20 162 340)" fill="' + palet.main + '" stroke="' + palet.dark + '" stroke-width="5"/>' +
-        '<ellipse cx="350" cy="340" rx="24" ry="18" transform="rotate(20 350 340)" fill="' + palet.main + '" stroke="' + palet.dark + '" stroke-width="5"/>' +
-        '<ellipse cx="205" cy="432" rx="30" ry="18" fill="' + warnaSepatu + '" stroke="' + strokeSepatu + '" stroke-width="5"/>' +
-        '<ellipse cx="307" cy="432" rx="30" ry="18" fill="' + warnaSepatu + '" stroke="' + strokeSepatu + '" stroke-width="5"/>';
-
     let neckLayer = "";
-    if (eq.neck === "neck_dasi") {
-        neckLayer = '<polygon points="256,302 222,286 222,318" fill="#e11d48" stroke="#881337" stroke-width="3"/><polygon points="256,302 290,286 290,318" fill="#e11d48" stroke="#881337" stroke-width="3"/><circle cx="256" cy="302" r="9" fill="#fb7185" stroke="#881337" stroke-width="3"/>';
-    } else if (eq.neck === "neck_syal") {
-        neckLayer = '<path d="M168,292 Q256,320 344,292 Q350,316 336,322 Q256,342 176,322 Q162,316 168,292 Z" fill="#dc2626" stroke="#7f1d1d" stroke-width="4"/><path d="M286,315 L302,382 L328,376 L314,310 Z" fill="#ef4444" stroke="#7f1d1d" stroke-width="4"/>';
-    } else if (eq.neck === "neck_kalung") {
-        neckLayer = '<path d="M188,295 Q256,338 324,295" fill="none" stroke="#eab308" stroke-width="5"/><polygon points="256,315 262,329 278,329 265,338 270,352 256,343 242,352 247,338 234,329 250,329" fill="#facc15" stroke="#a16207" stroke-width="2"/>';
-    } else if (eq.neck === "neck_ransel") {
-        neckLayer = '<path d="M188,302 L182,382 M324,302 L330,382" stroke="#9f1239" stroke-width="10" stroke-linecap="round"/>';
-    }
 
-    // F. KEPALA & WAJAH 2.5D
-    let headLayer = '<g class="pet-head-group">' + earsLayer;
+    let hatAnchor = { x: 256, y: 120, scale: 1 };
+    let eyeAnchor = { lx: 205, rx: 307, y: 185, scale: 1 };
+    let neckAnchor = { x: 256, y: 292, scale: 1 };
+    let allowBodySuit = true;
 
-    if (eq.costume === "cost_dino") {
-        headLayer += '<ellipse cx="256" cy="195" rx="122" ry="108" fill="#22c55e" stroke="#15803d" stroke-width="6"/><polygon points="256,65 240,92 272,92" fill="#facc15"/>';
-    }
+    // =====================================================================
+    // SPESIES 1: IKAN (NEMO / TROPICAL FISH)
+    // =====================================================================
+    if (petId === "ikan") {
+        allowBodySuit = false;
+        hatAnchor = { x: 225, y: 175, scale: 0.78 };
+        eyeAnchor = { lx: 162, rx: 222, y: 272, scale: 0.78 };
+        neckAnchor = { x: 235, y: 345, scale: 0.75 };
 
-    headLayer += '<ellipse cx="256" cy="198" rx="112" ry="96" fill="url(#gradHead_' + petId + ')" stroke="' + palet.dark + '" stroke-width="6"/>';
-
-    if (petId === "monyet") {
-        headLayer += '<ellipse cx="256" cy="212" rx="86" ry="68" fill="#fef3c7"/>';
-    } else if (petId === "beruang" || petId === "anjing") {
-        headLayer += '<ellipse cx="256" cy="222" rx="42" ry="30" fill="' + palet.belly + '"/>';
-    } else if (petId === "buaya") {
-        headLayer += '<ellipse cx="256" cy="226" rx="68" ry="34" fill="#34d399" stroke="#047857" stroke-width="4"/><polygon points="215,244 222,256 229,244" fill="#ffffff"/><polygon points="283,244 290,256 297,244" fill="#ffffff"/>';
-    }
-
-    // Headphone di Kepala/Telinga jika dipakai
-    if (eq.neck === "neck_hp") {
-        headLayer += '<path d="M140,195 C140,80 372,80 372,195" fill="none" stroke="#1e293b" stroke-width="12" stroke-linecap="round"/><rect x="122" y="168" width="28" height="56" rx="12" fill="#ec4899" stroke="#831843" stroke-width="4"/><rect x="362" y="168" width="28" height="56" rx="12" fill="#ec4899" stroke="#831843" stroke-width="4"/>';
-    }
-
-    headLayer +=
-        '<ellipse cx="178" cy="218" rx="18" ry="10" fill="' + palet.cheek + '" opacity="0.55"/>' +
-        '<ellipse cx="334" cy="218" rx="18" ry="10" fill="' + palet.cheek + '" opacity="0.55"/>';
-
-    // G. EKSPRESI MATA & MULUT SESUAI STATE ANIMASI
-    let eyesMouthLayer = "";
-    if (state === "happy") {
-        eyesMouthLayer =
-            '<path d="M188,190 Q205,168 222,190" fill="none" stroke="#0f172a" stroke-width="7" stroke-linecap="round"/>' +
-            '<path d="M290,190 Q307,168 324,190" fill="none" stroke="#0f172a" stroke-width="7" stroke-linecap="round"/>' +
-            '<path d="M232,222 Q256,252 280,222 Z" fill="#ef4444" stroke="#0f172a" stroke-width="5"/>';
-    } else if (state === "eating") {
-        eyesMouthLayer =
-            '<circle cx="205" cy="188" r="16" fill="#0f172a"/><circle cx="200" cy="182" r="6" fill="#ffffff"/>' +
-            '<circle cx="307" cy="188" r="16" fill="#0f172a"/><circle cx="302" cy="182" r="6" fill="#ffffff"/>' +
-            '<ellipse class="pet-mouth-chew" cx="256" cy="232" rx="20" ry="16" fill="#ef4444" stroke="#0f172a" stroke-width="5"/>';
-    } else if (state === "sleepy") {
-        eyesMouthLayer =
-            '<path d="M188,192 Q205,204 222,192" fill="none" stroke="#0f172a" stroke-width="6" stroke-linecap="round"/>' +
-            '<path d="M290,192 Q307,204 324,192" fill="none" stroke="#0f172a" stroke-width="6" stroke-linecap="round"/>' +
-            '<circle cx="256" cy="232" r="9" fill="#fda4af" stroke="#0f172a" stroke-width="4"/>';
-    } else if (state === "hungry" || state === "critical") {
-        eyesMouthLayer =
-            '<circle cx="205" cy="192" r="15" fill="#0f172a"/><circle cx="200" cy="187" r="5" fill="#ffffff"/>' +
-            '<circle cx="307" cy="192" r="15" fill="#0f172a"/><circle cx="302" cy="187" r="5" fill="#ffffff"/>' +
-            '<line x1="185" y1="170" x2="222" y2="178" stroke="#0f172a" stroke-width="5" stroke-linecap="round"/>' +
-            '<line x1="327" y1="170" x2="290" y2="178" stroke="#0f172a" stroke-width="5" stroke-linecap="round"/>' +
-            '<path d="M236,238 Q256,222 276,238" fill="none" stroke="#0f172a" stroke-width="5" stroke-linecap="round"/>';
-    } else {
-        eyesMouthLayer =
-            '<g class="pet-eyes-blink">' +
-                '<circle cx="205" cy="188" r="17" fill="#0f172a"/><circle cx="199" cy="181" r="6.5" fill="#ffffff"/><circle cx="211" cy="194" r="3" fill="#ffffff"/>' +
-                '<circle cx="307" cy="188" r="17" fill="#0f172a"/><circle cx="301" cy="181" r="6.5" fill="#ffffff"/><circle cx="313" cy="194" r="3" fill="#ffffff"/>' +
+        backLayer =
+            '<g class="pet-tail-part">' +
+                '<path d="M345,285 L448,205 C468,242 462,272 425,288 C462,304 468,334 448,370 L345,295 Z" fill="' + palet.accent + '" stroke="' + palet.dark + '" stroke-width="6" stroke-linejoin="round"/>' +
+                '<path d="M355,286 L428,238 M355,290 L422,288 M355,294 L428,338" stroke="#fde047" stroke-width="4" stroke-linecap="round"/>' +
             '</g>' +
-            (petId === "ikan"
-                ? '<circle cx="256" cy="226" r="10" fill="#fb7185" stroke="#0f172a" stroke-width="4"/>'
-                : '<path d="M238,224 Q256,238 274,224" fill="none" stroke="#0f172a" stroke-width="5" stroke-linecap="round"/>');
+            '<path d="M195,212 C225,140 305,145 340,228 Z" fill="' + palet.accent + '" stroke="' + palet.dark + '" stroke-width="6" stroke-linejoin="round"/>' +
+            '<path d="M235,355 C260,405 315,400 330,348 Z" fill="' + palet.accent + '" stroke="' + palet.dark + '" stroke-width="5" stroke-linejoin="round"/>';
+
+        bodyLayer =
+            '<path d="M112,288 C112,200 225,182 362,262 C382,276 382,300 362,314 C225,394 112,376 112,288 Z" fill="url(#gradBody_ikan)" stroke="' + palet.dark + '" stroke-width="6"/>' +
+            '<path d="M128,312 C185,368 285,365 348,312 C285,342 195,342 128,312 Z" fill="' + palet.belly + '"/>' +
+            '<path d="M245,204 Q225,288 245,372 L272,366 Q252,288 272,210 Z" fill="#ffffff" stroke="' + palet.dark + '" stroke-width="4"/>' +
+            '<path d="M322,238 Q308,288 322,338 L342,328 Q330,288 342,248 Z" fill="#ffffff" stroke="' + palet.dark + '" stroke-width="4"/>' +
+            '<path d="M228,242 Q245,288 225,332" fill="none" stroke="' + palet.dark + '" stroke-width="5" stroke-linecap="round"/>';
+
+        limbsLayer =
+            '<g class="pet-wing-left">' +
+                '<path d="M238,302 C285,282 305,328 265,352 C242,360 228,332 238,302 Z" fill="' + palet.accent + '" stroke="' + palet.dark + '" stroke-width="5"/>' +
+            '</g>';
+
+        headLayer =
+            '<g class="pet-head-group">' +
+                '<ellipse cx="145" cy="296" rx="14" ry="8" fill="' + palet.cheek + '" opacity="0.6"/>' +
+                '<ellipse cx="218" cy="296" rx="14" ry="8" fill="' + palet.cheek + '" opacity="0.6"/>' +
+                buildEyes(162, 272, 212, 272, 14) +
+                (state === "eating"
+                    ? '<circle class="pet-mouth-chew" cx="184" cy="306" r="12" fill="#ef4444" stroke="#0f172a" stroke-width="4"/>'
+                    : '<circle cx="184" cy="306" r="8" fill="#fb7185" stroke="#0f172a" stroke-width="4"/>') +
+            '</g>';
     }
 
-    let noseLayer = '<ellipse cx="256" cy="208" rx="9" ry="6" fill="#0f172a"/>';
-    if (petId === "gajah") {
-        noseLayer = '<path d="M242,202 Q256,202 270,202 Q272,262 296,258 Q308,255 302,242" fill="' + palet.main + '" stroke="' + palet.dark + '" stroke-width="6" stroke-linecap="round"/>';
-    } else if (petId === "kucing") {
-        noseLayer =
-            '<polygon points="247,205 265,205 256,215" fill="#f43f5e"/>' +
-            '<line x1="145" y1="208" x2="180" y2="212" stroke="#334155" stroke-width="3" stroke-linecap="round"/>' +
-            '<line x1="145" y1="222" x2="180" y2="220" stroke="#334155" stroke-width="3" stroke-linecap="round"/>' +
-            '<line x1="367" y1="208" x2="332" y2="212" stroke="#334155" stroke-width="3" stroke-linecap="round"/>' +
-            '<line x1="367" y1="222" x2="332" y2="220" stroke="#334155" stroke-width="3" stroke-linecap="round"/>';
-    } else if (petId === "buaya") {
-        noseLayer = '<circle cx="238" cy="212" r="5" fill="#064e3b"/><circle cx="274" cy="212" r="5" fill="#064e3b"/>';
-    } else if (petId === "ikan") {
-        noseLayer = '';
+    // =====================================================================
+    // SPESIES 2: ULAR (SLYTHER)
+    // =====================================================================
+    else if (petId === "ular") {
+        allowBodySuit = false;
+        hatAnchor = { x: 256, y: 112, scale: 0.85 };
+        eyeAnchor = { lx: 218, rx: 294, y: 175, scale: 0.88 };
+        neckAnchor = { x: 256, y: 245, scale: 0.82 };
+
+        backLayer =
+            '<g class="pet-tail-part">' +
+                '<path d="M365,412 Q445,410 468,352 Q442,382 365,382 Z" fill="' + palet.main + '" stroke="' + palet.dark + '" stroke-width="6" stroke-linejoin="round"/>' +
+            '</g>';
+
+        bodyLayer =
+            '<path d="M135,402 C135,362 385,362 385,402 C385,438 135,438 135,402 Z" fill="url(#gradBody_ular)" stroke="' + palet.dark + '" stroke-width="6"/>' +
+            '<path d="M165,412 Q260,432 355,412" fill="none" stroke="' + palet.belly + '" stroke-width="14" stroke-linecap="round"/>' +
+            '<path d="M168,382 C135,330 355,342 332,272 C320,235 256,242 256,195" fill="none" stroke="' + palet.dark + '" stroke-width="64" stroke-linecap="round"/>' +
+            '<path d="M168,382 C135,330 355,342 332,272 C320,235 256,242 256,195" fill="none" stroke="url(#gradBody_ular)" stroke-width="52" stroke-linecap="round"/>' +
+            '<path d="M185,375 C160,335 340,342 318,275 C308,242 256,245 256,205" fill="none" stroke="' + palet.belly + '" stroke-width="22" stroke-linecap="round" stroke-dasharray="14,6"/>' +
+            '<circle cx="295" cy="312" r="9" fill="' + palet.accent + '"/><circle cx="235" cy="345" r="10" fill="' + palet.accent + '"/><circle cx="285" cy="392" r="10" fill="' + palet.accent + '"/>';
+
+        headLayer =
+            '<g class="pet-head-group">' +
+                '<path d="M256,228 L256,268 L242,284 M256,268 L270,284" fill="none" stroke="#ef4444" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>' +
+                '<path d="M172,182 C168,118 344,118 340,182 C335,222 298,236 256,236 C214,236 177,222 172,182 Z" fill="url(#gradHead_ular)" stroke="' + palet.dark + '" stroke-width="6"/>' +
+                '<ellipse cx="195" cy="198" rx="14" ry="8" fill="' + palet.cheek + '" opacity="0.55"/>' +
+                '<ellipse cx="317" cy="198" rx="14" ry="8" fill="' + palet.cheek + '" opacity="0.55"/>' +
+                buildEyes(218, 175, 294, 175, 15) +
+                '<circle cx="244" cy="202" r="3.5" fill="' + palet.dark + '"/><circle cx="268" cy="202" r="3.5" fill="' + palet.dark + '"/>' +
+                buildMouth(256, 214, 0.85) +
+            '</g>';
     }
 
-    headLayer += eyesMouthLayer + noseLayer;
+    // =====================================================================
+    // SPESIES 3: KADAL (GECKO)
+    // =====================================================================
+    else if (petId === "kadal") {
+        allowBodySuit = false;
+        hatAnchor = { x: 195, y: 155, scale: 0.82 };
+        eyeAnchor = { lx: 158, rx: 222, y: 225, scale: 0.82 };
+        neckAnchor = { x: 215, y: 295, scale: 0.8 };
 
-    // H. LAYER KACAMATA & WAJAH (5 EYES ITEMS)
-    if (eq.eyes === "eyes_round") {
-        headLayer += '<circle cx="205" cy="188" r="26" fill="rgba(56,189,248,0.18)" stroke="#0f172a" stroke-width="5"/><circle cx="307" cy="188" r="26" fill="rgba(56,189,248,0.18)" stroke="#0f172a" stroke-width="5"/><line x1="231" y1="188" x2="281" y2="188" stroke="#0f172a" stroke-width="5"/>';
-    } else if (eq.eyes === "eyes_star") {
-        headLayer += '<polygon points="205,156 213,174 233,176 218,190 222,210 205,199 188,210 192,190 177,176 197,174" fill="rgba(250,204,21,0.45)" stroke="#ca8a04" stroke-width="4"/><polygon points="307,156 315,174 335,176 320,190 324,210 307,199 290,210 294,190 279,176 299,174" fill="rgba(250,204,21,0.45)" stroke="#ca8a04" stroke-width="4"/><line x1="230" y1="185" x2="282" y2="185" stroke="#ca8a04" stroke-width="4"/>';
-    } else if (eq.eyes === "eyes_goggles") {
-        headLayer += '<rect x="165" y="164" width="182" height="44" rx="18" fill="#78350f" stroke="#451a03" stroke-width="4"/><circle cx="205" cy="186" r="22" fill="#38bdf8" stroke="#facc15" stroke-width="5" opacity="0.8"/><circle cx="307" cy="186" r="22" fill="#38bdf8" stroke="#facc15" stroke-width="5" opacity="0.8"/>';
-    } else if (eq.eyes === "eyes_monocle") {
-        headLayer += '<circle cx="307" cy="188" r="27" fill="rgba(254,240,138,0.28)" stroke="#eab308" stroke-width="6"/><path d="M332,202 Q345,245 330,275" fill="none" stroke="#eab308" stroke-width="3" stroke-dasharray="4,4"/>';
-    } else if (eq.eyes === "eyes_halo") {
-        headLayer += '<ellipse cx="256" cy="64" rx="58" ry="14" fill="none" stroke="#fde047" stroke-width="9"/><ellipse cx="256" cy="64" rx="58" ry="14" fill="none" stroke="#ffffff" stroke-width="3"/>';
+        backLayer =
+            '<g class="pet-tail-part">' +
+                '<path d="M325,310 C405,325 435,275 425,235 C418,212 448,215 452,248 C458,312 405,368 320,350 Z" fill="' + palet.main + '" stroke="' + palet.dark + '" stroke-width="6" stroke-linejoin="round"/>' +
+            '</g>';
+
+        bodyLayer =
+            '<path d="M195,275 C245,248 335,265 358,318 C368,352 315,372 245,362 C195,355 175,312 195,275 Z" fill="url(#gradBody_kadal)" stroke="' + palet.dark + '" stroke-width="6"/>' +
+            '<path d="M205,335 Q275,365 342,338 Q275,352 205,335 Z" fill="' + palet.belly + '"/>' +
+            '<circle cx="265" cy="292" r="8" fill="' + palet.accent + '" opacity="0.65"/>' +
+            '<circle cx="298" cy="302" r="10" fill="' + palet.accent + '" opacity="0.65"/>' +
+            '<circle cx="325" cy="318" r="7" fill="' + palet.accent + '" opacity="0.65"/>';
+
+        limbsLayer =
+            '<g fill="' + palet.main + '" stroke="' + palet.dark + '" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">' +
+                '<path d="M205,338 L175,382 L155,385 L195,388 L218,345 Z"/>' +
+                '<path d="M252,348 L242,395 L225,398 L265,398 L272,350 Z"/>' +
+                '<path d="M312,345 L308,392 L292,396 L332,396 L332,345 Z"/>' +
+                '<path d="M342,332 L365,378 L352,382 L385,382 L356,325 Z"/>' +
+            '</g>';
+
+        headLayer =
+            '<g class="pet-head-group">' +
+                '<path d="M112,235 C112,172 268,168 268,235 C268,278 232,298 190,298 C142,298 112,272 112,235 Z" fill="url(#gradHead_kadal)" stroke="' + palet.dark + '" stroke-width="6"/>' +
+                '<ellipse cx="136" cy="252" rx="14" ry="8" fill="' + palet.cheek + '" opacity="0.6"/>' +
+                '<ellipse cx="242" cy="252" rx="14" ry="8" fill="' + palet.cheek + '" opacity="0.6"/>' +
+                buildEyes(158, 225, 222, 225, 16) +
+                '<circle cx="178" cy="246" r="3" fill="' + palet.dark + '"/><circle cx="198" cy="246" r="3" fill="' + palet.dark + '"/>' +
+                buildMouth(190, 262, 0.9) +
+            '</g>';
     }
 
-    // I. LAYER TOPI / AKSESORI KEPALA (8 HEAD ITEMS + HELM KOSTUM)
+    // =====================================================================
+    // SPESIES 4: BUAYA (CROCO)
+    // =====================================================================
+    else if (petId === "buaya") {
+        allowBodySuit = false;
+        hatAnchor = { x: 205, y: 145, scale: 0.82 };
+        eyeAnchor = { lx: 175, rx: 228, y: 198, scale: 0.8 };
+        neckAnchor = { x: 235, y: 305, scale: 0.85 };
+
+        backLayer =
+            '<g class="pet-tail-part">' +
+                '<polygon points="365,305 382,278 398,308 415,282 430,312 448,290 458,318" fill="' + palet.accent + '" stroke="' + palet.dark + '" stroke-width="4" stroke-linejoin="round"/>' +
+                '<path d="M335,305 C405,305 455,315 478,342 C445,368 385,368 325,352 Z" fill="' + palet.main + '" stroke="' + palet.dark + '" stroke-width="6" stroke-linejoin="round"/>' +
+            '</g>';
+
+        bodyLayer =
+            '<polygon points="245,268 262,242 280,268 298,242 316,270 334,246 350,278" fill="' + palet.accent + '" stroke="' + palet.dark + '" stroke-width="4" stroke-linejoin="round"/>' +
+            '<path d="M195,282 C245,258 335,262 368,315 C378,352 325,375 245,368 C190,362 175,320 195,282 Z" fill="url(#gradBody_buaya)" stroke="' + palet.dark + '" stroke-width="6"/>' +
+            '<path d="M205,340 Q280,372 355,342 Q280,358 205,340 Z" fill="' + palet.belly + '"/>';
+
+        limbsLayer =
+            '<g fill="' + palet.main + '" stroke="' + palet.dark + '" stroke-width="5" stroke-linejoin="round">' +
+                '<rect x="192" y="342" width="32" height="44" rx="12" transform="rotate(10 208 364)"/>' +
+                '<rect x="245" y="348" width="32" height="44" rx="12" transform="rotate(5 261 370)"/>' +
+                '<rect x="302" y="345" width="32" height="44" rx="12" transform="rotate(-6 318 367)"/>' +
+                '<rect x="342" y="335" width="30" height="42" rx="12" transform="rotate(-14 357 356)"/>' +
+            '</g>';
+
+        headLayer =
+            '<g class="pet-head-group">' +
+                '<circle cx="175" cy="195" r="26" fill="' + palet.main + '" stroke="' + palet.dark + '" stroke-width="6"/>' +
+                '<circle cx="228" cy="195" r="26" fill="' + palet.main + '" stroke="' + palet.dark + '" stroke-width="6"/>' +
+                '<path d="M82,248 C82,212 145,205 245,205 C272,215 278,285 235,295 C165,302 82,288 82,248 Z" fill="url(#gradHead_buaya)" stroke="' + palet.dark + '" stroke-width="6"/>' +
+                '<path d="M92,262 Q165,278 242,262 C238,292 155,298 92,262 Z" fill="' + palet.belly + '" stroke="' + palet.dark + '" stroke-width="4"/>' +
+                '<polygon points="108,262 115,275 122,263" fill="#ffffff" stroke="' + palet.dark + '" stroke-width="2"/>' +
+                '<polygon points="138,265 145,278 152,266" fill="#ffffff" stroke="' + palet.dark + '" stroke-width="2"/>' +
+                '<polygon points="172,266 179,278 186,265" fill="#ffffff" stroke="' + palet.dark + '" stroke-width="2"/>' +
+                '<circle cx="105" cy="234" r="5" fill="#064e3b"/><circle cx="124" cy="234" r="5" fill="#064e3b"/>' +
+                '<ellipse cx="225" cy="245" rx="14" ry="8" fill="' + palet.cheek + '" opacity="0.6"/>' +
+                buildEyes(175, 198, 228, 198, 13) +
+            '</g>';
+    }
+
+    // =====================================================================
+    // SPESIES 5: KECOA (OGGY)
+    // =====================================================================
+    else if (petId === "kecoa") {
+        allowBodySuit = false;
+        hatAnchor = { x: 256, y: 122, scale: 0.78 };
+        eyeAnchor = { lx: 226, rx: 286, y: 185, scale: 0.78 };
+        neckAnchor = { x: 256, y: 245, scale: 0.78 };
+
+        limbsLayer =
+            '<g fill="none" stroke="' + palet.dark + '" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">' +
+                '<path d="M195,268 L138,245 L112,268"/>' +
+                '<path d="M317,268 L374,245 L400,268"/>' +
+                '<path d="M185,318 L122,318 L98,348"/>' +
+                '<path d="M327,318 L390,318 L414,348"/>' +
+                '<path d="M195,368 L138,402 L118,432"/>' +
+                '<path d="M317,368 L374,402 L394,432"/>' +
+            '</g>';
+
+        bodyLayer =
+            '<ellipse cx="256" cy="342" rx="76" ry="92" fill="' + palet.belly + '" stroke="' + palet.dark + '" stroke-width="6"/>' +
+            '<path d="M188,378 Q256,395 324,378 M198,402 Q256,418 314,402" fill="none" stroke="' + palet.dark + '" stroke-width="4"/>' +
+            '<path d="M182,255 C175,335 205,412 254,418 L254,255 Z" fill="url(#gradBody_kecoa)" stroke="' + palet.dark + '" stroke-width="5.5" stroke-linejoin="round"/>' +
+            '<path d="M330,255 C337,335 307,412 258,418 L258,255 Z" fill="url(#gradBody_kecoa)" stroke="' + palet.dark + '" stroke-width="5.5" stroke-linejoin="round"/>' +
+            '<ellipse cx="220" cy="325" rx="12" ry="38" transform="rotate(-8 220 325)" fill="#ffffff" opacity="0.22"/>' +
+            '<ellipse cx="292" cy="325" rx="12" ry="38" transform="rotate(8 292 325)" fill="#ffffff" opacity="0.22"/>' +
+            '<ellipse cx="256" cy="245" rx="74" ry="34" fill="' + palet.accent + '" stroke="' + palet.dark + '" stroke-width="6"/>';
+
+        headLayer =
+            '<g class="pet-head-group">' +
+                '<path d="M230,145 Q155,45 85,78" fill="none" stroke="' + palet.dark + '" stroke-width="5" stroke-linecap="round"/>' +
+                '<path d="M282,145 Q357,45 427,78" fill="none" stroke="' + palet.dark + '" stroke-width="5" stroke-linecap="round"/>' +
+                '<ellipse cx="256" cy="188" rx="68" ry="56" fill="url(#gradHead_kecoa)" stroke="' + palet.dark + '" stroke-width="6"/>' +
+                '<ellipse cx="202" cy="202" rx="12" ry="7" fill="' + palet.cheek + '" opacity="0.6"/>' +
+                '<ellipse cx="310" cy="202" rx="12" ry="7" fill="' + palet.cheek + '" opacity="0.6"/>' +
+                buildEyes(226, 185, 286, 185, 15) +
+                buildMouth(256, 212, 0.78) +
+            '</g>';
+    }
+
+    // =====================================================================
+    // SPESIES 6: BURUNG (PIPIT, ELANG, MERAK BIRU 5 BARIS, MERAK EMAS 5 BARIS)
+    // =====================================================================
+    else if (["pipit", "elang", "merak_s", "merak_l"].includes(petId)) {
+        hatAnchor = { x: 256, y: 122, scale: 0.85 };
+        eyeAnchor = { lx: 215, rx: 297, y: 195, scale: 0.88 };
+        neckAnchor = { x: 256, y: 275, scale: 0.85 };
+
+        if (petId === "pipit") {
+            backLayer =
+                '<g class="pet-tail-part">' +
+                    '<path d="M312,332 L412,272 L395,308 L418,328 L318,365 Z" fill="' + palet.dark + '" stroke="' + palet.dark + '" stroke-width="5" stroke-linejoin="round"/>' +
+                '</g>';
+        } else if (petId === "elang") {
+            backLayer =
+                '<g class="pet-tail-part">' +
+                    '<path d="M195,368 L162,432 L212,422 L256,442 L300,422 L350,432 L317,368 Z" fill="#ffffff" stroke="' + palet.dark + '" stroke-width="5" stroke-linejoin="round"/>' +
+                    '<path d="M180,400 L332,400" stroke="' + palet.dark + '" stroke-width="8"/>' +
+                '</g>';
+        } else {
+            // 5 BARIS BULU MERAK MEKAR SANGAT BESAR (55 MATA BULU BERLAPIS DARI DALAM KE LUAR)
+            let buluMerak = '<g class="pet-tail-part">';
+            let isGold = (petId === "merak_l");
+            let bgFanFill = isGold ? "#b45309" : "#065f46";
+            let bgFanStroke = isGold ? "#78350f" : "#042f2e";
+            let vaneCol1 = isGold ? "#d97706" : "#047857";
+            let vaneCol2 = isGold ? "#f59e0b" : "#0d9488";
+            let ocellusOuter = isGold ? "#fef08a" : "#2dd4bf";
+            let ocellusMid = isGold ? "#f97316" : "#facc15";
+            let ocellusCore = isGold ? "#991b1b" : "#1e3a8a";
+
+            // Kipas dasar pas seukuran bentangan bulu (tidak memanjang ke bawah) & ekstra lebar
+            buluMerak += '<path d="M -18,282 A 274,268 0 0,1 530,282 Q 395,292 256,288 Q 117,292 -18,282 Z" fill="' + bgFanFill + '" stroke="' + bgFanStroke + '" stroke-width="7" stroke-linejoin="round"/>';
+
+            // Konfigurasi 5 Baris Ekstra Lebar & Rapat
+            let rowsConfig = [
+                { r: 248, count: 17, minDeg: -92, maxDeg: 92, sz: 22, vaneW: 31 },
+                { r: 208, count: 15, minDeg: -88, maxDeg: 88, sz: 20, vaneW: 28 },
+                { r: 168, count: 13, minDeg: -82, maxDeg: 82, sz: 18, vaneW: 25 },
+                { r: 130, count: 11, minDeg: -75, maxDeg: 75, sz: 16, vaneW: 22 },
+                { r: 92,  count: 9,  minDeg: -65, maxDeg: 65, sz: 14, vaneW: 19 }
+            ];
+
+            let centerFanX = 256;
+            let centerFanY = 278;
+
+            rowsConfig.forEach(function(rowCfg, rIdx) {
+                let step = rowCfg.count > 1 ? (rowCfg.maxDeg - rowCfg.minDeg) / (rowCfg.count - 1) : 0;
+                let colVane = (rIdx % 2 === 0) ? vaneCol1 : vaneCol2;
+                for (let j = 0; j < rowCfg.count; j++) {
+                    let deg = rowCfg.minDeg + (j * step);
+                    let rad = (deg - 90) * Math.PI / 180;
+                    let fx = Math.round(centerFanX + Math.cos(rad) * rowCfg.r);
+                    let fy = Math.round(centerFanY + Math.sin(rad) * rowCfg.r);
+                    let rotDeg = deg;
+
+                    buluMerak +=
+                        '<line x1="' + centerFanX + '" y1="' + centerFanY + '" x2="' + fx + '" y2="' + fy + '" stroke="#fde047" stroke-width="2.5" opacity="0.55"/>' +
+                        '<g transform="translate(' + fx + ',' + fy + ') rotate(' + rotDeg + ')">' +
+                            '<ellipse cx="0" cy="10" rx="' + rowCfg.vaneW + '" ry="' + (rowCfg.sz + 10) + '" fill="' + colVane + '" stroke="' + bgFanStroke + '" stroke-width="2.5"/>' +
+                            '<circle cx="0" cy="0" r="' + rowCfg.sz + '" fill="' + ocellusOuter + '" stroke="' + bgFanStroke + '" stroke-width="2.5"/>' +
+                            '<circle cx="0" cy="2" r="' + Math.round(rowCfg.sz * 0.65) + '" fill="' + ocellusMid + '"/>' +
+                            '<circle cx="0" cy="4" r="' + Math.round(rowCfg.sz * 0.36) + '" fill="' + ocellusCore + '"/>' +
+                            '<circle cx="-3" cy="1" r="2.5" fill="#ffffff" opacity="0.85"/>' +
+                        '</g>';
+                }
+            });
+
+            buluMerak += '</g>';
+            backLayer = buluMerak;
+        }
+
+        // Badan & Sayap Samping Burung
+        let birdBodyRx = (petId === "merak_s" || petId === "merak_l") ? 74 : 84;
+        let birdBodyRy = (petId === "merak_s" || petId === "merak_l") ? 82 : 86;
+        bodyLayer =
+            '<ellipse cx="256" cy="332" rx="' + birdBodyRx + '" ry="' + birdBodyRy + '" fill="url(#gradBody_' + petId + ')" stroke="' + palet.dark + '" stroke-width="6"/>' +
+            '<ellipse cx="256" cy="344" rx="' + Math.round(birdBodyRx * 0.68) + '" ry="' + Math.round(birdBodyRy * 0.68) + '" fill="' + palet.belly + '"/>' +
+            '<g class="pet-wing-left"><path d="M' + (256 - birdBodyRx + 4) + ',285 C135,302 145,380 190,384 C202,358 196,315 ' + (256 - birdBodyRx + 4) + ',285 Z" fill="' + palet.main + '" stroke="' + palet.dark + '" stroke-width="5.5"/></g>' +
+            '<g class="pet-wing-right"><path d="M' + (256 + birdBodyRx - 4) + ',285 C377,302 367,380 322,384 C310,358 316,315 ' + (256 + birdBodyRx - 4) + ',285 Z" fill="' + palet.main + '" stroke="' + palet.dark + '" stroke-width="5.5"/></g>';
+
+        limbsLayer =
+            '<g fill="none" stroke="#f59e0b" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">' +
+                '<path d="M225,408 L225,436 M210,439 L225,431 L240,439 M225,431 L225,442"/>' +
+                '<path d="M287,408 L287,436 M272,439 L287,431 L302,439 M287,431 L287,442"/>' +
+            '</g>';
+
+        let crestHtml = "";
+        if (petId === "merak_s" || petId === "merak_l") {
+            crestHtml =
+                '<g stroke="' + palet.dark + '" stroke-width="3.5" stroke-linecap="round">' +
+                    '<line x1="256" y1="128" x2="256" y2="82"/><circle cx="256" cy="78" r="7" fill="#fde047"/>' +
+                    '<line x1="242" y1="130" x2="225" y2="88"/><circle cx="222" cy="84" r="6.5" fill="#fde047"/>' +
+                    '<line x1="270" y1="130" x2="287" y2="88"/><circle cx="290" cy="84" r="6.5" fill="#fde047"/>' +
+                '</g>';
+        } else if (petId === "pipit") {
+            crestHtml = '<path d="M245,122 Q256,98 272,118" fill="none" stroke="' + palet.dark + '" stroke-width="6" stroke-linecap="round"/>';
+        }
+
+        let headColorFill = petId === "elang" ? "#ffffff" : "url(#gradHead_" + petId + ")";
+        let headRxBird = (petId === "merak_s" || petId === "merak_l") ? 72 : 82;
+        let headRyBird = (petId === "merak_s" || petId === "merak_l") ? 68 : 76;
+        let eagleBrows = petId === "elang"
+            ? '<polygon points="182,175 235,188 232,175" fill="' + palet.dark + '"/><polygon points="330,175 277,188 280,175" fill="' + palet.dark + '"/>'
+            : '';
+        let beakHtml = petId === "elang"
+            ? '<path d="M234,205 Q256,195 278,205 C284,228 268,248 256,254 C244,248 228,228 234,205 Z" fill="#facc15" stroke="#b45309" stroke-width="4.5"/>'
+            : '<polygon points="240,208 272,208 256,232" fill="#facc15" stroke="#b45309" stroke-width="4" stroke-linejoin="round"/>';
+
+        headLayer =
+            '<g class="pet-head-group">' +
+                crestHtml +
+                '<ellipse cx="256" cy="202" rx="' + headRxBird + '" ry="' + headRyBird + '" fill="' + headColorFill + '" stroke="' + palet.dark + '" stroke-width="6"/>' +
+                '<ellipse cx="198" cy="212" rx="13" ry="7.5" fill="' + palet.cheek + '" opacity="0.6"/>' +
+                '<ellipse cx="314" cy="212" rx="13" ry="7.5" fill="' + palet.cheek + '" opacity="0.6"/>' +
+                buildEyes(216, 195, 296, 195, 14) +
+                eagleBrows +
+                beakHtml +
+            '</g>';
+    }
+
+    // =====================================================================
+    // SPESIES 7: SHIBA INU (DOGE - SESUAI FOTO REFERENSI ASLI)
+    // =====================================================================
+    else if (petId === "shibainu") {
+        hatAnchor = { x: 256, y: 108, scale: 0.95 };
+        eyeAnchor = { lx: 205, rx: 307, y: 184, scale: 0.96 };
+        neckAnchor = { x: 256, y: 288, scale: 0.95 };
+
+        // 1. Ekor Melingkar Tebal Berbulu Khas Shiba Inu (Fluffy Curled Tail)
+        backLayer =
+            '<g class="pet-tail-part">' +
+                '<path d="M325,365 C412,355 422,255 358,255 C318,255 318,308 355,315" fill="none" stroke="' + palet.dark + '" stroke-width="42" stroke-linecap="round"/>' +
+                '<path d="M325,365 C412,355 422,255 358,255 C318,255 318,308 355,315" fill="none" stroke="' + palet.main + '" stroke-width="32" stroke-linecap="round"/>' +
+                '<path d="M352,256 C392,256 398,302 360,310" fill="none" stroke="' + palet.belly + '" stroke-width="14" stroke-linecap="round"/>' +
+            '</g>';
+
+        // 2. Badan Oranye-Merah Rubah dengan Dada & Perut Putih-Krem (Urajiro)
+        bodyLayer =
+            '<ellipse cx="256" cy="346" rx="92" ry="88" fill="url(#gradBody_shibainu)" stroke="' + palet.dark + '" stroke-width="6"/>' +
+            '<!-- Corak Urajiro Dada & Perut Putih-Krem -->' +
+            '<path d="M192,285 Q256,312 320,285 C332,338 322,415 256,426 C190,415 180,338 192,285 Z" fill="' + palet.belly + '"/>';
+
+        // 3. Kaki Shiba Inu dengan Kaus Kaki Putih-Krem (White Socks)
+        let shoeCol = (eq.neck === "neck_sepatu") ? "#ef4444" : palet.belly;
+        limbsLayer =
+            '<!-- Kaki Depan Kiri & Kanan -->' +
+            '<ellipse cx="164" cy="335" rx="24" ry="18" transform="rotate(-20 164 335)" fill="' + palet.main + '" stroke="' + palet.dark + '" stroke-width="5.5"/>' +
+            '<ellipse cx="154" cy="340" rx="12" ry="11" transform="rotate(-20 154 340)" fill="' + palet.belly + '"/>' +
+            '<ellipse cx="348" cy="335" rx="24" ry="18" transform="rotate(20 348 335)" fill="' + palet.main + '" stroke="' + palet.dark + '" stroke-width="5.5"/>' +
+            '<ellipse cx="358" cy="340" rx="12" ry="11" transform="rotate(20 358 340)" fill="' + palet.belly + '"/>' +
+            '<!-- Kaki Bawah dengan Kaus Kaki Krem -->' +
+            '<ellipse cx="205" cy="425" rx="30" ry="18" fill="' + shoeCol + '" stroke="' + palet.dark + '" stroke-width="5.5"/>' +
+            '<ellipse cx="307" cy="425" rx="30" ry="18" fill="' + shoeCol + '" stroke="' + palet.dark + '" stroke-width="5.5"/>';
+
+        // 4. Kepala Shiba Inu (Telinga Segitiga Tebal, Pipi Plush, Masker Urajiro, Alis Maru-Mayu, Lidah Menjulur)
+        let shibaMouth = "";
+        if (state === "sleepy" || state === "hungry" || state === "critical") {
+            shibaMouth = buildMouth(256, 224, 0.95);
+        } else {
+            // Senyum khas Shiba Inu dengan lidah pink menjulur ceria seperti foto referensi
+            shibaMouth =
+                '<path d="M241,225 C241,264 271,264 271,225 Z" fill="#fb7185" stroke="#0f172a" stroke-width="4.5"/>' +
+                '<line x1="256" y1="227" x2="256" y2="250" stroke="#e11d48" stroke-width="3" stroke-linecap="round"/>' +
+                '<path d="M220,218 Q238,234 256,216 Q274,234 292,218" fill="none" stroke="#0f172a" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>';
+        }
+
+        headLayer =
+            '<g class="pet-head-group">' +
+                '<!-- Telinga Segitiga Tegak Tebal Khas Shiba Inu -->' +
+                '<g class="pet-ear-left">' +
+                    '<path d="M148,162 C134,115 142,68 158,64 C176,60 212,92 226,122 Z" fill="' + palet.main + '" stroke="' + palet.dark + '" stroke-width="6" stroke-linejoin="round"/>' +
+                    '<path d="M160,148 C152,115 156,84 165,82 C176,80 198,102 208,124 Z" fill="' + palet.belly + '"/>' +
+                '</g>' +
+                '<g class="pet-ear-right">' +
+                    '<path d="M364,162 C378,115 370,68 354,64 C336,60 300,92 286,122 Z" fill="' + palet.main + '" stroke="' + palet.dark + '" stroke-width="6" stroke-linejoin="round"/>' +
+                    '<path d="M352,148 C360,115 356,84 347,82 C336,80 314,102 304,124 Z" fill="' + palet.belly + '"/>' +
+                '</g>' +
+                '<!-- Bentuk Kepala & Pipi Lebar Khas Shiba Inu -->' +
+                '<path d="M138,198 C134,122 188,98 256,98 C324,98 378,122 374,198 C380,248 330,286 256,286 C182,286 132,248 138,198 Z" fill="#ea580c" stroke="#7c2d12" stroke-width="6"/>' +
+                '<!-- Bayangan Halus Dahi & Pipi Atas Oranye Kemerahan -->' +
+                '<path d="M150,185 C155,126 198,104 256,104 C314,104 357,126 362,185 C340,168 305,172 282,195 L256,210 L230,195 C207,172 172,168 150,185 Z" fill="#f97316"/>' +
+                '<!-- Pola Urajiro Putih Bersih di Pipi, Moncong, & Dagu -->' +
+                '<path d="M142,204 C162,175 208,175 236,204 C246,212 266,212 276,204 C304,175 350,175 370,204 C366,256 320,283 256,283 C192,283 146,256 142,204 Z" fill="#ffffff"/>' +
+                '<!-- Moncong Putih Menonjol & Garis Bibir Anjing -->' +
+                '<ellipse cx="256" cy="212" rx="34" ry="24" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>' +
+                '<!-- Bintik Alis Putih Tegas Khas Shiba (Maru-Mayu) -->' +
+                '<ellipse cx="208" cy="148" rx="15" ry="8.5" transform="rotate(-12 208 148)" fill="#ffffff"/>' +
+                '<ellipse cx="304" cy="148" rx="15" ry="8.5" transform="rotate(12 304 148)" fill="#ffffff"/>' +
+                '<!-- Rona Pipi & Mata -->' +
+                '<ellipse cx="172" cy="218" rx="16" ry="9" fill="#fda4af" opacity="0.65"/>' +
+                '<ellipse cx="340" cy="218" rx="16" ry="9" fill="#fda4af" opacity="0.65"/>' +
+                buildEyes(206, 180, 306, 180, 15) +
+                shibaMouth +
+                '<!-- Hidung Hitam Segitiga Membulat Khas Anjing -->' +
+                '<path d="M238,195 Q256,188 274,195 C276,207 265,216 256,216 C247,216 236,207 238,195 Z" fill="#0f172a"/>' +
+                '<line x1="256" y1="215" x2="256" y2="224" stroke="#0f172a" stroke-width="4.5" stroke-linecap="round"/>' +
+                '<ellipse cx="251" cy="198" rx="5.5" ry="2.5" fill="#ffffff" opacity="0.75"/>' +
+            '</g>';
+    }
+
+    // =====================================================================
+    // SPESIES 8: MAMALIA LAIN & NAGA (GAJAH DENGAN BELALAI BARU, KUCING,
+    //            ANJING, MONYET, BERUANG, PANDA, TIKUS, KELINCI, NAGA)
+    // =====================================================================
+    else {
+        if (petId === "naga") {
+            backLayer +=
+                '<g class="pet-wing-left"><path d="M175,275 C88,205 55,255 82,328 C115,312 145,320 175,315 Z" fill="#f97316" stroke="#991b1b" stroke-width="6"/></g>' +
+                '<g class="pet-wing-right"><path d="M337,275 C424,205 457,255 430,328 C397,312 367,320 337,315 Z" fill="#f97316" stroke="#991b1b" stroke-width="6"/></g>' +
+                '<g class="pet-tail-part"><path d="M330,385 Q425,402 435,335" fill="none" stroke="' + palet.main + '" stroke-width="24" stroke-linecap="round"/>' +
+                '<polygon points="435,315 462,338 430,352" fill="#facc15" stroke="#991b1b" stroke-width="4"/></g>';
+        } else if (petId === "kucing") {
+            backLayer += '<g class="pet-tail-part"><path d="M332,385 Q420,355 402,280" fill="none" stroke="' + palet.main + '" stroke-width="22" stroke-linecap="round"/></g>';
+        } else if (petId === "anjing") {
+            backLayer += '<g class="pet-tail-part"><path d="M332,378 Q405,340 388,298" fill="none" stroke="' + palet.main + '" stroke-width="24" stroke-linecap="round"/></g>';
+        } else if (petId === "monyet") {
+            backLayer += '<g class="pet-tail-part"><path d="M328,385 Q435,368 422,285 Q412,250 388,278" fill="none" stroke="' + palet.dark + '" stroke-width="18" stroke-linecap="round"/></g>';
+        } else if (petId === "tikus") {
+            backLayer += '<g class="pet-tail-part"><path d="M325,392 Q435,405 445,335" fill="none" stroke="#f472b6" stroke-width="10" stroke-linecap="round"/></g>';
+        } else if (petId === "kelinci") {
+            backLayer += '<circle class="pet-tail-part" cx="352" cy="382" r="24" fill="#ffffff" stroke="' + palet.dark + '" stroke-width="5"/>';
+        } else if (petId === "beruang") {
+            backLayer += '<circle class="pet-tail-part" cx="348" cy="385" r="18" fill="' + palet.main + '" stroke="' + palet.dark + '" stroke-width="5"/>';
+        } else if (petId === "panda") {
+            backLayer += '<circle class="pet-tail-part" cx="345" cy="385" r="18" fill="#0f172a"/>';
+        } else if (petId === "gajah") {
+            backLayer += '<g class="pet-tail-part"><path d="M355,380 Q405,395 408,425" fill="none" stroke="' + palet.dark + '" stroke-width="14" stroke-linecap="round"/></g>';
+        }
+
+        let earsLayer = "";
+        if (petId === "kucing") {
+            earsLayer =
+                '<g class="pet-ear-left"><polygon points="152,165 135,78 218,122" fill="' + palet.main + '" stroke="' + palet.dark + '" stroke-width="6" stroke-linejoin="round"/><polygon points="160,152 148,98 205,126" fill="#fda4af"/></g>' +
+                '<g class="pet-ear-right"><polygon points="360,165 377,78 294,122" fill="' + palet.main + '" stroke="' + palet.dark + '" stroke-width="6" stroke-linejoin="round"/><polygon points="352,152 364,98 307,126" fill="#fda4af"/></g>';
+        } else if (petId === "anjing") {
+            earsLayer =
+                '<g class="pet-ear-left"><ellipse cx="138" cy="182" rx="34" ry="62" transform="rotate(18 138 182)" fill="' + palet.accent + '" stroke="' + palet.dark + '" stroke-width="6"/></g>' +
+                '<g class="pet-ear-right"><ellipse cx="374" cy="182" rx="34" ry="62" transform="rotate(-18 374 182)" fill="' + palet.accent + '" stroke="' + palet.dark + '" stroke-width="6"/></g>';
+        } else if (petId === "kelinci") {
+            earsLayer =
+                '<g class="pet-ear-left"><ellipse cx="202" cy="88" rx="26" ry="72" transform="rotate(-8 202 88)" fill="' + palet.main + '" stroke="' + palet.dark + '" stroke-width="6"/><ellipse cx="202" cy="92" rx="13" ry="52" transform="rotate(-8 202 92)" fill="#fbcfe8"/></g>' +
+                '<g class="pet-ear-right"><ellipse cx="310" cy="88" rx="26" ry="72" transform="rotate(8 310 88)" fill="' + palet.main + '" stroke="' + palet.dark + '" stroke-width="6"/><ellipse cx="310" cy="92" rx="13" ry="52" transform="rotate(8 310 92)" fill="#fbcfe8"/></g>';
+        } else if (petId === "tikus") {
+            earsLayer =
+                '<g class="pet-ear-left"><circle cx="148" cy="128" r="46" fill="' + palet.main + '" stroke="' + palet.dark + '" stroke-width="6"/><circle cx="148" cy="128" r="28" fill="#fda4af"/></g>' +
+                '<g class="pet-ear-right"><circle cx="364" cy="128" r="46" fill="' + palet.main + '" stroke="' + palet.dark + '" stroke-width="6"/><circle cx="364" cy="128" r="28" fill="#fda4af"/></g>';
+        } else if (petId === "monyet") {
+            earsLayer =
+                '<g class="pet-ear-left"><circle cx="128" cy="190" r="36" fill="' + palet.main + '" stroke="' + palet.dark + '" stroke-width="6"/><circle cx="128" cy="190" r="20" fill="#fde68a"/></g>' +
+                '<g class="pet-ear-right"><circle cx="384" cy="190" r="36" fill="' + palet.main + '" stroke="' + palet.dark + '" stroke-width="6"/><circle cx="384" cy="190" r="20" fill="#fde68a"/></g>';
+        } else if (petId === "beruang") {
+            earsLayer =
+                '<g class="pet-ear-left"><circle cx="160" cy="115" r="36" fill="' + palet.main + '" stroke="' + palet.dark + '" stroke-width="6"/><circle cx="160" cy="115" r="18" fill="' + palet.belly + '"/></g>' +
+                '<g class="pet-ear-right"><circle cx="352" cy="115" r="36" fill="' + palet.main + '" stroke="' + palet.dark + '" stroke-width="6"/><circle cx="352" cy="115" r="18" fill="' + palet.belly + '"/></g>';
+        } else if (petId === "panda") {
+            earsLayer =
+                '<g class="pet-ear-left"><circle cx="160" cy="115" r="36" fill="#0f172a"/></g>' +
+                '<g class="pet-ear-right"><circle cx="352" cy="115" r="36" fill="#0f172a"/></g>';
+        } else if (petId === "gajah") {
+            earsLayer =
+                '<g class="pet-ear-left"><ellipse cx="106" cy="194" rx="58" ry="76" fill="' + palet.main + '" stroke="' + palet.dark + '" stroke-width="6"/><ellipse cx="110" cy="198" rx="36" ry="50" fill="#fbcfe8"/></g>' +
+                '<g class="pet-ear-right"><ellipse cx="406" cy="194" rx="58" ry="76" fill="' + palet.main + '" stroke="' + palet.dark + '" stroke-width="6"/><ellipse cx="402" cy="198" rx="36" ry="50" fill="#fbcfe8"/></g>';
+        } else if (petId === "naga") {
+            earsLayer =
+                '<g class="pet-ear-left"><path d="M178,125 Q135,52 192,74 Q208,95 208,120 Z" fill="#facc15" stroke="#991b1b" stroke-width="5.5"/></g>' +
+                '<g class="pet-ear-right"><path d="M334,125 Q377,52 320,74 Q304,95 304,120 Z" fill="#facc15" stroke="#991b1b" stroke-width="5.5"/></g>';
+        }
+
+        let bodyRx = petId === "gajah" ? 108 : (petId === "beruang" || petId === "panda" ? 102 : 92);
+        let bodyRy = 90;
+        let strokeMamalia = petId === "panda" ? "#0f172a" : palet.dark;
+        let fillBodyMamalia = petId === "panda" ? "#ffffff" : "url(#gradBody_" + petId + ")";
+        let fillHeadMamalia = petId === "panda" ? "#ffffff" : "url(#gradHead_" + petId + ")";
+
+        bodyLayer =
+            '<ellipse cx="256" cy="345" rx="' + bodyRx + '" ry="' + bodyRy + '" fill="' + fillBodyMamalia + '" stroke="' + strokeMamalia + '" stroke-width="6"/>' +
+            '<ellipse cx="256" cy="355" rx="' + Math.round(bodyRx * 0.65) + '" ry="60" fill="' + palet.belly + '"/>';
+
+        if (petId === "panda") {
+            bodyLayer += '<path d="M160,318 Q256,346 352,318 L342,272 Q256,294 170,272 Z" fill="#0f172a"/>';
+        } else if (petId === "naga") {
+            bodyLayer +=
+                '<line x1="205" y1="332" x2="307" y2="332" stroke="#f59e0b" stroke-width="3.5"/>' +
+                '<line x1="200" y1="358" x2="312" y2="358" stroke="#f59e0b" stroke-width="3.5"/>' +
+                '<line x1="210" y1="384" x2="302" y2="384" stroke="#f59e0b" stroke-width="3.5"/>';
+        }
+
+        let limbFill = petId === "panda" ? "#0f172a" : palet.main;
+        let footFill = (eq.neck === "neck_sepatu") ? "#ef4444" : limbFill;
+        let footStroke = (eq.neck === "neck_sepatu") ? "#991b1b" : strokeMamalia;
+        limbsLayer =
+            '<ellipse cx="164" cy="332" rx="24" ry="18" transform="rotate(-22 164 332)" fill="' + limbFill + '" stroke="' + strokeMamalia + '" stroke-width="5.5"/>' +
+            '<ellipse cx="348" cy="332" rx="24" ry="18" transform="rotate(22 348 332)" fill="' + limbFill + '" stroke="' + strokeMamalia + '" stroke-width="5.5"/>' +
+            '<ellipse cx="205" cy="425" rx="30" ry="18" fill="' + footFill + '" stroke="' + footStroke + '" stroke-width="5.5"/>' +
+            '<ellipse cx="307" cy="425" rx="30" ry="18" fill="' + footFill + '" stroke="' + footStroke + '" stroke-width="5.5"/>';
+
+        headLayer = '<g class="pet-head-group">' + earsLayer;
+        if (eq.costume === "cost_dino") {
+            headLayer += '<ellipse cx="256" cy="190" rx="120" ry="105" fill="#22c55e" stroke="#15803d" stroke-width="6"/><polygon points="256,62 240,88 272,88" fill="#facc15"/>';
+        }
+
+        headLayer += '<ellipse cx="256" cy="192" rx="108" ry="92" fill="' + fillHeadMamalia + '" stroke="' + strokeMamalia + '" stroke-width="6"/>';
+        
+        if (petId === "monyet") {
+            headLayer += '<ellipse cx="256" cy="208" rx="84" ry="64" fill="#fef3c7"/>';
+        } else if (petId === "beruang" || petId === "anjing" || petId === "tikus" || petId === "kelinci") {
+            headLayer += '<ellipse cx="256" cy="216" rx="40" ry="28" fill="' + palet.belly + '"/>';
+        } else if (petId === "panda") {
+            headLayer +=
+                '<ellipse cx="205" cy="186" rx="26" ry="32" transform="rotate(18 205 186)" fill="#0f172a"/>' +
+                '<ellipse cx="307" cy="186" rx="26" ry="32" transform="rotate(-18 307 186)" fill="#0f172a"/>';
+        }
+
+        headLayer +=
+            '<ellipse cx="178" cy="212" rx="18" ry="10" fill="' + palet.cheek + '" opacity="0.6"/>' +
+            '<ellipse cx="334" cy="212" rx="18" ry="10" fill="' + palet.cheek + '" opacity="0.6"/>' +
+            buildEyes(205, 185, 307, 185, 16);
+
+        // PERBAIKAN BELALAI GAJAH: Lebar di pangkal hidung, menyatu tanpa garis putus, melengkung gembil dengan gading mungil & kerutan belalai
+        if (petId === "gajah") {
+            headLayer +=
+                '<!-- Senyum Mungil di Bawah Pangkal Belalai -->' +
+                '<path d="M214,230 Q226,242 238,232" fill="none" stroke="#0f172a" stroke-width="4.5" stroke-linecap="round"/>' +
+                '<!-- Gading Putih Mungil di Kiri-Kanan Pangkal Belalai -->' +
+                '<path d="M228,218 L216,238 L236,230 Z" fill="#ffffff" stroke="' + palet.dark + '" stroke-width="3.5" stroke-linejoin="round"/>' +
+                '<path d="M284,218 L296,238 L276,230 Z" fill="#ffffff" stroke="' + palet.dark + '" stroke-width="3.5" stroke-linejoin="round"/>' +
+                '<!-- Belalai Gajah Utuh Menyatu dari Wajah -->' +
+                '<path d="M232,194 C230,248 242,292 292,292 C326,292 338,262 320,245 C306,232 288,248 296,262 C272,262 274,232 278,194" fill="' + palet.main + '" stroke="' + palet.dark + '" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>' +
+                '<!-- Penutup Pangkal Belalai agar Menyatu 100% Tanpa Garis Batas dengan Wajah -->' +
+                '<ellipse cx="255" cy="194" rx="22" ry="8" fill="' + palet.main + '"/>' +
+                '<!-- Garis Kerutan Belalai & Ujung Hidung -->' +
+                '<path d="M242,216 Q256,220 268,215 M244,234 Q258,238 270,232 M250,252 Q262,256 274,248" fill="none" stroke="' + palet.dark + '" stroke-width="3" stroke-linecap="round" opacity="0.65"/>' +
+                '<ellipse cx="312" cy="252" rx="5" ry="3.5" transform="rotate(-25 312 252)" fill="#fbcfe8" stroke="' + palet.dark + '" stroke-width="2"/>';
+        } else if (petId === "kucing" || petId === "tikus" || petId === "kelinci") {
+            let noseCol = "#f43f5e";
+            headLayer +=
+                buildMouth(256, 220, 0.95) +
+                '<polygon points="246,200 266,200 256,212" fill="' + noseCol + '"/>' +
+                '<line x1="145" y1="204" x2="182" y2="208" stroke="#475569" stroke-width="3" stroke-linecap="round"/>' +
+                '<line x1="145" y1="218" x2="182" y2="216" stroke="#475569" stroke-width="3" stroke-linecap="round"/>' +
+                '<line x1="367" y1="204" x2="330" y2="208" stroke="#475569" stroke-width="3" stroke-linecap="round"/>' +
+                '<line x1="367" y1="218" x2="330" y2="216" stroke="#475569" stroke-width="3" stroke-linecap="round"/>';
+        } else {
+            headLayer +=
+                buildMouth(256, 220, 1) +
+                '<ellipse cx="256" cy="204" rx="11" ry="7.5" fill="#0f172a"/>';
+        }
+
+        headLayer += '</g>';
+    }
+
+    // =====================================================================
+    // KOSMETIK & WARDROBE UNIVERSAL
+    // =====================================================================
+    let activeBodyId = eq.costume || eq.body || "";
+    if (allowBodySuit && activeBodyId) {
+        if (activeBodyId === "body_tshirt") {
+            clothesLayer = '<path d="M166,305 Q256,325 346,305 L340,392 Q256,408 172,392 Z" fill="#3b82f6" stroke="#1d4ed8" stroke-width="4"/><circle cx="256" cy="350" r="14" fill="#fef08a"/>';
+        } else if (activeBodyId === "body_hoodie") {
+            clothesLayer = '<path d="M162,298 Q256,318 350,298 L344,400 Q256,415 168,400 Z" fill="#f97316" stroke="#c2410c" stroke-width="4"/><line x1="240" y1="310" x2="240" y2="345" stroke="#ffffff" stroke-width="4" stroke-linecap="round"/><line x1="272" y1="310" x2="272" y2="345" stroke="#ffffff" stroke-width="4" stroke-linecap="round"/>';
+        } else if (activeBodyId === "body_labcoat") {
+            clothesLayer = '<path d="M162,298 Q256,318 350,298 L346,408 L272,408 L272,315 L240,315 L240,408 L166,408 Z" fill="#ffffff" stroke="#94a3b8" stroke-width="4"/>';
+        } else if (activeBodyId === "body_explorer") {
+            clothesLayer = '<path d="M164,302 Q256,322 348,302 L342,400 Q256,412 170,400 Z" fill="#d97706" stroke="#78350f" stroke-width="4"/>';
+        } else if (activeBodyId === "body_winter") {
+            clothesLayer = '<path d="M160,298 Q256,318 352,298 L346,405 Q256,418 166,405 Z" fill="#0284c7" stroke="#0369a1" stroke-width="4"/><rect x="158" y="286" width="196" height="22" rx="11" fill="#f8fafc" stroke="#cbd5e1" stroke-width="3"/>';
+        } else if (activeBodyId === "body_grad") {
+            clothesLayer = '<path d="M160,298 Q256,318 352,298 L348,410 L164,410 Z" fill="#1e293b" stroke="#0f172a" stroke-width="4"/><path d="M210,302 L256,358 L302,302" fill="none" stroke="#facc15" stroke-width="7" stroke-linecap="round"/>';
+        } else if (activeBodyId === "body_festival") {
+            clothesLayer = '<path d="M162,300 Q256,320 350,300 L344,405 Q256,418 168,405 Z" fill="#e11d48" stroke="#9f1239" stroke-width="4"/><path d="M168,368 L344,368" stroke="#facc15" stroke-width="9"/>';
+        } else if (activeBodyId === "body_batik") {
+            clothesLayer = '<path d="M162,300 Q256,320 350,300 L344,405 Q256,418 168,405 Z" fill="#78350f" stroke="#451a03" stroke-width="4"/><line x1="256" y1="312" x2="256" y2="408" stroke="#facc15" stroke-width="4"/>';
+        } else if (activeBodyId === "body_koki") {
+            clothesLayer = '<path d="M162,300 Q256,320 350,300 L344,405 Q256,418 168,405 Z" fill="#ffffff" stroke="#cbd5e1" stroke-width="4"/><path d="M195,302 L256,330 L317,302" fill="none" stroke="#ef4444" stroke-width="6" stroke-linecap="round"/>';
+        } else if (activeBodyId === "body_detektif") {
+            clothesLayer = '<path d="M160,298 Q256,318 352,298 L346,408 Q256,420 166,408 Z" fill="#a16207" stroke="#713f12" stroke-width="4"/>';
+        } else if (activeBodyId === "cost_hero") {
+            clothesLayer = '<path d="M162,298 Q256,318 350,298 L343,402 Q256,416 169,402 Z" fill="#2563eb" stroke="#1e3a8a" stroke-width="4"/><circle cx="256" cy="348" r="16" fill="#facc15"/>';
+        } else if (activeBodyId === "cost_astro") {
+            clothesLayer = '<path d="M158,295 Q256,315 354,295 L348,408 Q256,422 164,408 Z" fill="#f8fafc" stroke="#64748b" stroke-width="5"/><rect x="218" y="330" width="76" height="44" rx="8" fill="#cbd5e1" stroke="#475569" stroke-width="3"/>';
+        } else if (activeBodyId === "cost_knight") {
+            clothesLayer = '<path d="M158,295 Q256,318 354,295 L346,408 Q256,422 166,408 Z" fill="#94a3b8" stroke="#334155" stroke-width="5"/><polygon points="256,322 276,352 256,382 236,352" fill="#facc15"/>';
+        } else if (activeBodyId === "cost_dino") {
+            clothesLayer = '<path d="M160,295 Q256,315 352,295 L346,408 Q256,422 166,408 Z" fill="#22c55e" stroke="#15803d" stroke-width="5"/><ellipse cx="256" cy="358" rx="50" ry="42" fill="#fef08a"/>';
+        } else if (activeBodyId === "cost_royal") {
+            clothesLayer = '<path d="M160,295 Q256,318 352,295 L346,408 Q256,422 166,408 Z" fill="#b91c1c" stroke="#facc15" stroke-width="5"/>';
+        } else if (activeBodyId === "cost_penyihir") {
+            clothesLayer = '<path d="M160,295 Q256,318 352,295 L346,408 Q256,422 166,408 Z" fill="#4c1d95" stroke="#c084fc" stroke-width="5"/>';
+        } else if (activeBodyId === "cost_pirate") {
+            clothesLayer = '<path d="M160,295 Q256,318 352,295 L346,408 Q256,422 166,408 Z" fill="#991b1b" stroke="#0f172a" stroke-width="5"/>';
+        }
+    }
+
+    if (eq.neck) {
+        let nx = neckAnchor.x - 256;
+        let ny = neckAnchor.y - 295;
+        let nInner = "";
+        if (eq.neck === "neck_dasi") {
+            nInner = '<polygon points="256,295 224,280 224,310" fill="#e11d48" stroke="#881337" stroke-width="3"/><polygon points="256,295 288,280 288,310" fill="#e11d48" stroke="#881337" stroke-width="3"/><circle cx="256" cy="295" r="8" fill="#fb7185" stroke="#881337" stroke-width="3"/>';
+        } else if (eq.neck === "neck_syal") {
+            nInner = '<path d="M172,285 Q256,312 340,285 Q346,308 332,314 Q256,334 180,314 Q166,308 172,285 Z" fill="#dc2626" stroke="#7f1d1d" stroke-width="4"/><path d="M284,308 L298,368 L322,362 L310,304 Z" fill="#ef4444" stroke="#7f1d1d" stroke-width="4"/>';
+        } else if (eq.neck === "neck_kalung") {
+            nInner = '<path d="M192,288 Q256,328 320,288" fill="none" stroke="#eab308" stroke-width="5"/><circle cx="256" cy="318" r="11" fill="#facc15" stroke="#a16207" stroke-width="3"/>';
+        }
+        if (nInner) {
+            neckLayer = '<g transform="translate(' + nx + ',' + ny + ') scale(' + neckAnchor.scale + ')" style="transform-origin:256px 295px;">' + nInner + '</g>';
+        }
+    }
+
+    let cosmeticHeadOverlay = "";
+    if (eq.eyes) {
+        let exMid = (eyeAnchor.lx + eyeAnchor.rx) / 2;
+        let dxE = exMid - 256;
+        let dyE = eyeAnchor.y - 188;
+        let eInner = "";
+        if (eq.eyes === "eyes_round") {
+            eInner = '<circle cx="205" cy="188" r="25" fill="rgba(56,189,248,0.18)" stroke="#0f172a" stroke-width="5"/><circle cx="307" cy="188" r="25" fill="rgba(56,189,248,0.18)" stroke="#0f172a" stroke-width="5"/><line x1="230" y1="188" x2="282" y2="188" stroke="#0f172a" stroke-width="5"/>';
+        } else if (eq.eyes === "eyes_star") {
+            eInner = '<polygon points="205,158 213,174 231,176 217,189 221,208 205,198 189,208 193,189 179,176 197,174" fill="rgba(250,204,21,0.45)" stroke="#ca8a04" stroke-width="4"/><polygon points="307,158 315,174 333,176 319,189 323,208 307,198 291,208 295,189 281,176 299,174" fill="rgba(250,204,21,0.45)" stroke="#ca8a04" stroke-width="4"/><line x1="230" y1="185" x2="282" y2="185" stroke="#ca8a04" stroke-width="4"/>';
+        } else if (eq.eyes === "eyes_goggles") {
+            eInner = '<rect x="168" y="166" width="176" height="42" rx="18" fill="#78350f" stroke="#451a03" stroke-width="4"/><circle cx="205" cy="187" r="20" fill="#38bdf8" stroke="#facc15" stroke-width="4" opacity="0.8"/><circle cx="307" cy="187" r="20" fill="#38bdf8" stroke="#facc15" stroke-width="4" opacity="0.8"/>';
+        } else if (eq.eyes === "eyes_monocle") {
+            eInner = '<circle cx="307" cy="188" r="26" fill="rgba(254,240,138,0.28)" stroke="#eab308" stroke-width="5"/>';
+        } else if (eq.eyes === "eyes_halo") {
+            eInner = '<ellipse cx="256" cy="70" rx="56" ry="14" fill="none" stroke="#fde047" stroke-width="9"/>';
+        }
+        cosmeticHeadOverlay += '<g transform="translate(' + dxE + ',' + dyE + ') scale(' + eyeAnchor.scale + ')" style="transform-origin:256px 188px;">' + eInner + '</g>';
+    }
+
     let activeHeadId = eq.head || "";
-    if (eq.costume === "cost_astro") {
-        headLayer += '<circle cx="256" cy="192" r="134" fill="rgba(186,230,253,0.22)" stroke="#cbd5e1" stroke-width="10"/><path d="M165,125 Q210,90 275,105" fill="none" stroke="#ffffff" stroke-width="7" stroke-linecap="round" opacity="0.75"/>';
-    } else if (eq.costume === "cost_penyihir" && !activeHeadId) {
-        activeHeadId = "head_wizard";
-    } else if (eq.costume === "cost_pirate" && !activeHeadId) {
-        activeHeadId = "head_bajak";
+    if (eq.costume === "cost_penyihir" && !activeHeadId) activeHeadId = "head_wizard";
+    else if (eq.costume === "cost_pirate" && !activeHeadId) activeHeadId = "head_bajak";
+
+    if (activeHeadId) {
+        let hx = hatAnchor.x - 256;
+        let hy = hatAnchor.y - 115;
+        let hInner = "";
+        if (activeHeadId === "head_bandana") {
+            hInner = '<path d="M152,142 Q256,166 360,142 L352,118 Q256,138 160,118 Z" fill="#ef4444" stroke="#991b1b" stroke-width="4"/>';
+        } else if (activeHeadId === "head_casual") {
+            hInner = '<path d="M175,120 C175,65 337,65 337,120 Z" fill="#2563eb" stroke="#1e3a8a" stroke-width="5"/><path d="M168,118 Q256,130 382,120 Q360,136 168,125 Z" fill="#1d4ed8" stroke="#1e3a8a" stroke-width="4"/>';
+        } else if (activeHeadId === "head_pesta") {
+            hInner = '<polygon points="212,115 256,28 300,115" fill="#ec4899" stroke="#9d174d" stroke-width="5" stroke-linejoin="round"/><circle cx="256" cy="24" r="11" fill="#fde047"/>';
+        } else if (activeHeadId === "head_flower") {
+            hInner = '<circle cx="195" cy="112" r="14" fill="#f472b6"/><circle cx="225" cy="104" r="15" fill="#fb7185"/><circle cx="256" cy="100" r="16" fill="#facc15"/><circle cx="287" cy="104" r="15" fill="#a855f7"/><circle cx="317" cy="112" r="14" fill="#4ade80"/>';
+        } else if (activeHeadId === "head_wizard") {
+            hInner = '<ellipse cx="256" cy="118" rx="95" ry="18" fill="#4c1d95" stroke="#2e1065" stroke-width="5"/><polygon points="190,116 256,16 322,116" fill="#6d28d9" stroke="#2e1065" stroke-width="5" stroke-linejoin="round"/>';
+        } else if (activeHeadId === "head_wisuda") {
+            hInner = '<polygon points="256,52 356,82 256,112 156,82" fill="#1e293b" stroke="#0f172a" stroke-width="4"/><rect x="208" y="96" width="96" height="20" rx="4" fill="#334155"/>';
+        } else if (activeHeadId === "head_crown") {
+            hInner = '<polygon points="192,115 184,58 220,88 256,48 292,88 328,58 320,115" fill="#facc15" stroke="#b45309" stroke-width="5" stroke-linejoin="round"/>';
+        } else if (activeHeadId === "head_bajak") {
+            hInner = '<path d="M152,120 Q256,48 360,120 L336,130 Q256,116 176,130 Z" fill="#1e293b" stroke="#facc15" stroke-width="5"/>';
+        }
+        cosmeticHeadOverlay += '<g transform="translate(' + hx + ',' + hy + ') scale(' + hatAnchor.scale + ')" style="transform-origin:256px 115px;">' + hInner + '</g>';
     }
 
-    if (activeHeadId === "head_bandana") {
-        headLayer += '<path d="M150,148 Q256,172 362,148 L355,122 Q256,144 157,122 Z" fill="#ef4444" stroke="#991b1b" stroke-width="4"/><circle cx="256" cy="145" r="6" fill="#ffffff"/>';
-    } else if (activeHeadId === "head_casual") {
-        headLayer += '<path d="M172,125 C172,68 340,68 340,125 Z" fill="#2563eb" stroke="#1e3a8a" stroke-width="5"/><path d="M165,122 Q256,134 388,125 Q365,142 165,130 Z" fill="#1d4ed8" stroke="#1e3a8a" stroke-width="4"/>';
-    } else if (activeHeadId === "head_pesta") {
-        headLayer += '<polygon points="212,115 256,28 300,115" fill="#ec4899" stroke="#9d174d" stroke-width="5" stroke-linejoin="round"/><circle cx="256" cy="24" r="12" fill="#fde047"/><circle cx="246" cy="75" r="6" fill="#38bdf8"/><circle cx="268" cy="92" r="6" fill="#fde047"/>';
-    } else if (activeHeadId === "head_flower") {
-        headLayer += '<circle cx="190" cy="112" r="14" fill="#f472b6"/><circle cx="190" cy="112" r="5" fill="#facc15"/><circle cx="222" cy="104" r="15" fill="#fb7185"/><circle cx="222" cy="104" r="5" fill="#ffffff"/><circle cx="256" cy="100" r="16" fill="#facc15"/><circle cx="256" cy="100" r="6" fill="#ea580c"/><circle cx="290" cy="104" r="15" fill="#a855f7"/><circle cx="290" cy="104" r="5" fill="#fef08a"/><circle cx="322" cy="112" r="14" fill="#4ade80"/><circle cx="322" cy="112" r="5" fill="#ffffff"/>';
-    } else if (activeHeadId === "head_wizard") {
-        headLayer += '<ellipse cx="256" cy="118" rx="98" ry="20" fill="#4c1d95" stroke="#2e1065" stroke-width="5"/><polygon points="188,116 256,14 324,116" fill="#6d28d9" stroke="#2e1065" stroke-width="5" stroke-linejoin="round"/><path d="M196,105 Q256,118 316,105" fill="none" stroke="#facc15" stroke-width="8"/>';
-    } else if (activeHeadId === "head_wisuda") {
-        headLayer += '<polygon points="256,52 360,82 256,112 152,82" fill="#1e293b" stroke="#0f172a" stroke-width="4"/><rect x="206" y="96" width="100" height="22" rx="4" fill="#334155"/><path d="M315,92 L332,140" stroke="#facc15" stroke-width="6" stroke-linecap="round"/><circle cx="332" cy="142" r="7" fill="#eab308"/>';
-    } else if (activeHeadId === "head_crown") {
-        headLayer += '<polygon points="190,115 182,58 220,88 256,46 292,88 330,58 322,115" fill="#facc15" stroke="#b45309" stroke-width="5" stroke-linejoin="round"/><circle cx="256" cy="88" r="8" fill="#ef4444"/><circle cx="212" cy="96" r="6" fill="#38bdf8"/><circle cx="300" cy="96" r="6" fill="#22c55e"/>';
-    } else if (activeHeadId === "head_bajak") {
-        headLayer += '<path d="M150,122 Q256,48 362,122 L338,132 Q256,118 174,132 Z" fill="#1e293b" stroke="#facc15" stroke-width="5"/><circle cx="256" cy="96" r="12" fill="#ffffff"/><path d="M238,112 L274,82 M238,82 L274,112" stroke="#ffffff" stroke-width="4" stroke-linecap="round"/>';
-    }
-
-    headLayer += '</g>';
-
-    // J. IKON EFEK STATUS DI ATAS PET
     let statusBubble = "";
     if (state === "hungry") {
-        statusBubble = '<g class="pet-status-float"><circle cx="405" cy="105" r="36" fill="#ffffff" stroke="#f59e0b" stroke-width="4"/><text x="405" y="118" font-size="36" text-anchor="middle">🍖</text></g>';
+        statusBubble = '<g class="pet-status-float"><circle cx="415" cy="95" r="34" fill="#ffffff" stroke="#f59e0b" stroke-width="4"/><text x="415" y="108" font-size="34" text-anchor="middle">🍖</text></g>';
     } else if (state === "critical") {
-        statusBubble = '<g class="pet-status-float"><circle cx="405" cy="105" r="38" fill="#fee2e2" stroke="#dc2626" stroke-width="5"/><text x="405" y="118" font-size="36" text-anchor="middle">🆘</text></g>';
+        statusBubble = '<g class="pet-status-float"><circle cx="415" cy="95" r="36" fill="#fee2e2" stroke="#dc2626" stroke-width="5"/><text x="415" y="108" font-size="34" text-anchor="middle">🆘</text></g>';
     } else if (state === "happy") {
-        statusBubble = '<g class="pet-status-float"><text x="400" y="105" font-size="42" text-anchor="middle">💖</text></g>';
+        statusBubble = '<g class="pet-status-float"><text x="410" y="95" font-size="40" text-anchor="middle">💖</text></g>';
     } else if (state === "sleepy") {
-        statusBubble = '<g class="pet-status-float"><text x="400" y="105" font-size="34" font-weight="900" fill="#6366f1" text-anchor="middle">Zzz</text></g>';
+        statusBubble = '<g class="pet-status-float"><text x="410" y="95" font-size="32" font-weight="900" fill="#6366f1" text-anchor="middle">Zzz</text></g>';
     } else if (state === "eating") {
-        statusBubble = '<g class="pet-status-float"><text x="400" y="115" font-size="38" text-anchor="middle">😋</text></g>';
+        statusBubble = '<g class="pet-status-float"><text x="410" y="105" font-size="36" text-anchor="middle">😋</text></g>';
     }
 
     return (
@@ -1063,7 +1565,7 @@ window.bangunVisualPet25DSVG = function(petId, outfit, animState, ukuranPx) {
             '<svg viewBox="0 0 512 512" width="100%" height="100%" style="overflow:visible;">' +
                 '<defs>' +
                     '<radialGradient id="gradHead_' + petId + '" cx="38%" cy="32%" r="68%">' +
-                        '<stop offset="0%" stop-color="#ffffff" stop-opacity="0.35"/>' +
+                        '<stop offset="0%" stop-color="#ffffff" stop-opacity="0.32"/>' +
                         '<stop offset="35%" stop-color="' + palet.main + '" stop-opacity="1"/>' +
                         '<stop offset="100%" stop-color="' + palet.dark + '" stop-opacity="1"/>' +
                     '</radialGradient>' +
@@ -1072,7 +1574,7 @@ window.bangunVisualPet25DSVG = function(petId, outfit, animState, ukuranPx) {
                         '<stop offset="100%" stop-color="' + palet.dark + '"/>' +
                     '</radialGradient>' +
                 '</defs>' +
-                '<ellipse class="pet-ground-shadow" cx="256" cy="455" rx="' + Math.round(92 * spScale) + '" ry="20" fill="' + (catPet.zona === "water" ? "rgba(2,132,199,0.28)" : "rgba(15,23,42,0.22)") + '"/>' +
+                '<ellipse class="pet-ground-shadow" cx="256" cy="442" rx="' + Math.round(108 * spScale) + '" ry="20" fill="' + (catPet.zona === "water" ? "rgba(2,132,199,0.28)" : "rgba(15,23,42,0.2)") + '"/>' +
                 '<g transform="translate(0, ' + translateY + ') scale(' + spScale + ')" style="transform-origin: 256px 256px;">' +
                     '<g class="pet-whole-body">' +
                         backLayer +
@@ -1081,6 +1583,7 @@ window.bangunVisualPet25DSVG = function(petId, outfit, animState, ukuranPx) {
                         limbsLayer +
                         neckLayer +
                         headLayer +
+                        cosmeticHeadOverlay +
                     '</g>' +
                 '</g>' +
                 statusBubble +
@@ -1146,7 +1649,37 @@ window.bangunSVGDeKorasiHabitat = function(decId) {
         dec_fountain: '<svg viewBox="0 0 120 110" width="82" height="76"><ellipse cx="60" cy="98" rx="46" ry="9" fill="rgba(0,0,0,0.16)"/><ellipse cx="60" cy="86" rx="42" ry="14" fill="#94a3b8" stroke="#475569" stroke-width="3"/><ellipse cx="60" cy="84" rx="36" ry="10" fill="#38bdf8"/><rect x="52" y="48" width="16" height="36" fill="#cbd5e1" stroke="#475569" stroke-width="2"/><ellipse cx="60" cy="50" rx="24" ry="8" fill="#94a3b8" stroke="#475569" stroke-width="2"/><path d="M60,44 Q42,20 36,48 M60,44 Q78,20 84,48" fill="none" stroke="#7dd3fc" stroke-width="3" stroke-linecap="round"/></svg>',
         dec_flower: '<svg viewBox="0 0 110 80" width="76" height="56"><ellipse cx="55" cy="68" rx="40" ry="7" fill="rgba(0,0,0,0.14)"/><path d="M35,66 L35,40 M55,66 L55,34 M75,66 L75,42" stroke="#15803d" stroke-width="4" stroke-linecap="round"/><circle cx="35" cy="36" r="10" fill="#f43f5e"/><circle cx="35" cy="36" r="4" fill="#fde047"/><circle cx="55" cy="30" r="11" fill="#a855f7"/><circle cx="55" cy="30" r="4" fill="#fde047"/><circle cx="75" cy="38" r="10" fill="#f97316"/><circle cx="75" cy="38" r="4" fill="#ffffff"/></svg>',
         dec_crystal: '<svg viewBox="0 0 100 110" width="70" height="78"><ellipse cx="50" cy="98" rx="32" ry="8" fill="rgba(56,189,248,0.25)"/><polygon points="50,16 70,52 62,94 38,94 30,52" fill="#38bdf8" stroke="#0284c7" stroke-width="3"/><polygon points="50,16 62,94 38,94" fill="#bae6fd" opacity="0.55"/><polygon points="24,48 38,66 34,94 18,94" fill="#818cf8" stroke="#4f46e5" stroke-width="2.5"/></svg>',
-        dec_painting: '<svg viewBox="0 0 110 90" width="72" height="60"><ellipse cx="55" cy="82" rx="28" ry="5" fill="rgba(0,0,0,0.15)"/><line x1="40" y1="82" x2="55" y2="20" stroke="#78350f" stroke-width="4"/><line x1="70" y1="82" x2="55" y2="20" stroke="#78350f" stroke-width="4"/><rect x="24" y="22" width="62" height="44" rx="4" fill="#fef3c7" stroke="#b45309" stroke-width="5"/><path d="M28,58 Q45,42 62,54 Q74,46 82,58 L82,62 L28,62 Z" fill="#4ade80"/><circle cx="42" cy="36" r="6" fill="#facc15"/></svg>'
+        dec_painting: '<svg viewBox="0 0 110 90" width="72" height="60"><ellipse cx="55" cy="82" rx="28" ry="5" fill="rgba(0,0,0,0.15)"/><line x1="40" y1="82" x2="55" y2="20" stroke="#78350f" stroke-width="4"/><line x1="70" y1="82" x2="55" y2="20" stroke="#78350f" stroke-width="4"/><rect x="24" y="22" width="62" height="44" rx="4" fill="#fef3c7" stroke="#b45309" stroke-width="5"/><path d="M28,58 Q45,42 62,54 Q74,46 82,58 L82,62 L28,62 Z" fill="#4ade80"/><circle cx="42" cy="36" r="6" fill="#facc15"/></svg>',
+        dec_coral: '<svg viewBox="0 0 100 100" width="80" height="80"><ellipse cx="50" cy="90" rx="35" ry="8" fill="rgba(0,0,0,0.15)"/><path d="M50,90 Q40,60 20,40 M50,90 Q50,50 40,20 M50,90 Q65,60 85,30 M50,90 Q80,60 90,70" fill="none" stroke="#f43f5e" stroke-width="12" stroke-linecap="round"/><path d="M50,90 Q40,60 20,40 M50,90 Q50,50 40,20 M50,90 Q65,60 85,30 M50,90 Q80,60 90,70" fill="none" stroke="#fb7185" stroke-width="6" stroke-linecap="round"/></svg>',
+        dec_crab: '<svg viewBox="0 0 100 80" width="75" height="60"><ellipse cx="50" cy="70" rx="30" ry="6" fill="rgba(0,0,0,0.15)"/><ellipse cx="50" cy="50" rx="35" ry="20" fill="#ef4444"/><circle cx="35" cy="25" r="5" fill="#fff" stroke="#dc2626" stroke-width="2"/><circle cx="35" cy="25" r="2" fill="#000"/><circle cx="65" cy="25" r="5" fill="#fff" stroke="#dc2626" stroke-width="2"/><circle cx="65" cy="25" r="2" fill="#000"/><path d="M25,50 Q10,40 5,20 M75,50 Q90,40 95,20" fill="none" stroke="#ef4444" stroke-width="6" stroke-linecap="round"/><circle cx="5" cy="20" r="8" fill="#ef4444"/><circle cx="95" cy="20" r="8" fill="#ef4444"/><path d="M15,60 Q5,65 10,75 M25,65 Q15,70 20,80 M85,60 Q95,65 90,75 M75,65 Q85,70 80,80" fill="none" stroke="#ef4444" stroke-width="4" stroke-linecap="round"/></svg>',
+        dec_seagrass: '<svg viewBox="0 0 80 120" width="70" height="90"><ellipse cx="40" cy="110" rx="25" ry="5" fill="rgba(0,0,0,0.15)"/><path d="M40,110 Q20,60 30,10 M40,110 Q50,70 70,20 M40,110 Q25,80 10,40 M40,110 Q55,80 60,30" fill="none" stroke="#22c55e" stroke-width="8" stroke-linecap="round"/><path d="M40,110 Q20,60 30,10 M40,110 Q50,70 70,20 M40,110 Q25,80 10,40 M40,110 Q55,80 60,30" fill="none" stroke="#4ade80" stroke-width="3" stroke-linecap="round"/></svg>',
+        dec_bubbles: '<svg viewBox="0 0 100 120" width="80" height="90"><circle cx="40" cy="100" r="8" fill="none" stroke="#bae6fd" stroke-width="2"/><circle cx="60" cy="70" r="14" fill="none" stroke="#38bdf8" stroke-width="2.5"/><circle cx="30" cy="40" r="10" fill="none" stroke="#bae6fd" stroke-width="2"/><circle cx="70" cy="20" r="18" fill="none" stroke="#7dd3fc" stroke-width="3"/><circle cx="66" cy="16" r="4" fill="#ffffff"/><circle cx="56" cy="66" r="3" fill="#ffffff"/></svg>',
+        dec_fish: '<svg viewBox="0 0 100 80" width="80" height="60"><g transform="translate(10,20)"><ellipse cx="20" cy="15" rx="15" ry="8" fill="#facc15"/><polygon points="5,15 -5,5 -5,25" fill="#f59e0b"/><circle cx="28" cy="12" r="2" fill="#000"/></g><g transform="translate(50,40)"><ellipse cx="20" cy="15" rx="12" ry="6" fill="#38bdf8"/><polygon points="8,15 -2,7 -2,23" fill="#0284c7"/><circle cx="26" cy="13" r="1.5" fill="#000"/></g><g transform="translate(40,5)"><ellipse cx="20" cy="15" rx="10" ry="5" fill="#f43f5e"/><polygon points="10,15 2,9 2,21" fill="#be123c"/><circle cx="25" cy="14" r="1" fill="#000"/></g></svg>',
+        dec_volcano: '<svg viewBox="0 0 120 100" width="90" height="75"><ellipse cx="60" cy="90" rx="45" ry="8" fill="rgba(0,0,0,0.2)"/><path d="M15,90 Q40,40 45,30 L75,30 Q80,40 105,90 Z" fill="#451a03"/><path d="M45,30 Q55,50 60,35 Q65,60 75,30 Z" fill="#ef4444"/><circle cx="60" cy="15" r="6" fill="#f97316"/><circle cx="45" cy="5" r="4" fill="#facc15"/><circle cx="75" cy="10" r="5" fill="#ef4444"/></svg>',
+        dec_mushroom: '<svg viewBox="0 0 100 110" width="80" height="85"><ellipse cx="50" cy="100" rx="30" ry="6" fill="rgba(0,0,0,0.3)"/><path d="M45,100 L45,50 C45,40 55,40 55,50 L55,100 Z" fill="#e2e8f0"/><ellipse cx="50" cy="45" rx="40" ry="25" fill="#a855f7"/><ellipse cx="50" cy="50" rx="38" ry="15" fill="#c084fc"/><circle cx="35" cy="35" r="6" fill="#f3e8ff"/><circle cx="65" cy="40" r="4" fill="#f3e8ff"/><circle cx="50" cy="30" r="5" fill="#f3e8ff"/></svg>',
+        dec_alienplant: '<svg viewBox="0 0 100 110" width="80" height="85"><ellipse cx="50" cy="100" rx="25" ry="6" fill="rgba(0,0,0,0.2)"/><path d="M50,100 Q40,60 20,30 M50,100 Q60,60 80,30 M50,100 L50,20" fill="none" stroke="#0ea5e9" stroke-width="6" stroke-linecap="round"/><circle cx="20" cy="30" r="10" fill="#f43f5e"/><circle cx="80" cy="30" r="10" fill="#f43f5e"/><circle cx="50" cy="20" r="14" fill="#facc15"/></svg>',
+        dec_meteor: '<svg viewBox="0 0 100 100" width="80" height="80"><path d="M20,80 Q40,60 80,20 Q60,40 20,80" fill="none" stroke="#f59e0b" stroke-width="6"/><circle cx="75" cy="25" r="15" fill="#64748b"/><circle cx="72" cy="22" r="3" fill="#475569"/><circle cx="80" cy="28" r="4" fill="#475569"/><circle cx="70" cy="30" r="2" fill="#475569"/></svg>',
+        dec_ufo: '<svg viewBox="0 0 120 80" width="90" height="60"><ellipse cx="60" cy="40" rx="50" ry="15" fill="#94a3b8"/><ellipse cx="60" cy="35" rx="50" ry="12" fill="#cbd5e1"/><ellipse cx="60" cy="25" rx="25" ry="15" fill="#38bdf8" opacity="0.6"/><circle cx="30" cy="40" r="3" fill="#ef4444"/><circle cx="60" cy="42" r="3" fill="#22c55e"/><circle cx="90" cy="40" r="3" fill="#facc15"/></svg>',
+        dec_campfire: '<svg viewBox="0 0 100 100" width="70" height="70"><path d="M20,80 L80,80 L50,90 Z" fill="#78350f"/><path d="M30,85 L70,85 L50,95 Z" fill="#451a03"/><path d="M35,80 Q50,20 65,80 Q50,50 35,80 Z" fill="#f97316"/><path d="M42,80 Q50,40 58,80 Q50,60 42,80 Z" fill="#facc15"/></svg>',
+        dec_tent: '<svg viewBox="0 0 120 100" width="90" height="75"><polygon points="10,90 60,20 110,90" fill="#16a34a"/><polygon points="60,20 110,90 90,90 60,30" fill="#15803d"/><polygon points="60,35 45,90 75,90" fill="#0f172a"/></svg>',
+        dec_log: '<svg viewBox="0 0 100 60" width="80" height="48"><rect x="15" y="20" width="70" height="25" rx="5" fill="#78350f"/><ellipse cx="15" cy="32.5" rx="5" ry="12.5" fill="#d97706"/><line x1="25" y1="25" x2="70" y2="25" stroke="#451a03" stroke-width="2"/><line x1="25" y1="35" x2="60" y2="35" stroke="#451a03" stroke-width="2"/></svg>',
+        dec_bush: '<svg viewBox="0 0 100 80" width="75" height="60"><circle cx="30" cy="50" r="25" fill="#15803d"/><circle cx="70" cy="50" r="25" fill="#15803d"/><circle cx="50" cy="35" r="30" fill="#22c55e"/><circle cx="40" cy="30" r="5" fill="#ef4444"/><circle cx="60" cy="20" r="5" fill="#ef4444"/><circle cx="25" cy="45" r="5" fill="#ef4444"/><circle cx="75" cy="55" r="5" fill="#ef4444"/></svg>',
+        dec_rock: '<svg viewBox="0 0 100 70" width="75" height="52"><path d="M10,60 Q30,20 60,30 T90,60 Z" fill="#64748b"/><path d="M20,50 Q40,15 65,35" fill="none" stroke="#22c55e" stroke-width="5" stroke-linecap="round"/></svg>',
+        dec_starfish: '<svg viewBox="0 0 100 100" width="70" height="70"><polygon points="50,10 65,40 95,45 70,65 75,95 50,80 25,95 30,65 5,45 35,40" fill="#f97316" stroke="#c2410c" stroke-width="3" stroke-linejoin="round"/><circle cx="50" cy="50" r="3" fill="#fff"/></svg>',
+        dec_pearl: '<svg viewBox="0 0 100 90" width="75" height="68"><path d="M10,70 Q50,90 90,70 Q70,20 50,10 Q30,20 10,70 Z" fill="#94a3b8"/><path d="M20,65 Q50,80 80,65 Q65,30 50,25 Q35,30 20,65 Z" fill="#cbd5e1"/><circle cx="50" cy="55" r="12" fill="#fbcfe8"/><circle cx="47" cy="52" r="3" fill="#fff"/></svg>',
+        dec_anchor: '<svg viewBox="0 0 100 110" width="70" height="78"><circle cx="50" cy="20" r="10" fill="none" stroke="#64748b" stroke-width="5"/><line x1="50" y1="30" x2="50" y2="90" stroke="#64748b" stroke-width="8"/><line x1="30" y1="50" x2="70" y2="50" stroke="#64748b" stroke-width="6"/><path d="M20,70 Q50,110 80,70" fill="none" stroke="#64748b" stroke-width="8" stroke-linecap="round"/><polygon points="10,70 30,70 20,60" fill="#64748b"/><polygon points="90,70 70,70 80,60" fill="#64748b"/></svg>',
+        dec_sandcastle: '<svg viewBox="0 0 100 100" width="75" height="75"><rect x="20" y="50" width="60" height="40" fill="#fde047"/><rect x="35" y="20" width="30" height="30" fill="#fde047"/><polygon points="20,50 20,40 25,40 25,50" fill="#facc15"/><polygon points="75,50 75,40 80,40 80,50" fill="#facc15"/><path d="M45,90 A10,10 0 0,1 55,90 Z" fill="#78350f"/><polygon points="50,20 50,5 65,12" fill="#ef4444"/></svg>',
+        dec_surfboard: '<svg viewBox="0 0 100 120" width="65" height="85"><ellipse cx="50" cy="60" rx="20" ry="50" fill="#38bdf8" stroke="#0284c7" stroke-width="3"/><path d="M50,10 L50,110" stroke="#fff" stroke-width="4"/><path d="M32,40 Q50,60 68,40" fill="none" stroke="#facc15" stroke-width="4"/></svg>',
+        dec_cactus: '<svg viewBox="0 0 100 110" width="70" height="78"><rect x="40" y="30" width="20" height="70" rx="10" fill="#16a34a"/><path d="M40,60 Q20,60 20,40" fill="none" stroke="#16a34a" stroke-width="12" stroke-linecap="round"/><path d="M60,70 Q80,70 80,50" fill="none" stroke="#16a34a" stroke-width="12" stroke-linecap="round"/><line x1="45" y1="40" x2="45" y2="90" stroke="#15803d" stroke-width="2"/><line x1="55" y1="40" x2="55" y2="90" stroke="#15803d" stroke-width="2"/></svg>',
+        dec_skull: '<svg viewBox="0 0 100 80" width="75" height="60"><path d="M30,30 Q50,10 70,30 L65,60 L35,60 Z" fill="#f1f5f9"/><circle cx="40" cy="40" r="6" fill="#0f172a"/><circle cx="60" cy="40" r="6" fill="#0f172a"/><polygon points="50,55 45,50 55,50" fill="#0f172a"/><path d="M30,30 Q10,10 0,30" fill="none" stroke="#e2e8f0" stroke-width="5" stroke-linecap="round"/><path d="M70,30 Q90,10 100,30" fill="none" stroke="#e2e8f0" stroke-width="5" stroke-linecap="round"/></svg>',
+        dec_chest: '<svg viewBox="0 0 100 90" width="75" height="68"><rect x="15" y="40" width="70" height="40" fill="#92400e" stroke="#451a03" stroke-width="4"/><path d="M15,40 Q50,10 85,40 Z" fill="#b45309" stroke="#451a03" stroke-width="4"/><rect x="45" y="35" width="10" height="15" fill="#facc15"/><circle cx="50" cy="42" r="2" fill="#000"/><line x1="15" y1="50" x2="85" y2="50" stroke="#451a03" stroke-width="2"/></svg>',
+        dec_oasis: '<svg viewBox="0 0 120 80" width="90" height="60"><ellipse cx="60" cy="60" rx="50" ry="15" fill="#38bdf8"/><path d="M90,60 Q80,20 100,10" fill="none" stroke="#78350f" stroke-width="4"/><path d="M100,10 Q80,10 70,20 M100,10 Q110,0 120,15 M100,10 Q110,25 90,30" fill="none" stroke="#22c55e" stroke-width="4" stroke-linecap="round"/></svg>',
+        dec_lamp: '<svg viewBox="0 0 100 80" width="75" height="60"><path d="M30,50 Q50,70 70,50 Q60,30 40,30 Z" fill="#facc15"/><path d="M70,50 Q90,50 95,30" fill="none" stroke="#facc15" stroke-width="5" stroke-linecap="round"/><polygon points="20,40 35,45 35,55 20,60" fill="#eab308"/><ellipse cx="50" cy="30" rx="10" ry="3" fill="#ca8a04"/></svg>',
+        dec_satellite: '<svg viewBox="0 0 100 100" width="75" height="75"><rect x="10" y="40" width="30" height="20" fill="#0284c7" stroke="#cbd5e1" stroke-width="2"/><rect x="60" y="40" width="30" height="20" fill="#0284c7" stroke="#cbd5e1" stroke-width="2"/><circle cx="50" cy="50" r="10" fill="#94a3b8"/><line x1="50" y1="40" x2="50" y2="10" stroke="#94a3b8" stroke-width="3"/><path d="M40,20 Q50,0 60,20" fill="none" stroke="#fff" stroke-width="2"/></svg>',
+        dec_crater: '<svg viewBox="0 0 100 60" width="75" height="45"><ellipse cx="50" cy="30" rx="40" ry="20" fill="#94a3b8"/><ellipse cx="50" cy="32" rx="35" ry="15" fill="#64748b"/><circle cx="40" cy="35" r="3" fill="#475569"/><circle cx="65" cy="28" r="4" fill="#475569"/></svg>',
+        dec_telescope: '<svg viewBox="0 0 100 100" width="75" height="75"><line x1="30" y1="90" x2="50" y2="60" stroke="#64748b" stroke-width="4"/><line x1="70" y1="90" x2="50" y2="60" stroke="#64748b" stroke-width="4"/><line x1="50" y1="90" x2="50" y2="60" stroke="#475569" stroke-width="4"/><polygon points="20,70 80,30 85,40 25,80" fill="#f8fafc" stroke="#cbd5e1" stroke-width="2"/><rect x="75" y="25" width="15" height="25" fill="#38bdf8" transform="rotate(-33 82 37)"/></svg>',
+        dec_robot: '<svg viewBox="0 0 100 100" width="70" height="70"><rect x="30" y="40" width="40" height="30" rx="5" fill="#cbd5e1"/><rect x="35" y="20" width="30" height="20" rx="3" fill="#94a3b8"/><circle cx="50" cy="30" r="5" fill="#ef4444"/><line x1="50" y1="20" x2="50" y2="5" stroke="#64748b" stroke-width="3"/><circle cx="50" cy="5" r="3" fill="#facc15"/><rect x="40" y="70" width="20" height="20" fill="#475569"/><circle cx="40" cy="90" r="6" fill="#1e293b"/><circle cx="60" cy="90" r="6" fill="#1e293b"/></svg>',
+        dec_portal: '<svg viewBox="0 0 100 120" width="75" height="90"><ellipse cx="50" cy="60" rx="40" ry="50" fill="none" stroke="#22d3ee" stroke-width="6"/><ellipse cx="50" cy="60" rx="30" ry="40" fill="none" stroke="#0ea5e9" stroke-width="4"/><ellipse cx="50" cy="60" rx="20" ry="30" fill="#0284c7" opacity="0.5"/><circle cx="50" cy="10" r="3" fill="#fff"/><circle cx="90" cy="60" r="4" fill="#fff"/><circle cx="10" cy="60" r="3" fill="#fff"/></svg>'
     };
     return svgMap[decId] || '';
 };
@@ -1169,6 +1702,83 @@ window.mainkanEfekVisualInteraksiPet = function(ikonUtama, subIkon) {
         wadah.appendChild(fx);
         setTimeout(function() { if (fx.parentNode) fx.remove(); }, 2400);
     });
+};
+
+window.fokusDekorasiIdx = -1;
+
+window.fokusDekorasiHabitat = function(idx, e) {
+    if (e) { e.stopPropagation(); e.preventDefault(); }
+    window.fokusDekorasiIdx = idx;
+    window.renderTabHabitatMyPet();
+};
+
+window.lepasDekorasiHabitat = function(idx, e) {
+    if (e) { e.stopPropagation(); e.preventDefault(); }
+    let uName = window.modeKunjunganPet || sessionStorage.getItem("username");
+    let lb = window.modeKunjunganPet ? window.leaderboardSiswaData[uName] : window.pastikanStrukturDualXPDanPet(uName);
+    if (!lb || !lb.myPetData) return;
+    lb.myPetData.activeDecorations.splice(idx, 1);
+    window.fokusDekorasiIdx = -1;
+    if (!window.modeKunjunganPet && typeof window.simpanLeaderboardSiswaKeDB === "function") window.simpanLeaderboardSiswaKeDB(uName, lb);
+    window.renderTabHabitatMyPet();
+};
+
+window.mulaiDragDekorasi = function(e, idx) {
+    if (window.modeKunjunganPet) return;
+    e.stopPropagation(); e.preventDefault();
+    let uName = sessionStorage.getItem("username");
+    let lb = window.pastikanStrukturDualXPDanPet(uName);
+    if (!lb || !lb.myPetData || !lb.myPetData.activeDecorations[idx]) return;
+
+    let el = document.getElementById('mypet-decor-item-' + idx);
+    let stage = document.getElementById('mypet-habitat-stage');
+    let sRect = stage.getBoundingClientRect();
+    
+    let startX = e.clientX, startY = e.clientY;
+    let decObj = lb.myPetData.activeDecorations[idx];
+    let initLeft = parseFloat(decObj.left) || 50;
+    let initBottom = parseFloat(decObj.bottom) || 20;
+
+    e.target.setPointerCapture(e.pointerId);
+
+    function move(ev) {
+        let dxPct = ((ev.clientX - startX) / sRect.width) * 100;
+        let dyPct = (-(ev.clientY - startY) / sRect.height) * 100;
+        
+        let nL = Math.max(0, Math.min(100, initLeft + dxPct));
+        let nB = Math.max(0, Math.min(100, initBottom + dyPct));
+        
+        el.style.left = nL + '%';
+        el.style.bottom = nB + '%';
+        decObj.left = nL.toFixed(1) + '%';
+        decObj.bottom = nB.toFixed(1) + '%';
+    }
+    function up(ev) {
+        e.target.releasePointerCapture(e.pointerId);
+        document.removeEventListener('pointermove', move);
+        document.removeEventListener('pointerup', up);
+        if (typeof window.simpanLeaderboardSiswaKeDB === "function") window.simpanLeaderboardSiswaKeDB(uName, lb);
+    }
+    document.addEventListener('pointermove', move);
+    document.addEventListener('pointerup', up);
+};
+
+window.bangunSVGTemaHabitat = function(themeId) {
+    let defSvg = '<svg viewBox="0 0 1000 360" preserveAspectRatio="none" style="position:absolute; inset:0; width:100%; height:100%; z-index:0; pointer-events:none;"><defs><linearGradient id="skyWarmGrad" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#f0f9ff"/><stop offset="55%" stop-color="#fef9c3"/><stop offset="100%" stop-color="#dcfce7"/></linearGradient><linearGradient id="mountainGrad" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#86efac"/><stop offset="100%" stop-color="#15803d"/></linearGradient><linearGradient id="hillLeftGrad" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#bef264"/><stop offset="100%" stop-color="#65a30d"/></linearGradient><linearGradient id="hillRightGrad" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#a3e635"/><stop offset="100%" stop-color="#4d7c0f"/></linearGradient><linearGradient id="riverWaterGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#bae6fd"/><stop offset="45%" stop-color="#38bdf8"/><stop offset="100%" stop-color="#0284c7"/></linearGradient></defs><rect width="1000" height="360" fill="url(#skyWarmGrad)"/><circle cx="480" cy="42" r="46" fill="#fde047" opacity="0.35"/><circle cx="480" cy="42" r="32" fill="#facc15"/><g stroke="#f59e0b" stroke-width="3" stroke-linecap="round" opacity="0.75"><line x1="480" y1="82" x2="480" y2="96"/><line x1="450" y1="76" x2="442" y2="90"/><line x1="510" y1="76" x2="518" y2="90"/><line x1="428" y1="58" x2="414" y2="66"/><line x1="532" y1="58" x2="546" y2="66"/></g><path d="M260,55 Q268,45 276,55 Q284,45 292,55" fill="none" stroke="#475569" stroke-width="2.5" stroke-linecap="round"/><path d="M295,68 Q302,60 309,68 Q316,60 323,68" fill="none" stroke="#475569" stroke-width="2.2" stroke-linecap="round"/><path d="M680,48 Q687,40 694,48 Q701,40 708,48" fill="none" stroke="#475569" stroke-width="2.2" stroke-linecap="round"/><polygon points="290,195 430,28 595,28 710,195" fill="url(#mountainGrad)" opacity="0.65"/><polygon points="360,195 495,48 640,195" fill="#16a34a" opacity="0.45"/><path d="M0,145 Q220,115 440,185 L440,360 L0,360 Z" fill="url(#hillLeftGrad)"/><path d="M360,185 Q720,105 1000,135 L1000,360 L360,360 Z" fill="url(#hillRightGrad)"/><path d="M0,205 Q480,165 1000,200 L1000,360 L0,360 Z" fill="#86efac"/><path d="M0,235 Q520,195 1000,225 L1000,360 L0,360 Z" fill="#4ade80"/><path d="M395,182 Q335,235 160,260 Q95,305 155,360 L465,360 Q485,295 435,245 Q415,210 395,182 Z" fill="#fde68a"/><path d="M402,184 Q345,238 175,264 Q115,308 170,360 L448,360 Q468,295 422,246 Q408,210 402,184 Z" fill="url(#riverWaterGrad)"/><path d="M240,295 Q280,290 320,295 M210,325 Q265,318 315,325 M310,255 Q345,250 380,255" fill="none" stroke="#e0f2fe" stroke-width="3" stroke-linecap="round" opacity="0.75"/><rect x="34" y="105" width="18" height="125" rx="5" fill="#78350f"/><circle cx="45" cy="85" r="48" fill="#4d7c0f"/><circle cx="22" cy="108" r="36" fill="#65a30d"/><circle cx="68" cy="105" r="34" fill="#84cc16"/><rect x="945" y="100" width="18" height="130" rx="5" fill="#78350f"/><circle cx="952" cy="82" r="48" fill="#4d7c0f"/><circle cx="928" cy="105" r="36" fill="#84cc16"/><circle cx="975" cy="108" r="34" fill="#3f6212"/><path d="M0,360 L0,305 Q35,285 60,320 Q90,295 125,335 Q150,315 175,360 Z" fill="#15803d" opacity="0.85"/><path d="M820,360 Q850,310 885,335 Q915,290 950,320 Q975,285 1000,310 L1000,360 Z" fill="#15803d" opacity="0.85"/><circle cx="75" cy="318" r="6" fill="#f43f5e"/><circle cx="112" cy="332" r="5" fill="#facc15"/><circle cx="875" cy="328" r="6" fill="#fb923c"/><circle cx="925" cy="315" r="6" fill="#f43f5e"/></svg>';
+
+    let themesMap = {
+        "thm_volcano": '<svg viewBox="0 0 1000 360" preserveAspectRatio="none" style="position:absolute; inset:0; width:100%; height:100%; z-index:0; pointer-events:none;"><rect width="1000" height="360" fill="#7f1d1d"/><polygon points="200,200 400,20 600,200 800,50 1000,200 1000,360 0,360 0,200" fill="#1c1917"/><polygon points="370,50 400,20 430,50 410,120 450,180 350,180 390,120" fill="#ea580c"/><path d="M0,250 Q250,220 500,280 T1000,250 L1000,360 L0,360 Z" fill="#292524"/><path d="M200,260 Q400,230 600,300 T1000,280 L1000,360 L0,360 L0,300 Q100,280 200,260 Z" fill="#ea580c" opacity="0.8"/></svg>',
+        "thm_jungle": '<svg viewBox="0 0 1000 360" preserveAspectRatio="none" style="position:absolute; inset:0; width:100%; height:100%; z-index:0; pointer-events:none;"><rect width="1000" height="360" fill="#ecfccb"/><circle cx="200" cy="150" r="250" fill="#14532d"/><circle cx="800" cy="150" r="280" fill="#166534"/><path d="M0,200 Q250,150 500,220 T1000,180 L1000,360 L0,360 Z" fill="#22c55e"/><path d="M0,260 Q250,220 500,280 T1000,240 L1000,360 L0,360 Z" fill="#15803d"/><rect x="100" y="0" width="10" height="360" fill="#a3e635" opacity="0.5"/><rect x="850" y="0" width="12" height="360" fill="#a3e635" opacity="0.5"/></svg>',
+        "thm_underwater": '<svg viewBox="0 0 1000 360" preserveAspectRatio="none" style="position:absolute; inset:0; width:100%; height:100%; z-index:0; pointer-events:none;"><defs><linearGradient id="uwGrad" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#0284c7"/><stop offset="100%" stop-color="#082f49"/></linearGradient></defs><rect width="1000" height="360" fill="url(#uwGrad)"/><path d="M0,300 Q250,260 500,320 T1000,280 L1000,360 L0,360 Z" fill="#fef3c7"/><path d="M0,330 Q250,300 500,340 T1000,310 L1000,360 L0,360 Z" fill="#fde68a"/><circle cx="150" cy="120" r="8" fill="#fff" opacity="0.3"/><circle cx="160" cy="80" r="12" fill="#fff" opacity="0.2"/><circle cx="850" cy="180" r="6" fill="#fff" opacity="0.4"/><circle cx="840" cy="130" r="15" fill="#fff" opacity="0.2"/></svg>',
+        "thm_beach": '<svg viewBox="0 0 1000 360" preserveAspectRatio="none" style="position:absolute; inset:0; width:100%; height:100%; z-index:0; pointer-events:none;"><rect width="1000" height="360" fill="#a5f3fc"/><circle cx="800" cy="80" r="50" fill="#fef08a"/><path d="M0,180 Q250,170 500,190 T1000,180 L1000,360 L0,360 Z" fill="#0ea5e9"/><path d="M0,220 Q250,200 500,240 T1000,210 L1000,360 L0,360 Z" fill="#38bdf8"/><path d="M0,280 Q250,250 500,290 T1000,260 L1000,360 L0,360 Z" fill="#fde047"/><path d="M0,310 Q250,290 500,320 T1000,300 L1000,360 L0,360 Z" fill="#facc15"/></svg>',
+        "thm_cloud": '<svg viewBox="0 0 1000 360" preserveAspectRatio="none" style="position:absolute; inset:0; width:100%; height:100%; z-index:0; pointer-events:none;"><rect width="1000" height="360" fill="#e0f2fe"/><circle cx="200" cy="300" r="120" fill="#ffffff"/><circle cx="400" cy="320" r="140" fill="#ffffff"/><circle cx="600" cy="280" r="130" fill="#ffffff"/><circle cx="850" cy="340" r="150" fill="#ffffff"/><rect x="0" y="300" width="1000" height="60" fill="#ffffff"/><circle cx="150" cy="100" r="40" fill="#ffffff" opacity="0.6"/><circle cx="220" cy="120" r="50" fill="#ffffff" opacity="0.6"/><circle cx="800" cy="80" r="60" fill="#ffffff" opacity="0.6"/></svg>',
+        "thm_wood": '<svg viewBox="0 0 1000 360" preserveAspectRatio="none" style="position:absolute; inset:0; width:100%; height:100%; z-index:0; pointer-events:none;"><rect width="1000" height="360" fill="#78350f"/><rect x="0" y="0" width="1000" height="40" fill="#451a03" opacity="0.5"/><rect x="0" y="80" width="1000" height="40" fill="#451a03" opacity="0.5"/><rect x="0" y="160" width="1000" height="40" fill="#451a03" opacity="0.5"/><rect x="350" y="40" width="300" height="150" fill="#bae6fd" stroke="#451a03" stroke-width="10"/><line x1="500" y1="40" x2="500" y2="190" stroke="#451a03" stroke-width="10"/><line x1="350" y1="115" x2="650" y2="115" stroke="#451a03" stroke-width="10"/><path d="M0,240 L1000,240 L1000,360 L0,360 Z" fill="#92400e"/><line x1="0" y1="280" x2="1000" y2="280" stroke="#78350f" stroke-width="4"/><line x1="0" y1="320" x2="1000" y2="320" stroke="#78350f" stroke-width="4"/><polygon points="200,250 800,250 850,350 150,350" fill="#ef4444" opacity="0.8"/></svg>',
+        "thm_desert": '<svg viewBox="0 0 1000 360" preserveAspectRatio="none" style="position:absolute; inset:0; width:100%; height:100%; z-index:0; pointer-events:none;"><rect width="1000" height="360" fill="#fdba74"/><circle cx="500" cy="150" r="100" fill="#fef08a"/><path d="M0,200 Q300,100 600,220 T1000,180 L1000,360 L0,360 Z" fill="#fcd34d"/><path d="M0,260 Q400,200 700,280 T1000,250 L1000,360 L0,360 Z" fill="#fbbf24"/><path d="M0,300 Q500,260 1000,320 L1000,360 L0,360 Z" fill="#f59e0b"/></svg>',
+        "thm_space": '<svg viewBox="0 0 1000 360" preserveAspectRatio="none" style="position:absolute; inset:0; width:100%; height:100%; z-index:0; pointer-events:none;"><rect width="1000" height="360" fill="#1e1b4b"/><circle cx="100" cy="80" r="2" fill="#fff"/><circle cx="250" cy="150" r="3" fill="#fff"/><circle cx="400" cy="60" r="2" fill="#fff"/><circle cx="700" cy="120" r="4" fill="#fff"/><circle cx="850" cy="70" r="2" fill="#fff"/><circle cx="800" cy="180" r="60" fill="#6366f1" opacity="0.8"/><circle cx="780" cy="160" r="10" fill="#4f46e5"/><circle cx="820" cy="190" r="15" fill="#4f46e5"/><path d="M0,250 Q250,220 500,270 T1000,230 L1000,360 L0,360 Z" fill="#475569"/><path d="M0,300 Q300,280 600,320 T1000,290 L1000,360 L0,360 Z" fill="#334155"/><ellipse cx="300" cy="320" rx="40" ry="15" fill="#1e293b"/><ellipse cx="750" cy="340" rx="30" ry="10" fill="#1e293b"/></svg>',
+        "thm_underground": '<svg viewBox="0 0 1000 360" preserveAspectRatio="none" style="position:absolute; inset:0; width:100%; height:100%; z-index:0; pointer-events:none;"><rect width="1000" height="360" fill="#334155"/><polygon points="100,0 150,120 200,0" fill="#475569"/><polygon points="400,0 480,180 550,0" fill="#475569"/><polygon points="800,0 830,100 860,0" fill="#475569"/><path d="M0,220 Q250,180 500,240 T1000,200 L1000,360 L0,360 Z" fill="#1e293b"/><path d="M0,280 Q300,250 600,300 T1000,270 L1000,360 L0,360 Z" fill="#0f172a"/><polygon points="250,300 270,220 290,300" fill="#c084fc" opacity="0.8"/><polygon points="265,300 280,240 295,300" fill="#d8b4fe" opacity="0.8"/><polygon points="750,320 780,190 810,320" fill="#c084fc" opacity="0.8"/><polygon points="770,320 790,210 820,320" fill="#d8b4fe" opacity="0.8"/></svg>'
+    };
+
+    return themesMap[themeId] || defSvg;
 };
 
 window.renderTabHabitatMyPet = function() {
@@ -1199,7 +1809,7 @@ window.renderTabHabitatMyPet = function() {
                 '</div>';
             return;
         }
-        let coinSaldo = Number(lb.coin !== undefined ? lb.coin : lb.xpTersedia || 0);
+        let coinSaldo = window.ambilCoinSiswa(uName);
         container.innerHTML =
             '<div style="background:white; border:2px dashed #cbd5e1; border-radius:16px; padding:40px 20px; text-align:center;">' +
                 '<div style="font-size:64px; margin-bottom:10px;">🥚</div>' +
@@ -1226,40 +1836,30 @@ window.renderTabHabitatMyPet = function() {
     let infoLapar = window.dapatkanInfoStatusLaparPet(hungerVal);
     let infoBond = window.hitungLevelBondPet(activePet.bondXp || 0);
 
-    // KOORDINAT SLOT DEKORASI TETAP (MENYATU DENGAN TANAH & BUKIT, TIDAK MELAYANG DI LANGIT)
-    let slotCoords = {
-        "Kiri Belakang":    { left: "14%", bottom: "42%", z: 3 },
-        "Dinding Belakang": { left: "44%", bottom: "44%", z: 3 },
-        "Tengah Belakang":  { left: "62%", bottom: "43%", z: 3 },
-        "Kanan Belakang":   { left: "84%", bottom: "40%", z: 3 },
-        "Kiri Tanah":       { left: "14%", bottom: "14%", z: 4 },
-        "Tengah Tanah":     { left: "54%", bottom: "12%", z: 4 },
-        "Kanan Tanah":      { left: "78%", bottom: "16%", z: 4 }
-    };
-
     let decorHtml = '';
     let activeDecs = Array.isArray(petData.activeDecorations) ? petData.activeDecorations : [];
-    activeDecs.forEach(function(decId) {
-        let decCfg = window.MY_PET_CATALOG.decorations.find(function(d) { return d.id === decId; });
-        if (decCfg && slotCoords[decCfg.slot]) {
-            let pos = slotCoords[decCfg.slot];
-            let svgDec = window.bangunSVGDeKorasiHabitat(decId);
+    activeDecs.forEach(function(decObj, idx) {
+        if (typeof decObj === "string") decObj = { id: decObj, left: "50%", bottom: "20%" };
+        let decCfg = window.MY_PET_CATALOG.decorations.find(function(d) { return d.id === decObj.id; });
+        if (decCfg) {
+            let svgDec = window.bangunSVGDeKorasiHabitat(decObj.id);
+            let isFokus = (window.fokusDekorasiIdx === idx) && !isVisitMode;
+            let dragBtn = isFokus ?
+                '<div class="mypet-decor-drag-btn" style="position:absolute; top:-30px; left:50%; transform:translateX(-50%); background:#f39c12; color:white; padding:4px 12px; border-radius:12px; font-size:11px; font-weight:bold; cursor:grab; z-index:10; white-space:nowrap; box-shadow:0 2px 5px rgba(0,0,0,0.2);" onpointerdown="window.mulaiDragDekorasi(event, ' + idx + ')">✥ Drag</div>' +
+                '<button class="mypet-decor-del-btn" style="position:absolute; top:-30px; right:-25px; background:#e74c3c; color:white; border:none; border-radius:50%; width:24px; height:24px; font-size:11px; font-weight:bold; cursor:pointer; z-index:10; box-shadow:0 2px 5px rgba(0,0,0,0.2);" onclick="window.lepasDekorasiHabitat(' + idx + ', event)">✕</button>'
+                : '';
+
             decorHtml +=
-                '<div class="mypet-decor-svg-item" style="position:absolute; left:' + pos.left + '; bottom:' + pos.bottom + '; z-index:' + pos.z + '; transform:translate(-50%, 10%); pointer-events:none;" title="' + decCfg.nama + '">' +
+                '<div class="mypet-decor-svg-item" id="mypet-decor-item-' + idx + '" style="position:absolute; left:' + decObj.left + '; bottom:' + decObj.bottom + '; z-index:3; transform:translate(-50%, 10%); cursor:pointer;" onclick="window.fokusDekorasiHabitat(' + idx + ', event)" title="' + decCfg.nama + '">' +
+                    dragBtn +
                     (svgDec || '<span style="font-size:40px;">' + decCfg.ikon + '</span>') +
                 '</div>';
         }
     });
 
-    // PENEMPATAN PET BERDASARKAN ZONA ALAM (HEWAN AIR DI SUNGAI KIRI-TENGAH, HEWAN DARAT DI BUKIT RUMPUT KANAN-TENGAH)
     let stagePetsHtml = '';
-    let waterSlots = [
-        { l: 28, b: 16 }, { l: 38, b: 24 }, { l: 22, b: 28 }, { l: 34, b: 11 }
-    ];
-    let landSlots = [
-        { l: 58, b: 14 }, { l: 72, b: 22 }, { l: 48, b: 26 }, { l: 84, b: 18 },
-        { l: 65, b: 30 }, { l: 12, b: 20 }, { l: 78, b: 30 }
-    ];
+    let waterSlots = [ { l: 28, b: 16 }, { l: 38, b: 24 }, { l: 22, b: 28 }, { l: 34, b: 11 } ];
+    let landSlots = [ { l: 58, b: 14 }, { l: 72, b: 22 }, { l: 48, b: 26 }, { l: 84, b: 18 }, { l: 65, b: 30 }, { l: 12, b: 20 }, { l: 78, b: 30 } ];
     let wIdx = 0, lIdx = 0;
 
     ownedIds.forEach(function(pid) {
@@ -1269,28 +1869,21 @@ window.renderTabHabitatMyPet = function() {
         let isMain = (pid === activeId);
 
         let isWaterPet = (pCat.zona === "water" || pid === "ikan" || pid === "buaya");
-        let slotPos = isWaterPet
-            ? waterSlots[(wIdx++) % waterSlots.length]
-            : landSlots[(lIdx++) % landSlots.length];
-
+        let slotPos = isWaterPet ? waterSlots[(wIdx++) % waterSlots.length] : landSlots[(lIdx++) % landSlots.length];
         let ukuranDiHabitat = isMain ? 114 : 86;
         let svgPet = window.bangunVisualPet25DSVG(pid, pObj.outfit || {}, pLapar.animState, ukuranDiHabitat);
-        let waterRipple = isWaterPet
-            ? '<div class="mypet-water-ripple"></div>'
-            : '';
+        let waterRipple = isWaterPet ? '<div class="mypet-water-ripple"></div>' : '';
 
         stagePetsHtml +=
             '<div class="mypet-stage-actor-wrap ' + (isMain ? 'is-active-pet' : 'is-companion-pet') + (isWaterPet ? ' is-aquatic-pet' : '') + '" ' +
                  'style="left:' + slotPos.l + '%; bottom:' + slotPos.b + '%; z-index:' + (isMain ? 12 : 7) + ';" ' +
                  'onclick="window.interaksiKlikPetDiHabitat(\'' + pid + '\')" ' +
                  'title="Klik untuk berinteraksi dengan ' + (pObj.customName || pCat.namaDefault) + '">' +
-                svgPet +
-                waterRipple +
+                svgPet + waterRipple +
                 '<div class="mypet-stage-nametag">' + (isMain ? '⭐ ' : '') + (pObj.customName || pCat.namaDefault) + '</div>' +
             '</div>';
     });
 
-    // LACI MAKANAN
     let laciMakanHtml = '';
     if (window.bukaLaciMakanHabitat) {
         let myUName = sessionStorage.getItem("username");
@@ -1338,7 +1931,6 @@ window.renderTabHabitatMyPet = function() {
         }
     }
 
-    // LACI MAINAN
     let laciMainanHtml = '';
     if (window.bukaLaciMainanHabitat && !isVisitMode) {
         let invToys = Array.isArray(petData.ownedWardrobe) ? petData.ownedWardrobe.filter(function(id) { return id.indexOf("toy_") === 0; }) : [];
@@ -1395,7 +1987,7 @@ window.renderTabHabitatMyPet = function() {
     let detailActorSvg = window.bangunVisualPet25DSVG(activeId, activePet.outfit || {}, infoLapar.animState, 155);
     let titleHabitat = isVisitMode
         ? ('🏡 Sedang Berkunjung ke Habitat: <b style="color:#d97706;">' + (lb.namaLengkap || uName) + '</b>')
-        : ('🏡 Lembah & Sungai Sanctuary (<b style="color:#16a34a;">' + ownedIds.length + ' Pet Tinggal Bersama</b>)');
+        : ('🏡 Sanctuary Alam Bebas (<b style="color:#16a34a;">' + ownedIds.length + ' Pet Tinggal Bersama</b>)');
 
     let tombolAksiUser = isVisitMode
         ? '<div class="mypet-action-btns-grid" style="grid-template-columns: 1fr 1fr;">' +
@@ -1409,81 +2001,15 @@ window.renderTabHabitatMyPet = function() {
             '<button type="button" class="mypet-act-btn btn-dandan" onclick="window.gantiTabMyPet(\'wardrobe\')">👗 Dandani</button>' +
           '</div>';
 
-    // LUKISAN PEMANDANGAN ALAM 2.5D (GABUNGAN BUKIT CAT AIR GAMBAR 1 & SUNGAI LEMBAH GAMBAR 2)
-    let landscapeSvgBg =
-        '<svg viewBox="0 0 1000 360" preserveAspectRatio="none" style="position:absolute; inset:0; width:100%; height:100%; z-index:0; pointer-events:none;">' +
-            '<defs>' +
-                '<linearGradient id="skyWarmGrad" x1="0%" y1="0%" x2="0%" y2="100%">' +
-                    '<stop offset="0%" stop-color="#f0f9ff"/>' +
-                    '<stop offset="55%" stop-color="#fef9c3"/>' +
-                    '<stop offset="100%" stop-color="#dcfce7"/>' +
-                '</linearGradient>' +
-                '<linearGradient id="mountainGrad" x1="0%" y1="0%" x2="0%" y2="100%">' +
-                    '<stop offset="0%" stop-color="#86efac"/>' +
-                    '<stop offset="100%" stop-color="#15803d"/>' +
-                '</linearGradient>' +
-                '<linearGradient id="hillLeftGrad" x1="0%" y1="0%" x2="0%" y2="100%">' +
-                    '<stop offset="0%" stop-color="#bef264"/>' +
-                    '<stop offset="100%" stop-color="#65a30d"/>' +
-                '</linearGradient>' +
-                '<linearGradient id="hillRightGrad" x1="0%" y1="0%" x2="0%" y2="100%">' +
-                    '<stop offset="0%" stop-color="#a3e635"/>' +
-                    '<stop offset="100%" stop-color="#4d7c0f"/>' +
-                '</linearGradient>' +
-                '<linearGradient id="riverWaterGrad" x1="0%" y1="0%" x2="100%" y2="100%">' +
-                    '<stop offset="0%" stop-color="#bae6fd"/>' +
-                    '<stop offset="45%" stop-color="#38bdf8"/>' +
-                    '<stop offset="100%" stop-color="#0284c7"/>' +
-                '</linearGradient>' +
-            '</defs>' +
-            '<!-- Langit Hangat & Matahari Bersinar (Ref Gambar 1) -->' +
-            '<rect width="1000" height="360" fill="url(#skyWarmGrad)"/>' +
-            '<circle cx="480" cy="42" r="46" fill="#fde047" opacity="0.35"/>' +
-            '<circle cx="480" cy="42" r="32" fill="#facc15"/>' +
-            '<g stroke="#f59e0b" stroke-width="3" stroke-linecap="round" opacity="0.75">' +
-                '<line x1="480" y1="82" x2="480" y2="96"/><line x1="450" y1="76" x2="442" y2="90"/><line x1="510" y1="76" x2="518" y2="90"/>' +
-                '<line x1="428" y1="58" x2="414" y2="66"/><line x1="532" y1="58" x2="546" y2="66"/>' +
-            '</g>' +
-            '<!-- Burung Terbang di Kejauhan -->' +
-            '<path d="M260,55 Q268,45 276,55 Q284,45 292,55" fill="none" stroke="#475569" stroke-width="2.5" stroke-linecap="round"/>' +
-            '<path d="M295,68 Q302,60 309,68 Q316,60 323,68" fill="none" stroke="#475569" stroke-width="2.2" stroke-linecap="round"/>' +
-            '<path d="M680,48 Q687,40 694,48 Q701,40 708,48" fill="none" stroke="#475569" stroke-width="2.2" stroke-linecap="round"/>' +
-            '<!-- Gunung Hijau Berlapis di Tengah Belakang (Ref Gambar 2) -->' +
-            '<polygon points="290,195 430,28 595,28 710,195" fill="url(#mountainGrad)" opacity="0.65"/>' +
-            '<polygon points="360,195 495,48 640,195" fill="#16a34a" opacity="0.45"/>' +
-            '<!-- Perbukitan Gelombang Kiri & Kanan (Ref Gambar 1 & 2) -->' +
-            '<path d="M0,145 Q220,115 440,185 L440,360 L0,360 Z" fill="url(#hillLeftGrad)"/>' +
-            '<path d="M360,185 Q720,105 1000,135 L1000,360 L360,360 Z" fill="url(#hillRightGrad)"/>' +
-            '<!-- Padang Rumput Utama Tempat Pet Berpijak -->' +
-            '<path d="M0,205 Q480,165 1000,200 L1000,360 L0,360 Z" fill="#86efac"/>' +
-            '<path d="M0,235 Q520,195 1000,225 L1000,360 L0,360 Z" fill="#4ade80"/>' +
-            '<!-- Tepian Pasir & Aliran Sungai / Telaga Air Jernih (Zona Hewan Air) -->' +
-            '<path d="M395,182 Q335,235 160,260 Q95,305 155,360 L465,360 Q485,295 435,245 Q415,210 395,182 Z" fill="#fde68a"/>' +
-            '<path d="M402,184 Q345,238 175,264 Q115,308 170,360 L448,360 Q468,295 422,246 Q408,210 402,184 Z" fill="url(#riverWaterGrad)"/>' +
-            '<!-- Riak Kilau Air Sungai -->' +
-            '<path d="M240,295 Q280,290 320,295 M210,325 Q265,318 315,325 M310,255 Q345,250 380,255" fill="none" stroke="#e0f2fe" stroke-width="3" stroke-linecap="round" opacity="0.75"/>' +
-            '<!-- Pohon Rindang Kiri & Kanan Membingkai Habitat (Ref Gambar 1) -->' +
-            '<rect x="34" y="105" width="18" height="125" rx="5" fill="#78350f"/>' +
-            '<circle cx="45" cy="85" r="48" fill="#4d7c0f"/><circle cx="22" cy="108" r="36" fill="#65a30d"/><circle cx="68" cy="105" r="34" fill="#84cc16"/>' +
-            '<rect x="945" y="100" width="18" height="130" rx="5" fill="#78350f"/>' +
-            '<circle cx="952" cy="82" r="48" fill="#4d7c0f"/><circle cx="928" cy="105" r="36" fill="#84cc16"/><circle cx="975" cy="108" r="34" fill="#3f6212"/>' +
-            '<!-- Semak & Bunga Latar Depan (Foreground) -->' +
-            '<path d="M0,360 L0,305 Q35,285 60,320 Q90,295 125,335 Q150,315 175,360 Z" fill="#15803d" opacity="0.85"/>' +
-            '<path d="M820,360 Q850,310 885,335 Q915,290 950,320 Q975,285 1000,310 L1000,360 Z" fill="#15803d" opacity="0.85"/>' +
-            '<circle cx="75" cy="318" r="6" fill="#f43f5e"/><circle cx="112" cy="332" r="5" fill="#facc15"/>' +
-            '<circle cx="875" cy="328" r="6" fill="#fb923c"/><circle cx="925" cy="315" r="6" fill="#f43f5e"/>' +
-        '</svg>';
-
     container.innerHTML =
         bannerKritis +
         '<div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:10px;">' +
             '<div style="background:#ffffff; border:1px solid #cbd5e1; color:#334155; padding:6px 14px; border-radius:20px; font-size:12px;">' + titleHabitat + '</div>' +
-            (isVisitMode ? '<button class="btn-action" style="background:#e74c3c; width:auto; padding:6px 14px; font-size:11px;" onclick="window.akhiriKunjunganPet()">🚪 Pulang ke Habitat Sendiri</button>' : '<div style="font-size:11px; color:#64748b; font-weight:600;">💡 Hewan air bermain di sungai & hewan darat di padang rumput!</div>') +
+            (isVisitMode ? '<button class="btn-action" style="background:#e74c3c; width:auto; padding:6px 14px; font-size:11px;" onclick="window.akhiriKunjunganPet()">🚪 Pulang ke Habitat Sendiri</button>' : '<div style="font-size:11px; color:#64748b; font-weight:600;">💡 Klik 1x dekorasi untuk menyeretnya (drag). Klik ruang kosong untuk melepas!</div>') +
         '</div>' +
 
-        '<!-- PANGGUNG VISUAL HABITAT ALAM 2.5D -->' +
-        '<div id="mypet-habitat-stage" class="mypet-habitat-stage mypet-universal-stage">' +
-            landscapeSvgBg +
+        '<div id="mypet-habitat-stage" class="mypet-habitat-stage" style="border-color:#94a3b8;" onclick="if(window.fokusDekorasiIdx !== -1) { window.fokusDekorasiIdx = -1; window.renderTabHabitatMyPet(); }">' +
+            window.bangunSVGTemaHabitat(petData.activeTheme) +
             decorHtml +
             stagePetsHtml +
             (!isVisitMode ? '<div class="mypet-food-bowl" onclick="window.toggleLaciMakanHabitat(true)" title="Wadah Makanan (Klik untuk memberi makan)"><span>' + (hungerVal < 25 ? '🥣' : '🍲') + '</span></div>' : '') +
@@ -1492,7 +2018,6 @@ window.renderTabHabitatMyPet = function() {
 
         laciMakanHtml + laciMainanHtml +
 
-        '<!-- KARTU DETAIL PET -->' +
         '<div class="mypet-detail-card">' +
             '<div id="mypet-detail-preview-box" class="mypet-detail-avatar-box" style="position:relative;" onclick="window.interaksiKlikPetDiHabitat(\'' + activeId + '\')">' +
                 detailActorSvg +
@@ -1538,17 +2063,23 @@ window.tampilkanToastInteraksiPet = function(pesan) {
     }, 2600);
 };
 
-// Klik / Ketuk Pet di Habitat
+window.ambilDataLbPetAktif = function() {
+    let targetUser = window.modeKunjunganPet || sessionStorage.getItem("username");
+    if (window.modeKunjunganPet && window.leaderboardSiswaData && window.leaderboardSiswaData[targetUser]) {
+        return { user: targetUser, lb: window.leaderboardSiswaData[targetUser] };
+    }
+    return { user: targetUser, lb: window.pastikanStrukturDualXPDanPet(targetUser) };
+};
+
 window.interaksiKlikPetDiHabitat = function(petId) {
-    let uName = sessionStorage.getItem("username");
-    let lb = window.pastikanStrukturDualXPDanPet(uName);
+    let ctx = window.ambilDataLbPetAktif();
+    let lb = ctx.lb;
     if (!lb || !lb.myPetData || !lb.myPetData.ownedPets[petId]) return;
 
-    // Jika yang diklik adalah pet pendamping, jadikan sebagai pet aktif
     if (lb.myPetData.activePetId !== petId) {
         lb.myPetData.activePetId = petId;
-        if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
-            window.simpanLeaderboardSiswaKeDB(uName, lb);
+        if (typeof window.simpanLeaderboardSiswaKeDB === "function" && !window.modeKunjunganPet) {
+            window.simpanLeaderboardSiswaKeDB(ctx.user, lb);
         }
         window.renderTabHabitatMyPet();
         return;
@@ -1562,6 +2093,7 @@ window.interaksiKlikPetDiHabitat = function(petId) {
     let pilihState = statesAcak[Math.floor(Math.random() * statesAcak.length)];
     window.triggerAnimasiPetSementara("#mypet-habitat-stage", pilihState, 1600);
     window.triggerAnimasiPetSementara("#mypet-detail-preview-box", pilihState, 1600);
+    window.mainkanEfekVisualInteraksiPet(pilihState === "sleepy" ? "💤" : "✨", "✨");
 
     let sapaan = pilihState === "sleepy"
         ? "🥱 <b>" + nama + "</b> menguap manja dan menoleh ke arahmu!"
@@ -1569,13 +2101,12 @@ window.interaksiKlikPetDiHabitat = function(petId) {
     window.tampilkanToastInteraksiPet(sapaan);
 };
 
-// Aksi Elus Pet (Menaikkan Bond +10 & Mood +8 dengan Cooldown 5 Menit anti-spam farming)
 window.aksiElusPetAktif = function() {
-    let targetUser = window.modeKunjunganPet || sessionStorage.getItem("username");
-    let lb = window.leaderboardSiswaData[targetUser];
+    let ctx = window.ambilDataLbPetAktif();
+    let lb = ctx.lb;
     if (!lb || !lb.myPetData) return;
 
-    let activeId = lb.myPetData.activePetId;
+    let activeId = lb.myPetData.activePetId || Object.keys(lb.myPetData.ownedPets || {})[0];
     let pet = lb.myPetData.ownedPets[activeId];
     if (!pet) return;
 
@@ -1585,9 +2116,9 @@ window.aksiElusPetAktif = function() {
     let cooldownMs = 5 * 60 * 1000;
 
     window.bukaLaciMainanHabitat = false;
-    window.triggerAnimasiPetSementara("#mypet-habitat-stage", mainan.animasi || "happy", 2600);
-    window.triggerAnimasiPetSementara("#mypet-detail-preview-box", mainan.animasi || "happy", 2600);
-    window.mainkanEfekVisualInteraksiPet(mainan.ikon, "✨");
+    window.triggerAnimasiPetSementara("#mypet-habitat-stage", "happy", 2600);
+    window.triggerAnimasiPetSementara("#mypet-detail-preview-box", "happy", 2600);
+    window.mainkanEfekVisualInteraksiPet("💖", "✨");
 
     if (pet.lastPetTime && (now - pet.lastPetTime) < cooldownMs) {
         let sisaMenit = Math.ceil((cooldownMs - (now - pet.lastPetTime)) / 60000);
@@ -1599,13 +2130,13 @@ window.aksiElusPetAktif = function() {
     pet.mood = Math.min(100, (Number(pet.mood) || 80) + 8);
     pet.bondXp = (Number(pet.bondXp) || 0) + 12;
 
-    if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
-        window.simpanLeaderboardSiswaKeDB(targetUser, lb);
+    if (typeof window.simpanLeaderboardSiswaKeDB === "function" && !window.modeKunjunganPet) {
+        window.simpanLeaderboardSiswaKeDB(ctx.user, lb);
     }
 
     setTimeout(function() {
         window.renderTabHabitatMyPet();
-        window.tampilkanToastInteraksiPet(window.modeKunjunganPet ? ("🥰 Kamu mengelus <b>" + nama + "</b> milik " + targetUser + "!") : ("🥰 <b>" + nama + "</b> sangat senang dielus! (+8 Mood, +12 Bond)"));
+        window.tampilkanToastInteraksiPet(window.modeKunjunganPet ? ("🥰 Kamu mengelus <b>" + nama + "</b> milik " + ctx.user + "!") : ("🥰 <b>" + nama + "</b> sangat senang dielus! (+8 Mood, +12 Bond)"));
     }, 450);
 };
 
@@ -1624,26 +2155,29 @@ window.toggleLaciMakanHabitat = function(forceState) {
 };
 
 window.aksiMainDenganToy = function(toyId) {
-    let uName = sessionStorage.getItem("username");
-    let lb = window.pastikanStrukturDualXPDanPet(uName);
+    let ctx = window.ambilDataLbPetAktif();
+    let lb = ctx.lb;
     if (!lb || !lb.myPetData) return;
 
-    let pet = lb.myPetData.ownedPets[lb.myPetData.activePetId];
+    let activeId = lb.myPetData.activePetId || Object.keys(lb.myPetData.ownedPets || {})[0];
+    let pet = lb.myPetData.ownedPets[activeId];
     if (!pet) return;
 
-    let mainan = window.MY_PET_CATALOG.toys.find(x => x.id === toyId);
+    let mainan = window.MY_PET_CATALOG.toys.find(function(x) { return x.id === toyId; });
     if (!mainan) return;
 
-    if ((Number(pet.hunger) || 0) < 15) {
-        return window.tampilkanToastInteraksiPet("⚠️ Pet terlalu lapar untuk bermain! Beri makan dulu ya.");
+    let nilaiKenyang = (pet.hunger !== undefined && pet.hunger !== null && !isNaN(Number(pet.hunger))) ? Number(pet.hunger) : 85;
+    if (nilaiKenyang < 15) {
+        return window.tampilkanToastInteraksiPet("⚠️ Pet terlalu lapar (" + Math.round(nilaiKenyang) + "/100) untuk bermain! Beri makan dulu ya.");
     }
 
     let now = Date.now();
     let cooldownMs = 10 * 60 * 1000;
 
     window.bukaLaciMainanHabitat = false;
-    window.triggerAnimasiPetSementara("#mypet-habitat-stage", mainan.animasi, 2500);
-    window.triggerAnimasiPetSementara("#mypet-detail-preview-box", mainan.animasi, 2500);
+    window.triggerAnimasiPetSementara("#mypet-habitat-stage", mainan.animasi || "happy", 2500);
+    window.triggerAnimasiPetSementara("#mypet-detail-preview-box", mainan.animasi || "happy", 2500);
+    window.mainkanEfekVisualInteraksiPet(mainan.ikon, "✨");
 
     if (pet.lastPlayTime && (now - pet.lastPlayTime) < cooldownMs) {
         let sisaMenit = Math.ceil((cooldownMs - (now - pet.lastPlayTime)) / 60000);
@@ -1655,8 +2189,8 @@ window.aksiMainDenganToy = function(toyId) {
     pet.mood = Math.min(100, (Number(pet.mood) || 80) + 15);
     pet.bondXp = (Number(pet.bondXp) || 0) + 15;
 
-    if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
-        window.simpanLeaderboardSiswaKeDB(uName, lb);
+    if (typeof window.simpanLeaderboardSiswaKeDB === "function" && !window.modeKunjunganPet) {
+        window.simpanLeaderboardSiswaKeDB(ctx.user, lb);
     }
 
     setTimeout(function() {
@@ -1674,7 +2208,7 @@ window.berikanMakananKePet = function(foodId) {
     if (!myLb || !targetLb || !targetLb.myPetData) return;
 
     let stokKu = Number(myLb.myPetData.foodInventory[foodId]) || 0;
-    if (stokKu <= 0) return alert("Stok makanan ini milikmu sudah habis!");
+    if (stokKu <= 0) return window.tampilkanCustomDialog("alert", "Stok makanan ini milikmu sudah habis!", null, null);
 
     let pet = targetLb.myPetData.ownedPets[targetLb.myPetData.activePetId];
     if (!pet) return;
@@ -1684,14 +2218,12 @@ window.berikanMakananKePet = function(foodId) {
 
     let nama = pet.customName || window.MY_PET_CATALOG.pets.find(x => x.id === targetLb.myPetData.activePetId).namaDefault;
 
-    // Kurangi inventaris pengunjung (diri sendiri)
     myLb.myPetData.foodInventory[foodId] = stokKu - 1;
     if (myLb.myPetData.foodInventory[foodId] <= 0) delete myLb.myPetData.foodInventory[foodId];
     if (window.modeKunjunganPet && typeof window.simpanLeaderboardSiswaKeDB === "function") {
         window.simpanLeaderboardSiswaKeDB(myUName, myLb);
     }
 
-    // Tambah status pet tuan rumah
     let isFavSnack = (itemFood.tipe === "snack" && itemFood.favPet === targetLb.myPetData.activePetId);
     let tambahKenyang = Number(itemFood.kenyang) || 0;
     let tambahMood = (Number(itemFood.mood) || 5) + (isFavSnack ? 8 : 0);
@@ -1768,18 +2300,19 @@ window.gantiNamaPetAktif = function() {
 
     let cat = window.MY_PET_CATALOG.pets.find(function(x) { return x.id === activeId; }) || window.MY_PET_CATALOG.pets[0];
     let namaLama = pet.customName || cat.namaDefault;
-    let namaBaru = prompt("Berikan nama panggilan khusus untuk " + cat.spesies + " kesayanganmu (Maks. 16 karakter):", namaLama);
+    
+    window.tampilkanCustomDialog("prompt", "Berikan nama panggilan khusus untuk " + cat.spesies + " kesayanganmu (Maks. 16 karakter):", namaLama, function(namaBaru) {
+        if (namaBaru === null) return;
+        namaBaru = namaBaru.trim().slice(0, 16);
+        if (!namaBaru) return;
 
-    if (namaBaru === null) return;
-    namaBaru = namaBaru.trim().slice(0, 16);
-    if (!namaBaru) return;
-
-    pet.customName = namaBaru;
-    if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
-        window.simpanLeaderboardSiswaKeDB(uName, lb);
-    }
-    window.renderTabHabitatMyPet();
-    window.tampilkanToastInteraksiPet("🏷️ Nama pet berhasil diubah menjadi <b>" + namaBaru + "</b>!");
+        pet.customName = namaBaru;
+        if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
+            window.simpanLeaderboardSiswaKeDB(uName, lb);
+        }
+        window.renderTabHabitatMyPet();
+        window.tampilkanToastInteraksiPet("🏷️ Nama pet berhasil diubah menjadi <b>" + namaBaru + "</b>!");
+    });
 };
 
 // 3. RENDER TAB PET COLLECTION (HABITAT UNIVERSAL TANPA BATAS KAPASITAS)
@@ -1902,7 +2435,8 @@ window.renderTabShopMyPet = function(kategori) {
                 '<button type="button" class="mypet-subtab-btn ' + (catAktif === "pets" ? "active" : "") + '" onclick="window.renderTabShopMyPet(\'pets\')">🐾 Adopsi Pet</button>' +
                 '<button type="button" class="mypet-subtab-btn ' + (catAktif === "foods" ? "active" : "") + '" onclick="window.renderTabShopMyPet(\'foods\')">🍖 Makanan & Camilan</button>' +
                 '<button type="button" class="mypet-subtab-btn ' + (catAktif === "toys" ? "active" : "") + '" onclick="window.renderTabShopMyPet(\'toys\')">🎾 Mainan (Toys)</button>' +
-                '<button type="button" class="mypet-subtab-btn ' + (catAktif === "habitat" ? "active" : "") + '" onclick="window.renderTabShopMyPet(\'habitat\')">⛲ Dekorasi Taman</button>' +
+                '<button type="button" class="mypet-subtab-btn ' + (catAktif === "themes" ? "active" : "") + '" onclick="window.renderTabShopMyPet(\'themes\')">🖼️ Tema</button>' +
+                '<button type="button" class="mypet-subtab-btn ' + (catAktif === "habitat" ? "active" : "") + '" onclick="window.renderTabShopMyPet(\'habitat\')">⛲ Dekorasi</button>' +
                 '<button type="button" class="mypet-subtab-btn ' + (catAktif === "wardrobe" ? "active" : "") + '" onclick="window.renderTabShopMyPet(\'wardrobe\')">👗 Kostum & Aksesori</button>' +
             '</div>' +
             '<div style="font-size:12px; font-weight:800; color:#0b3954; background:#fef9e7; border:1px solid #facc15; padding:5px 12px; border-radius:20px;">' +
@@ -2048,6 +2582,37 @@ window.renderTabShopMyPet = function(kategori) {
     }
 
     // KATEGORI 5: SHOP KOSTUM & AKSESORI (38 ITEM PERMANEN)
+else if (catAktif === "themes") {
+        let ownedTh = Array.isArray(petData.ownedThemes) ? petData.ownedThemes : [];
+        let activeTh = petData.activeTheme || "default";
+
+        bodyShopHtml +=
+            '<div style="background:#eaf2f8; border-left:4px solid #2980b9; padding:10px 14px; border-radius:8px; margin-bottom:12px; font-size:12px; color:#1e293b;">' +
+                '🖼️ <b>Ganti Suasana Panggung Habitat:</b> Beli tema sekali dan gunakan selamanya untuk mengganti latar belakang alam di Habitat Universalmu!' +
+            '</div>' +
+            '<div class="mypet-shop-grid">';
+
+        window.MY_PET_CATALOG.themes.forEach(function(thm) {
+            let isOwned = ownedTh.includes(thm.id);
+            let isActive = (activeTh === thm.id);
+
+            let btnThm = isOwned
+                ? '<button type="button" class="btn-action" style="background:' + (isActive ? '#64748b' : '#27ae60') + '; width:100%; padding:8px; font-size:12px;" onclick="window.beliTemaHabitat(\'' + thm.id + '\')">' +
+                      (isActive ? '✓ Sedang Dipakai' : '✨ Pakai Tema') +
+                  '</button>'
+                : '<button type="button" class="btn-action" style="background:#0b3954; color:#f1c40f; width:100%; padding:8px; font-size:12px; font-weight:800;" onclick="window.beliTemaHabitat(\'' + thm.id + '\')">🛒 Beli (' + thm.harga.toLocaleString("id-ID") + ' Coin)</button>';
+
+            bodyShopHtml +=
+                '<div class="mypet-shop-card">' +
+                    '<div style="font-size:40px; margin:8px 0;">' + thm.ikon + '</div>' +
+                    '<div style="font-weight:800; font-size:14px; color:#0f172a;">' + thm.nama + '</div>' +
+                    '<div style="font-size:11px; color:#64748b; margin-bottom:8px; min-height:30px;">' + thm.deskripsi + '</div>' +
+                    btnThm +
+                '</div>';
+        });
+        bodyShopHtml += '</div>';
+    }
+    
     else if (catAktif === "wardrobe") {
         let ownedW = Array.isArray(petData.ownedWardrobe) ? petData.ownedWardrobe : [];
         let grupList = [
@@ -2088,6 +2653,36 @@ window.renderTabShopMyPet = function(kategori) {
 // =========================================================================
 // 5. LOGIKA TRANSAKSI BELANJA SHOP (MEMOTONG COIN, XP LEADERBOARD TETAP UTUH)
 // =========================================================================
+window.beliTemaHabitat = function(themeId) {
+    let uName = sessionStorage.getItem("username");
+    let lb = window.pastikanStrukturDualXPDanPet(uName);
+    if (!lb) return;
+    let t = window.MY_PET_CATALOG.themes.find(x => x.id === themeId);
+    if (!t) return;
+
+    if (!Array.isArray(lb.myPetData.ownedThemes)) lb.myPetData.ownedThemes = [];
+    if (lb.myPetData.ownedThemes.includes(themeId)) {
+        lb.myPetData.activeTheme = themeId;
+        if (typeof window.simpanLeaderboardSiswaKeDB === "function") window.simpanLeaderboardSiswaKeDB(uName, lb);
+        window.gantiTabMyPet("habitat");
+        return;
+    }
+
+    let saldo = window.ambilCoinSiswa(uName);
+    if (saldo < t.harga) return window.tampilkanCustomDialog("alert", "⚠️ Coin belum cukup untuk membeli tema \"" + t.nama + "\"!", null, null);
+    
+    window.tampilkanCustomDialog("confirm", "Beli tema habitat \"" + t.nama + "\" seharga " + t.harga.toLocaleString("id-ID") + " Coin?", null, function(isYes) {
+        if (!isYes) return;
+        if (window.gunakanCoinSiswa(t.harga, "beli_theme_" + themeId)) {
+            lb.myPetData.ownedThemes.push(themeId);
+            lb.myPetData.activeTheme = themeId;
+            if (typeof window.simpanLeaderboardSiswaKeDB === "function") window.simpanLeaderboardSiswaKeDB(uName, lb);
+            window.renderTabShopMyPet("themes");
+            window.tampilkanCustomDialog("alert", "🖼️ Berhasil membeli tema Habitat! Background telah diubah.", null, null);
+        }
+    });
+};
+
 window.beliPetDiShop = function(petId) {
     let uName = sessionStorage.getItem("username");
     let lb = window.pastikanStrukturDualXPDanPet(uName);
@@ -2098,42 +2693,42 @@ window.beliPetDiShop = function(petId) {
     if (!catPet) return;
 
     if (petData.ownedPets && petData.ownedPets[petId]) {
-        return alert("Kamu sudah memiliki " + catPet.spesies + " di habitatmu!");
+        return window.tampilkanCustomDialog("alert", "Kamu sudah memiliki " + catPet.spesies + " di habitatmu!", null, null);
     }
 
     let saldo = window.ambilCoinSiswa(uName);
     if (saldo < catPet.harga) {
         let kurang = (catPet.harga - saldo).toLocaleString("id-ID");
-        return alert("⚠️ Coin kamu belum cukup untuk mengadopsi " + catPet.spesies + "!\n\nHarga: " + catPet.harga.toLocaleString("id-ID") + " Coin\nCoin Kamu: " + saldo.toLocaleString("id-ID") + " Coin\n(Kurang " + kurang + " Coin lagi)");
+        return window.tampilkanCustomDialog("alert", "⚠️ Coin kamu belum cukup untuk mengadopsi " + catPet.spesies + "!\n\nHarga: " + catPet.harga.toLocaleString("id-ID") + " Coin\nCoin Kamu: " + saldo.toLocaleString("id-ID") + " Coin\n(Kurang " + kurang + " Coin lagi)", null, null);
     }
 
-    if (!confirm("Adopsi \"" + catPet.spesies + "\" (" + catPet.rarity + ") seharga " + catPet.harga.toLocaleString("id-ID") + " Coin?\n\n(XP kamu di Leaderboard tidak akan berkurang!)")) {
-        return;
-    }
+    window.tampilkanCustomDialog("confirm", "Adopsi \"" + catPet.spesies + "\" (" + catPet.rarity + ") seharga " + catPet.harga.toLocaleString("id-ID") + " Coin?\n\n(XP kamu di Leaderboard tidak akan berkurang!)", null, function(isYes) {
+        if (!isYes) return;
+        if (window.gunakanCoinSiswa(catPet.harga, "beli_pet_" + petId)) {
+            window.tampilkanCustomDialog("prompt", "🎉 Selamat! Berikan nama panggilan untuk " + catPet.spesies + " barumu:", catPet.namaDefault, function(namaCustom) {
+                namaCustom = (namaCustom && namaCustom.trim()) ? namaCustom.trim().slice(0, 16) : catPet.namaDefault;
 
-    if (window.gunakanCoinSiswa(catPet.harga, "beli_pet_" + petId)) {
-        let namaCustom = prompt("🎉 Selamat! Berikan nama panggilan untuk " + catPet.spesies + " barumu:", catPet.namaDefault);
-        namaCustom = (namaCustom && namaCustom.trim()) ? namaCustom.trim().slice(0, 16) : catPet.namaDefault;
+                petData.ownedPets[petId] = {
+                    id: petId,
+                    customName: namaCustom,
+                    hunger: 85,
+                    mood: 90,
+                    bondXp: 0,
+                    lastUpdate: Date.now(),
+                    lastPetTime: 0,
+                    lastPlayTime: 0,
+                    outfit: { head: "", eyes: "", neck: "", body: "", costume: "" }
+                };
+                petData.activePetId = petId;
 
-        petData.ownedPets[petId] = {
-            id: petId,
-            customName: namaCustom,
-            hunger: 85,
-            mood: 90,
-            bondXp: 0,
-            lastUpdate: Date.now(),
-            lastPetTime: 0,
-            lastPlayTime: 0,
-            outfit: { head: "", eyes: "", neck: "", body: "", costume: "" }
-        };
-        petData.activePetId = petId;
-
-        if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
-            window.simpanLeaderboardSiswaKeDB(uName, lb);
+                if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
+                    window.simpanLeaderboardSiswaKeDB(uName, lb);
+                }
+                window.gantiTabMyPet("habitat");
+                window.tampilkanToastInteraksiPet("🎉 Selamat datang di Habitat Universal, <b>" + namaCustom + "</b>!");
+            });
         }
-        window.gantiTabMyPet("habitat");
-        window.tampilkanToastInteraksiPet("🎉 Selamat datang di Habitat Universal, <b>" + namaCustom + "</b>!");
-    }
+    });
 };
 
 window.beliMainanDiShop = function(toyId) {
@@ -2148,26 +2743,27 @@ window.beliMainanDiShop = function(toyId) {
     if (!Array.isArray(lb.myPetData.ownedToys)) lb.myPetData.ownedToys = [];
 
     if (lb.myPetData.ownedWardrobe.includes(toyId) || lb.myPetData.ownedToys.includes(toyId)) {
-        return alert("Kamu sudah memiliki mainan ini!");
+        return window.tampilkanCustomDialog("alert", "Kamu sudah memiliki mainan ini!", null, null);
     }
 
     let saldo = window.ambilCoinSiswa(uName);
     if (saldo < item.harga) {
         let kurang = (item.harga - saldo).toLocaleString("id-ID");
-        return alert("⚠️ Coin belum cukup untuk membeli mainan \"" + item.nama + "\"!\n\nHarga: " + item.harga.toLocaleString("id-ID") + " Coin\nCoin Kamu: " + saldo.toLocaleString("id-ID") + " Coin\n(Kurang " + kurang + " Coin lagi)");
+        return window.tampilkanCustomDialog("alert", "⚠️ Coin belum cukup untuk membeli mainan \"" + item.nama + "\"!\n\nHarga: " + item.harga.toLocaleString("id-ID") + " Coin\nCoin Kamu: " + saldo.toLocaleString("id-ID") + " Coin\n(Kurang " + kurang + " Coin lagi)", null, null);
     }
 
-    if (!confirm("Beli mainan permanen \"" + item.nama + "\" seharga " + item.harga.toLocaleString("id-ID") + " Coin?")) return;
-
-    if (window.gunakanCoinSiswa(item.harga, "beli_toy_" + toyId)) {
-        lb.myPetData.ownedWardrobe.push(toyId);
-        lb.myPetData.ownedToys.push(toyId);
-        if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
-            window.simpanLeaderboardSiswaKeDB(uName, lb);
+    window.tampilkanCustomDialog("confirm", "Beli mainan permanen \"" + item.nama + "\" seharga " + item.harga.toLocaleString("id-ID") + " Coin?", null, function(isYes) {
+        if (!isYes) return;
+        if (window.gunakanCoinSiswa(item.harga, "beli_toy_" + toyId)) {
+            lb.myPetData.ownedWardrobe.push(toyId);
+            lb.myPetData.ownedToys.push(toyId);
+            if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
+                window.simpanLeaderboardSiswaKeDB(uName, lb);
+            }
+            window.renderTabShopMyPet("toys");
+            window.tampilkanCustomDialog("alert", "🎾 Berhasil membeli \"" + item.nama + "\"! Sekarang kamu bisa menggunakannya lewat tombol Main di Habitat.", null, null);
         }
-        window.renderTabShopMyPet("toys");
-        alert("🎾 Berhasil membeli \"" + item.nama + "\"! Sekarang kamu bisa menggunakannya lewat tombol Main di Habitat.");
-    }
+    });
 };
 
 window.beliDekorasiHabitat = function(decId) {
@@ -2180,23 +2776,32 @@ window.beliDekorasiHabitat = function(decId) {
 
     let saldo = window.ambilCoinSiswa(uName);
     if (saldo < dec.harga) {
-        return alert("⚠️ Coin kamu belum cukup untuk membeli " + dec.nama + " (" + dec.harga.toLocaleString("id-ID") + " Coin)!");
+        return window.tampilkanCustomDialog("alert", "⚠️ Coin kamu belum cukup untuk membeli " + dec.nama + " (" + dec.harga.toLocaleString("id-ID") + " Coin)!", null, null);
     }
 
-    if (!confirm("Beli dekorasi \"" + dec.nama + "\" seharga " + dec.harga.toLocaleString("id-ID") + " Coin?")) return;
-
-    if (window.gunakanCoinSiswa(dec.harga, "beli_decor_" + decId)) {
-        if (!lb.myPetData.ownedDecorations.includes(decId)) {
-            lb.myPetData.ownedDecorations.push(decId);
+    window.tampilkanCustomDialog("confirm", "Beli dekorasi \"" + dec.nama + "\" seharga " + dec.harga.toLocaleString("id-ID") + " Coin?", null, function(isYes) {
+        if (!isYes) return;
+        if (window.gunakanCoinSiswa(dec.harga, "beli_decor_" + decId)) {
+            if (!lb.myPetData.ownedDecorations.includes(decId)) {
+                lb.myPetData.ownedDecorations.push(decId);
+            }
+            
+            let left = "50%", bottom = "20%";
+            if (dec.slot.includes("Kiri")) left = "20%"; 
+            else if (dec.slot.includes("Kanan")) left = "80%";
+            if (dec.slot.includes("Belakang")) bottom = "45%";
+            
+            let isAlreadyActive = lb.myPetData.activeDecorations.some(x => (typeof x === "object" ? x.id : x) === decId);
+            if (!isAlreadyActive) {
+                lb.myPetData.activeDecorations.push({ id: decId, left: left, bottom: bottom });
+            }
+            
+            if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
+                window.simpanLeaderboardSiswaKeDB(uName, lb);
+            }
+            window.renderTabShopMyPet("habitat");
         }
-        if (!lb.myPetData.activeDecorations.includes(decId)) {
-            lb.myPetData.activeDecorations.push(decId);
-        }
-        if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
-            window.simpanLeaderboardSiswaKeDB(uName, lb);
-        }
-        window.renderTabShopMyPet("habitat");
-    }
+    });
 };
 
 window.togglePasangDekorasiHabitat = function(decId) {
@@ -2205,12 +2810,22 @@ window.togglePasangDekorasiHabitat = function(decId) {
     if (!lb) return;
 
     let act = lb.myPetData.activeDecorations || [];
-    if (act.includes(decId)) {
-        lb.myPetData.activeDecorations = act.filter(function(x) { return x !== decId; });
+    let idx = act.findIndex(function(x) { return (typeof x === "object" ? x.id : x) === decId; });
+    
+    if (idx !== -1) {
+        act.splice(idx, 1);
     } else {
-        act.push(decId);
-        lb.myPetData.activeDecorations = act;
+        let dCfg = window.MY_PET_CATALOG.decorations.find(x => x.id === decId);
+        let left = "50%", bottom = "20%";
+        if (dCfg && dCfg.slot) {
+            if (dCfg.slot.includes("Kiri")) left = "20%"; 
+            else if (dCfg.slot.includes("Kanan")) left = "80%";
+            if (dCfg.slot.includes("Belakang")) bottom = "45%";
+        }
+        act.push({ id: decId, left: left, bottom: bottom });
     }
+    
+    lb.myPetData.activeDecorations = act;
     if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
         window.simpanLeaderboardSiswaKeDB(uName, lb);
     }
@@ -2228,7 +2843,7 @@ window.beliMakananPetDiShop = function(foodId) {
 
     let saldo = window.ambilCoinSiswa(uName);
     if (saldo < item.harga) {
-        return alert("⚠️ Coin kamu belum cukup untuk membeli " + item.nama + " (" + item.harga + " Coin)!");
+        return window.tampilkanCustomDialog("alert", "⚠️ Coin kamu belum cukup untuk membeli " + item.nama + " (" + item.harga + " Coin)!", null, null);
     }
 
     if (window.gunakanCoinSiswa(item.harga, "beli_food_" + foodId)) {
@@ -2257,24 +2872,23 @@ window.beliItemWardrobeDiShop = function(itemId) {
     let saldo = window.ambilCoinSiswa(uName);
     if (saldo < item.harga) {
         let kurang = (item.harga - saldo).toLocaleString("id-ID");
-        return alert("⚠️ Coin belum cukup untuk membeli \"" + item.nama + "\"!\n\nHarga: " + item.harga.toLocaleString("id-ID") + " Coin\nCoin Kamu: " + saldo.toLocaleString("id-ID") + " Coin\n(Kurang " + kurang + " Coin lagi)");
+        return window.tampilkanCustomDialog("alert", "⚠️ Coin belum cukup untuk membeli \"" + item.nama + "\"!\n\nHarga: " + item.harga.toLocaleString("id-ID") + " Coin\nCoin Kamu: " + saldo.toLocaleString("id-ID") + " Coin\n(Kurang " + kurang + " Coin lagi)", null, null);
     }
 
-    if (!confirm("Beli \"" + item.nama + "\" seharga " + item.harga.toLocaleString("id-ID") + " Coin?\n\nItem ini akan tersimpan permanen di Wardrobe!")) {
-        return;
-    }
-
-    if (window.gunakanCoinSiswa(item.harga, "beli_wardrobe_" + itemId)) {
-        lb.myPetData.ownedWardrobe.push(itemId);
-        if (lb.myPetData.activePetId && lb.myPetData.ownedPets[lb.myPetData.activePetId]) {
-            window.pakaiLepasItemWardrobe(itemId, true);
+    window.tampilkanCustomDialog("confirm", "Beli \"" + item.nama + "\" seharga " + item.harga.toLocaleString("id-ID") + " Coin?\n\nItem ini akan tersimpan permanen di Wardrobe!", null, function(isYes) {
+        if (!isYes) return;
+        if (window.gunakanCoinSiswa(item.harga, "beli_wardrobe_" + itemId)) {
+            lb.myPetData.ownedWardrobe.push(itemId);
+            if (lb.myPetData.activePetId && lb.myPetData.ownedPets[lb.myPetData.activePetId]) {
+                window.pakaiLepasItemWardrobe(itemId, true);
+            }
+            if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
+                window.simpanLeaderboardSiswaKeDB(uName, lb);
+            }
+            window.renderTabShopMyPet("wardrobe");
+            window.tampilkanCustomDialog("alert", "👗 Berhasil membeli \"" + item.nama + "\"! Item telah masuk ke Wardrobe.", null, null);
         }
-        if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
-            window.simpanLeaderboardSiswaKeDB(uName, lb);
-        }
-        window.renderTabShopMyPet("wardrobe");
-        alert("👗 Berhasil membeli \"" + item.nama + "\"! Item telah masuk ke Wardrobe.");
-    }
+    });
 };
 
 // =========================================================================
