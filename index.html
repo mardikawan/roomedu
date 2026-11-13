@@ -1826,123 +1826,39 @@
 <!-- =======================================================================
      PUSTAKA TEMPLATE MATERI INTERAKTIF
      ======================================================================= -->
-<template id="tpl-struktur-biji">
-    <div class="modul-interaktif" style="font-family: 'Inter', sans-serif; background-color: #f8fafc; border: 2px solid #cbd5e1; border-radius: 20px; overflow: hidden; max-width: 900px; margin: 20px auto; display: flex; flex-wrap: wrap; box-shadow: 0 10px 25px rgba(0,0,0,0.1);">
-        
-        <!-- Kolom Kiri: Visualisasi Utama -->
-        <div style="flex: 1; min-width: 320px; background-color: #f8fafc; padding: 24px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative;">
-            <h2 style="font-size: 20px; font-weight: bold; color: #334155; margin-bottom: 4px; text-align: center;" class="plant-title">Struktur Biji Monokotil</h2>
-            <p style="font-size: 13px; color: #64748b; margin-bottom: 20px; text-align: center;" class="plant-subtitle">Contoh: Jagung (Zea mays)</p>
-
-            <!-- Toggle Jenis Biji -->
-            <div style="background-color: #e2e8f0; padding: 4px; border-radius: 9999px; display: flex; margin-bottom: 24px; position: relative; width: 240px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.06);">
-                <button type="button" class="tab-monocot" style="flex: 1; padding: 8px 0; font-size: 13px; font-weight: 600; border-radius: 9999px; background-color: #ffffff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); color: #059669; border: none; cursor: pointer; transition: all 0.2s;" onclick="window.BijiEngine.switchType(this, 'monocot')">Monokotil</button>
-                <button type="button" class="tab-dicot" style="flex: 1; padding: 8px 0; font-size: 13px; font-weight: 600; border-radius: 9999px; background-color: transparent; color: #64748b; border: none; cursor: pointer; transition: all 0.2s;" onclick="window.BijiEngine.switchType(this, 'dicot')">Dikotil</button>
-            </div>
-
-            <!-- Area SVG -->
-            <div style="width: 100%; max-width: 320px; margin: 0 auto; position: relative; aspect-ratio: 1 / 1;" class="seed-canvas">
-                
-                <!-- SVG Biji Monokotil (Jagung) -->
-                <svg class="svg-monocot" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; transition: opacity 0.4s;" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
-                    <defs>
-                        <linearGradient id="mono-outer-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                            <stop offset="0%" stop-color="#ffb703" />
-                            <stop offset="100%" stop-color="#fb8500" />
-                        </linearGradient>
-                        <linearGradient id="mono-endo-grad" x1="0%" y1="0%" x2="0%" y2="100%">
-                            <stop offset="0%" stop-color="#ffea00" />
-                            <stop offset="100%" stop-color="#ffb703" />
-                        </linearGradient>
-                    </defs>
-
-                    <!-- Bagian Dalam Monokotil -->
-                    <g class="monocot-inner" style="transition: transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.5s; transform-origin: center;">
-                        <path class="interactive-part inner-part" data-part="endosperma" d="M120 120 C120 60 280 60 280 120 L275 220 C240 210 160 210 125 220 Z" fill="url(#mono-endo-grad)" />
-                        <path class="interactive-part inner-part" data-part="kotiledon" d="M125 220 C160 210 240 210 275 220 L270 290 C265 330 135 330 130 290 Z" fill="#f4a261" />
-                        <path class="interactive-part inner-part" data-part="plumula" d="M175 235 C190 205 210 205 225 235 Z" fill="#8ac926" />
-                        <path class="interactive-part inner-part" data-part="radikula" d="M175 235 C190 280 210 280 225 235 Z" fill="#e9edc9" />
-                        <path class="interactive-part inner-part" data-part="testa" d="M120 120 C120 60 280 60 280 120 L270 290 C265 330 135 330 130 290 Z" fill="none" stroke="#d4a373" stroke-width="4" />
-                    </g>
-
-                    <!-- Kulit Luar Monokotil -->
-                    <g class="monocot-outer" style="transition: transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.5s; transform-origin: center;">
-                        <path class="interactive-part outer-part" data-part="testa" d="M120 120 C120 60 280 60 280 120 L270 290 C265 330 135 330 130 290 Z" fill="url(#mono-outer-grad)" stroke="#d4a373" stroke-width="2"/>
-                        <path d="M140 100 C160 70 240 70 260 100" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="6" stroke-linecap="round"/>
-                    </g>
-                </svg>
-
-                <!-- SVG Biji Dikotil (Kacang) -->
-                <svg class="svg-dicot" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; pointer-events: none; transition: opacity 0.4s;" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
-                    <defs>
-                        <linearGradient id="dicot-skin-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                            <stop offset="0%" stop-color="#8b5a2b" />
-                            <stop offset="100%" stop-color="#5c3a21" />
-                        </linearGradient>
-                        <linearGradient id="dicot-inner-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                            <stop offset="0%" stop-color="#ffe6a7" />
-                            <stop offset="100%" stop-color="#d4a373" />
-                        </linearGradient>
-                    </defs>
-
-                    <!-- Belahan Kiri -->
-                    <g class="dicot-left" style="transition: transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1); transform-origin: center;">
-                        <path class="interactive-part outer-part inner-part" data-part="kotiledon" d="M200 80 C110 80 70 180 100 280 C120 340 195 340 195 340 C195 340 160 230 195 180 C215 150 200 80 200 80 Z" fill="url(#dicot-inner-grad)" stroke="#5c3a21" stroke-width="3"/>
-                        <path class="interactive-part outer-part inner-part" data-part="testa" d="M200 80 C110 80 70 180 100 280 C120 340 195 340 195 340" fill="none" stroke="#5c3a21" stroke-width="6"/>
-                        <path class="interactive-part inner-part" data-part="plumula" d="M185 190 C155 180 155 210 185 215 Z" fill="#8ac926" />
-                        <path class="interactive-part inner-part" data-part="radikula" d="M185 215 C160 225 150 260 190 265 C185 240 195 220 185 215 Z" fill="#e9edc9" />
-                    </g>
-
-                    <!-- Belahan Kanan -->
-                    <g class="dicot-right" style="transition: transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1); transform-origin: center;">
-                        <path class="interactive-part outer-part inner-part" data-part="kotiledon" d="M200 80 C290 80 330 180 300 280 C280 340 205 340 205 340 C205 340 240 230 205 180 C185 150 200 80 200 80 Z" fill="url(#dicot-inner-grad)" stroke="#5c3a21" stroke-width="3"/>
-                        <path class="interactive-part outer-part inner-part" data-part="testa" d="M200 80 C290 80 330 180 300 280 C280 340 205 340 205 340" fill="none" stroke="#5c3a21" stroke-width="6"/>
-                    </g>
-                    
-                    <g class="dicot-outer-cover" style="transition: opacity 0.3s;">
-                        <path class="interactive-part outer-part" data-part="testa" d="M200 80 C110 80 70 180 100 280 C120 340 195 340 200 340 C205 340 280 340 300 280 C330 180 290 80 200 80 Z" fill="url(#dicot-skin-grad)" />
-                    </g>
-                </svg>
-            </div>
-
-            <!-- Tombol Aksi -->
-            <button type="button" class="btn-split" style="margin-top: 16px; background-color: #10b981; color: white; font-weight: bold; padding: 12px 32px; border-radius: 9999px; border: none; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 6px rgba(16,185,129,0.3); transition: all 0.2s;" onclick="window.BijiEngine.toggleSplit(this)">
-                <span>Belah Biji</span>
-            </button>
+<!-- MODAL MASUKKAN MODUL INTERAKTIF (V-I) -->
+<div id="modal-modul-interaktif" class="modal-overlay" onclick="if(event.target===this)tutupModal('modal-modul-interaktif')">
+    <div class="modal-box" style="width: 750px; max-width: 95vw; display:flex; flex-direction:column; max-height: 90vh;">
+        <div class="modal-header" style="background: #1382b6; color: white; padding: 15px 20px;">
+            <h3 style="margin:0; display:flex; align-items:center; gap:8px; font-size:16px;">
+                🧩 Masukkan Modul Interaktif
+            </h3>
+            <button class="close-btn" style="color:white;" onclick="tutupModal('modal-modul-interaktif')">✕</button>
         </div>
+        <div class="modal-body" style="padding: 20px; flex: 1; overflow-y: auto; background: #f9fbfd;">
+            
+            <label style="font-weight:bold; font-size:13px; color:#2c3e50; margin-bottom:6px; display:block;">Judul Modul Interaktif:</label>
+            <input type="text" id="vi-input-judul" class="input-box" placeholder="Contoh: Mekanisme Denyut Jantung Manusia" style="font-weight:bold; margin-bottom:15px;">
+            
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <label style="font-weight:bold; font-size:13px; color:#2c3e50;">Code HTML (Visual & Struktur data-step):</label>
+            </div>
+            <textarea id="vi-input-html" class="input-box" placeholder='<div data-step="1" data-info="Penjelasan di sini..."><svg>...</svg></div>' style="font-family:monospace; font-size:12px; height: 180px; resize:vertical; margin-bottom:15px;"></textarea>
 
-        <!-- Kolom Kanan: Panel Edukasi -->
-        <div style="flex: 1; min-width: 320px; background-color: #ffffff; padding: 24px; border-left: 1px solid #e2e8f0; display: flex; flex-direction: column; justify-content: center;">
-            <div style="margin-bottom: 24px;">
-                <h3 style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; color: #10b981; margin-bottom: 4px;">Panel Informasi</h3>
-                <h1 style="font-size: 24px; font-weight: bold; color: #1e293b; margin: 0; line-height: 1.2;">Mengenal Bagian Biji</h1>
-                <p style="color: #64748b; margin-top: 8px; font-size: 13px;">Klik tombol <b>'Belah Biji'</b> dan klik pada bagian-bagian biji di samping untuk mempelajari fungsinya.</p>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <label style="font-weight:bold; font-size:13px; color:#2c3e50;">Code CSS (Style & Animasi):</label>
+                <button type="button" class="btn-action" style="background:#f39c12; width:auto; padding:4px 12px; font-size:11px;" onclick="window.previewModulSementara()">👁️ Lihat Pratinjau (Preview)</button>
+            </div>
+            <textarea id="vi-input-css" class="input-box" placeholder="/* Masukkan style animasi di sini */" style="font-family:monospace; font-size:12px; height: 120px; resize:vertical; margin-bottom:15px;"></textarea>
+            
+            <div id="vi-preview-container" style="display:none; margin-top:10px; margin-bottom:15px; text-align:center; border:2px dashed #bdc3c7; padding:15px; border-radius:8px; background:#fff;">
+                <p style="font-size:11px; color:#7f8c8d; margin-top:0;">Pratinjau Simulator HP:</p>
+                <iframe id="vi-preview-frame" style="width:100%; max-width:400px; height:600px; border:none; border-radius:20px; box-shadow:0 10px 25px rgba(0,0,0,0.15);"></iframe>
             </div>
 
-            <div class="info-card" style="background-color: #ecfdf5; border: 1px solid #d1fae5; padding: 20px; min-height: 140px; border-radius: 12px; margin-bottom: 24px;">
-                <div class="info-default" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; color: #94a3b8;">
-                    <p style="font-size: 13px; font-weight: 500; margin:0;">Sentuh bagian biji untuk melihat detail.</p>
-                </div>
-
-                <div class="info-content" style="display: none;">
-                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                        <div class="info-color-indicator" style="width: 14px; height: 14px; border-radius: 50%; background-color: #10b981;"></div>
-                        <h4 class="info-title" style="font-weight: bold; font-size: 15px; color: #1e293b; text-transform: uppercase; margin:0;">Nama Bagian</h4>
-                    </div>
-                    <p class="info-desc" style="color: #475569; font-size: 13px; line-height: 1.5; margin:0;">Deskripsi akan muncul di sini.</p>
-                </div>
-            </div>
-
-            <!-- Mini Legend -->
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 11px; color: #64748b;">
-                <div style="display: flex; align-items: center; gap: 6px;"><div style="width:12px; height:12px; border-radius:3px; background:#ffb703;"></div><span>Kulit Biji (Testa)</span></div>
-                <div style="display: flex; align-items: center; gap: 6px;"><div style="width:12px; height:12px; border-radius:3px; background:#f4a261;"></div><span>Kotiledon</span></div>
-                <div style="display: flex; align-items: center; gap: 6px;"><div style="width:12px; height:12px; border-radius:3px; background:#ffea00;"></div><span>Endosperma</span></div>
-                <div style="display: flex; align-items: center; gap: 6px;"><div style="width:12px; height:12px; border-radius:3px; background:#8ac926;"></div><span>Plumula (Pucuk)</span></div>
-                <div style="display: flex; align-items: center; gap: 6px;"><div style="width:12px; height:12px; border-radius:3px; background:#e9edc9;"></div><span>Radikula (Akar)</span></div>
-            </div>
+            <button type="button" class="btn-action" style="background: #16a085; width:100%; font-size:14px; padding:12px;" onclick="window.simpanDanPasangModul()">💾 Simpan & Pasang Modul Interaktif</button>
         </div>
     </div>
-</template>
+</div>
 </body>
 </html>

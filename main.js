@@ -1781,6 +1781,21 @@ window.renderBlocks = function() {
             '</div>';
         }
 
+        else if (blok.type === 'modul_interaktif') {
+            let srcdocKapsul = window.generateKapsulModul(blok.judul, blok.htmlCode, blok.cssCode);
+            let safeSrcdoc = srcdocKapsul.replace(/"/g, '&quot;');
+            
+            html += '<div class="block-wrapper ' + (blok.pattern||'') + '" data-index="' + index + '" style="background-color:' + (blok.bg||'#ffffff') + ';padding-top:' + (blok.padTop||'40px') + ';padding-bottom:' + (blok.padBot||'40px') + ';">' +
+                (isEdit ? '<div class="block-controls"><button onclick="geserBlok(' + index + ', -1)">⬆️</button><button onclick="geserBlok(' + index + ', 1)">⬇️</button><button onclick="hapusBlok(' + index + ')">🗑️ Delete</button></div>' : '') +
+                '<div class="a4-paper-wrapper" style="position:relative; width:794px; max-width:100%; margin:0 auto;">' +
+                    '<div class="content-block" data-width="' + (blok.width||'M') + '" data-index="' + index + '" style="border:none !important; box-shadow:none !important; background:transparent !important; min-height:auto !important; padding:0 !important;">' +
+                        '<div style="display:flex; justify-content:center; width:100%; padding:20px 0;">' +
+                            '<iframe srcdoc="' + safeSrcdoc + '" style="width: 100%; max-width: 400px; height: 600px; border: none; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.15);" scrolling="no"></iframe>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>' +
+            '</div>';
+        }
         // 3. TIPE BLOK TEKS & TABEL (MAKSIMAL UKURAN KERTAS A4 PORTRAIT: 794px x 1123px)
         else {
             let floatImgsText = window.renderFloatImagesHTML(index, -1, blok.floatImages || []);
@@ -15151,125 +15166,4 @@ window.bukaModalRemedial = function() {
 
     window.updateModalRemedial();
     window.bukaModal("modal-remedial");
-};
-/* =========================================================================
-   SISTEM INJEKSI MODUL MATERI INTERAKTIF (VERSI AUTO-FALLBACK KOTAK TERBAWAH)
-   ========================================================================= */
-
-// Pelacak Global: Mengingat kotak materi terakhir yang Anda ketik/klik
-document.addEventListener('focusin', function(e) {
-    if (e.target && (e.target.getAttribute('contenteditable') === 'true' || e.target.classList.contains('ql-editor'))) {
-        window._lastActiveEditorForModule = e.target;
-    }
-});
-
-window.sisipkanModulInteraktif = function() {
-    // 1. Cari kotak yang sedang aktif, atau kotak terakhir yang diklik
-    let activeEditor = document.querySelector('[contenteditable="true"]:focus') || window._lastActiveEditorForModule;
-    
-    // 2. Jika tidak ada yang pernah diklik, otomatis pilih KOTAK PALING BAWAH
-    if (!activeEditor) {
-        let allEditors = document.querySelectorAll('[contenteditable="true"], .ql-editor');
-        if (allEditors.length > 0) {
-            activeEditor = allEditors[allEditors.length - 1]; 
-        }
-    }
-
-    if (!activeEditor) {
-        return typeof window.tampilkanCustomDialog === "function" ? window.tampilkanCustomDialog("alert", "⚠️ Tidak ada kotak materi yang ditemukan!", null, null) : alert("Tidak ada kotak materi yang ditemukan!");
-    }
-
-    // Simpan referensi ke variabel global agar aman
-    window._lastActiveEditorForModule = activeEditor;
-
-    let modalId = "modal-input-modul-interaktif";
-    let modal = document.getElementById(modalId);
-    
-    // Buat Pop-Up Modal
-    if (!modal) {
-        modal = document.createElement("div");
-        modal.id = modalId;
-        modal.className = "modal-overlay";
-        modal.style.display = "none";
-        modal.style.zIndex = "10000001";
-        modal.onclick = function(e) { if(e.target === modal) window.tutupModal(modalId); };
-        
-        modal.innerHTML = 
-            '<div class="modal-box" style="width: 700px; max-width: 95vw;">' +
-                '<div class="modal-header" style="background:#0284c7; color:white; padding:15px 20px;">' +
-                    '<h3 style="margin:0; font-size:16px;">🧩 Masukkan Modul Interaktif</h3>' +
-                    '<button class="close-btn" style="color:white; font-size:18px;" onclick="window.tutupModal(\'' + modalId + '\')">✕</button>' +
-                '</div>' +
-                '<div class="modal-body" style="padding: 20px;">' +
-                    '<label style="font-weight:800; font-size:13px; color:#334155; margin-bottom:8px; display:block; text-align:left;">Judul Modul Interaktif:</label>' +
-                    '<input type="text" id="input-judul-modul" class="input-box" placeholder="Contoh: Anatomi Biji" style="margin-bottom:18px; font-weight:bold;">' +
-                    
-                    '<label style="font-weight:800; font-size:13px; color:#334155; margin-bottom:8px; display:block; text-align:left;">Code Desain Single File (HTML, CSS, JS):</label>' +
-                    '<textarea id="input-kode-modul" class="input-box" placeholder="Paste seluruh kode HTML lengkap di sini..." style="height: 300px; font-family: monospace; font-size:11px; margin-bottom:18px; white-space: pre; line-height: 1.4;"></textarea>' +
-                    
-                    '<button type="button" class="btn-action" style="background:#16a085; width:100%; font-weight:800; font-size:14px; padding:12px;" onclick="window.eksekusiMasukkanModul()">Masukkan Modul Interaktif</button>' +
-                '</div>' +
-            '</div>';
-        document.body.appendChild(modal);
-    }
-    
-    document.getElementById("input-judul-modul").value = "";
-    document.getElementById("input-kode-modul").value = "";
-    window.bukaModal(modalId);
-};
-
-window.eksekusiMasukkanModul = function() {
-    let judul = document.getElementById("input-judul-modul").value.trim();
-    let kode = document.getElementById("input-kode-modul").value.trim();
-    
-    if (!judul) return typeof window.tampilkanCustomDialog === "function" ? window.tampilkanCustomDialog("alert", "⚠️ Judul modul harus diisi!", null, null) : alert("Judul modul harus diisi!");
-    if (!kode) return typeof window.tampilkanCustomDialog === "function" ? window.tampilkanCustomDialog("alert", "⚠️ Kode modul tidak boleh kosong!", null, null) : alert("Kode modul tidak boleh kosong!");
-    
-    // Keamanan karakter HTML
-    let safeKode = kode
-        .replace(/&/g, '&amp;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&apos;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
-
-    // 1. Judul kita letakkan DI LUAR kotak pelindung agar BEBAS DIEDIT!
-    let titleCode = '<h4 style="margin-top: 10px; margin-bottom: 12px; color:#0b3954; font-weight:800; font-size:18px; font-family:\'Poppins\', sans-serif;">🧩 ' + judul + '</h4>';
-    
-    // 2. Iframe lebih TINGGI (850px) dan LEBAR (1050px) agar tampil utuh tanpa scroll
-    let iframeCode = 
-        '<div contenteditable="false" class="modul-interaktif-container" style="margin: 10px auto 25px auto; width: 100%; max-width: 1050px; text-align: center; position: relative;">' +
-            '<iframe srcdoc="' + safeKode + '" ' +
-                    'width="100%" height="850" frameborder="0" allowfullscreen scrolling="no" ' +
-                    'style="border-radius:16px; border:2px solid #cbd5e1; box-shadow:0 8px 20px rgba(0,0,0,0.08); background:#f8fafc; display:block; width:100%;">' +
-            '</iframe>' +
-        '</div><p><br></p>';
-
-    let fullCode = titleCode + iframeCode;
-
-    let activeEditor = window._lastActiveEditorForModule;
-    if (activeEditor) {
-        activeEditor.focus();
-        
-        // Bersihkan teks "Ketik materi..." jika kotak masih kosong
-        if (activeEditor.innerHTML.trim() === "Ketik materi..." || activeEditor.innerHTML === "<p><br></p>") {
-            activeEditor.innerHTML = "";
-        }
-        
-        // Eksekusi penempelan HTML ke dalam editor
-        let didInsert = document.execCommand('insertHTML', false, fullCode);
-        if (!didInsert) {
-            activeEditor.innerHTML += fullCode;
-        }
-
-        // Pancing event trigger agar web merekam perubahan (Auto-Save)
-        activeEditor.dispatchEvent(new Event('input', { bubbles: true }));
-    }
-
-    if (typeof window.simpanKeDB === "function") window.simpanKeDB();
-    window.tutupModal("modal-input-modul-interaktif");
-    
-    if (typeof window.tampilkanCustomDialog === "function") {
-        window.tampilkanCustomDialog("alert", "✅ Modul '" + judul + "' berhasil disisipkan dengan ukuran penuh!", null, null);
-    }
 };
