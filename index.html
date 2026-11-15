@@ -412,37 +412,6 @@
 
     <!-- MODAL SPREADSHEET NILAI -->
     <div id="modal-spreadsheet-nilai" class="modal-overlay" onclick="if(event.target===this)tutupModal('modal-spreadsheet-nilai')">
-        <div class="modal-box" style="width: 95vw; height: 95vh; max-height: 95vh; display:flex; flex-direction:column; background:#f8f9fa;">
-            <div class="modal-header" style="background:#fdfefe; border-bottom:1px solid #e1e8ed;">
-                <h3 style="color:#0b3954; margin:0; display:flex; align-items:center; gap:8px;">📊 Spreadsheet Analisis Nilai</h3>
-                <button class="close-btn" onclick="tutupModal('modal-spreadsheet-nilai')">✕</button>
-            </div>
-            <div class="modal-body" style="padding:15px; flex:1; overflow-y:auto; display:flex; flex-direction:column;">
-                <div style="display:flex; justify-content:space-between; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
-                    <select id="filter-spreadsheet-paket" class="input-box" style="margin:0; width:300px; font-weight:bold; cursor:pointer;" onchange="window.renderTabelSpreadsheet()">
-                        <option value="">Semua Paket Ujian (Gabungan)</option>
-                    </select>
-                    <div style="display:flex; gap:8px;">
-                        <button class="btn-action" style="background:#e74c3c; width:auto; padding:8px 15px;" onclick="window.clearDataSpreadsheet()">🗑️ Clear Data History</button>
-                        <button class="btn-action" style="background:#16a085; width:auto; padding:8px 15px;" onclick="window.exportCSVSpreadsheet()">📥 Export CSV</button>
-                    </div>
-                </div>
-
-                <div style="overflow:auto; background:white; border:1px solid #cbd5e1; border-radius:8px; padding:1px; flex:1;">
-                    <table id="tabel-spreadsheet-excel" class="excel-table" style="width:max-content; min-width:100%; text-align:center;">
-                        <thead id="head-spreadsheet-nilai">
-                        </thead>
-                        <tbody id="body-spreadsheet-nilai">
-                            <tr><td style="padding:20px; color:#7f8c8d; font-weight:bold;">Memuat data spreadsheet...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL SPREADSHEET NILAI -->
-    <div id="modal-spreadsheet-nilai" class="modal-overlay" onclick="if(event.target===this)tutupModal('modal-spreadsheet-nilai')">
         <div class="modal-box" style="width: 95vw; height: 95vh; max-height: 95vh; display:flex; flex-direction:column; background:#f4f6f8;">
             <div class="modal-header" style="background:#fdfefe; border-bottom:1px solid #e1e8ed;">
                 <h3 style="color:#0b3954; margin:0; display:flex; align-items:center; gap:8px;">📊 Spreadsheet Analisis Nilai</h3>
@@ -1820,43 +1789,71 @@
 
     <!-- SCRIPT REFERENCES -->
     <script src="./main.js"></script>
+    <script src="./modul-interaktif.js"></script>
+    <script src="./canvas-draw.js"></script>
+    <script src="./administrasi-guru.js"></script>
+    <script src="./bank-soal-manajer.js"></script>
+    <script src="./ujian-rekap-cbt.js"></script>
+    <script src="./ruang-latihan.js"></script>
     <script src="./fitur-afektif-games.js"></script>
     <script src="./my-pet-engine.js"></script>
     <script type="module" src="./firebase-db.js"></script>
 <!-- =======================================================================
      PUSTAKA TEMPLATE MATERI INTERAKTIF
      ======================================================================= -->
-<!-- MODAL MASUKKAN MODUL INTERAKTIF (V-I) -->
+<!-- MODAL MASUKKAN MODUL INTERAKTIF (2 KOLOM: JUDUL & KODE HTML LENGKAP) -->
 <div id="modal-modul-interaktif" class="modal-overlay" onclick="if(event.target===this)tutupModal('modal-modul-interaktif')">
-    <div class="modal-box" style="width: 750px; max-width: 95vw; display:flex; flex-direction:column; max-height: 90vh;">
-        <div class="modal-header" style="background: #1382b6; color: white; padding: 15px 20px;">
-            <h3 style="margin:0; display:flex; align-items:center; gap:8px; font-size:16px;">
-                🧩 Masukkan Modul Interaktif
-            </h3>
+    <div class="modal-box" style="width: 780px; max-width: 95vw; display:flex; flex-direction:column; max-height: 92vh; border-radius: 14px; overflow: hidden;">
+        <div class="modal-header" style="background: linear-gradient(135deg, #0b3954, #0284c7); color: white; padding: 14px 20px;">
+            <div>
+                <h3 style="margin:0; display:flex; align-items:center; gap:8px; font-size:16px;">
+                    🧩 Sisipkan Modul Visual Interaktif
+                </h3>
+                <div style="font-size:11px; color:#bae6fd; margin-top:2px;">Mendukung HTML + CSS + SVG + Canvas Animasi Konstan 60FPS (Otomatis Responsif di HP & Laptop)</div>
+            </div>
             <button class="close-btn" style="color:white;" onclick="tutupModal('modal-modul-interaktif')">✕</button>
         </div>
-        <div class="modal-body" style="padding: 20px; flex: 1; overflow-y: auto; background: #f9fbfd;">
+        <div class="modal-body" style="padding: 18px 20px; flex: 1; overflow-y: auto; background: #f8fafc;">
             
-            <label style="font-weight:bold; font-size:13px; color:#2c3e50; margin-bottom:6px; display:block;">Judul Modul Interaktif:</label>
-            <input type="text" id="vi-input-judul" class="input-box" placeholder="Contoh: Mekanisme Denyut Jantung Manusia" style="font-weight:bold; margin-bottom:15px;">
-            
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                <label style="font-weight:bold; font-size:13px; color:#2c3e50;">Code HTML (Visual & Struktur data-step):</label>
-            </div>
-            <textarea id="vi-input-html" class="input-box" placeholder='<div data-step="1" data-info="Penjelasan di sini..."><svg>...</svg></div>' style="font-family:monospace; font-size:12px; height: 180px; resize:vertical; margin-bottom:15px;"></textarea>
-
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                <label style="font-weight:bold; font-size:13px; color:#2c3e50;">Code CSS (Style & Animasi):</label>
-                <button type="button" class="btn-action" style="background:#f39c12; width:auto; padding:4px 12px; font-size:11px;" onclick="window.previewModulSementara()">👁️ Lihat Pratinjau (Preview)</button>
-            </div>
-            <textarea id="vi-input-css" class="input-box" placeholder="/* Masukkan style animasi di sini */" style="font-family:monospace; font-size:12px; height: 120px; resize:vertical; margin-bottom:15px;"></textarea>
-            
-            <div id="vi-preview-container" style="display:none; margin-top:10px; margin-bottom:15px; text-align:center; border:2px dashed #bdc3c7; padding:15px; border-radius:8px; background:#fff;">
-                <p style="font-size:11px; color:#7f8c8d; margin-top:0;">Pratinjau Simulator HP:</p>
-                <iframe id="vi-preview-frame" style="width:100%; max-width:400px; height:600px; border:none; border-radius:20px; box-shadow:0 10px 25px rgba(0,0,0,0.15);"></iframe>
+            <!-- Bantuan Prompt AI & Contoh Siap Pakai -->
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; background:#e0f2fe; border:1px solid #7dd3fc; padding:10px 14px; border-radius:10px; margin-bottom:14px;">
+                <div style="font-size:11px; color:#0369a1; font-weight:600; flex:1; min-width:200px;">
+                    💡 Ingin minta AI lain buatkan kodenya agar pas di HP & tidak bertumpuk? Salin format perintah ini:
+                </div>
+                <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                    <button type="button" class="btn-action" style="background:#0284c7; width:auto; padding:6px 12px; font-size:11px; border-radius:8px;" onclick="window.salinPromptAIModul()">📋 Copy Prompt untuk AI</button>
+                    <button type="button" class="btn-action" style="background:#8e44ad; width:auto; padding:6px 12px; font-size:11px; border-radius:8px;" onclick="window.isiContohModulInteraktif()">✨ Isi Contoh (Jantung 60FPS)</button>
+                </div>
             </div>
 
-            <button type="button" class="btn-action" style="background: #16a085; width:100%; font-size:14px; padding:12px;" onclick="window.simpanDanPasangModul()">💾 Simpan & Pasang Modul Interaktif</button>
+            <!-- KOLOM 1: JUDUL MODUL -->
+            <label style="font-weight:800; font-size:13px; color:#0f172a; margin-bottom:6px; display:block;">1. Judul Modul Interaktif:</label>
+            <input type="text" id="vi-input-judul" class="input-box" placeholder="Contoh: Simulasi Pemompaan Jantung & Aliran Darah Manusia" style="font-weight:bold; margin-bottom:14px; border:2px solid #cbd5e1;">
+            
+            <!-- KOLOM 2: KODE HTML LENGKAP (HTML + CSS + JS) -->
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; flex-wrap:wrap; gap:6px;">
+                <label style="font-weight:800; font-size:13px; color:#0f172a;">2. Paste Kode HTML Visual Interaktif (Bisa gabungan HTML, &lt;style&gt;, &amp; &lt;script&gt;):</label>
+                <div style="display:flex; gap:6px;">
+                    <button type="button" class="btn-action" style="background:#64748b; width:auto; padding:5px 10px; font-size:11px;" onclick="document.getElementById('vi-input-html').value=''; document.getElementById('vi-preview-container').style.display='none';">🗑️ Bersihkan</button>
+                    <button type="button" class="btn-action" style="background:#f39c12; width:auto; padding:5px 12px; font-size:11px;" onclick="window.previewModulSementara()">👁️ Lihat Pratinjau (HP)</button>
+                </div>
+            </div>
+            <textarea id="vi-input-html" class="input-box" placeholder="Paste seluruh kode HTML (beserta <style> dan <script> dari AI) di sini..." style="font-family:Consolas, Monaco, monospace; font-size:12px; height: 240px; resize:vertical; margin-bottom:14px; border:2px solid #cbd5e1; line-height:1.45;"></textarea>
+            <input type="hidden" id="vi-input-css" value="">
+            
+            <!-- AREA PRATINJAU RESPONSIVE -->
+            <div id="vi-preview-container" style="display:none; margin-top:6px; margin-bottom:16px; text-align:center; border:2px dashed #94a3b8; padding:14px; border-radius:12px; background:#e2e8f0;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:6px;">
+                    <span style="font-size:11px; font-weight:800; color:#334155;">📱 Pratinjau Layar Siswa (Otomatis Menyesuaikan Tinggi):</span>
+                    <div style="display:flex; gap:6px;">
+                        <button type="button" class="btn-action" style="background:#0b3954; width:auto; padding:4px 10px; font-size:10px;" onclick="document.getElementById('vi-preview-frame').style.maxWidth='380px'">📱 Mode HP (380px)</button>
+                        <button type="button" class="btn-action" style="background:#334155; width:auto; padding:4px 10px; font-size:10px;" onclick="document.getElementById('vi-preview-frame').style.maxWidth='100%'">💻 Mode Lebar (100%)</button>
+                    </div>
+                </div>
+                <iframe id="vi-preview-frame" style="width:100%; max-width:380px; height:480px; border:none; border-radius:16px; box-shadow:0 10px 25px rgba(0,0,0,0.18); background:#ffffff; transition:max-width 0.25s, height 0.2s;"></iframe>
+            </div>
+
+            <button type="button" id="btn-simpan-modul-vi" class="btn-action" style="background: #16a085; width:100%; font-size:14px; padding:12px; border-radius:10px; font-weight:800;" onclick="window.simpanDanPasangModul()">💾 Simpan &amp; Masukkan ke Content Block</button>
         </div>
     </div>
 </div>
