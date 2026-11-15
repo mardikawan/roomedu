@@ -701,37 +701,44 @@ onValue(ref(db, basePath + '/akun_siswa'), function(snap) {
 window.leaderboardLoaded = false;
 window._lastSaveLBTime = 0;
 
-onValue(ref(db, basePath + '/leaderboard_siswa'), function(snap) {
-    window.leaderboardLoaded = true;
-    let serverData = snap.exists() ? snap.val() : {};
+// Pastikan sesi siswa langsung memiliki autentikasi Firebase sejak awal halaman dibuka
+window.pastikanAuthFirebaseSiswaAktif(function() {
+    onValue(ref(db, basePath + '/leaderboard_siswa'), function(snap) {
+        window.leaderboardLoaded = true;
+        let serverData = snap.exists() ? snap.val() : {};
 
-    // Lindungi XP & Coin lokal yang baru saja bertambah agar tidak ter-reset oleh pantulan lama server
-    if (window.leaderboardSiswaData && (Date.now() - (window._lastSaveLBTime || 0) < 4000)) {
-        Object.keys(window.leaderboardSiswaData).forEach(function(k) {
-            let loc = window.leaderboardSiswaData[k];
-            let srv = serverData[k];
-            if (loc && srv) {
-                let locXP = Math.max(Number(loc.xpTotal) || 0, Number(loc.xp) || 0);
-                let srvXP = Math.max(Number(srv.xpTotal) || 0, Number(srv.xp) || 0);
-                if (locXP > srvXP) {
+        // Lindungi XP & Coin lokal yang baru saja bertambah agar tidak ter-reset oleh pantulan lama server
+        if (window.leaderboardSiswaData && (Date.now() - (window._lastSaveLBTime || 0) < 5000)) {
+            Object.keys(window.leaderboardSiswaData).forEach(function(k) {
+                let loc = window.leaderboardSiswaData[k];
+                let srv = serverData[k];
+                if (loc && srv) {
+                    let locXP = Math.max(Number(loc.xpTotal) || 0, Number(loc.xp) || 0);
+                    let srvXP = Math.max(Number(srv.xpTotal) || 0, Number(srv.xp) || 0);
+                    if (locXP >= srvXP) {
+                        serverData[k] = loc;
+                    }
+                } else if (loc && !srv) {
                     serverData[k] = loc;
                 }
-            } else if (loc && !srv) {
-                serverData[k] = loc;
-            }
-        });
-    }
+            });
+        }
 
-    window.leaderboardSiswaData = serverData;
-    if (typeof window.perbaruiUIHeaderProfilSiswa === "function") {
-        window.perbaruiUIHeaderProfilSiswa();
-    }
-    if (typeof window.perbaruiTampilanSaldoXPPet === "function") {
-        window.perbaruiTampilanSaldoXPPet();
-    }
-    if (typeof window.renderTabelLeaderboard === "function" && document.getElementById('modal-leaderboard') && document.getElementById('modal-leaderboard').style.display === 'flex') {
-        window.renderTabelLeaderboard();
-    }
+        window.leaderboardSiswaData = serverData;
+        let rawU = sessionStorage.getItem("username");
+        if (rawU && typeof window.sinkronkanObjekDualXPDanCoin === "function") {
+            window.sinkronkanObjekDualXPDanCoin(rawU);
+        }
+        if (typeof window.perbaruiUIHeaderProfilSiswa === "function") {
+            window.perbaruiUIHeaderProfilSiswa();
+        }
+        if (typeof window.perbaruiTampilanSaldoXPPet === "function") {
+            window.perbaruiTampilanSaldoXPPet();
+        }
+        if (typeof window.renderTabelLeaderboard === "function" && document.getElementById('modal-leaderboard') && document.getElementById('modal-leaderboard').style.display === 'flex') {
+            window.renderTabelLeaderboard();
+        }
+    });
 });
 
 onValue(ref(db, basePath + '/admin_notifikasi'), function(snap) {
@@ -770,7 +777,6 @@ window.simpanLeaderboardSiswaKeDB = function(usernameKey, dataObj) {
     if (!cleanKey || cleanKey === "mahardika" || cleanKey === "sbd" || cleanKey === "tamu" || cleanKey === "admin") return;
     if (window.daftarAkunGuru && window.daftarAkunGuru[cleanKey]) return;
 
-    // Kunci penanda waktu simpan SEKARANG JUGA sebelum proses async Auth berjalan
     window._lastSaveLBTime = Date.now();
 
     window.pastikanAuthFirebaseSiswaAktif(function() {
@@ -779,29 +785,43 @@ window.simpanLeaderboardSiswaKeDB = function(usernameKey, dataObj) {
         let prosesSimpanAman = function(existingServerObj) {
             let cleanIncoming = JSON.parse(JSON.stringify(dataObj));
             let srvXP = existingServerObj ? Math.max(Number(existingServerObj.xpTotal) || 0, Number(existingServerObj.xp) || 0) : 0;
+            let srvCoin = existingServerObj
+                ? ((existingServerObj.coin !== undefined) ? Number(existingServerObj.coin) : ((existingServerObj.xpTersedia !== undefined) ? Number(existingServerObj.xpTersedia) : srvXP))
+                : 0;
             let locXP = Math.max(Number(cleanIncoming.xpTotal) || 0, Number(cleanIncoming.xp) || 0);
 
-            // Cegah objek kosong (0 XP & 0 Coin akibat halaman belum selesai loading) menimpa data asli di server!
+            // Jika objek lokal dibuat sebelum data server termuat, jumlahkan delta XP & Coin ke saldo server
+            if (cleanIncoming._createdBeforeLoad && existingServerObj && srvXP > 0) {
+                let deltaXP = Number(cleanIncoming._pendingXPDelta) || locXP;
+                let deltaCoin = Number(cleanIncoming._pendingCoinDelta) || Number(cleanIncoming.coin) || 0;
+                locXP = srvXP + deltaXP;
+                cleanIncoming.xpTotal = locXP;
+                cleanIncoming.xp = locXP;
+                cleanIncoming.coin = srvCoin + deltaCoin;
+                cleanIncoming.xpTersedia = cleanIncoming.coin;
+            }
+            delete cleanIncoming._createdBeforeLoad;
+            delete cleanIncoming._pendingXPDelta;
+            delete cleanIncoming._pendingCoinDelta;
+            delete dataObj._createdBeforeLoad;
+            delete dataObj._pendingXPDelta;
+            delete dataObj._pendingCoinDelta;
+
             let isUninitializedZeroObj = (locXP === 0 && (Number(cleanIncoming.coin) || 0) === 0 && srvXP > 0);
             if (isUninitializedZeroObj && existingServerObj) {
                 cleanIncoming.xpTotal = srvXP;
                 cleanIncoming.xp = srvXP;
-                cleanIncoming.coin = (existingServerObj.coin !== undefined)
-                    ? Number(existingServerObj.coin)
-                    : ((existingServerObj.xpTersedia !== undefined) ? Number(existingServerObj.xpTersedia) : srvXP);
-                cleanIncoming.xpTersedia = cleanIncoming.coin;
+                cleanIncoming.coin = srvCoin;
+                cleanIncoming.xpTersedia = srvCoin;
             }
 
             let merged = Object.assign({}, existingServerObj || {}, cleanIncoming);
 
-            // XP Leaderboard selalu mengambil nilai tertinggi (tidak pernah turun)
             merged.xpTotal = Math.max(srvXP, locXP);
             merged.xp = merged.xpTotal;
 
             if (merged.coin === undefined && merged.xpTersedia === undefined) {
-                merged.coin = (existingServerObj && existingServerObj.coin !== undefined)
-                    ? Number(existingServerObj.coin)
-                    : merged.xpTotal;
+                merged.coin = existingServerObj ? srvCoin : merged.xpTotal;
             } else {
                 merged.coin = Math.max(0, Number(merged.coin !== undefined ? merged.coin : merged.xpTersedia) || 0);
             }
@@ -810,14 +830,22 @@ window.simpanLeaderboardSiswaKeDB = function(usernameKey, dataObj) {
 
             if (!window.leaderboardSiswaData) window.leaderboardSiswaData = {};
             window.leaderboardSiswaData[cleanKey] = merged;
+            let rawU = sessionStorage.getItem("username");
+            if (rawU && window.sanitasiKeyRekapFirebase(rawU).toLowerCase() === cleanKey) {
+                window.leaderboardSiswaData[rawU] = merged;
+            }
             window._lastSaveLBTime = Date.now();
+            window.leaderboardLoaded = true;
 
-            set(targetRef, merged).catch(function(err) {
+            set(targetRef, merged).then(function() {
+                if (typeof window.perbaruiTampilanSaldoXPPet === "function") window.perbaruiTampilanSaldoXPPet();
+                if (typeof window.perbaruiUIHeaderProfilSiswa === "function") window.perbaruiUIHeaderProfilSiswa();
+            }).catch(function(err) {
                 console.error("Gagal menyimpan XP/Coin ke Firebase:", err);
             });
         };
 
-        if (!window.leaderboardLoaded) {
+        if (!window.leaderboardLoaded || dataObj._createdBeforeLoad) {
             get(targetRef).then(function(snap) {
                 prosesSimpanAman(snap.exists() ? snap.val() : null);
             }).catch(function() {

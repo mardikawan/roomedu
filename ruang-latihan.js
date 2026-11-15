@@ -210,11 +210,19 @@ window.normalisasiDaftarSoalLatihan = function(rawSoalArray) {
             return { label: o.label || String.fromCharCode(65 + idx), text: o.text || '' };
         });
 
-        let rawCorrect = copyQ.correct || copyQ.correctAnswers || [];
+        let rawCorrect = copyQ.correct || copyQ.correctAnswers || copyQ.kunci || [];
         if (typeof rawCorrect === 'string') rawCorrect = [rawCorrect];
         else if (!Array.isArray(rawCorrect)) rawCorrect = Object.values(rawCorrect);
 
-        if (copyQ.type === 'Essay') {
+        if (rawCorrect.length === 0) {
+            if (Array.isArray(copyQ.correctIndices) && copyQ.correctIndices.length > 0) {
+                rawCorrect = copyQ.correctIndices.map(function(idx) { return String.fromCharCode(65 + Number(idx)); });
+            } else if (typeof copyQ.correctIndex === 'number') {
+                rawCorrect = [String.fromCharCode(65 + copyQ.correctIndex)];
+            }
+        }
+
+        if (copyQ.type === 'Essay' || copyQ.type === 'essay') {
             copyQ.type = 'Essay';
         } else if (copyQ.options.length === 0 || copyQ.type === 'IS' || copyQ.type === 'short_answer') {
             copyQ.type = 'IS';
@@ -225,8 +233,16 @@ window.normalisasiDaftarSoalLatihan = function(rawSoalArray) {
                 });
             });
             rawCorrect = splitKeys;
-        } else if (copyQ.type !== 'PGK') {
+        } else if (copyQ.type === 'PGK' || copyQ.type === 'pgk') {
+            copyQ.type = 'PGK';
+            rawCorrect = (typeof window.normalisasiKunciPGK === 'function')
+                ? window.normalisasiKunciPGK(rawCorrect, copyQ.options)
+                : rawCorrect.map(function(k) { return String(k).toUpperCase().trim().charAt(0); }).filter(Boolean);
+        } else {
             copyQ.type = 'PG';
+            rawCorrect = (typeof window.normalisasiKunciPGK === 'function')
+                ? window.normalisasiKunciPGK(rawCorrect, copyQ.options)
+                : rawCorrect.map(function(k) { return String(k).toUpperCase().trim().charAt(0); }).filter(Boolean);
         }
 
         copyQ.correct = rawCorrect;
@@ -660,6 +676,27 @@ window.bangunHTMLTombolAdaptif = function(levelSekarang, nilaiAkhir, jmlSalah) {
     };
 };
 
+window.berikanHadiahLangsungPerSoalLatihan = function(tipeSoal, anchorEl) {
+    let stat = sessionStorage.getItem("statusLogin");
+    let rawU = (sessionStorage.getItem("username") || "").trim().toLowerCase();
+    if (stat !== "siswa" || !rawU || rawU === "sbd" || rawU === "tamu" || rawU === "mahardika") return;
+
+    if (window.sesiLatihanSiswa) window.sesiLatihanSiswa._xpPerSoalAktif = true;
+
+    let t = String(tipeSoal || "PG").toUpperCase();
+    let poin = (typeof window.dapatkanPoinXPPerSoal === "function")
+        ? window.dapatkanPoinXPPerSoal(t)
+        : (t === "PGK" ? 20 : (t === "IS" ? 50 : (t === "ESSAY" ? 100 : 10)));
+
+    let fnTambahXP = window.masterTambahXPSiswa || window.tambahXPSiswa;
+    if (typeof fnTambahXP === "function") {
+        fnTambahXP(poin, "latihan_per_soal", [{ type: t, sudahBenar: true }]);
+    }
+    if (typeof window.tampilkanBadgeHadiahKuis === "function") {
+        window.tampilkanBadgeHadiahKuis(anchorEl, "🎉 Jawaban Benar! +" + poin + " XP & +" + poin + " Coin");
+    }
+};
+
 window.tampilkanModalHasilAkhirLatihan = function() {
     if (!window.sesiLatihanSiswa) return;
     let dijawab = window.sesiLatihanSiswa.statusJawab.filter(Boolean).length;
@@ -670,11 +707,15 @@ window.tampilkanModalHasilAkhirLatihan = function() {
         let nilaiAkhir = Math.round((window.sesiLatihanSiswa.skorTotal / total) * 100);
         let jmlSalah = total - window.sesiLatihanSiswa.skorTotal;
 
-        if (sessionStorage.getItem("statusLogin") === "siswa" && typeof window.tambahXPSiswa === "function") {
+        // Jika belum diberikan per soal, berikan sekaligus di akhir
+        if (sessionStorage.getItem("statusLogin") === "siswa" && !window.sesiLatihanSiswa._xpPerSoalAktif) {
             let rincianBenar = window.sesiLatihanSiswa.soal.map(function(q, i) {
                 return { type: q.type || 'PG', sudahBenar: Boolean(window.sesiLatihanSiswa.hasilBenar[i]) };
             });
-            window.tambahXPSiswa(nilaiAkhir, 'latihan', rincianBenar);
+            let fnTambahXP = window.masterTambahXPSiswa || window.tambahXPSiswa;
+            if (typeof fnTambahXP === "function") {
+                fnTambahXP(nilaiAkhir, 'latihan', rincianBenar);
+            }
         }
 
         let navAdaptif = window.bangunHTMLTombolAdaptif(window.sesiLatihanSiswa.kesulitan, nilaiAkhir, jmlSalah);
@@ -727,6 +768,11 @@ window.cekSelesaiLatihan = function() {
         window.sesiLatihanSiswa.minigameTriggeredMap = {};
     }
 
+    if (total > 0 && dijawab === total) {
+        window.tampilkanModalHasilAkhirLatihan();
+        return;
+    }
+
     if (dijawab > 0 && dijawab % 10 === 0 && !window.sesiLatihanSiswa.disableMiniGames && !window.sesiLatihanSiswa.minigameTriggeredMap[dijawab]) {
         window.sesiLatihanSiswa.minigameTriggeredMap[dijawab] = true;
         setTimeout(function() {
@@ -734,37 +780,39 @@ window.cekSelesaiLatihan = function() {
                 window.tampilkanModalHasilAkhirLatihan();
             });
         }, 350);
-        return;
-    }
-
-    if (total > 0 && dijawab === total) {
-        window.tampilkanModalHasilAkhirLatihan();
     }
 };
 
 // =========================================================================
-// 4. LOGIKA MENJAWAB SOAL LATIHAN (PG, PGK, ISIAN) & EVENT PANEN XP
+// 4. LOGIKA MENJAWAB SOAL LATIHAN (PG, PGK, ISIAN) & HADIAH XP REAL-TIME
 // =========================================================================
 window.pilihJawabanLatihanPG = function(soalIdx, labelPilihan, btnEl) {
     if (window.sesiLatihanSiswa.statusJawab[soalIdx]) return;
 
     let q = window.sesiLatihanSiswa.soal[soalIdx];
-    let kunciArr = Array.isArray(q.correct) ? q.correct : [];
-    window.sesiLatihanSiswa.statusJawab[soalIdx] = true;
-    window.sesiLatihanSiswa.jawaban[soalIdx] = labelPilihan;
+    let kunciArr = Array.isArray(q.correct)
+        ? q.correct.map(function(k) { return String(k).toUpperCase().trim().charAt(0); })
+        : [];
+    let pilUpper = String(labelPilihan || "").toUpperCase().trim().charAt(0);
 
-    let isCorrect = kunciArr.includes(labelPilihan);
+    window.sesiLatihanSiswa.statusJawab[soalIdx] = true;
+    window.sesiLatihanSiswa.jawaban[soalIdx] = pilUpper;
+
+    let isCorrect = kunciArr.includes(pilUpper);
     if (!Array.isArray(window.sesiLatihanSiswa.hasilBenar)) window.sesiLatihanSiswa.hasilBenar = [];
     window.sesiLatihanSiswa.hasilBenar[soalIdx] = isCorrect;
-    if (isCorrect) window.sesiLatihanSiswa.skorTotal += 1;
+    if (isCorrect) {
+        window.sesiLatihanSiswa.skorTotal += 1;
+        window.berikanHadiahLangsungPerSoalLatihan('PG', btnEl);
+    }
 
     document.querySelectorAll('.opsi-latihan-' + soalIdx).forEach(function(btn) {
         btn.style.cursor = 'not-allowed';
         btn.disabled = true;
-        let lbl = btn.getAttribute('data-label');
+        let lbl = String(btn.getAttribute('data-label') || '').toUpperCase().trim().charAt(0);
         if (kunciArr.includes(lbl)) {
             btn.style.background = '#d5f5e3'; btn.style.borderColor = '#27ae60'; btn.style.color = '#1e8449'; btn.style.fontWeight = 'bold';
-        } else if (lbl === labelPilihan && !isCorrect) {
+        } else if (lbl === pilUpper && !isCorrect) {
             btn.style.background = '#fadbd8'; btn.style.borderColor = '#e74c3c'; btn.style.color = '#c0392b'; btn.style.fontWeight = 'bold';
         } else {
             btn.style.opacity = '0.6';
@@ -793,13 +841,15 @@ window.pilihJawabanLatihanPGK = function(soalIdx, labelPilihan, isChecked) {
 window.kunciJawabanLatihanPGK = function(soalIdx) {
     if (window.sesiLatihanSiswa.statusJawab[soalIdx]) return;
     let q = window.sesiLatihanSiswa.soal[soalIdx];
-    let kunciArr = Array.isArray(q.correct) ? q.correct.map(function(k) { return String(k).toUpperCase().trim(); }) : [];
     let opsiArr = Array.isArray(q.options) ? q.options : [];
+    let kunciArr = (typeof window.normalisasiKunciPGK === "function")
+        ? window.normalisasiKunciPGK(q.correct, opsiArr)
+        : (Array.isArray(q.correct) ? q.correct.map(function(k) { return String(k).toUpperCase().trim().charAt(0); }) : []);
 
     let dipilih = [];
     opsiArr.forEach(function(opt) {
         let chk = document.getElementById('chk-latihan-' + soalIdx + '-' + opt.label);
-        if (chk && chk.checked) dipilih.push(String(opt.label).toUpperCase().trim());
+        if (chk && chk.checked) dipilih.push(String(opt.label).toUpperCase().trim().charAt(0));
     });
 
     if (dipilih.length === 0) return alert("Centang minimal 1 jawaban terlebih dahulu sebelum menekan tombol Oke!");
@@ -810,10 +860,14 @@ window.kunciJawabanLatihanPGK = function(soalIdx) {
     let isAllCorrect = (dipilih.length === kunciArr.length) && dipilih.every(function(lbl) { return kunciArr.includes(lbl); });
     if (!Array.isArray(window.sesiLatihanSiswa.hasilBenar)) window.sesiLatihanSiswa.hasilBenar = [];
     window.sesiLatihanSiswa.hasilBenar[soalIdx] = isAllCorrect;
-    if (isAllCorrect) window.sesiLatihanSiswa.skorTotal += 1;
+    let btnOke = document.getElementById('btn-oke-pgk-latihan-' + soalIdx);
+    if (isAllCorrect) {
+        window.sesiLatihanSiswa.skorTotal += 1;
+        window.berikanHadiahLangsungPerSoalLatihan('PGK', btnOke);
+    }
 
     opsiArr.forEach(function(opt) {
-        let lblUpper = String(opt.label).toUpperCase().trim();
+        let lblUpper = String(opt.label).toUpperCase().trim().charAt(0);
         let chk = document.getElementById('chk-latihan-' + soalIdx + '-' + opt.label);
         let lblEl = document.getElementById('opsi-lbl-' + soalIdx + '-' + opt.label);
         if (chk) chk.disabled = true;
@@ -835,7 +889,6 @@ window.kunciJawabanLatihanPGK = function(soalIdx) {
         }
     });
 
-    let btnOke = document.getElementById('btn-oke-pgk-latihan-' + soalIdx);
     if (btnOke) btnOke.style.display = 'none';
 
     document.getElementById('bahas-' + soalIdx).style.display = 'block';
@@ -864,6 +917,7 @@ window.simpanJawabanLatihan = function(soalIdx, inputEl) {
         if (isCorrect) {
             inputEl.style.background = '#d5f5e3'; inputEl.style.borderColor = '#27ae60'; inputEl.style.color = '#1e8449'; inputEl.style.fontWeight = 'bold';
             window.sesiLatihanSiswa.skorTotal += 1;
+            window.berikanHadiahLangsungPerSoalLatihan('IS', inputEl);
         } else {
             inputEl.style.background = '#fadbd8'; inputEl.style.borderColor = '#e74c3c'; inputEl.style.color = '#c0392b'; inputEl.style.fontWeight = 'bold';
         }
@@ -871,6 +925,7 @@ window.simpanJawabanLatihan = function(soalIdx, inputEl) {
         inputEl.style.background = '#eef2f7'; inputEl.style.borderColor = '#94a3b8';
         window.sesiLatihanSiswa.hasilBenar[soalIdx] = true;
         window.sesiLatihanSiswa.skorTotal += 1;
+        window.berikanHadiahLangsungPerSoalLatihan('Essay', inputEl);
     }
 
     document.getElementById('bahas-' + soalIdx).style.display = 'block';

@@ -1633,18 +1633,17 @@ window.normalisasiUsernameSiswa = function(rawUsername) {
         : u.toLowerCase();
 };
 
-window.sinkronkanObjekDualXPDanCoin = function(uName) {
+window.sinkronkanObjekDualXPDanCoin = function(uName, izinkanBuatSementara) {
     let rawU = String(uName || sessionStorage.getItem("username") || "").trim();
     let cleanKey = window.normalisasiUsernameSiswa(rawU);
     if (!cleanKey) return null;
 
     if (!window.leaderboardSiswaData) window.leaderboardSiswaData = {};
-    let lb = window.leaderboardSiswaData[cleanKey] || window.leaderboardSiswaData[rawU];
+    let lb = window.leaderboardSiswaData[cleanKey] || window.leaderboardSiswaData[rawU] || window.leaderboardSiswaData[rawU.toLowerCase()];
 
     if (!lb) {
-        // Jangan membuat objek 0 XP di memori jika data leaderboard dari Firebase belum selesai dimuat!
-        if (!window.leaderboardLoaded) return null;
-        let akun = (window.akunSiswaData && (window.akunSiswaData[cleanKey] || window.akunSiswaData[rawU])) || {};
+        if (!window.leaderboardLoaded && !izinkanBuatSementara) return null;
+        let akun = (window.akunSiswaData && (window.akunSiswaData[cleanKey] || window.akunSiswaData[rawU] || window.akunSiswaData[rawU.toLowerCase()])) || {};
         lb = {
             kelas: akun.kelas || "Umum",
             namaLengkap: akun.namaLengkap || rawU || cleanKey,
@@ -1653,6 +1652,7 @@ window.sinkronkanObjekDualXPDanCoin = function(uName) {
             coin: 0,
             xpTersedia: 0,
             coinInitialized: true,
+            _createdBeforeLoad: !window.leaderboardLoaded,
             statSoal: { PG: 0, PGK: 0, IS: 0, Essay: 0 }
         };
     }
@@ -1668,7 +1668,6 @@ window.sinkronkanObjekDualXPDanCoin = function(uName) {
     } else if (lb.xpTersedia !== undefined && lb.xpTersedia !== null && !isNaN(Number(lb.xpTersedia))) {
         lb.coin = Math.max(0, Number(lb.xpTersedia));
     } else if (!lb.coinInitialized) {
-        // Migrasi 1x untuk akun lama yang belum punya properti coin
         lb.coin = totalXP;
     } else {
         lb.coin = 0;
@@ -1678,9 +1677,9 @@ window.sinkronkanObjekDualXPDanCoin = function(uName) {
 
     if (!lb.statSoal) lb.statSoal = { PG: 0, PGK: 0, IS: 0, Essay: 0 };
 
-    // Tautkan referensi yang sama ke cleanKey dan rawU agar my-pet-engine.js selalu membaca objek yang sama
     window.leaderboardSiswaData[cleanKey] = lb;
     if (rawU) window.leaderboardSiswaData[rawU] = lb;
+    if (rawU.toLowerCase()) window.leaderboardSiswaData[rawU.toLowerCase()] = lb;
 
     return lb;
 };
@@ -1758,18 +1757,64 @@ window.masterTambahXPSiswa = function(jumlahPoin, sumber, rincianSoalArr) {
         });
     }
 
+    window.masterTambahXPSiswa = function(jumlahPoin, sumber, rincianSoalArr) {
+    let stat = sessionStorage.getItem("statusLogin");
+    let rawU = sessionStorage.getItem("username") || "";
+    let cleanKey = window.normalisasiUsernameSiswa(rawU);
+
+    if (stat !== "siswa" || !cleanKey || cleanKey === "sbd" || cleanKey === "tamu" || cleanKey === "mahardika") return;
+
+    let poin = Math.max(0, Number(jumlahPoin) || 0);
+
+    if (sumber === "latihan" && Array.isArray(rincianSoalArr) && rincianSoalArr.length > 0) {
+        let hitungSoal = 0;
+        rincianSoalArr.forEach(function(item) {
+            if (item && item.sudahBenar) {
+                hitungSoal += (typeof window.dapatkanPoinXPPerSoal === "function") ? window.dapatkanPoinXPPerSoal(item.type) : 10;
+            }
+        });
+        if (hitungSoal > 0) poin = hitungSoal;
+    }
+
+    if (poin <= 0) return;
+
+    // Izinkan membuat objek sementara meskipun leaderboardLoaded masih false agar XP latihan tidak pernah hangus
+    let lb = window.sinkronkanObjekDualXPDanCoin(cleanKey, true);
+    if (!lb) return;
+
+    // Catat akumulasi penambahan lokal jika server belum selesai dimuat
+    if (!window.leaderboardLoaded || lb._createdBeforeLoad) {
+        lb._pendingXPDelta = (Number(lb._pendingXPDelta) || 0) + poin;
+        lb._pendingCoinDelta = (Number(lb._pendingCoinDelta) || 0) + poin;
+    }
+
+    // Tambah serentak ke XP Leaderboard DAN Saldo Coin Pet/Shop
+    lb.xpTotal = (Number(lb.xpTotal) || 0) + poin;
+    lb.xp = lb.xpTotal;
+    lb.coin = (Number(lb.coin) || 0) + poin;
+    lb.xpTersedia = lb.coin;
+
+    if (Array.isArray(rincianSoalArr)) {
+        rincianSoalArr.forEach(function(item) {
+            if (!item || !item.sudahBenar) return;
+            let t = String(item.type || "PG").toUpperCase();
+            if (t === "MC" || t === "PG") lb.statSoal.PG = (Number(lb.statSoal.PG) || 0) + 1;
+            else if (t === "PGK") lb.statSoal.PGK = (Number(lb.statSoal.PGK) || 0) + 1;
+            else if (t === "IS" || t === "SHORT_ANSWER" || t === "ISIAN") lb.statSoal.IS = (Number(lb.statSoal.IS) || 0) + 1;
+            else if (t === "ESSAY" || t === "ESAI") lb.statSoal.Essay = (Number(lb.statSoal.Essay) || 0) + 1;
+        });
+    }
+
     if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
         window.simpanLeaderboardSiswaKeDB(cleanKey, lb);
-    }
-    if (typeof window.perbaruiTampilanSaldoXPPet === "function") {
-        window.perbaruiTampilanSaldoXPPet();
     }
     if (typeof window.perbaruiUIHeaderProfilSiswa === "function") {
         window.perbaruiUIHeaderProfilSiswa();
     }
-
-    let elTotProfil = document.getElementById("profil-total-xp");
-    if (elTotProfil) elTotProfil.innerText = lb.xpTotal.toLocaleString("id-ID") + " XP";
+    if (typeof window.perbaruiTampilanSaldoXPPet === "function") {
+        window.perbaruiTampilanSaldoXPPet();
+    }
+};
 };
 
 window.tambahXPSiswa = window.masterTambahXPSiswa;
