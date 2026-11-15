@@ -550,9 +550,13 @@ window.selesaikanCheckinHarian = function() {
     }
 
     if (stat === "siswa") {
+        let cleanKey = (typeof window.normalisasiUsernameSiswa === "function") ? window.normalisasiUsernameSiswa(uName) : uName.toLowerCase();
         localStorage.setItem("checkin_done_" + (window.guruAktif || "mahardika") + "_" + uName, keyHariIni);
-        if (window.leaderboardSiswaData && window.leaderboardSiswaData[uName]) {
-            window.leaderboardSiswaData[uName].checkinTerakhir = keyHariIni;
+        localStorage.setItem("checkin_done_" + (window.guruAktif || "mahardika") + "_" + cleanKey, keyHariIni);
+
+        let lbSiswa = (typeof window.sinkronkanObjekDualXPDanCoin === "function") ? window.sinkronkanObjekDualXPDanCoin(cleanKey) : null;
+        if (lbSiswa) {
+            lbSiswa.checkinTerakhir = keyHariIni;
         }
         if (typeof window.tambahXPSiswa === "function") {
             window.tambahXPSiswa(100, "checkin_harian");
@@ -1619,41 +1623,130 @@ window.renderTabelLeaderboard = function() {
    ========================================================================= */
 
 // -------------------------------------------------------------------------
-// A. PASTIKAN TAMBAH XP SISWA SELALU MENAMBAH XP LEADERBOARD + COIN BELANJA
+// A. JEMBATAN SINKRONISASI DUAL-XP, COIN BELANJA, & MY PET (ANTI-TIMPA)
 // -------------------------------------------------------------------------
-window.tambahXPSiswa = function(jumlahPoin, sumber, rincianSoalArr) {
-    let stat = sessionStorage.getItem("statusLogin");
-    let uName = sessionStorage.getItem("username");
-    if (stat !== "siswa" || !uName || uName.toLowerCase() === "sbd" || uName.toLowerCase() === "tamu") return;
+window.normalisasiUsernameSiswa = function(rawUsername) {
+    let u = String(rawUsername || sessionStorage.getItem("username") || "").trim();
+    if (!u) return "";
+    return (typeof window.sanitasiKeyRekapFirebase === "function")
+        ? window.sanitasiKeyRekapFirebase(u).toLowerCase()
+        : u.toLowerCase();
+};
 
-    let poin = Math.max(0, Number(jumlahPoin) || 0);
-    if (poin <= 0) return;
+window.sinkronkanObjekDualXPDanCoin = function(uName) {
+    let rawU = String(uName || sessionStorage.getItem("username") || "").trim();
+    let cleanKey = window.normalisasiUsernameSiswa(rawU);
+    if (!cleanKey) return null;
 
-    let lb = (typeof window.pastikanStrukturDualXPDanPet === "function")
-        ? window.pastikanStrukturDualXPDanPet(uName)
-        : ((window.leaderboardSiswaData && window.leaderboardSiswaData[uName]) ? window.leaderboardSiswaData[uName] : null);
+    if (!window.leaderboardSiswaData) window.leaderboardSiswaData = {};
+    let lb = window.leaderboardSiswaData[cleanKey] || window.leaderboardSiswaData[rawU];
 
     if (!lb) {
-        let akun = (window.akunSiswaData && window.akunSiswaData[uName]) ? window.akunSiswaData[uName] : {};
-        if (!window.leaderboardSiswaData) window.leaderboardSiswaData = {};
-        window.leaderboardSiswaData[uName] = {
+        // Jangan membuat objek 0 XP di memori jika data leaderboard dari Firebase belum selesai dimuat!
+        if (!window.leaderboardLoaded) return null;
+        let akun = (window.akunSiswaData && (window.akunSiswaData[cleanKey] || window.akunSiswaData[rawU])) || {};
+        lb = {
             kelas: akun.kelas || "Umum",
-            namaLengkap: akun.namaLengkap || uName,
+            namaLengkap: akun.namaLengkap || rawU || cleanKey,
             xp: 0,
             xpTotal: 0,
             coin: 0,
             xpTersedia: 0,
+            coinInitialized: true,
             statSoal: { PG: 0, PGK: 0, IS: 0, Essay: 0 }
         };
-        lb = window.leaderboardSiswaData[uName];
     }
 
-    lb.xpTotal = (Number(lb.xpTotal !== undefined ? lb.xpTotal : lb.xp) || 0) + poin;
-    lb.xp = lb.xpTotal;
-    lb.coin = (Number(lb.coin !== undefined ? lb.coin : lb.xpTersedia) || 0) + poin;
+    // 1. Kunci XP Leaderboard (xpTotal & xp selalu bernilai sama dan terbesar)
+    let totalXP = Math.max(Number(lb.xpTotal) || 0, Number(lb.xp) || 0);
+    lb.xpTotal = totalXP;
+    lb.xp = totalXP;
+
+    // 2. Kunci Saldo Coin (Untuk beli pakan Pet & Border Shop tanpa mengurangi xpTotal)
+    if (lb.coin !== undefined && lb.coin !== null && !isNaN(Number(lb.coin))) {
+        lb.coin = Math.max(0, Number(lb.coin));
+    } else if (lb.xpTersedia !== undefined && lb.xpTersedia !== null && !isNaN(Number(lb.xpTersedia))) {
+        lb.coin = Math.max(0, Number(lb.xpTersedia));
+    } else if (!lb.coinInitialized) {
+        // Migrasi 1x untuk akun lama yang belum punya properti coin
+        lb.coin = totalXP;
+    } else {
+        lb.coin = 0;
+    }
     lb.xpTersedia = lb.coin;
+    lb.coinInitialized = true;
 
     if (!lb.statSoal) lb.statSoal = { PG: 0, PGK: 0, IS: 0, Essay: 0 };
+
+    // Tautkan referensi yang sama ke cleanKey dan rawU agar my-pet-engine.js selalu membaca objek yang sama
+    window.leaderboardSiswaData[cleanKey] = lb;
+    if (rawU) window.leaderboardSiswaData[rawU] = lb;
+
+    return lb;
+};
+
+window.ambilCoinSiswa = function(uName) {
+    let lb = window.sinkronkanObjekDualXPDanCoin(uName);
+    return lb ? lb.coin : 0;
+};
+
+window.gunakanCoinSiswa = function(hargaCoin, keperluan) {
+    let rawU = sessionStorage.getItem("username") || "";
+    let cleanKey = window.normalisasiUsernameSiswa(rawU);
+    if (!cleanKey) return false;
+
+    let biaya = Math.max(0, Number(hargaCoin) || 0);
+    let lb = window.sinkronkanObjekDualXPDanCoin(cleanKey);
+    if (!lb) return false;
+
+    if (lb.coin < biaya) return false;
+
+    // Hanya kurangi Coin (xpTersedia), JANGAN PERNAH mengurangi xpTotal / xp Leaderboard!
+    lb.coin = Math.max(0, lb.coin - biaya);
+    lb.xpTersedia = lb.coin;
+
+    if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
+        window.simpanLeaderboardSiswaKeDB(cleanKey, lb);
+    }
+    if (typeof window.perbaruiTampilanSaldoXPPet === "function") {
+        window.perbaruiTampilanSaldoXPPet();
+    }
+    if (typeof window.perbaruiUIHeaderProfilSiswa === "function") {
+        window.perbaruiUIHeaderProfilSiswa();
+    }
+    return true;
+};
+
+window.masterTambahXPSiswa = function(jumlahPoin, sumber, rincianSoalArr) {
+    let stat = sessionStorage.getItem("statusLogin");
+    let rawU = sessionStorage.getItem("username") || "";
+    let cleanKey = window.normalisasiUsernameSiswa(rawU);
+
+    if (stat !== "siswa" || !cleanKey || cleanKey === "sbd" || cleanKey === "tamu" || cleanKey === "mahardika") return;
+
+    let poin = Math.max(0, Number(jumlahPoin) || 0);
+
+    if (sumber === "latihan" && Array.isArray(rincianSoalArr) && rincianSoalArr.length > 0) {
+        let hitungSoal = 0;
+        rincianSoalArr.forEach(function(item) {
+            if (item && item.sudahBenar) {
+                hitungSoal += (typeof window.dapatkanPoinXPPerSoal === "function") ? window.dapatkanPoinXPPerSoal(item.type) : 10;
+            }
+        });
+        if (hitungSoal > 0) poin = hitungSoal;
+    }
+
+    if (poin <= 0) return;
+
+    let lb = window.sinkronkanObjekDualXPDanCoin(cleanKey);
+    if (!lb) return;
+
+    // Tambah serentak ke XP Leaderboard DAN Saldo Coin Pet/Shop
+    lb.xpTotal = (Number(lb.xpTotal) || 0) + poin;
+    lb.xp = lb.xpTotal;
+    lb.coin = (Number(lb.coin) || 0) + poin;
+    lb.xpTersedia = lb.coin;
+
     if (Array.isArray(rincianSoalArr)) {
         rincianSoalArr.forEach(function(item) {
             if (!item || !item.sudahBenar) return;
@@ -1666,7 +1759,7 @@ window.tambahXPSiswa = function(jumlahPoin, sumber, rincianSoalArr) {
     }
 
     if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
-        window.simpanLeaderboardSiswaKeDB(uName, lb);
+        window.simpanLeaderboardSiswaKeDB(cleanKey, lb);
     }
     if (typeof window.perbaruiTampilanSaldoXPPet === "function") {
         window.perbaruiTampilanSaldoXPPet();
@@ -1674,7 +1767,48 @@ window.tambahXPSiswa = function(jumlahPoin, sumber, rincianSoalArr) {
     if (typeof window.perbaruiUIHeaderProfilSiswa === "function") {
         window.perbaruiUIHeaderProfilSiswa();
     }
+
+    let elTotProfil = document.getElementById("profil-total-xp");
+    if (elTotProfil) elTotProfil.innerText = lb.xpTotal.toLocaleString("id-ID") + " XP";
 };
+
+window.tambahXPSiswa = window.masterTambahXPSiswa;
+
+// Bungkus fungsi pastikanStrukturDualXPDanPet dari my-pet-engine.js setelah semua script selesai dimuat
+window.pasangKunciSinkronisasiPet = function() {
+    window.tambahXPSiswa = window.masterTambahXPSiswa;
+    if (typeof window.pastikanStrukturDualXPDanPet === "function" && !window.pastikanStrukturDualXPDanPet._isWrappedSafe) {
+        let origPetStruct = window.pastikanStrukturDualXPDanPet;
+        let wrappedFn = function(uName) {
+            let lbAwal = window.sinkronkanObjekDualXPDanCoin(uName);
+            let backupXP = lbAwal ? lbAwal.xpTotal : 0;
+            let backupCoin = lbAwal ? lbAwal.coin : 0;
+
+            let res = origPetStruct(window.normalisasiUsernameSiswa(uName) || uName);
+            let lbAkhir = window.sinkronkanObjekDualXPDanCoin(uName) || res;
+
+            // Pastikan inisialisasi Pet tidak pernah mengecilkan XP atau Coin yang sudah ada
+            if (lbAkhir) {
+                if (backupXP > lbAkhir.xpTotal) {
+                    lbAkhir.xpTotal = backupXP;
+                    lbAkhir.xp = backupXP;
+                }
+                if (backupCoin > lbAkhir.coin) {
+                    lbAkhir.coin = backupCoin;
+                    lbAkhir.xpTersedia = backupCoin;
+                }
+            }
+            return lbAkhir;
+        };
+        wrappedFn._isWrappedSafe = true;
+        window.pastikanStrukturDualXPDanPet = wrappedFn;
+    } else if (typeof window.pastikanStrukturDualXPDanPet !== "function") {
+        window.pastikanStrukturDualXPDanPet = window.sinkronkanObjekDualXPDanCoin;
+    }
+};
+
+document.addEventListener("DOMContentLoaded", window.pasangKunciSinkronisasiPet);
+window.addEventListener("load", window.pasangKunciSinkronisasiPet);
 
 // Floating Badge Saat Siswa Mendapat XP & Coin di Kuis Materi / Latihan
 window.tampilkanBadgeHadiahKuis = function(anchorEl, teksHadiah) {

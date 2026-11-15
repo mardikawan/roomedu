@@ -176,225 +176,25 @@ window.MY_PET_CATALOG = {
 
 
 // =========================================================================
-// 2. ARSITEKTUR DUAL-XP (XP TOTAL LEADERBOARD vs XP TERSEDIA BELANJA)
+// 2. ARSITEKTUR DUAL-XP (XP TOTAL LEADERBOARD vs COIN SALDO BELANJA)
 // =========================================================================
 
-// Pastikan objek siswa di Leaderboard memiliki xp (XP Total), xpTersedia (Saldo Belanja), & myPetData
+window.normalisasiKeySiswaPet = function(rawUsername) {
+    let u = String(rawUsername || sessionStorage.getItem("username") || "").trim();
+    if (!u) return "";
+    return (typeof window.sanitasiKeyRekapFirebase === "function")
+        ? window.sanitasiKeyRekapFirebase(u).toLowerCase()
+        : u.replace(/[\.\#\x24\[\]\/]/g, "").trim().toLowerCase();
+};
+
 window.pastikanStrukturDualXPDanPet = function(uName) {
-    let userKey = uName || sessionStorage.getItem("username");
+    let rawUser = String(uName || sessionStorage.getItem("username") || "").trim();
+    let userKey = window.normalisasiKeySiswaPet(rawUser);
     if (!userKey) return null;
 
     let isAdmin = (typeof window.isAdminSession === "function" && window.isAdminSession()) ||
                   sessionStorage.getItem("statusLogin") === "admin" ||
-                  userKey.toLowerCase() === "mahardika";
-
-    if (!window.leaderboardSiswaData) window.leaderboardSiswaData = {};
-
-    // Isolasi Admin/Guru ke memori terpisah agar tidak pernah masuk ke Leaderboard Siswa di Firebase
-    if (isAdmin) {
-        if (!window._adminSandboxPetProfile) {
-            window._adminSandboxPetProfile = {
-                kelas: "Guru / Admin",
-                namaLengkap: userKey,
-                xp: 1000000000,
-                xpTotal: 1000000000,
-                xpTersedia: 1000000000,
-                myPetData: {
-                    habitatLevel: 6,
-                    activePetId: "",
-                    ownedPets: {},
-                    foodInventory: {},
-                    ownedDecorations: [],
-                    activeDecorations: [],
-                    ownedWardrobe: []
-                }
-            };
-        }
-        return window._adminSandboxPetProfile;
-    }
-
-    let akunAsli = (window.akunSiswaData && window.akunSiswaData[userKey]) ? window.akunSiswaData[userKey] : null;
-
-    if (!window.leaderboardSiswaData[userKey]) {
-        if (!window.leaderboardLoaded || !akunAsli) return null;
-
-        window.leaderboardSiswaData[userKey] = {
-            kelas: akunAsli.kelas || "Umum",
-            namaLengkap: akunAsli.namaLengkap || userKey,
-            xp: 0,
-            xpTotal: 0,
-            xpTersedia: 0,
-            statSoal: { PG: 0, PGK: 0, IS: 0, Essay: 0 }
-        };
-    }
-
-    let lb = window.leaderboardSiswaData[userKey];
-
-    // Pulihkan kelas dan nama lengkap siswa dari akunSiswaData jika sempat kosong
-    if (akunAsli) {
-        if ((!lb.kelas || lb.kelas === "Umum") && akunAsli.kelas && akunAsli.kelas !== "Umum") {
-            lb.kelas = akunAsli.kelas;
-        }
-        if ((!lb.namaLengkap || lb.namaLengkap === userKey) && akunAsli.namaLengkap) {
-            lb.namaLengkap = akunAsli.namaLengkap;
-        }
-    }
-
-    let currentTotal = Number(lb.xp) || 0;
-    if (typeof lb.xpTotal !== "number" || currentTotal > lb.xpTotal) {
-        lb.xpTotal = currentTotal;
-    }
-    lb.xp = lb.xpTotal;
-
-    if (typeof lb.xpTersedia !== "number") {
-        let spent = Number(lb.xpSpentTotal) || 0;
-        lb.xpTersedia = Math.max(0, lb.xpTotal - spent);
-    }
-
-    if (!lb.myPetData || typeof lb.myPetData !== "object") {
-        lb.myPetData = {
-            habitatLevel: 0,
-            activePetId: "",
-            ownedPets: {},
-            foodInventory: {},
-            ownedDecorations: [],
-            activeDecorations: [],
-            ownedWardrobe: []
-        };
-    } else {
-        if (!lb.myPetData.ownedPets) lb.myPetData.ownedPets = {};
-        if (!lb.myPetData.foodInventory) lb.myPetData.foodInventory = {};
-        if (!Array.isArray(lb.myPetData.ownedDecorations)) lb.myPetData.ownedDecorations = Object.values(lb.myPetData.ownedDecorations || {});
-        if (!Array.isArray(lb.myPetData.activeDecorations)) lb.myPetData.activeDecorations = Object.values(lb.myPetData.activeDecorations || {});
-        if (!Array.isArray(lb.myPetData.ownedWardrobe)) lb.myPetData.ownedWardrobe = Object.values(lb.myPetData.ownedWardrobe || {});
-    }
-
-    return lb;
-};
-
-// Ambil XP Total (untuk Leaderboard & Lencana)
-window.ambilXPTotalSiswa = function(uName) {
-    let lb = window.pastikanStrukturDualXPDanPet(uName);
-    return lb ? (Number(lb.xpTotal) || 0) : 0;
-};
-
-// Ambil XP Tersedia (untuk belanja di My Pet & Border Shop)
-window.ambilXPTersediaSiswa = function(uName) {
-    let lb = window.pastikanStrukturDualXPDanPet(uName);
-    return lb ? (Number(lb.xpTersedia) || 0) : 0;
-};
-
-// Kurangi XP Tersedia saat membeli item (XP Total tetap utuh!)
-window.gunakanXPTersediaSiswa = function(hargaXP, keterangan) {
-    let uName = sessionStorage.getItem("username");
-    let lb = window.pastikanStrukturDualXPDanPet(uName);
-    if (!lb) return false;
-
-    let biaya = Number(hargaXP) || 0;
-    if (lb.xpTersedia < biaya) return false;
-
-    lb.xpTersedia -= biaya;
-    lb.xpSpentTotal = (Number(lb.xpSpentTotal) || 0) + biaya;
-    // Pastikan lb.xp tetap memegang XP Total agar peringkat Leaderboard tidak berubah
-    lb.xp = lb.xpTotal;
-
-    if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
-        window.simpanLeaderboardSiswaKeDB(uName, lb);
-    }
-    window.perbaruiTampilanSaldoXPPet();
-    if (typeof window.perbaruiUIHeaderProfilSiswa === "function") {
-        window.perbaruiUIHeaderProfilSiswa();
-    }
-    return true;
-};
-
-
-// =========================================================================
-// 3. MESIN WAKTU LAPAR REAL-TIME (-4 POIN / JAM) & STATUS RESPONS PET
-// =========================================================================
-
-// Hitung penurunan kenyang & mood berdasarkan selisih waktu nyata sejak terakhir dibuka
-window.sinkronkanWaktuLaparSemuaPet = function(uName) {
-    let lb = window.pastikanStrukturDualXPDanPet(uName);
-    if (!lb || !lb.myPetData || !lb.myPetData.ownedPets) return false;
-
-    let nowMs = Date.now();
-    let adaPerubahan = false;
-    let petsMap = lb.myPetData.ownedPets;
-
-    Object.keys(petsMap).forEach(function(petId) {
-        let p = petsMap[petId];
-        if (!p) return;
-
-        let lastMs = Number(p.lastUpdate) || nowMs;
-        let selisihJam = Math.max(0, (nowMs - lastMs) / (1000 * 60 * 60));
-
-        // Jika sudah lewat minimal 3 menit (0.05 jam), hitung penurunan (4 poin per jam)
-        if (selisihJam >= 0.05) {
-            let turunKenyang = Math.floor(selisihJam * 4);
-            if (turunKenyang > 0) {
-                let kenyangLama = typeof p.hunger === "number" ? p.hunger : 80;
-                p.hunger = Math.max(0, Math.min(100, kenyangLama - turunKenyang));
-
-                // Mood ikut turun perlahan (2 poin per jam, atau 4 poin per jam jika pet sedang lapar < 25)
-                let lajuMood = p.hunger < 25 ? 4 : 2;
-                let turunMood = Math.floor(selisihJam * lajuMood);
-                let moodLama = typeof p.mood === "number" ? p.mood : 85;
-                p.mood = Math.max(0, Math.min(100, moodLama - turunMood));
-
-                // Majukan penanda waktu sesuai porsi jam yang sudah dihitung agar akurat
-                p.lastUpdate = lastMs + Math.floor((turunKenyang / 4) * 3600 * 1000);
-                adaPerubahan = true;
-            }
-        }
-    });
-
-    if (adaPerubahan && typeof window.simpanLeaderboardSiswaKeDB === "function") {
-        let keyUser = uName || sessionStorage.getItem("username");
-        if (keyUser) window.simpanLeaderboardSiswaKeDB(keyUser, lb);
-    }
-    return adaPerubahan;
-};
-
-// Ambil informasi status lapar sesuai tabel aturan (80-100, 50-79, 25-49, 1-24, 0=Kritis)
-window.dapatkanInfoStatusLaparPet = function(nilaiKenyang) {
-    let k = Math.max(0, Math.min(100, Math.round(Number(nilaiKenyang) || 0)));
-    if (k >= 80) {
-        return { status: "Kenyang", warna: "#16a34a", bg: "#dcfce7", animState: "happy", respons: "Aktif dan ceria", isKritis: false };
-    }
-    if (k >= 50) {
-        return { status: "Normal", warna: "#2563eb", bg: "#dbeafe", animState: "idle", respons: "Tenang dan nyaman di habitat", isKritis: false };
-    }
-    if (k >= 25) {
-        return { status: "Lapar", warna: "#d97706", bg: "#fef3c7", animState: "hungry", respons: "Sesekali melihat wadah makanan", isKritis: false };
-    }
-    if (k >= 1) {
-        return { status: "Sangat Lapar", warna: "#ea580c", bg: "#ffedd5", animState: "hungry", respons: "Gerakan melambat dan butuh makan segera!", isKritis: false };
-    }
-    return { status: "Kritis", warna: "#dc2626", bg: "#fee2e2", animState: "critical", respons: "⚠️ Pet duduk lemas! Beri makan sekarang untuk memulihkannya!", isKritis: true };
-};
-
-// Hitung Level Bond dari akumulasi poin Bond
-window.hitungLevelBondPet = function(bondXp) {
-    let bx = Number(bondXp) || 0;
-    // Setiap 100 poin Bond naik 1 level (Level 1 mulai dari 0)
-    let lvl = Math.floor(bx / 100) + 1;
-    let sisa = bx % 100;
-    return { level: lvl, progressPct: sisa, current: sisa, next: 100 };
-};
-
-// =========================================================================
-// 4. INJEKSI TOMBOL MELAYANG "🐾 My Pet" DI KIRI BAWAH & MODAL UTAMA 4 TAB
-// =========================================================================
-window.activeMyPetTab = "habitat";
-
-window.pastikanStrukturDualXPDanPet = function(uName) {
-    let userKey = uName || sessionStorage.getItem("username");
-    if (!userKey) return null;
-
-    let isAdmin = (typeof window.isAdminSession === "function" && window.isAdminSession()) ||
-                  sessionStorage.getItem("statusLogin") === "admin" ||
-                  userKey.toLowerCase() === "mahardika";
+                  userKey === "mahardika";
 
     if (!window.leaderboardSiswaData) window.leaderboardSiswaData = {};
 
@@ -403,33 +203,28 @@ window.pastikanStrukturDualXPDanPet = function(uName) {
         if (!window._adminSandboxPetProfile) {
             window._adminSandboxPetProfile = {
                 kelas: "Guru / Admin",
-                namaLengkap: userKey,
+                namaLengkap: rawUser || userKey,
                 xp: 1000000000,
                 xpTotal: 1000000000,
                 coin: 1000000000,
                 xpTersedia: 1000000000,
                 myPetData: {
-                    activePetId: "",
-                    ownedPets: {},
-                    foodInventory: {},
-                    ownedToys: [],
-                    ownedDecorations: [],
-                    activeDecorations: [],
-                    ownedWardrobe: []
+                    activePetId: "", activeTheme: "default", ownedPets: {}, foodInventory: {}, ownedToys: [], ownedDecorations: [], activeDecorations: [], ownedWardrobe: [], ownedThemes: []
                 }
             };
         }
         return window._adminSandboxPetProfile;
     }
 
-    let akunAsli = (window.akunSiswaData && window.akunSiswaData[userKey]) ? window.akunSiswaData[userKey] : null;
+    let akunAsli = (window.akunSiswaData && (window.akunSiswaData[userKey] || window.akunSiswaData[rawUser] || window.akunSiswaData[rawUser.toLowerCase()])) || null;
+    let lb = window.leaderboardSiswaData[userKey] || window.leaderboardSiswaData[rawUser] || window.leaderboardSiswaData[rawUser.toLowerCase()];
 
-    if (!window.leaderboardSiswaData[userKey]) {
-        if (!window.leaderboardLoaded || !akunAsli) return null;
-
-        window.leaderboardSiswaData[userKey] = {
-            kelas: akunAsli.kelas || "Umum",
-            namaLengkap: akunAsli.namaLengkap || userKey,
+    if (!lb) {
+        // Tunggu sampai Firebase selesai memuat leaderboard_siswa agar tidak membuat saldo 0 palsu
+        if (!window.leaderboardLoaded) return null;
+        lb = {
+            kelas: akunAsli ? (akunAsli.kelas || "Umum") : "Umum",
+            namaLengkap: akunAsli ? (akunAsli.namaLengkap || rawUser) : (rawUser || userKey),
             xp: 0,
             xpTotal: 0,
             coin: 0,
@@ -438,32 +233,28 @@ window.pastikanStrukturDualXPDanPet = function(uName) {
         };
     }
 
-    let lb = window.leaderboardSiswaData[userKey];
-
     if (akunAsli) {
         if ((!lb.kelas || lb.kelas === "Umum") && akunAsli.kelas && akunAsli.kelas !== "Umum") {
             lb.kelas = akunAsli.kelas;
         }
-        if ((!lb.namaLengkap || lb.namaLengkap === userKey) && akunAsli.namaLengkap) {
+        if ((!lb.namaLengkap || lb.namaLengkap === userKey || lb.namaLengkap === rawUser) && akunAsli.namaLengkap) {
             lb.namaLengkap = akunAsli.namaLengkap;
         }
     }
 
-    // 1. Pastikan XP Total Leaderboard selalu utuh dan tidak pernah turun
-    let currentTotal = Number(lb.xp) || 0;
-    if (typeof lb.xpTotal !== "number" || currentTotal > lb.xpTotal) {
-        lb.xpTotal = currentTotal;
-    }
-    lb.xp = lb.xpTotal;
+    // 1. Pastikan XP Total Leaderboard selalu utuh dan memegang angka tertinggi
+    let currentTotal = Math.max(Number(lb.xpTotal) || 0, Number(lb.xp) || 0);
+    lb.xpTotal = currentTotal;
+    lb.xp = currentTotal;
 
     // 2. Migrasi & Sinkronisasi Saldo COIN (Untuk Belanja Pet & Border)
     let spent = Number(lb.xpSpentTotal) || 0;
-    if (typeof lb.coin !== "number") {
-        if (typeof lb.xpTersedia === "number") {
-            lb.coin = Math.max(0, lb.xpTersedia);
-        } else {
-            lb.coin = Math.max(0, lb.xpTotal - spent);
-        }
+    if (typeof lb.coin === "number" && !isNaN(lb.coin)) {
+        lb.coin = Math.max(0, lb.coin);
+    } else if (typeof lb.xpTersedia === "number" && !isNaN(lb.xpTersedia)) {
+        lb.coin = Math.max(0, lb.xpTersedia);
+    } else {
+        lb.coin = Math.max(0, lb.xpTotal - spent);
     }
     lb.xpTersedia = lb.coin;
 
@@ -476,16 +267,15 @@ window.pastikanStrukturDualXPDanPet = function(uName) {
         if (!lb.myPetData.ownedPets) lb.myPetData.ownedPets = {};
         if (!lb.myPetData.foodInventory) lb.myPetData.foodInventory = {};
         if (!lb.myPetData.activeTheme) lb.myPetData.activeTheme = "default";
-        if (!Array.isArray(lb.myPetData.ownedThemes)) lb.myPetData.ownedThemes = [];
+        if (!Array.isArray(lb.myPetData.ownedThemes)) lb.myPetData.ownedThemes = Object.values(lb.myPetData.ownedThemes || {});
         if (!Array.isArray(lb.myPetData.ownedToys)) lb.myPetData.ownedToys = Object.values(lb.myPetData.ownedToys || {});
         if (!Array.isArray(lb.myPetData.ownedDecorations)) lb.myPetData.ownedDecorations = Object.values(lb.myPetData.ownedDecorations || {});
         if (!Array.isArray(lb.myPetData.ownedWardrobe)) lb.myPetData.ownedWardrobe = Object.values(lb.myPetData.ownedWardrobe || {});
-        
-        // Migrasi Active Decorations dari Array String ke Array Object (Untuk menyimpan koordinat X/Y Drag)
+
         let rawActiveDec = Object.values(lb.myPetData.activeDecorations || {});
         lb.myPetData.activeDecorations = rawActiveDec.map(function(dec) {
             if (typeof dec === "string") {
-                let dCfg = window.MY_PET_CATALOG.decorations.find(x => x.id === dec);
+                let dCfg = window.MY_PET_CATALOG.decorations.find(function(x) { return x.id === dec; });
                 let defSlot = dCfg ? dCfg.slot : "";
                 let left = "50%", bottom = "20%";
                 if (defSlot.includes("Kiri")) left = "20%"; else if (defSlot.includes("Kanan")) left = "80%";
@@ -495,6 +285,10 @@ window.pastikanStrukturDualXPDanPet = function(uName) {
             return dec;
         });
     }
+
+    // Tautkan ke userKey dan rawUser agar semua fungsi membaca objek yang sama
+    window.leaderboardSiswaData[userKey] = lb;
+    if (rawUser) window.leaderboardSiswaData[rawUser] = lb;
 
     return lb;
 };
@@ -519,7 +313,8 @@ window.gunakanCoinSiswa = function(hargaCoin, keterangan) {
 
     try {
         let uName = sessionStorage.getItem("username");
-        let lb = window.pastikanStrukturDualXPDanPet(uName);
+        let cleanKey = window.normalisasiKeySiswaPet(uName);
+        let lb = window.pastikanStrukturDualXPDanPet(cleanKey);
         if (!lb) return false;
 
         let biaya = Math.max(0, Number(hargaCoin) || 0);
@@ -532,7 +327,7 @@ window.gunakanCoinSiswa = function(hargaCoin, keterangan) {
         lb.xp = lb.xpTotal; // Jaga XP Leaderboard tetap utuh
 
         if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
-            window.simpanLeaderboardSiswaKeDB(uName, lb);
+            window.simpanLeaderboardSiswaKeDB(cleanKey, lb);
         }
         window.perbaruiTampilanSaldoXPPet();
         if (typeof window.perbaruiUIHeaderProfilSiswa === "function") {
