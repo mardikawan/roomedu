@@ -2337,18 +2337,21 @@ window.eksekusiGeneratePromptVI = function() {
     } else if (visual === "anatomi_2d") {
         namaVisualLabel = "ATLAS ANATOMI 2D ILMIAH (REFERENSI WIKIMEDIA / OPENSTAX + HOTSPOT INTERAKTIF)";
         let urlpetunjuk = refImgUrl
-            ? `window.atlasImageUrl = "${refImgUrl}";`
-            : `window.atlasImageUrl = "https://upload.wikimedia.org/wikipedia/commons/2/27/2611_Blood_Flow_in_the_Nephron.jpg"; /* GANTI URL INI JIKA ADA YANG LEBIH COCOK */`;
+            ? 'window.atlasImageUrl = "' + refImgUrl + '";'
+            : 'window.atlasImageUrl = "https://upload.wikimedia.org/wikipedia/commons/2/27/2611_Blood_Flow_in_the_Nephron.jpg"; /* GANTI URL INI JIKA ADA YANG LEBIH COCOK */';
         instruksiVisualKhusus =
-`3. SPESIFIKASI VISUAL KHUSUS — ATLAS ANATOMI 2D BERBASIS REFERENSI MEDIS ASLI:
-   - DILARANG KERAS merender gambar atlas menggunakan tag <img> atau <iframe> di dalam HTML!
-   - WAJIB gunakan variabel JS ini tepat di dalam <script> utama agar mesin kami bisa merendernya dengan aman bebas CORS:
-     ${urlpetunjuk}
-   - Di dalam #vi-stage-inner-wrap, cukup sediakan wadah kosong <div id="nodes-container" class="absolute inset-0 w-full h-full pointer-events-none"> (Mesin kami yang akan menggambar gambarnya secara otomatis di bawah wadah ini!).
-   - Tempatkan Pin Hotspot Bernomor (class="hotspot-wrap absolute -translate-x-1/2 -translate-y-1/2 pointer-events-auto cursor-pointer flex items-center gap-1.5") di dalam #nodes-container, dengan koordinat style left (%) dan top (%) yang menunjuk tepat ke bagian struktur pada gambar (Batas aman layar HP: left 15%-85%).
-   - Setiap Pin Hotspot WAJIB menggunakan event 'click' dengan event.stopPropagation() yang langsung mengisi dan membuka #info-active. DILARANG menggunakan event 'mousedown', 'pointerdown', 'mousemove', atau 'drag' buatan Anda karena itu akan MEMATIKAN fitur Zoom/Pan Camera mesin kami!
-   - Buat tombol Navigasi Titik (Sebelumnya/Selanjutnya) di dalam <div class="vi-docked-control-bar flex items-center justify-between px-4 py-2"> tepat di bawah #vi-stage-inner-wrap.
-   - Kotak ringkasan di #info-active: "STRUKTUR PENYUSUN & LETAK" dan "FUNGSI FISIOLOGIS / KLINIS".`;
+            '3. SPESIFIKASI VISUAL KHUSUS — ATLAS ANATOMI 2D BERBASIS REFERENSI MEDIS ASLI:\n' +
+            '   - DILARANG KERAS merender gambar atlas menggunakan tag <img> atau <iframe> di dalam HTML!\n' +
+            '   - WAJIB gunakan variabel JS ini tepat di dalam <script> utama agar mesin kami bisa merendernya dengan aman bebas CORS:\n' +
+            '     ' + urlpetunjuk + '\n' +
+            '   - Di dalam #vi-stage-inner-wrap, cukup sediakan wadah kosong <div id="nodes-container" class="absolute inset-0 w-full h-full pointer-events-none"> (Mesin kami yang akan menggambar gambarnya secara otomatis di bawah wadah ini!).\n' +
+            '   - ATURAN POSISI OFFSET PIN HOTSPOT (JANGAN PAS DI TENGAH OBJEK!):\n' +
+            '     * Tempatkan Pin Hotspot Bernomor (class="hotspot-wrap absolute -translate-x-1/2 -translate-y-1/2 pointer-events-auto cursor-pointer flex items-center gap-1.5") di dalam #nodes-container.\n' +
+            '     * JANGAN meletakkan koordinat left (%) dan top (%) tepat menimpa tengah-tengah detail struktur gambar agar visual struktur tidak tertutup kapsul pin!\n' +
+            '     * Geser posisi pin sedikit di ATAS, di BAWAH, atau di SAMPING KIRI/KANAN dekat struktur yang ditunjuk (offset ±5%–10% pada ruang yang lebih lega, rentang aman left: 18%–82%, top: 14%–86%, dengan jarak antar-pin minimal 12% agar tidak pernah bertumpuk).\n' +
+            '   - Setiap Pin Hotspot WAJIB menggunakan event "click" dengan event.stopPropagation() yang langsung mengisi dan membuka #info-active. DILARANG menggunakan event "mousedown", "pointerdown", "mousemove", atau "drag" buatan Anda karena itu akan MEMATIKAN fitur Zoom/Pan Camera dan Drag mesin kami!\n' +
+            '   - Buat tombol Navigasi Titik (Sebelumnya/Selanjutnya) di dalam <div class="vi-docked-control-bar flex items-center justify-between px-4 py-2"> tepat di bawah #vi-stage-inner-wrap.\n' +
+            '   - Kotak ringkasan di #info-active: "STRUKTUR PENYUSUN & LETAK" dan "FUNGSI FISIOLOGIS / KLINIS".';
     } else if (visual === "fisiologi") {
         namaVisualLabel = "FISIOLOGI (ANIMASI MEKANISME 60FPS + DOCKED CONTROL BAR TIPIS)";
         instruksiVisualKhusus =
