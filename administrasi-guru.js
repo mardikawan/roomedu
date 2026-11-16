@@ -767,10 +767,19 @@ window.editKolomUjianLedger = function(idx) {
         let rekapKelas = window.ambilObjekRekapKelas(kls);
         let dataLama = rekapKelas[oldName] || rekapKelas[safeOld];
         if (dataLama) {
+            Object.keys(dataLama).forEach(function(sKey) {
+                if (dataLama[sKey]) {
+                    dataLama[sKey].paketAsli = action;
+                }
+            });
             if (!window.adminRekapNilaiData[safeKls]) window.adminRekapNilaiData[safeKls] = {};
             window.adminRekapNilaiData[safeKls][safeNew] = dataLama;
             if (safeOld !== safeNew) delete window.adminRekapNilaiData[safeKls][safeOld];
-            delete window.adminRekapNilaiData[safeKls][oldName];
+            if (oldName !== safeNew) delete window.adminRekapNilaiData[safeKls][oldName];
+            if (window.adminRekapNilaiData[kls] && kls !== safeKls) {
+                delete window.adminRekapNilaiData[kls][oldName];
+                delete window.adminRekapNilaiData[kls][safeOld];
+            }
         }
         window.renderLedgerSiswa();
         if (typeof window.simpanLedgerMetaKeDB === "function") window.simpanLedgerMetaKeDB();
@@ -944,8 +953,9 @@ window.renderRemedialTabAdmin = function() {
             '<td style="font-size:15px; font-weight:900; color:#c0392b;">' + item.nilai.toFixed(1) + '</td>' +
             '<td style="font-size:14px; font-weight:bold; color:#d35400;">' + kkm + '</td>' +
             '<td>' +
-                '<div style="display:flex; gap:6px; justify-content:center;">' +
-                    '<button style="background:#27ae60; color:white; border:none; padding:5px 10px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;" onclick="window.tuntasRemedialSiswa(\'' + safeKlsAttr + '\', \'' + safeUjianAttr + '\', \'' + safeNamaAttr + '\', ' + kkm + ')">✅ Tuntas</button>' +
+                '<div style="display:flex; gap:6px; justify-content:center; flex-wrap:wrap;">' +
+                    '<button style="background:#0b3954; color:white; border:none; padding:5px 10px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;" title="Buka sesi ujian remedial CBT untuk evaluasi ini" onclick="window.aktifkanUjianRemedial(\'' + safeKlsAttr + '\', \'' + safeUjianAttr + '\', \'' + safeNamaAttr + '\', ' + kkm + ')">🚀 Mulai Remedial</button>' +
+                    '<button style="background:#27ae60; color:white; border:none; padding:5px 10px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;" title="Naikkan langsung ke nilai KKM di Ledger" onclick="window.tuntasRemedialSiswa(\'' + safeKlsAttr + '\', \'' + safeUjianAttr + '\', \'' + safeNamaAttr + '\', ' + kkm + ')">✅ Tuntas</button>' +
                     '<button style="background:#f1c40f; color:#2c3e50; border:none; padding:5px 10px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;" onclick="window.catatanSiswaBuka(\'' + safeKlsAttr + '\', \'' + safeNamaAttr + '\')">📝 Catatan</button>' +
                 '</div>' +
             '</td>' +
@@ -1070,8 +1080,16 @@ window.tuntasRemedialSiswa = function(kls, ujian, nama, nilaiKkm) {
 };
 
 window.aktifkanUjianRemedial = function(kls, paket, nama, maxKkm) {
-    if (!window.adminBankUjianData || !window.adminBankUjianData[paket]) {
-        return window.tampilkanCustomDialog("alert", "Bank Soal untuk ujian '" + paket + "' sudah tidak ada. Tidak bisa mengaktifkan remedial.", null, null);
+    if (typeof window.pastikanListenerBankUjianAktif === "function") {
+        window.pastikanListenerBankUjianAktif();
+    }
+    let safePkt = window.sanitasiKeyRekapFirebase(paket);
+    let targetPaketKey = (window.adminBankUjianData && window.adminBankUjianData[paket])
+        ? paket
+        : ((window.adminBankUjianData && window.adminBankUjianData[safePkt]) ? safePkt : null);
+
+    if (!targetPaketKey) {
+        return window.tampilkanCustomDialog("alert", "Bank Soal untuk ujian '" + paket + "' sudah tidak ada di Manajer Ujian. Silakan gunakan tombol '✅ Tuntas / Bypass KKM' atau buat kembali Bank Soalnya.", null, null);
     }
 
     window.tampilkanCustomDialog("confirm", "Aktifkan sesi ujian remedial '" + paket + "' untuk kelas " + kls + "?\n\n- Siswa akan melihat ini sebagai ujian normal.\n- Nilai yang masuk akan menimpa nilai lama di ledger yang sama.\n- Sistem akan membatasi nilai maksimalnya sebesar KKM (" + maxKkm + ").", null, function(isYes) {
@@ -1081,7 +1099,7 @@ window.aktifkanUjianRemedial = function(kls, paket, nama, maxKkm) {
 
         if (!window.adminUjianAktifData) window.adminUjianAktifData = {};
         window.adminUjianAktifData[kodeUnik] = {
-            paket: paket,
+            paket: targetPaketKey,
             kelas: kls,
             durasi: 90,
             waktuAktif: new Date().toISOString(),
@@ -1092,6 +1110,7 @@ window.aktifkanUjianRemedial = function(kls, paket, nama, maxKkm) {
         if (typeof window.simpanUjianAktifKeDB === "function") window.simpanUjianAktifKeDB();
 
         window.tutupModal('modal-remedial');
+        window.tutupModal('modal-administrasi');
         window.bukaModal('modal-manajer-ujian');
         window.bukaTabManajerUjian('tab-ujian-kontrol');
 
@@ -1689,6 +1708,8 @@ document.addEventListener("DOMContentLoaded", function() {
                     window.renderAdminData();
                     window.renderAbsensiAdmin();
                     window.renderAgendaAdmin();
+                    if (typeof window.renderLedgerSiswa === "function") window.renderLedgerSiswa();
+                    if (typeof window.renderRemedialTabAdmin === "function") window.renderRemedialTabAdmin();
                 }
             });
         });

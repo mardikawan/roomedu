@@ -698,76 +698,139 @@
         </div>
     </div>
     
-    <!-- MODAL AMBIL SOAL DARI BANK LATIHAN KE MANAJER UJIAN -->
+<!-- MODAL AMBIL SOAL DARI BANK LATIHAN KE MANAJER UJIAN & KUIS CONTENT BLOCK -->
     <div id="modal-ambil-soal-ujian" class="modal-overlay" onclick="if(event.target===this)tutupModal('modal-ambil-soal-ujian')">
-        <div class="modal-box" style="width: 600px;">
-            <div class="modal-header" style="background:#f4ecf7;">
-                <h3 style="color:#8e44ad; margin:0;">📥 Tarik Soal dari Bank Latihan</h3>
+        <div class="modal-box" style="width: 780px; max-width: 95vw; max-height: 90vh; display: flex; flex-direction: column;">
+            <div class="modal-header" style="background:#f4ecf7; border-bottom:1px solid #e8daef;">
+                <h3 style="color:#8e44ad; margin:0;">📥 Ambil Soal dari Bank Latihan</h3>
                 <button class="close-btn" onclick="tutupModal('modal-ambil-soal-ujian')">✕</button>
             </div>
-            <div class="modal-body" style="display:flex; flex-direction:column; gap:12px;">
-                <div style="display:flex; gap:10px;">
-                    <div style="flex:1;">
-                        <label style="font-weight:bold; font-size:12px;">Pilih Kelas:</label>
-                        <select id="ambil-soal-kelas" class="input-box" onchange="window.updateAmbilSoalMapel()"></select>
-                    </div>
-                    <div style="flex:1;">
-                        <label style="font-weight:bold; font-size:12px;">Pilih Mapel:</label>
-                        <select id="ambil-soal-mapel" class="input-box" onchange="window.updateAmbilSoalBab()"></select>
-                    </div>
-                </div>
+            <div class="modal-body" style="display:flex; flex-direction:column; gap:14px; flex:1; overflow-y:auto; padding:18px;">
                 
-                <label style="font-weight:bold; font-size:12px;">Centang Bab (Bisa lebih dari 1):</label>
-                <div id="ambil-soal-bab-container" style="background:#f8f9fa; border:1px solid #ddd; padding:10px; border-radius:6px; max-height:120px; overflow-y:auto; display:flex; flex-direction:column; gap:6px;">
-                    <!-- Checkbox Bab akan dirender di sini -->
+                <!-- 2 PERSEGI PANJANG KECIL DI PALING ATAS (PILIH MODE AMBIL SOAL) -->
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; background:#f1f5f9; padding:6px; border-radius:10px; border:1px solid #cbd5e1; flex-shrink:0;">
+                    <button type="button" id="tab-btn-ambil-acak" onclick="window.gantiModeAmbilSoal('acak')" style="padding:10px 14px; border:none; border-radius:8px; background:#8e44ad; color:white; font-weight:800; font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 2px 6px rgba(142,68,173,0.3); transition:0.2s;">
+                        🎲 1. Ambil Soal Acak
+                    </button>
+                    <button type="button" id="tab-btn-ambil-spesifik" onclick="window.gantiModeAmbilSoal('spesifik')" style="padding:10px 14px; border:none; border-radius:8px; background:#ffffff; color:#475569; font-weight:800; font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; border:1px solid #cbd5e1; transition:0.2s;">
+                        ☑️ 2. Ambil Soal Spesifik
+                    </button>
                 </div>
 
-                <label style="font-weight:bold; font-size:12px; margin-top:5px;">Atur Jumlah Tarik Soal (Isi 0 jika tidak ditarik):</label>
-                <div style="background:#f8f9fa; border:1px solid #ddd; padding:10px; border-radius:6px; margin-bottom:10px; overflow-x:auto;">
-                    <table style="width:100%; text-align:center; border-collapse:collapse; font-size:12px;">
-                        <thead>
-                            <tr style="background:#e9ecef;">
-                                <th style="padding:6px; border:1px solid #ccc;">Tipe</th>
-                                <th style="padding:6px; border:1px solid #ccc; color:#27ae60;">C1</th>
-                                <th style="padding:6px; border:1px solid #ccc; color:#f39c12;">C2</th>
-                                <th style="padding:6px; border:1px solid #ccc; color:#c0392b;">HOTS</th>
-                                <th style="padding:6px; border:1px solid #ccc; background:#d4edda;">Stok Tersedia di Bank</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td style="padding:6px; border:1px solid #ccc; font-weight:bold;">PG</td>
-                                <td style="padding:6px; border:1px solid #ccc;"><input type="number" id="tarik-pg-c1" min="0" value="0" class="input-box" style="width:45px; margin:0; padding:4px; text-align:center;"></td>
-                                <td style="padding:6px; border:1px solid #ccc;"><input type="number" id="tarik-pg-c2" min="0" value="0" class="input-box" style="width:45px; margin:0; padding:4px; text-align:center;"></td>
-                                <td style="padding:6px; border:1px solid #ccc;"><input type="number" id="tarik-pg-hots" min="0" value="0" class="input-box" style="width:45px; margin:0; padding:4px; text-align:center;"></td>
-                                <td style="padding:6px; border:1px solid #ccc; font-size:11px;" id="stok-pg">0 C1 | 0 C2 | 0 HOTS</td>
-                            </tr>
-                            <tr>
-                                <td style="padding:6px; border:1px solid #ccc; font-weight:bold;">PGK</td>
-                                <td style="padding:6px; border:1px solid #ccc;"><input type="number" id="tarik-pgk-c1" min="0" value="0" class="input-box" style="width:45px; margin:0; padding:4px; text-align:center;"></td>
-                                <td style="padding:6px; border:1px solid #ccc;"><input type="number" id="tarik-pgk-c2" min="0" value="0" class="input-box" style="width:45px; margin:0; padding:4px; text-align:center;"></td>
-                                <td style="padding:6px; border:1px solid #ccc;"><input type="number" id="tarik-pgk-hots" min="0" value="0" class="input-box" style="width:45px; margin:0; padding:4px; text-align:center;"></td>
-                                <td style="padding:6px; border:1px solid #ccc; font-size:11px;" id="stok-pgk">0 C1 | 0 C2 | 0 HOTS</td>
-                            </tr>
-                            <tr>
-                                <td style="padding:6px; border:1px solid #ccc; font-weight:bold;">Isian</td>
-                                <td style="padding:6px; border:1px solid #ccc;"><input type="number" id="tarik-is-c1" min="0" value="0" class="input-box" style="width:45px; margin:0; padding:4px; text-align:center;"></td>
-                                <td style="padding:6px; border:1px solid #ccc;"><input type="number" id="tarik-is-c2" min="0" value="0" class="input-box" style="width:45px; margin:0; padding:4px; text-align:center;"></td>
-                                <td style="padding:6px; border:1px solid #ccc;"><input type="number" id="tarik-is-hots" min="0" value="0" class="input-box" style="width:45px; margin:0; padding:4px; text-align:center;"></td>
-                                <td style="padding:6px; border:1px solid #ccc; font-size:11px;" id="stok-is">0 C1 | 0 C2 | 0 HOTS</td>
-                            </tr>
-                            <tr>
-                                <td style="padding:6px; border:1px solid #ccc; font-weight:bold;">Essay</td>
-                                <td style="padding:6px; border:1px solid #ccc;"><input type="number" id="tarik-es-c1" min="0" value="0" class="input-box" style="width:45px; margin:0; padding:4px; text-align:center;"></td>
-                                <td style="padding:6px; border:1px solid #ccc;"><input type="number" id="tarik-es-c2" min="0" value="0" class="input-box" style="width:45px; margin:0; padding:4px; text-align:center;"></td>
-                                <td style="padding:6px; border:1px solid #ccc;"><input type="number" id="tarik-es-hots" min="0" value="0" class="input-box" style="width:45px; margin:0; padding:4px; text-align:center;"></td>
-                                <td style="padding:6px; border:1px solid #ccc; font-size:11px;" id="stok-es">0 C1 | 0 C2 | 0 HOTS</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                <!-- MODE 1: AMBIL SOAL ACAK (FITUR LAMA TETAP UTUH) -->
+                <div id="view-ambil-soal-acak" style="display:flex; flex-direction:column; gap:12px;">
+                    <div style="display:flex; gap:10px;">
+                        <div style="flex:1;">
+                            <label style="font-weight:bold; font-size:12px;">Pilih Kelas:</label>
+                            <select id="ambil-soal-kelas" class="input-box" style="margin-bottom:0;" onchange="window.updateAmbilSoalMapel()"></select>
+                        </div>
+                        <div style="flex:1;">
+                            <label style="font-weight:bold; font-size:12px;">Pilih Mapel:</label>
+                            <select id="ambil-soal-mapel" class="input-box" style="margin-bottom:0;" onchange="window.updateAmbilSoalBab()"></select>
+                        </div>
+                    </div>
+                    
+                    <label style="font-weight:bold; font-size:12px;">Centang Bab (Bisa lebih dari 1):</label>
+                    <div id="ambil-soal-bab-container" style="background:#f8f9fa; border:1px solid #ddd; padding:10px; border-radius:6px; max-height:120px; overflow-y:auto; display:flex; flex-direction:column; gap:6px;">
+                        <!-- Checkbox Bab akan dirender di sini -->
+                    </div>
+
+                    <label style="font-weight:bold; font-size:12px; margin-top:5px;">Atur Jumlah Tarik Soal (Isi 0 jika tidak ditarik):</label>
+                    <div style="background:#f8f9fa; border:1px solid #ddd; padding:10px; border-radius:6px; margin-bottom:4px; overflow-x:auto;">
+                        <table style="width:100%; text-align:center; border-collapse:collapse; font-size:12px;">
+                            <thead>
+                                <tr style="background:#e9ecef;">
+                                    <th style="padding:6px; border:1px solid #ccc;">Tipe</th>
+                                    <th style="padding:6px; border:1px solid #ccc; color:#27ae60;">C1</th>
+                                    <th style="padding:6px; border:1px solid #ccc; color:#f39c12;">C2</th>
+                                    <th style="padding:6px; border:1px solid #ccc; color:#c0392b;">HOTS</th>
+                                    <th style="padding:6px; border:1px solid #ccc; background:#d4edda;">Stok Tersedia di Bank</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td style="padding:6px; border:1px solid #ccc; font-weight:bold;">PG</td>
+                                    <td style="padding:6px; border:1px solid #ccc;"><input type="number" id="tarik-pg-c1" min="0" value="0" class="input-box" style="width:45px; margin:0; padding:4px; text-align:center;"></td>
+                                    <td style="padding:6px; border:1px solid #ccc;"><input type="number" id="tarik-pg-c2" min="0" value="0" class="input-box" style="width:45px; margin:0; padding:4px; text-align:center;"></td>
+                                    <td style="padding:6px; border:1px solid #ccc;"><input type="number" id="tarik-pg-hots" min="0" value="0" class="input-box" style="width:45px; margin:0; padding:4px; text-align:center;"></td>
+                                    <td style="padding:6px; border:1px solid #ccc; font-size:11px;" id="stok-pg">0 C1 | 0 C2 | 0 HOTS</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding:6px; border:1px solid #ccc; font-weight:bold;">PGK</td>
+                                    <td style="padding:6px; border:1px solid #ccc;"><input type="number" id="tarik-pgk-c1" min="0" value="0" class="input-box" style="width:45px; margin:0; padding:4px; text-align:center;"></td>
+                                    <td style="padding:6px; border:1px solid #ccc;"><input type="number" id="tarik-pgk-c2" min="0" value="0" class="input-box" style="width:45px; margin:0; padding:4px; text-align:center;"></td>
+                                    <td style="padding:6px; border:1px solid #ccc;"><input type="number" id="tarik-pgk-hots" min="0" value="0" class="input-box" style="width:45px; margin:0; padding:4px; text-align:center;"></td>
+                                    <td style="padding:6px; border:1px solid #ccc; font-size:11px;" id="stok-pgk">0 C1 | 0 C2 | 0 HOTS</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding:6px; border:1px solid #ccc; font-weight:bold;">Isian</td>
+                                    <td style="padding:6px; border:1px solid #ccc;"><input type="number" id="tarik-is-c1" min="0" value="0" class="input-box" style="width:45px; margin:0; padding:4px; text-align:center;"></td>
+                                    <td style="padding:6px; border:1px solid #ccc;"><input type="number" id="tarik-is-c2" min="0" value="0" class="input-box" style="width:45px; margin:0; padding:4px; text-align:center;"></td>
+                                    <td style="padding:6px; border:1px solid #ccc;"><input type="number" id="tarik-is-hots" min="0" value="0" class="input-box" style="width:45px; margin:0; padding:4px; text-align:center;"></td>
+                                    <td style="padding:6px; border:1px solid #ccc; font-size:11px;" id="stok-is">0 C1 | 0 C2 | 0 HOTS</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding:6px; border:1px solid #ccc; font-weight:bold;">Essay</td>
+                                    <td style="padding:6px; border:1px solid #ccc;"><input type="number" id="tarik-es-c1" min="0" value="0" class="input-box" style="width:45px; margin:0; padding:4px; text-align:center;"></td>
+                                    <td style="padding:6px; border:1px solid #ccc;"><input type="number" id="tarik-es-c2" min="0" value="0" class="input-box" style="width:45px; margin:0; padding:4px; text-align:center;"></td>
+                                    <td style="padding:6px; border:1px solid #ccc;"><input type="number" id="tarik-es-hots" min="0" value="0" class="input-box" style="width:45px; margin:0; padding:4px; text-align:center;"></td>
+                                    <td style="padding:6px; border:1px solid #ccc; font-size:11px;" id="stok-es">0 C1 | 0 C2 | 0 HOTS</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <button class="btn-action" style="background:#8e44ad;" onclick="window.eksekusiTarikSoalKeUjian()">Tarik Soal Acak ke Editor 🚀</button>
                 </div>
 
-                <button class="btn-action" style="background:#8e44ad;" onclick="window.eksekusiTarikSoalKeUjian()">Tarik Soal ke Editor 🚀</button>
+                <!-- MODE 2: AMBIL SOAL SPESIFIK (PILIH & CENTANG MANUAL PER SOAL) -->
+                <div id="view-ambil-soal-spesifik" style="display:none; flex-direction:column; gap:12px;">
+                    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:10px; background:#f8fafc; padding:12px; border-radius:8px; border:1px solid #e2e8f0;">
+                        <div>
+                            <label style="font-weight:bold; font-size:11px; color:#2c3e50; display:block; margin-bottom:4px;">1. Pilih Kelas:</label>
+                            <select id="spesifik-soal-kelas" class="input-box" style="margin:0; font-weight:bold; padding:8px;" onchange="window.updateSpesifikSoalMapel()"></select>
+                        </div>
+                        <div>
+                            <label style="font-weight:bold; font-size:11px; color:#2c3e50; display:block; margin-bottom:4px;">2. Pilih Mapel:</label>
+                            <select id="spesifik-soal-mapel" class="input-box" style="margin:0; font-weight:bold; padding:8px;" onchange="window.updateSpesifikSoalBabDanLevel()"></select>
+                        </div>
+                        <div>
+                            <label style="font-weight:bold; font-size:11px; color:#2c3e50; display:block; margin-bottom:4px;">3. Pilih Bab Materi:</label>
+                            <select id="spesifik-soal-bab" class="input-box" style="margin:0; font-weight:bold; padding:8px;" onchange="window.renderDaftarSoalSpesifik()"></select>
+                        </div>
+                        <div>
+                            <label style="font-weight:bold; font-size:11px; color:#2c3e50; display:block; margin-bottom:4px;">4. Tingkat Kesulitan:</label>
+                            <select id="spesifik-soal-kesulitan" class="input-box" style="margin:0; font-weight:bold; padding:8px; color:#8e44ad;" onchange="window.renderDaftarSoalSpesifik()">
+                                <option value="">-- Menunggu Mapel --</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Bar Info & Tombol Centang Semua -->
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; background:#f4ecf7; padding:8px 12px; border-radius:8px; border:1px solid #d7bde2;">
+                        <div style="font-size:12px; font-weight:bold; color:#2c3e50;">
+                            📋 <span id="spesifik-info-jumlah-tampil">0</span> soal ditampilkan | 
+                            <span style="color:#8e44ad;">☑️ <b id="spesifik-info-jumlah-terpilih">0</b> soal dicentang</span>
+                        </div>
+                        <div style="display:flex; gap:6px;">
+                            <button type="button" class="btn-action" style="background:#27ae60; width:auto; padding:5px 10px; font-size:11px;" onclick="window.toggleCentangSemuaSoalSpesifik(true)">☑️ Centang Semua di Daftar Ini</button>
+                            <button type="button" class="btn-action" style="background:#e74c3c; width:auto; padding:5px 10px; font-size:11px;" onclick="window.resetPilihanSoalSpesifik()">🗑️ Reset Pilihan</button>
+                        </div>
+                    </div>
+
+                    <!-- Area Daftar Bank Soal yang Bisa Dicentang -->
+                    <div id="spesifik-daftar-soal-container" style="background:#f8f9fa; border:1px solid #cbd5e1; border-radius:8px; padding:12px; max-height:340px; min-height:180px; overflow-y:auto; display:flex; flex-direction:column; gap:10px;">
+                        <div style="text-align:center; padding:35px 15px; color:#7f8c8d; font-size:13px;">
+                            Silakan pilih <b>Kelas</b>, <b>Mapel</b>, dan <b>Tingkat Kesulitan</b> di atas untuk membuka daftar soal.
+                        </div>
+                    </div>
+
+                    <!-- Tombol Paling Bawah: Ambil Soal -->
+                    <button type="button" id="btn-eksekusi-ambil-spesifik" class="btn-action" style="background:#8e44ad; font-size:14px; padding:12px; font-weight:800;" onclick="window.eksekusiAmbilSoalSpesifik()">
+                        📥 Ambil Soal (0 Terpilih) 🚀
+                    </button>
+                </div>
+
             </div>
         </div>
     </div>

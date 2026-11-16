@@ -1134,26 +1134,89 @@ window.hapusLiveMonitorData = function() {
 // =========================================================================
 // 5. FITUR TARIK SOAL DARI BANK LATIHAN & UPLOAD DOKUMEN LOKAL (PDF/DOCX)
 // =========================================================================
+window.modeAmbilSoalAktif = 'acak';
+window.selectedSoalSpesifikMap = {};
+window.currentSpesifikRenderedList = [];
+
 window.bukaModalAmbilSoal = function(isUntukKuisInline) {
     window.isTarikKeKuisInline = Boolean(isUntukKuisInline);
+    window.selectedSoalSpesifikMap = {};
+    window.currentSpesifikRenderedList = [];
 
-    let selKelas = document.getElementById('ambil-soal-kelas');
     let bank = window.adminBankLatihanData || {};
     let kelasSet = new Set();
     Object.values(bank).forEach(function(item) { if (item && item.kelas) kelasSet.add(item.kelas); });
 
     let htmlK = '<option value="">-- Pilih Kelas --</option>';
     Array.from(kelasSet).sort().forEach(function(k) { htmlK += '<option value="' + k + '">' + k + '</option>'; });
-    if (selKelas) selKelas.innerHTML = htmlK;
 
+    // Inisialisasi Dropdown Tab 1 (Acak)
+    let selKelas = document.getElementById('ambil-soal-kelas');
+    if (selKelas) selKelas.innerHTML = htmlK;
     let selMapel = document.getElementById('ambil-soal-mapel');
     if (selMapel) selMapel.innerHTML = '<option value="">-- Tunggu Kelas --</option>';
-
     let container = document.getElementById('ambil-soal-bab-container');
     if (container) container.innerHTML = '';
 
+    // Inisialisasi Dropdown Tab 2 (Spesifik)
+    let selKelasSp = document.getElementById('spesifik-soal-kelas');
+    if (selKelasSp) selKelasSp.innerHTML = htmlK;
+    let selMapelSp = document.getElementById('spesifik-soal-mapel');
+    if (selMapelSp) selMapelSp.innerHTML = '<option value="">-- Tunggu Kelas --</option>';
+    let selBabSp = document.getElementById('spesifik-soal-bab');
+    if (selBabSp) selBabSp.innerHTML = '<option value="">-- Tunggu Mapel --</option>';
+    let selKesSp = document.getElementById('spesifik-soal-kesulitan');
+    if (selKesSp) selKesSp.innerHTML = '<option value="">-- Tunggu Mapel --</option>';
+
+    let listSp = document.getElementById('spesifik-daftar-soal-container');
+    if (listSp) {
+        listSp.innerHTML = '<div style="text-align:center; padding:35px 15px; color:#7f8c8d; font-size:13px;">Silakan pilih <b>Kelas</b>, <b>Mapel</b>, dan <b>Tingkat Kesulitan</b> di atas untuk membuka daftar soal.</div>';
+    }
+
     window.resetAmbilSoalPersen();
+    window.perbaruiCounterSoalSpesifik();
+    window.gantiModeAmbilSoal('acak');
     window.bukaModal('modal-ambil-soal-ujian');
+};
+
+window.gantiModeAmbilSoal = function(mode) {
+    window.modeAmbilSoalAktif = (mode === 'spesifik') ? 'spesifik' : 'acak';
+    let btnAcak = document.getElementById('tab-btn-ambil-acak');
+    let btnSpesifik = document.getElementById('tab-btn-ambil-spesifik');
+    let viewAcak = document.getElementById('view-ambil-soal-acak');
+    let viewSpesifik = document.getElementById('view-ambil-soal-spesifik');
+
+    if (window.modeAmbilSoalAktif === 'acak') {
+        if (btnAcak) {
+            btnAcak.style.background = '#8e44ad';
+            btnAcak.style.color = '#ffffff';
+            btnAcak.style.border = 'none';
+            btnAcak.style.boxShadow = '0 2px 6px rgba(142,68,173,0.3)';
+        }
+        if (btnSpesifik) {
+            btnSpesifik.style.background = '#ffffff';
+            btnSpesifik.style.color = '#475569';
+            btnSpesifik.style.border = '1px solid #cbd5e1';
+            btnSpesifik.style.boxShadow = 'none';
+        }
+        if (viewAcak) viewAcak.style.display = 'flex';
+        if (viewSpesifik) viewSpesifik.style.display = 'none';
+    } else {
+        if (btnSpesifik) {
+            btnSpesifik.style.background = '#8e44ad';
+            btnSpesifik.style.color = '#ffffff';
+            btnSpesifik.style.border = 'none';
+            btnSpesifik.style.boxShadow = '0 2px 6px rgba(142,68,173,0.3)';
+        }
+        if (btnAcak) {
+            btnAcak.style.background = '#ffffff';
+            btnAcak.style.color = '#475569';
+            btnAcak.style.border = '1px solid #cbd5e1';
+            btnAcak.style.boxShadow = 'none';
+        }
+        if (viewAcak) viewAcak.style.display = 'none';
+        if (viewSpesifik) viewSpesifik.style.display = 'flex';
+    }
 };
 
 window.updateAmbilSoalMapel = function() {
@@ -1240,6 +1303,63 @@ window.resetAmbilSoalPersen = function() {
     window.updateInfoStokTarikSoal();
 };
 
+// FUNGSI PEMBANTU: MEMASUKKAN KUMPULAN SOAL KE KUIS INLINE ATAU EDITOR UJIAN
+window.masukkanSoalKeTargetAmbil = function(hasilSoalKumpulan, pesanSukses) {
+    if (!Array.isArray(hasilSoalKumpulan) || hasilSoalKumpulan.length === 0) return;
+
+    if (window.isTarikKeKuisInline && window.targetQuizBlockIndex >= 0) {
+        let blokKuis = window.contentBlocksData[window.targetQuizBlockIndex];
+        if (!blokKuis.questions) blokKuis.questions = [];
+
+        let finalInlineArr = hasilSoalKumpulan.map(function(q) {
+            let nQ = Object.assign({}, q);
+            let t = (nQ.type || nQ.tipe || 'PG').toUpperCase();
+            nQ.type = (t === 'IS' || t === 'ISIAN' || t === 'SHORT_ANSWER') ? 'short_answer' : (t === 'ESSAY' || t === 'ESAI' ? 'essay' : (t === 'PGK' ? 'pgk' : 'mc'));
+            nQ.options = nQ.options ? nQ.options.map(function(o) { return (typeof o === 'object' ? o.text : o); }) : [];
+
+            if (nQ.type === 'short_answer' || nQ.type === 'essay') {
+                nQ.correctAnswers = Array.isArray(nQ.correct) ? nQ.correct : [nQ.correct];
+            } else if (nQ.type === 'pgk') {
+                nQ.correctIndices = [];
+                let nHuruf = window.normalisasiKunciPGK(nQ.correct, nQ.options);
+                nHuruf.forEach(function(h) {
+                    let idx = h.toUpperCase().charCodeAt(0) - 65;
+                    if (idx >= 0 && idx < 10) nQ.correctIndices.push(idx);
+                });
+            } else {
+                let kStr = (nQ.correct && nQ.correct[0]) ? nQ.correct[0].toUpperCase() : 'A';
+                nQ.correctIndex = kStr.charCodeAt(0) - 65;
+            }
+            return nQ;
+        });
+
+        blokKuis.questions.push.apply(blokKuis.questions, finalInlineArr);
+        window.tutupModal('modal-ambil-soal-ujian');
+        window.renderBlocks();
+        if (window.simpanKeDB) window.simpanKeDB();
+        alert(pesanSukses);
+    } else {
+        let textArea = document.getElementById('admin-bu-text');
+        let convertedText = window.konversiSoalKeTeksMentah(hasilSoalKumpulan);
+
+        convertedText = convertedText.split(/\n\n(?=Soal:)/).join('\n\n---\n\n');
+
+        if (textArea && textArea.value.trim() !== "") textArea.value += "\n\n---\n\n" + convertedText;
+        else if (textArea) textArea.value = convertedText;
+
+        window.tempSoalUjianParsed.push.apply(window.tempSoalUjianParsed, hasilSoalKumpulan);
+        window.analisisSoalOtomatis();
+        window.tutupModal('modal-ambil-soal-ujian');
+
+        if (window.selectedBankUjianName && window.adminBankUjianData[window.selectedBankUjianName]) {
+            window.adminBankUjianData[window.selectedBankUjianName].soal = window.tempSoalUjianParsed;
+            window.adminBankUjianData[window.selectedBankUjianName].bobot = window.tempBobotUjian;
+            if (typeof window.simpanBankUjianKeDB === "function") window.simpanBankUjianKeDB();
+        }
+        alert(pesanSukses);
+    }
+};
+
 window.eksekusiTarikSoalKeUjian = function() {
     let kelas = document.getElementById('ambil-soal-kelas').value;
     let mapel = document.getElementById('ambil-soal-mapel').value;
@@ -1301,67 +1421,256 @@ window.eksekusiTarikSoalKeUjian = function() {
 
     hasilSoalKumpulan.sort(function() { return Math.random() - 0.5; });
 
-    if (window.isTarikKeKuisInline && window.targetQuizBlockIndex >= 0) {
-        let blokKuis = window.contentBlocksData[window.targetQuizBlockIndex];
-        if (!blokKuis.questions) blokKuis.questions = [];
+    let namaTarget = window.isTarikKeKuisInline ? "Kuis Inline" : "editor";
+    let pesan = peringatanStok.length > 0
+        ? '⚠️ Berhasil menarik ' + totalDitarik + ' soal ke ' + namaTarget + '.\n\nStok tidak mencukupi untuk kategori berikut:\n' + peringatanStok.join('\n')
+        : '✅ Berhasil menarik tepat ' + totalDitarik + ' soal ke ' + namaTarget + ' secara acak!';
 
-        let finalInlineArr = hasilSoalKumpulan.map(function(q) {
-            let nQ = Object.assign({}, q);
-            let t = (nQ.type || nQ.tipe || 'PG').toUpperCase();
-            nQ.type = (t === 'IS' || t === 'ISIAN' || t === 'SHORT_ANSWER') ? 'short_answer' : (t === 'ESSAY' || t === 'ESAI' ? 'essay' : (t === 'PGK' ? 'pgk' : 'mc'));
-            nQ.options = nQ.options ? nQ.options.map(function(o) { return (typeof o === 'object' ? o.text : o); }) : [];
+    window.masukkanSoalKeTargetAmbil(hasilSoalKumpulan, pesan);
+};
 
-            if (nQ.type === 'short_answer' || nQ.type === 'essay') {
-                nQ.correctAnswers = Array.isArray(nQ.correct) ? nQ.correct : [nQ.correct];
-            } else if (nQ.type === 'pgk') {
-                nQ.correctIndices = [];
-                let nHuruf = window.normalisasiKunciPGK(nQ.correct, nQ.options);
-                nHuruf.forEach(function(h) {
-                    let idx = h.toUpperCase().charCodeAt(0) - 65;
-                    if (idx >= 0 && idx < 10) nQ.correctIndices.push(idx);
-                });
-            } else {
-                let kStr = (nQ.correct && nQ.correct[0]) ? nQ.correct[0].toUpperCase() : 'A';
-                nQ.correctIndex = kStr.charCodeAt(0) - 65;
-            }
-            return nQ;
-        });
+// =========================================================================
+// LOGIKA MODE 2: AMBIL SOAL SPESIFIK (FILTER DROPDOWN & CENTANG PER SOAL)
+// =========================================================================
+window.updateSpesifikSoalMapel = function() {
+    let kelas = document.getElementById('spesifik-soal-kelas').value;
+    let selMapel = document.getElementById('spesifik-soal-mapel');
+    let selBab = document.getElementById('spesifik-soal-bab');
+    let selKes = document.getElementById('spesifik-soal-kesulitan');
 
-        blokKuis.questions.push.apply(blokKuis.questions, finalInlineArr);
-        window.tutupModal('modal-ambil-soal-ujian');
-        window.renderBlocks();
-        if (window.simpanKeDB) window.simpanKeDB();
-
-        if (peringatanStok.length > 0) {
-            alert('⚠️ Berhasil menarik ' + totalDitarik + ' soal ke Kuis Inline.\n\nStok tidak mencukupi untuk kategori berikut:\n' + peringatanStok.join('\n'));
-        } else {
-            alert('✅ Berhasil menarik tepat ' + totalDitarik + ' soal ke Kuis Inline secara acak!');
-        }
-    } else {
-        let textArea = document.getElementById('admin-bu-text');
-        let convertedText = window.konversiSoalKeTeksMentah(hasilSoalKumpulan);
-
-        convertedText = convertedText.split(/\n\n(?=Soal:)/).join('\n\n---\n\n');
-
-        if (textArea && textArea.value.trim() !== "") textArea.value += "\n\n---\n\n" + convertedText;
-        else if (textArea) textArea.value = convertedText;
-
-        window.tempSoalUjianParsed.push.apply(window.tempSoalUjianParsed, hasilSoalKumpulan);
-        window.analisisSoalOtomatis();
-        window.tutupModal('modal-ambil-soal-ujian');
-
-        if (window.selectedBankUjianName && window.adminBankUjianData[window.selectedBankUjianName]) {
-            window.adminBankUjianData[window.selectedBankUjianName].soal = window.tempSoalUjianParsed;
-            window.adminBankUjianData[window.selectedBankUjianName].bobot = window.tempBobotUjian;
-            if (typeof window.simpanBankUjianKeDB === "function") window.simpanBankUjianKeDB();
-        }
-
-        if (peringatanStok.length > 0) {
-            alert('⚠️ Berhasil menarik ' + totalDitarik + ' soal ke editor.\n\nStok tidak mencukupi untuk kategori berikut:\n' + peringatanStok.join('\n'));
-        } else {
-            alert('✅ Berhasil menarik tepat ' + totalDitarik + ' soal ke editor secara acak!');
-        }
+    if (!kelas) {
+        selMapel.innerHTML = '<option value="">-- Tunggu Kelas --</option>';
+        selBab.innerHTML = '<option value="">-- Tunggu Mapel --</option>';
+        selKes.innerHTML = '<option value="">-- Tunggu Mapel --</option>';
+        window.renderDaftarSoalSpesifik();
+        return;
     }
+
+    let bank = window.adminBankLatihanData || {};
+    let mapelSet = new Set();
+    Object.values(bank).forEach(function(item) {
+        if (item && item.kelas === kelas && item.mapel) mapelSet.add(item.mapel);
+    });
+
+    let htmlM = '<option value="">-- Pilih Mapel --</option>';
+    Array.from(mapelSet).sort().forEach(function(m) {
+        htmlM += '<option value="' + m + '">' + m + '</option>';
+    });
+    selMapel.innerHTML = htmlM;
+    selBab.innerHTML = '<option value="">-- Tunggu Mapel --</option>';
+    selKes.innerHTML = '<option value="">-- Tunggu Mapel --</option>';
+    window.renderDaftarSoalSpesifik();
+};
+
+window.updateSpesifikSoalBabDanLevel = function() {
+    let kelas = document.getElementById('spesifik-soal-kelas').value;
+    let mapel = document.getElementById('spesifik-soal-mapel').value;
+    let selBab = document.getElementById('spesifik-soal-bab');
+    let selKes = document.getElementById('spesifik-soal-kesulitan');
+
+    if (!kelas || !mapel) {
+        selBab.innerHTML = '<option value="">-- Tunggu Mapel --</option>';
+        selKes.innerHTML = '<option value="">-- Tunggu Mapel --</option>';
+        window.renderDaftarSoalSpesifik();
+        return;
+    }
+
+    let bank = window.adminBankLatihanData || {};
+    let babSet = new Set();
+    let levelSet = new Set();
+
+    Object.values(bank).forEach(function(item) {
+        if (item && item.kelas === kelas && item.mapel === mapel) {
+            if (item.bab) babSet.add(item.bab);
+            if (item.kesulitan) levelSet.add(String(item.kesulitan).toUpperCase().trim());
+        }
+    });
+
+    let htmlBab = '<option value="SEMUA">📚 Semua Bab (' + babSet.size + ' Bab)</option>';
+    Array.from(babSet).sort().forEach(function(b) {
+        htmlBab += '<option value="' + b.replace(/"/g, '&quot;') + '">' + b + '</option>';
+    });
+    selBab.innerHTML = htmlBab;
+
+    let urutanLvl = ['C1', 'C2', 'HOTS'];
+    let htmlKes = '<option value="SEMUA">⚡ Semua Tingkat (C1, C2, HOTS)</option>';
+    urutanLvl.forEach(function(lvl) {
+        if (levelSet.has(lvl)) {
+            htmlKes += '<option value="' + lvl + '">Tingkat ' + lvl + '</option>';
+        }
+    });
+    selKes.innerHTML = htmlKes;
+
+    window.renderDaftarSoalSpesifik();
+};
+
+window.renderDaftarSoalSpesifik = function() {
+    let kelas = document.getElementById('spesifik-soal-kelas') ? document.getElementById('spesifik-soal-kelas').value : '';
+    let mapel = document.getElementById('spesifik-soal-mapel') ? document.getElementById('spesifik-soal-mapel').value : '';
+    let bab = document.getElementById('spesifik-soal-bab') ? document.getElementById('spesifik-soal-bab').value : '';
+    let kesulitan = document.getElementById('spesifik-soal-kesulitan') ? document.getElementById('spesifik-soal-kesulitan').value : '';
+    let container = document.getElementById('spesifik-daftar-soal-container');
+    let infoTampil = document.getElementById('spesifik-info-jumlah-tampil');
+
+    if (!container) return;
+
+    if (!kelas || !mapel || !kesulitan) {
+        window.currentSpesifikRenderedList = [];
+        if (infoTampil) infoTampil.innerText = '0';
+        container.innerHTML = '<div style="text-align:center; padding:35px 15px; color:#7f8c8d; font-size:13px;">Silakan pilih <b>Kelas</b>, <b>Mapel</b>, dan <b>Tingkat Kesulitan</b> di atas untuk membuka daftar soal.</div>';
+        window.perbaruiCounterSoalSpesifik();
+        return;
+    }
+
+    let bank = window.adminBankLatihanData || {};
+    let daftarTampil = [];
+
+    Object.keys(bank).sort().forEach(function(bankKey) {
+        let item = bank[bankKey];
+        if (!item || item.kelas !== kelas || item.mapel !== mapel) return;
+        if (bab && bab !== 'SEMUA' && item.bab !== bab) return;
+
+        let lvlItem = String(item.kesulitan || 'C1').toUpperCase().trim();
+        if (kesulitan !== 'SEMUA' && lvlItem !== kesulitan) return;
+
+        let arrSoal = Array.isArray(item.soal) ? item.soal : Object.values(item.soal || {});
+        arrSoal.forEach(function(q, qIdx) {
+            if (!q || !q.question) return;
+            let uniqueId = bankKey + '__' + qIdx;
+            daftarTampil.push({
+                uid: uniqueId,
+                bab: item.bab || '-',
+                kesulitan: lvlItem,
+                soalObj: q
+            });
+        });
+    });
+
+    window.currentSpesifikRenderedList = daftarTampil;
+    if (infoTampil) infoTampil.innerText = String(daftarTampil.length);
+
+    if (daftarTampil.length === 0) {
+        container.innerHTML = '<div style="text-align:center; padding:35px 15px; color:#e67e22; font-weight:bold; font-size:13px;">Tidak ada soal yang ditemukan untuk filter ini.</div>';
+        window.perbaruiCounterSoalSpesifik();
+        return;
+    }
+
+    let html = '';
+    daftarTampil.forEach(function(entry, idx) {
+        let q = entry.soalObj;
+        let isChecked = Boolean(window.selectedSoalSpesifikMap[entry.uid]);
+        let tipeQ = (q.type || q.tipe || 'PG').toUpperCase();
+        if (tipeQ === 'ISIAN' || tipeQ === 'SHORT_ANSWER') tipeQ = 'IS';
+        if (tipeQ === 'ESAI') tipeQ = 'Essay';
+
+        let warnaTipe = tipeQ === 'PG' ? '#3498db' : (tipeQ === 'PGK' ? '#8e44ad' : (tipeQ === 'IS' ? '#f39c12' : '#e67e22'));
+        let warnaLvl = entry.kesulitan === 'C1' ? '#27ae60' : (entry.kesulitan === 'C2' ? '#d35400' : '#c0392b');
+
+        let opsiHtml = '';
+        if (Array.isArray(q.options) && q.options.length > 0 && tipeQ !== 'IS' && tipeQ !== 'Essay') {
+            opsiHtml = '<div style="margin-top:6px; display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:4px; font-size:11px; color:#475569; background:#f8fafc; padding:6px 8px; border-radius:6px; border:1px solid #e2e8f0;">';
+            q.options.forEach(function(o, oIdx) {
+                let lbl = (typeof o === 'object' && o.label) ? o.label : String.fromCharCode(65 + oIdx);
+                let txt = (typeof o === 'object' && o.text !== undefined) ? o.text : String(o || '');
+                opsiHtml += '<div><b>' + lbl + '.</b> ' + txt + '</div>';
+            });
+            opsiHtml += '</div>';
+        }
+
+        let kunciArr = Array.isArray(q.correct) ? q.correct : (q.correct ? [q.correct] : []);
+        let kunciStr = kunciArr.length > 0 ? kunciArr.join(', ') : '-';
+        let safeUid = entry.uid.replace(/'/g, "\\'");
+
+        let borderCard = isChecked ? '2px solid #8e44ad' : '1px solid #cbd5e1';
+        let bgCard = isChecked ? '#faf5ff' : '#ffffff';
+
+        html +=
+            '<label id="card-spesifik-' + entry.uid + '" style="display:flex; align-items:flex-start; gap:12px; background:' + bgCard + '; border:' + borderCard + '; border-radius:8px; padding:12px; cursor:pointer; transition:0.15s;">' +
+                '<input type="checkbox" class="chk-item-soal-spesifik" data-uid="' + entry.uid + '" ' + (isChecked ? 'checked' : '') + ' style="width:19px; height:19px; margin-top:2px; cursor:pointer; accent-color:#8e44ad; flex-shrink:0;" onchange="window.togglePilihSatuSoalSpesifik(\'' + safeUid + '\', this.checked)">' +
+                '<div style="flex:1; min-width:0;">' +
+                    '<div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:5px;">' +
+                        '<span style="font-weight:800; font-size:12px; color:#1e293b;">#' + (idx + 1) + '</span>' +
+                        '<span style="background:' + warnaTipe + '; color:white; padding:1px 7px; border-radius:4px; font-size:10px; font-weight:bold;">' + tipeQ + '</span>' +
+                        '<span style="background:' + warnaLvl + '; color:white; padding:1px 7px; border-radius:4px; font-size:10px; font-weight:bold;">' + entry.kesulitan + '</span>' +
+                        '<span style="background:#eaf2f8; color:#2980b9; padding:1px 7px; border-radius:4px; font-size:10px; font-weight:bold;">📖 ' + entry.bab + '</span>' +
+                        '<span style="font-size:11px; color:#16a085; font-weight:bold; margin-left:auto;">🔑 Kunci: ' + kunciStr + '</span>' +
+                    '</div>' +
+                    '<div style="font-size:13px; color:#1e293b; line-height:1.45; font-weight:600;">' + q.question + '</div>' +
+                    opsiHtml +
+                '</div>' +
+            '</label>';
+    });
+
+    container.innerHTML = html;
+    window.perbaruiCounterSoalSpesifik();
+};
+
+window.togglePilihSatuSoalSpesifik = function(uid, isChecked) {
+    let found = (window.currentSpesifikRenderedList || []).find(function(item) {
+        return item.uid === uid;
+    });
+
+    if (isChecked && found) {
+        window.selectedSoalSpesifikMap[uid] = found.soalObj;
+    } else {
+        delete window.selectedSoalSpesifikMap[uid];
+    }
+
+    let cardEl = document.getElementById('card-spesifik-' + uid);
+    if (cardEl) {
+        cardEl.style.border = isChecked ? '2px solid #8e44ad' : '1px solid #cbd5e1';
+        cardEl.style.background = isChecked ? '#faf5ff' : '#ffffff';
+    }
+
+    window.perbaruiCounterSoalSpesifik();
+};
+
+window.toggleCentangSemuaSoalSpesifik = function(centang) {
+    let list = window.currentSpesifikRenderedList || [];
+    if (list.length === 0) return;
+
+    list.forEach(function(item) {
+        if (centang) {
+            window.selectedSoalSpesifikMap[item.uid] = item.soalObj;
+        } else {
+            delete window.selectedSoalSpesifikMap[item.uid];
+        }
+    });
+
+    window.renderDaftarSoalSpesifik();
+};
+
+window.resetPilihanSoalSpesifik = function() {
+    window.selectedSoalSpesifikMap = {};
+    window.renderDaftarSoalSpesifik();
+};
+
+window.perbaruiCounterSoalSpesifik = function() {
+    let jml = Object.keys(window.selectedSoalSpesifikMap || {}).length;
+    let infoEl = document.getElementById('spesifik-info-jumlah-terpilih');
+    if (infoEl) infoEl.innerText = String(jml);
+
+    let btnEl = document.getElementById('btn-eksekusi-ambil-spesifik');
+    if (btnEl) {
+        btnEl.innerText = '📥 Ambil Soal (' + jml + ' Terpilih) 🚀';
+        btnEl.style.opacity = jml > 0 ? '1' : '0.75';
+    }
+};
+
+window.eksekusiAmbilSoalSpesifik = function() {
+    let keys = Object.keys(window.selectedSoalSpesifikMap || {});
+    if (keys.length === 0) {
+        return alert("⚠️ Centang minimal 1 soal dari daftar di atas terlebih dahulu!");
+    }
+
+    let hasilSoalKumpulan = keys.map(function(k) {
+        return window.selectedSoalSpesifikMap[k];
+    }).filter(Boolean);
+
+    let namaTarget = window.isTarikKeKuisInline ? "Kuis Inline" : "editor Manajer Ujian";
+    let pesan = '✅ Berhasil mengambil ' + hasilSoalKumpulan.length + ' soal spesifik pilihan Anda ke ' + namaTarget + '!';
+
+    window.masukkanSoalKeTargetAmbil(hasilSoalKumpulan, pesan);
 };
 
 window.ekstrakSoalLokalRegex = function(text) {

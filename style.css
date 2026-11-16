@@ -2396,17 +2396,90 @@ body:not(.mode-edit-aktif):not(.force-edit-mode) .locked-hidden-nav-item {
 
 :root {
     --user-font-scale: 1;
+    --user-page-zoom: 1;
 }
 
-/* 1. Zoom Teks Proporsional dengan Auto-Reflow (Teks Membesar Tanpa Merusak Kotak) */
+/* 1. Zoom Keseluruhan Layar Ala Google Chrome (Header, Navbar, Toolbar, Editor, Ruang Ujian, & Modal) */
+#header-wrap,
+#main-nav,
+#admin-menu-bar,
+.toolbar-wrapper,
+#main-editor-wrapper,
+#ujian-strict-room > div,
+#temporary-quiz-room > div,
+.modal-overlay .modal-box,
+.popup-welcome-box {
+    zoom: var(--user-page-zoom, 1);
+}
+
 .content-block,
 .quiz-question-text,
 .quiz-option-btn,
 #temporary-quiz-room .quiz-question-card,
 #ujian-strict-room .quiz-question-card {
-    zoom: var(--user-font-scale, 1);
     overflow-wrap: anywhere !important;
     word-break: break-word !important;
+}
+
+/* Posisi Tombol Kontrol Content Block Tepat di Samping Kanan Content Block */
+.a4-paper-wrapper.dynamic-block-shell > .block-controls,
+.pdf-landscape-block > .block-controls {
+    position: absolute !important;
+    top: 0 !important;
+    left: calc(100% + 8px) !important;
+    right: auto !important;
+    flex-direction: column !important;
+    width: max-content !important;
+    border-radius: 8px !important;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.14) !important;
+    border: 1px solid #cbd5e1 !important;
+    background: #ffffff !important;
+    z-index: 250 !important;
+}
+
+.a4-paper-wrapper.dynamic-block-shell > .block-controls button,
+.pdf-landscape-block > .block-controls button {
+    border-right: none !important;
+    border-bottom: 1px solid #f1f5f9 !important;
+    text-align: left !important;
+    padding: 7px 11px !important;
+    white-space: nowrap !important;
+    width: 100% !important;
+}
+
+.a4-paper-wrapper.dynamic-block-shell > .block-controls button:last-child,
+.pdf-landscape-block > .block-controls button:last-child {
+    border-bottom: none !important;
+}
+
+/* Jika Content Block ukuran Full (XL) atau layar sempit, tempelkan di sudut kanan atas dalam blok */
+.a4-paper-wrapper.dynamic-block-shell[data-width="XL"] > .block-controls,
+.pdf-landscape-block > .block-controls {
+    left: auto !important;
+    right: 12px !important;
+    top: 10px !important;
+    flex-direction: row !important;
+}
+
+.a4-paper-wrapper.dynamic-block-shell[data-width="XL"] > .block-controls button,
+.pdf-landscape-block > .block-controls button {
+    width: auto !important;
+    border-bottom: none !important;
+    border-right: 1px solid #eee !important;
+}
+
+@media (max-width: 1100px) {
+    .a4-paper-wrapper.dynamic-block-shell > .block-controls {
+        left: auto !important;
+        right: 10px !important;
+        top: 8px !important;
+        flex-direction: row !important;
+    }
+    .a4-paper-wrapper.dynamic-block-shell > .block-controls button {
+        width: auto !important;
+        border-bottom: none !important;
+        border-right: 1px solid #eee !important;
+    }
 }
 
 /* 2. Sinkronisasi Content Block di HP agar 100% Utuh Seperti Laptop & Tidak Terpotong */

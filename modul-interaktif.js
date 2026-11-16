@@ -456,9 +456,13 @@ let runtimeScript =
         "(function() {" +
         "  var FRAME_ID = '" + idFrame + "';" +
         "  /* MESIN RENDER ATLAS 2D TERKUNCI PAS DENGAN WADAH HOTSPOT (#vi-atlas-sync-box) */" +
+        "  var _atlasResolveInProgress = false;" +
         "  function pasangGambarKeSurfaceAtlas(validUrl) {" +
         "    if (!validUrl) return;" +
         "    siapkanKameraZoomDanDocking();" +
+        "    /* Sembunyikan banner notice bawaan ChatGPT jika ada */" +
+        "    var noticeEl = document.getElementById('atlas-engine-notice');" +
+        "    if (noticeEl) noticeEl.style.display = 'none';" +
         "    var zoomSurf = document.getElementById('vi-zoom-pan-surface');" +
         "    if (!zoomSurf) return;" +
         "    zoomSurf.style.display = 'flex';" +
@@ -468,7 +472,7 @@ let runtimeScript =
         "    if (!syncBox) {" +
         "      syncBox = document.createElement('div');" +
         "      syncBox.id = 'vi-atlas-sync-box';" +
-        "      syncBox.style.cssText = 'position:relative; display:inline-block; max-width:92%; max-height:88%; line-height:0; border-radius:14px; background:rgba(248,250,252,0.97); padding:8px; box-shadow:0 10px 30px rgba(0,0,0,0.45);';" +
+        "      syncBox.style.cssText = 'position:relative; display:inline-block; max-width:92%; max-height:88%; line-height:0; border-radius:14px; background:rgba(248,250,252,0.98); padding:8px; box-shadow:0 10px 30px rgba(0,0,0,0.45);';" +
         "      zoomSurf.insertBefore(syncBox, zoomSurf.firstChild);" +
         "    }" +
         "    var img = document.getElementById('vi-atlas-bg-img');" +
@@ -476,17 +480,22 @@ let runtimeScript =
         "      img = document.createElement('img');" +
         "      img.id = 'vi-atlas-bg-img';" +
         "      img.setAttribute('referrerpolicy', 'no-referrer');" +
-        "      img.style.cssText = 'display:block; max-width:100%; max-height:370px; width:auto; height:auto; object-fit:contain; border-radius:10px; user-select:none; pointer-events:none;';" +
+        "      img.style.cssText = 'display:block; max-width:100%; max-height:365px; width:auto; height:auto; object-fit:contain; border-radius:10px; user-select:none; pointer-events:none;';" +
         "      syncBox.insertBefore(img, syncBox.firstChild);" +
         "    }" +
+        "    img.setAttribute('data-vi-resolved', 'true');" +
+        "    img.onload = function() {" +
+        "      _atlasResolveInProgress = false;" +
+        "      if (typeof window.buildConnections === 'function') {" +
+        "        try { window.buildConnections(); } catch(e) {}" +
+        "      }" +
+        "    };" +
         "    img.src = validUrl;" +
-        "    /* Pindahkan #nodes-container ke dalam #vi-atlas-sync-box agar koordinat 0%-100% pas di atas gambar! */" +
         "    var nodesCont = document.getElementById('nodes-container');" +
         "    if (nodesCont && nodesCont.parentElement !== syncBox) {" +
         "      nodesCont.style.cssText = 'position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:20;';" +
         "      syncBox.appendChild(nodesCont);" +
         "    }" +
-        "    /* Tambahkan tombol Susun Ulang Pin & Ganti Gambar saat Mode Edit Teks aktif */" +
         "    var stageWrap = document.getElementById('vi-stage-inner-wrap');" +
         "    if (stageWrap && !document.getElementById('vi-btn-change-atlas-img')) {" +
         "      var topCtrl = document.createElement('div');" +
@@ -501,7 +510,7 @@ let runtimeScript =
         "        window.__viCustomGraph.movedNodes = {};" +
         "        var pins = document.querySelectorAll('#nodes-container [data-vi-node-key]');" +
         "        pins.forEach(function(p, i) {" +
-        "          var gx = 54 + ((i % 2) * 16);" +
+        "          var gx = 30 + ((i % 2) * 38);" +
         "          var gy = 18 + (i * 11);" +
         "          p.style.left = gx + '%'; p.style.top = Math.min(86, gy) + '%';" +
         "          window.__viCustomGraph.movedNodes[p.getAttribute('data-vi-node-key')] = { x: gx, y: Math.min(86, gy) };" +
@@ -510,10 +519,11 @@ let runtimeScript =
         "      };" +
         "      document.getElementById('vi-act-chg-img').onclick = function(ev) {" +
         "        ev.stopPropagation();" +
-        "        var newUrl = prompt('Masukkan URL Gambar Atlas baru (atau kata kunci bahasa Inggris seperti: nephron, kidney, heart, neuron, plant cell):', window.atlasImageUrl || '');" +
+        "        var newUrl = prompt('Masukkan URL Gambar Atlas baru (atau kata kunci Bhs Inggris seperti: nephron, kidney, heart, neuron, plant cell):', window.atlasImageUrl || '');" +
         "        if (newUrl && newUrl.trim() !== '') {" +
         "          var oldU = window.atlasImageUrl || '';" +
         "          window.atlasImageUrl = newUrl.trim();" +
+        "          _atlasResolveInProgress = false;" +
         "          img.removeAttribute('data-vi-resolved');" +
         "          muatGambarAtlasDariVariabel();" +
         "          if (oldU) {" +
@@ -526,21 +536,47 @@ let runtimeScript =
         "      document.head.appendChild(stBtn);" +
         "    }" +
         "  }" +
+        "  /* Filter Ketat Anti-Bahasa Asing (Hanya ambil gambar OpenStax / English / Tanpa Label Bahasa Polandia-Jerman-Rusia) */" +
+        "  function apakahJudulGambarBahasaAsing(titleStr) {" +
+        "    if (/[^\\x00-\\x7F]/.test(titleStr)) return true;" +
+        "    if (/(?:_|-|\\b)(?:pl|de|fr|es|ru|uk|it|pt|nl|cs|hu|ro|sv|fi|da|tr|el|ja|zh|ko|ar|he|id|schemat|budowa|nerka|nefron|niere|rein|rinon)(?:\\.|_|-|\\b)/i.test(titleStr)) return true;" +
+        "    return false;" +
+        "  }" +
         "  function cariGambarFallbackWikimedia(keyword) {" +
-        "    var cleanKw = String(keyword || 'kidney anatomy').replace(/^File:/i, '').replace(/\\.(jpg|jpeg|png|svg)$/i, '').replace(/[_-]+/g, ' ').trim();" +
-        "    var apiSearch = 'https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=' + encodeURIComponent(cleanKw + ' diagram') + '&gsrnamespace=6&gsrlimit=5&prop=imageinfo&iiprop=url&iiurlwidth=1000&format=json&origin=*';" +
+        "    var cleanKw = String(keyword || 'nephron').replace(/^File:/i, '').replace(/^\\d+px-/i, '').replace(/\\.(jpg|jpeg|png|svg)$/i, '').replace(/[_-]+/g, ' ').trim();" +
+        "    var searchQuery = cleanKw + ' (OpenStax OR English OR diagram) -polski -deutsch -francais -espanol';" +
+        "    var apiSearch = 'https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=' + encodeURIComponent(searchQuery) + '&gsrnamespace=6&gsrlimit=15&prop=imageinfo&iiprop=url&iiurlwidth=1000&format=json&origin=*';" +
         "    fetch(apiSearch).then(function(r) { return r.json(); }).then(function(d) {" +
+        "      _atlasResolveInProgress = false;" +
         "      if (d && d.query && d.query.pages) {" +
-        "        var pages = Object.values(d.query.pages);" +
-        "        for (var i = 0; i < pages.length; i++) {" +
-        "          if (pages[i].imageinfo && pages[i].imageinfo[0]) {" +
-        "            var realUrl = pages[i].imageinfo[0].thumburl || pages[i].imageinfo[0].url;" +
+        "        /* Urutkan berdasarkan relevansi pencarian (a.index - b.index), BUKAN pageid terlama! */" +
+        "        var pages = Object.values(d.query.pages).sort(function(a, b) { return (a.index || 999) - (b.index || 999); });" +
+        "        var englishPages = pages.filter(function(p) { return !apakahJudulGambarBahasaAsing(p.title || ''); });" +
+        "        var finalPool = englishPages.length > 0 ? englishPages : pages;" +
+        "        for (var i = 0; i < finalPool.length; i++) {" +
+        "          if (finalPool[i].imageinfo && finalPool[i].imageinfo[0]) {" +
+        "            var realUrl = finalPool[i].imageinfo[0].thumburl || finalPool[i].imageinfo[0].url;" +
         "            pasangGambarKeSurfaceAtlas(realUrl);" +
         "            return;" +
         "          }" +
         "        }" +
         "      }" +
-        "    }).catch(function() {});" +
+        "    }).catch(function() { _atlasResolveInProgress = false; });" +
+        "  }" +
+        "  function resolusiNamaFileWikimedia(rawUrl) {" +
+        "    var parts = rawUrl.split('/');" +
+        "    var fileName = decodeURIComponent(parts[parts.length - 1].split('?')[0]).replace(/^\\d+px-/i, '');" +
+        "    var apiExact = 'https://commons.wikimedia.org/w/api.php?action=query&titles=File:' + encodeURIComponent(fileName) + '&prop=imageinfo&iiprop=url&iiurlwidth=1000&format=json&origin=*';" +
+        "    fetch(apiExact).then(function(r) { return r.json(); }).then(function(d) {" +
+        "      if (d && d.query && d.query.pages) {" +
+        "        var pg = Object.values(d.query.pages)[0];" +
+        "        if (pg && pg.imageinfo && pg.imageinfo[0]) {" +
+        "          pasangGambarKeSurfaceAtlas(pg.imageinfo[0].thumburl || pg.imageinfo[0].url);" +
+        "          return;" +
+        "        }" +
+        "      }" +
+        "      cariGambarFallbackWikimedia(fileName);" +
+        "    }).catch(function() { cariGambarFallbackWikimedia(fileName); });" +
         "  }" +
         "  function muatGambarAtlasDariVariabel() {" +
         "    siapkanKameraZoomDanDocking();" +
@@ -553,37 +589,29 @@ let runtimeScript =
         "    }" +
         "    if (typeof window.atlasImageUrl !== 'string' || window.atlasImageUrl.trim() === '') return;" +
         "    var existingImg = document.getElementById('vi-atlas-bg-img');" +
-        "    if (existingImg && existingImg.getAttribute('data-vi-resolved') === 'true') return;" +
+        "    if ((existingImg && existingImg.getAttribute('data-vi-resolved') === 'true') || _atlasResolveInProgress) return;" +
+        "    _atlasResolveInProgress = true;" +
         "    var rawUrl = window.atlasImageUrl.trim();" +
-        "    if (existingImg) existingImg.setAttribute('data-vi-resolved', 'true');" +
+        "    /* 1. Jika hanya berupa kata kunci teks, cari gambar berbahasa Inggris/OpenStax di Wikimedia */" +
         "    if (!/^https?:\\/\\//i.test(rawUrl) && !/^data:image/i.test(rawUrl)) {" +
         "      cariGambarFallbackWikimedia(rawUrl);" +
         "      return;" +
         "    }" +
-        "    if (/wikimedia\\.org/i.test(rawUrl)) {" +
-        "      var parts = rawUrl.split('/');" +
-        "      var fileName = decodeURIComponent(parts[parts.length - 1].split('?')[0]);" +
-        "      var apiExact = 'https://commons.wikimedia.org/w/api.php?action=query&titles=File:' + encodeURIComponent(fileName) + '&prop=imageinfo&iiprop=url&iiurlwidth=1000&format=json&origin=*';" +
-        "      fetch(apiExact).then(function(r) { return r.json(); }).then(function(d) {" +
-        "        if (d && d.query && d.query.pages) {" +
-        "          var pg = Object.values(d.query.pages)[0];" +
-        "          if (pg && pg.imageinfo && pg.imageinfo[0]) {" +
-        "            pasangGambarKeSurfaceAtlas(pg.imageinfo[0].thumburl || pg.imageinfo[0].url);" +
-        "            return;" +
-        "          }" +
-        "        }" +
-        "        cariGambarFallbackWikimedia(fileName);" +
-        "      }).catch(function() { cariGambarFallbackWikimedia(fileName); });" +
-        "      return;" +
-        "    }" +
+        "    /* 2. Jika URL sudah berupa link langsung (http/https), LANGSUNG TAMPILKAN! Hanya jika error/404 baru cari via API */" +
         "    pasangGambarKeSurfaceAtlas(rawUrl);" +
         "    var checkImg = document.getElementById('vi-atlas-bg-img');" +
         "    if (checkImg) {" +
-        "      checkImg.onerror = function() { cariGambarFallbackWikimedia(document.title || 'anatomy'); };" +
+        "      checkImg.onerror = function() {" +
+        "        checkImg.onerror = null;" +
+        "        if (/wikimedia\\.org/i.test(rawUrl)) {" +
+        "          resolusiNamaFileWikimedia(rawUrl);" +
+        "        } else {" +
+        "          cariGambarFallbackWikimedia(document.title || 'anatomy');" +
+        "        }" +
+        "      };" +
         "    }" +
         "  }" +
-        "  setTimeout(muatGambarAtlasDariVariabel, 150);" +
-        "  setTimeout(muatGambarAtlasDariVariabel, 500);" +
+        "  setTimeout(muatGambarAtlasDariVariabel, 120);" +
         "  window.__viTextEditMode = false;" +
         "  window.__viActiveSelectedNodeKey = 'root';" +
         "  window.__viCustomGraph = window.__viSavedGraph || { addedNodes: [], movedNodes: {}, nodeDetails: {}, extraInfoCards: {} };" +
@@ -1941,18 +1969,18 @@ window.simpanDanPasangModul = function() {
 // 16. MODAL GENERATOR PROMPT AI TERPADU (DENGAN ATLAS MEDIS WIKIMEDIA / OPENSTAX UNTUK 2D)
 // =========================================================================
 window.KATALOG_ATLAS_2D_WIKIMEDIA = [
-    { label: "🔬 Nefron Ginjal (OpenStax)", url: "https://upload.wikimedia.org/wikipedia/commons/2/27/2611_Blood_Flow_in_the_Nephron.jpg" },
-    { label: "🫘 Penampang Ginjal (OpenStax)", url: "https://upload.wikimedia.org/wikipedia/commons/b/b2/2610_The_Kidney.jpg" },
-    { label: "🌿 Sel Tumbuhan Detail", url: "https://upload.wikimedia.org/wikipedia/commons/d/d8/Plant_cell_structure-en.svg" },
-    { label: "🧬 Sel Hewan Detail", url: "https://upload.wikimedia.org/wikipedia/commons/1/11/Animal_cell_structure_en.svg" },
-    { label: "⚡ Sel Saraf / Neuron", url: "https://upload.wikimedia.org/wikipedia/commons/b/b5/Neuron.svg" },
-    { label: "🫁 Alveolus & Pertukaran Gas", url: "https://upload.wikimedia.org/wikipedia/commons/3/36/2309_The_Respiratory_Zone.jpg" },
-    { label: "🫀 Penampang Dalam Jantung", url: "https://upload.wikimedia.org/wikipedia/commons/e/e5/Diagram_of_the_human_heart_%28cropped%29.svg" },
-    { label: "👁️ Anatomi Dalam Mata", url: "https://upload.wikimedia.org/wikipedia/commons/1/1e/Schematic_diagram_of_the_human_eye_en.svg" },
-    { label: "👂 Anatomi Dalam Telinga", url: "https://upload.wikimedia.org/wikipedia/commons/d/d2/Anatomy_of_the_Human_Ear_blank.svg" },
-    { label: "🔋 Struktur Mitokondria", url: "https://upload.wikimedia.org/wikipedia/commons/0/0c/Animal_mitochondrion_diagram_en.svg" },
-    { label: "🍃 Struktur Kloroplas", url: "https://upload.wikimedia.org/wikipedia/commons/4/49/Chloroplast_II.svg" },
-    { label: "🦠 Struktur Sel Bakteri", url: "https://upload.wikimedia.org/wikipedia/commons/5/5a/Average_prokaryote_cell-_en.svg" }
+    { label: "🔬 Nefron & Aliran Darah (OpenStax)", url: "https://commons.wikimedia.org/wiki/Special:FilePath/2611_Blood_Flow_in_the_Nephron.jpg?width=1000" },
+    { label: "🧪 Reabsorpsi & Sekresi Nefron (OpenStax)", url: "https://commons.wikimedia.org/wiki/Special:FilePath/2618_Nephron_Secretion_Reabsorption.jpg?width=1000" },
+    { label: "🫘 Penampang Ginjal (OpenStax)", url: "https://commons.wikimedia.org/wiki/Special:FilePath/2610_The_Kidney.jpg?width=1000" },
+    { label: "🌿 Sel Tumbuhan Detail", url: "https://commons.wikimedia.org/wiki/Special:FilePath/Plant_cell_structure-en.svg?width=1000" },
+    { label: "🧬 Sel Hewan Detail", url: "https://commons.wikimedia.org/wiki/Special:FilePath/Animal_cell_structure_en.svg?width=1000" },
+    { label: "⚡ Sel Saraf / Neuron", url: "https://commons.wikimedia.org/wiki/Special:FilePath/Blausen_0657_MultipolarNeuron.png?width=1000" },
+    { label: "🫁 Alveolus & Pertukaran Gas (OpenStax)", url: "https://commons.wikimedia.org/wiki/Special:FilePath/2309_The_Respiratory_Zone.jpg?width=1000" },
+    { label: "🫀 Penampang Dalam Jantung", url: "https://commons.wikimedia.org/wiki/Special:FilePath/Diagram_of_the_human_heart_(cropped).svg?width=1000" },
+    { label: "👁️ Anatomi Dalam Mata", url: "https://commons.wikimedia.org/wiki/Special:FilePath/Schematic_diagram_of_the_human_eye_en.svg?width=1000" },
+    { label: "👂 Anatomi Dalam Telinga", url: "https://commons.wikimedia.org/wiki/Special:FilePath/Anatomy_of_the_Human_Ear_en.svg?width=1000" },
+    { label: "🔋 Struktur Mitokondria", url: "https://commons.wikimedia.org/wiki/Special:FilePath/Animal_mitochondrion_diagram_en.svg?width=1000" },
+    { label: "🦠 Struktur Sel Bakteri", url: "https://commons.wikimedia.org/wiki/Special:FilePath/Average_prokaryote_cell-_en.svg?width=1000" }
 ];
 
 window.DAFTAR_PLACEHOLDER_DETAIL_VI = {
@@ -2143,11 +2171,12 @@ window.cariGambarAtlasWikimediaVI = function() {
     if (!q) return alert("Ketik kata kunci organ/struktur terlebih dahulu (contoh: nephron, alveolus, neuron, mitosis)!");
     let resBox = document.getElementById("vi-wikimedia-search-results");
     resBox.style.display = "grid";
-    resBox.innerHTML = '<div style="grid-column:1/-1; font-size:11px; color:#0284c7; font-weight:700;">⏳ Mencari ilustrasi medis di Wikimedia Commons...</div>';
+    resBox.innerHTML = '<div style="grid-column:1/-1; font-size:11px; color:#0284c7; font-weight:700;">⏳ Mencari ilustrasi medis (OpenStax / English) di Wikimedia Commons...</div>';
 
+    let searchQuery = q + " (OpenStax OR Blausen OR English OR diagram) -polski -deutsch -francais -espanol -russian";
     let apiUrl = "https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=" +
-                 encodeURIComponent(q + " diagram OR anatomy") +
-                 "&gsrnamespace=6&gsrlimit=12&prop=imageinfo&iiprop=url&iiurlwidth=400&format=json&origin=*";
+                 encodeURIComponent(searchQuery) +
+                 "&gsrnamespace=6&gsrlimit=18&prop=imageinfo&iiprop=url&iiurlwidth=800&format=json&origin=*";
 
     fetch(apiUrl)
         .then(function(r) { return r.json(); })
@@ -2156,21 +2185,27 @@ window.cariGambarAtlasWikimediaVI = function() {
                 resBox.innerHTML = '<div style="grid-column:1/-1; font-size:11px; color:#dc2626;">Tidak ditemukan gambar untuk kata kunci tersebut. Coba istilah bahasa Inggris/Latin (misal: nephron, heart diagram, plant cell).</div>';
                 return;
             }
-            let pages = Object.values(data.query.pages);
+            /* Urutkan berdasarkan index relevansi dan saring bahasa asing */
+            let pages = Object.values(data.query.pages)
+                .sort(function(a, b) { return (a.index || 999) - (b.index || 999); })
+                .filter(function(p) {
+                    let t = p.title || "";
+                    return !/[^\x00-\x7F]/.test(t) && !/(?:_|-|\b)(?:pl|de|fr|es|ru|uk|it|cs|hu|nl|schemat|budowa)(?:\.|_|-|\b)/i.test(t);
+                });
+
             resBox.innerHTML = "";
             pages.forEach(function(p) {
                 if (!p.imageinfo || !p.imageinfo[0]) return;
                 let info = p.imageinfo[0];
-                let fullUrl = info.url;
-                let thumbUrl = info.thumburl || fullUrl;
+                let directSafeUrl = info.thumburl || info.url;
                 let shortTitle = (p.title || "").replace(/^File:/i, "").replace(/\.(svg|png|jpg|jpeg)$/i, "");
                 let itemDiv = document.createElement("div");
                 itemDiv.style.cssText = "border:1px solid #cbd5e1; border-radius:8px; padding:4px; cursor:pointer; background:#f8fafc; text-align:center; display:flex; flex-direction:column; align-items:center; justify-content:space-between;";
                 itemDiv.innerHTML =
-                    '<img src="' + thumbUrl + '" style="width:100%; height:70px; object-fit:contain; background:#fff; border-radius:4px;">' +
+                    '<img src="' + directSafeUrl + '" style="width:100%; height:70px; object-fit:contain; background:#fff; border-radius:4px;">' +
                     '<div style="font-size:9.5px; font-weight:700; color:#1e293b; margin-top:4px; line-height:1.2; max-height:24px; overflow:hidden;">' + shortTitle + '</div>';
                 itemDiv.onclick = function() {
-                    window.pilihGambarAtlas2D(fullUrl, shortTitle);
+                    window.pilihGambarAtlas2D(directSafeUrl, shortTitle);
                     resBox.querySelectorAll("div").forEach(function(d) { d.style.borderColor = "#cbd5e1"; });
                     itemDiv.style.borderColor = "#0284c7";
                     itemDiv.style.background = "#e0f2fe";

@@ -1645,14 +1645,14 @@ window.renderBlocks = function() {
             let floatImgsHtml = window.renderFloatImagesHTML(index, sIdx, curSlide.floatImages || []);
 
             html += '<div class="block-wrapper' + (isFocus ? ' pdf-focus-fullscreen' : '') + '" data-index="' + index + '" style="padding-top:' + padTop + ';padding-bottom:' + padBot + ';">' +
-                '<div class="block-controls">' +
-                    '<button onclick="geserBlok(' + index + ', -1)">⬆️</button>' +
-                    '<button onclick="geserBlok(' + index + ', 1)">⬇️</button>' +
-                    '<button onclick="bukaSidebarBlock(' + index + ')">⚙️ Setting</button>' +
-                    '<button onclick="hapusBlok(' + index + ')">🗑️ Delete</button>' +
-                '</div>' +
-                '<div class="content-block pdf-landscape-block ' + patClass + '" data-index="' + index + '" data-block-type="pdf_slides" style="background-color:' + bgCol + ';">' +
-                    '<div class="pdf-slide-nav-bar" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:nowrap; overflow-x:auto;">' +
+                '<div class="content-block pdf-landscape-block ' + patClass + '" data-index="' + index + '" data-block-type="pdf_slides" style="background-color:' + bgCol + '; position:relative; overflow:visible !important;">' +
+                    '<div class="block-controls">' +
+                        '<button onclick="geserBlok(' + index + ', -1)" title="Geser Naik">⬆️</button>' +
+                        '<button onclick="geserBlok(' + index + ', 1)" title="Geser Turun">⬇️</button>' +
+                        '<button onclick="bukaSidebarBlock(' + index + ')" title="Pengaturan Blok">⚙️ Setting</button>' +
+                        '<button onclick="hapusBlok(' + index + ')" title="Hapus Blok">🗑️ Delete</button>' +
+                    '</div>' +
+                    '<div class="pdf-slide-nav-bar" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:nowrap; overflow-x:auto; border-radius:8px 8px 0 0;">' +
                         '<div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">' +
                             '<button onclick="window.gantiSlidePDF(' + index + ', -1)" ' + (sIdx <= 0 ? 'disabled' : '') + '>◀ Prev</button>' +
                             '<span style="font-weight:bold; color:#f1c40f; display:flex; align-items:center; gap:4px; font-size:11px;">Hal ' +
@@ -1670,7 +1670,7 @@ window.renderBlocks = function() {
                             '<button onclick="window.exportSlidePDFKeA4(' + index + ')" style="background:#27ae60;">📥 Export PDF</button>' +
                         '</div>' +
                     '</div>' +
-                    '<div class="pdf-slide-stage" data-index="' + index + '" data-slide-index="' + sIdx + '" onpointerdown="window.mulaiSwipeSlidePDF(event, ' + index + ')" onpointerup="window.akhirSwipeSlidePDF(event, ' + index + ')">' +
+                    '<div class="pdf-slide-stage" data-index="' + index + '" data-slide-index="' + sIdx + '" onpointerdown="window.mulaiSwipeSlidePDF(event, ' + index + ')" onpointerup="window.akhirSwipeSlidePDF(event, ' + index + ')" style="border-radius:0 0 8px 8px;">' +
                         '<img class="pdf-slide-bg" src="' + (curSlide.bg || '') + '" alt="Slide PDF">' +
                         '<div class="draw-float-layer" data-index="' + index + '" data-slide-index="' + sIdx + '">' + floatImgsHtml + '</div>' +
                         '<canvas class="drawing-layer" data-index="' + index + '" data-slide-index="' + sIdx + '"></canvas>' +
@@ -1779,8 +1779,8 @@ window.renderBlocks = function() {
 
             let floatImgsQuiz = window.renderFloatImagesHTML(index, -1, blok.floatImages || []);
             html += '<div class="block-wrapper" data-index="' + index + '" style="padding-top:' + padTop + ';padding-bottom:' + padBot + ';">' +
-                '<div class="block-controls"><button onclick="geserBlok(' + index + ', -1)">⬆️</button><button onclick="geserBlok(' + index + ', 1)">⬇️</button><button onclick="bukaSidebarBlock(' + index + ')">⚙️ Setting</button><button onclick="hapusBlok(' + index + ')">🗑️ Delete</button></div>' +
                 '<div class="a4-paper-wrapper dynamic-block-shell" data-width="' + widthMode + '">' +
+                    '<div class="block-controls"><button onclick="geserBlok(' + index + ', -1)">⬆️</button><button onclick="geserBlok(' + index + ', 1)">⬇️</button><button onclick="bukaSidebarBlock(' + index + ')">⚙️ Setting</button><button onclick="hapusBlok(' + index + ')">🗑️ Delete</button></div>' +
                     '<div class="draw-float-layer" data-index="' + index + '">' + floatImgsQuiz + '</div>' +
                     '<canvas class="drawing-layer" data-index="' + index + '"></canvas>' +
                     '<div class="content-block dynamic-content-block ' + patClass + '" data-index="' + index + '" data-width="' + widthMode + '" style="background-color:' + bgCol + ';">' +
@@ -1789,11 +1789,9 @@ window.renderBlocks = function() {
                 '</div>' +
             '</div>';
         }
-        // 3. TIPE BLOK MODUL INTERAKTIF (UPGRADE OTOMATIS KE FORMAT KARTU BARU)
+        // 3. TIPE BLOK MODUL INTERAKTIF
         else if (blok.type === 'modul_interaktif') {
             let htmlKartu = "";
-            
-            // Bungkus data lama menggunakan mesin kartu interaktif yang baru
             if (typeof window.bangunHTMLKartuModulInteraktif === 'function') {
                 let gabunganKode = blok.cssCode ? ("<style>\n" + blok.cssCode + "\n</style>\n" + blok.htmlCode) : blok.htmlCode;
                 htmlKartu = window.bangunHTMLKartuModulInteraktif(blok.judul, gabunganKode);
@@ -1802,8 +1800,8 @@ window.renderBlocks = function() {
             }
 
             html += '<div class="block-wrapper" data-index="' + index + '" style="padding-top:' + padTop + ';padding-bottom:' + padBot + ';">' +
-                (isEdit ? '<div class="block-controls"><button onclick="geserBlok(' + index + ', -1)">⬆️</button><button onclick="geserBlok(' + index + ', 1)">⬇️</button><button onclick="hapusBlok(' + index + ')">🗑️ Delete</button></div>' : '') +
                 '<div class="a4-paper-wrapper dynamic-block-shell" data-width="' + widthMode + '">' +
+                    (isEdit ? '<div class="block-controls"><button onclick="geserBlok(' + index + ', -1)">⬆️</button><button onclick="geserBlok(' + index + ', 1)">⬇️</button><button onclick="hapusBlok(' + index + ')">🗑️ Delete</button></div>' : '') +
                     '<div class="content-block dynamic-content-block" data-width="' + widthMode + '" data-index="' + index + '" style="border:none !important; box-shadow:none !important; background:transparent !important; min-height:auto !important; padding:0 !important;">' +
                         htmlKartu +
                     '</div>' +
@@ -1814,8 +1812,8 @@ window.renderBlocks = function() {
         else {
             let floatImgsText = window.renderFloatImagesHTML(index, -1, blok.floatImages || []);
             html += '<div class="block-wrapper" data-index="' + index + '" style="padding-top:' + padTop + ';padding-bottom:' + padBot + ';">' +
-                '<div class="block-controls"><button onclick="geserBlok(' + index + ', -1)">⬆️</button><button onclick="geserBlok(' + index + ', 1)">⬇️</button><button onclick="bukaSidebarBlock(' + index + ')">⚙️ Setting</button><button onclick="hapusBlok(' + index + ')">🗑️ Delete</button></div>' +
                 '<div class="a4-paper-wrapper dynamic-block-shell" data-width="' + widthMode + '">' +
+                    '<div class="block-controls"><button onclick="geserBlok(' + index + ', -1)">⬆️</button><button onclick="geserBlok(' + index + ', 1)">⬇️</button><button onclick="bukaSidebarBlock(' + index + ')">⚙️ Setting</button><button onclick="hapusBlok(' + index + ')">🗑️ Delete</button></div>' +
                     '<div class="draw-float-layer" data-index="' + index + '">' + floatImgsText + '</div>' +
                     '<canvas class="drawing-layer" data-index="' + index + '"></canvas>' +
                     '<div class="content-block a4-portrait-block dynamic-content-block ' + patClass + '" ' + (isEdit ? 'contenteditable="true"' : '') + ' data-index="' + index + '" data-block-type="text" data-width="' + widthMode + '" style="background-color:' + bgCol + '; color:' + txtCol + ';" oninput="window.cekBatasTinggiA4Input(event, this)">' +
@@ -1835,10 +1833,6 @@ window.renderBlocks = function() {
     }, 150);
 };
 
-
-/* =========================================
-   FUNGSI BLOCK CONTROLS & SIDEBAR
-   ========================================= */
 window.activeBlockIndex = -1;
 
 window.perbaruiIndeksSemuaBlokDOM = function() {
@@ -1869,8 +1863,8 @@ window.tambahBlokBaruAkhir = function() {
     let isEdit = document.body.classList.contains('mode-edit-aktif') || document.documentElement.classList.contains('force-edit-mode');
     
     let html = '<div class="block-wrapper" data-index="' + index + '" style="padding-top:40px;padding-bottom:40px;">' +
-        (isEdit ? '<div class="block-controls"><button onclick="geserBlok(' + index + ', -1)">⬆️</button><button onclick="geserBlok(' + index + ', 1)">⬇️</button><button onclick="bukaSidebarBlock(' + index + ')">⚙️ Setting</button><button onclick="hapusBlok(' + index + ')">🗑️ Delete</button></div>' : '') +
         '<div class="a4-paper-wrapper dynamic-block-shell" data-width="M">' +
+            (isEdit ? '<div class="block-controls"><button onclick="geserBlok(' + index + ', -1)">⬆️</button><button onclick="geserBlok(' + index + ', 1)">⬇️</button><button onclick="bukaSidebarBlock(' + index + ')">⚙️ Setting</button><button onclick="hapusBlok(' + index + ')">🗑️ Delete</button></div>' : '') +
             '<div class="draw-float-layer" data-index="' + index + '"></div>' +
             '<canvas class="drawing-layer" data-index="' + index + '"></canvas>' +
             '<div class="content-block a4-portrait-block dynamic-content-block" ' + (isEdit ? 'contenteditable="true"' : '') + ' data-index="' + index + '" data-block-type="text" data-width="M" style="background-color:#ffffff; color:#333333;" oninput="window.cekBatasTinggiA4Input(event, this)">' +
@@ -1904,8 +1898,8 @@ window.tambahBlokBaruTengah = function() {
     
     let isEdit = document.body.classList.contains('mode-edit-aktif') || document.documentElement.classList.contains('force-edit-mode');
     let html = '<div class="block-wrapper" data-index="' + index + '" style="padding-top:40px;padding-bottom:40px;">' +
-        (isEdit ? '<div class="block-controls"><button onclick="geserBlok(' + index + ', -1)">⬆️</button><button onclick="geserBlok(' + index + ', 1)">⬇️</button><button onclick="bukaSidebarBlock(' + index + ')">⚙️ Setting</button><button onclick="hapusBlok(' + index + ')">🗑️ Delete</button></div>' : '') +
         '<div class="a4-paper-wrapper dynamic-block-shell" data-width="M">' +
+            (isEdit ? '<div class="block-controls"><button onclick="geserBlok(' + index + ', -1)">⬆️</button><button onclick="geserBlok(' + index + ', 1)">⬇️</button><button onclick="bukaSidebarBlock(' + index + ')">⚙️ Setting</button><button onclick="hapusBlok(' + index + ')">🗑️ Delete</button></div>' : '') +
             '<div class="draw-float-layer" data-index="' + index + '"></div>' +
             '<canvas class="drawing-layer" data-index="' + index + '"></canvas>' +
             '<div class="content-block a4-portrait-block dynamic-content-block" ' + (isEdit ? 'contenteditable="true"' : '') + ' data-index="' + index + '" data-block-type="text" data-width="M" style="background-color:#ffffff; color:#333333;" oninput="window.cekBatasTinggiA4Input(event, this)">' +
@@ -5372,30 +5366,31 @@ if (typeof window.bukaRuangLatihan === "function") {
     };
 }
 
-// 3. TOMBOL ZOOM TEKS GLOBAL (+ DAN - DI ATAS TOMBOL FULLSCREEN) TANPA MERUSAK LAYOUT
+// 3. TOMBOL ZOOM LAYAR KESELURUHAN ALA GOOGLE CHROME (+ DAN - DI KANAN BAWAH)
 window.currentTextZoomPct = parseInt(localStorage.getItem("user_text_zoom_pct") || "100", 10);
-if (isNaN(window.currentTextZoomPct) || window.currentTextZoomPct < 75 || window.currentTextZoomPct > 150) {
+if (isNaN(window.currentTextZoomPct) || window.currentTextZoomPct < 50 || window.currentTextZoomPct > 200) {
     window.currentTextZoomPct = 100;
 }
 
 window.terapkanZoomTeksGlobal = function(tampilkanInfo) {
     let scaleVal = (window.currentTextZoomPct / 100).toFixed(2);
-    document.documentElement.style.setProperty("--user-font-scale", scaleVal);
+    document.documentElement.style.setProperty("--user-page-zoom", scaleVal);
+    document.documentElement.style.setProperty("--user-font-scale", "1");
 
     let btnIn = document.getElementById("btn-zoom-in-global");
     let btnOut = document.getElementById("btn-zoom-out-global");
-    if (btnIn) btnIn.title = "Perbesar Tulisan (" + window.currentTextZoomPct + "%)";
-    if (btnOut) btnOut.title = "Perkecil Tulisan (" + window.currentTextZoomPct + "%)";
+    if (btnIn) btnIn.title = "Perbesar Tampilan Layar (" + window.currentTextZoomPct + "%)";
+    if (btnOut) btnOut.title = "Perkecil Tampilan Layar (" + window.currentTextZoomPct + "%)";
 
     if (tampilkanInfo) {
         let badge = document.getElementById("zoom-level-indicator-toast");
         if (!badge) {
             badge = document.createElement("div");
             badge.id = "zoom-level-indicator-toast";
-            badge.style.cssText = "position:fixed; bottom:215px; right:70px; background:#0b3954; color:#f1c40f; padding:5px 12px; border-radius:20px; font-family:'Poppins',sans-serif; font-size:12px; font-weight:800; z-index:9500; box-shadow:0 4px 12px rgba(0,0,0,0.25); border:1px solid #f1c40f; pointer-events:none; transition:opacity 0.25s;";
+            badge.style.cssText = "position:fixed; bottom:215px; right:70px; background:#0b3954; color:#f1c40f; padding:6px 14px; border-radius:20px; font-family:'Poppins',sans-serif; font-size:12px; font-weight:800; z-index:9500; box-shadow:0 4px 12px rgba(0,0,0,0.25); border:1px solid #f1c40f; pointer-events:none; transition:opacity 0.25s;";
             document.body.appendChild(badge);
         }
-        badge.innerText = "🔍 Ukuran Teks: " + window.currentTextZoomPct + "%";
+        badge.innerText = "🔍 Zoom Layar: " + window.currentTextZoomPct + "%";
         badge.style.opacity = "1";
         clearTimeout(window._zoomToastTimer);
         window._zoomToastTimer = setTimeout(function() {
@@ -5403,13 +5398,16 @@ window.terapkanZoomTeksGlobal = function(tampilkanInfo) {
         }, 1400);
     }
     window.optimalkanContentBlockUntukLayarHP();
+    if (typeof window.inisialisasiSemuaCanvas === "function") {
+        setTimeout(window.inisialisasiSemuaCanvas, 120);
+    }
 };
 
 window.ubahZoomTeksGlobal = function(arah) {
     let step = 10;
     let nextPct = window.currentTextZoomPct + (arah * step);
-    if (nextPct < 80) nextPct = 80;
-    if (nextPct > 140) nextPct = 140;
+    if (nextPct < 50) nextPct = 50;
+    if (nextPct > 200) nextPct = 200;
     window.currentTextZoomPct = nextPct;
     localStorage.setItem("user_text_zoom_pct", String(nextPct));
     window.terapkanZoomTeksGlobal(true);
