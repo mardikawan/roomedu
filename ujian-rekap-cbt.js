@@ -232,40 +232,72 @@ window.pasangWatermarkIdentitasUjian = function() {
     if (room) room.appendChild(wm);
 };
 
+window.graceKeyboardTime = 0;
+window.graceZoomTime = 0;
+window.lastDPRUjian = window.devicePixelRatio || 1;
+
+window.apakahSedangBukaKeyboardUjian = function() {
+    let el = document.activeElement;
+    let tag = (el && el.tagName) ? el.tagName.toUpperCase() : '';
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (el && el.isContentEditable)) {
+        window.graceKeyboardTime = Date.now() + 3500;
+        return true;
+    }
+    return Date.now() < (window.graceKeyboardTime || 0);
+};
+
+window.apakahSedangZoomAmanUjian = function() {
+    if (window.visualViewport && window.visualViewport.scale && Math.abs(window.visualViewport.scale - 1) > 0.03) {
+        return true;
+    }
+    if (window.currentTextZoomPct && window.currentTextZoomPct !== 100) {
+        return true;
+    }
+    return Date.now() < (window.graceZoomTime || 0);
+};
+
 window.cekKondisiLayarPenuhDanBersih = function() {
+    // 1. Pelanggaran mutlak jika tab disembunyikan atau pindah aplikasi
     if (document.visibilityState === 'hidden' || document.hidden) {
         return { aman: false, alasan: "Aplikasi berjalan di latar belakang (Membuka Tab Baru / Keluar Aplikasi)." };
     }
 
-    let sw = window.screen.availWidth || window.screen.width || window.innerWidth;
-    let sh = window.screen.availHeight || window.screen.height || window.innerHeight;
+    // 2. Jika sedang membuka/menutup keyboard, baru memutar orientasi, atau sedang zoom in/out -> 100% AMAN
+    if (
+        window.apakahSedangBukaKeyboardUjian() ||
+        window.apakahSedangZoomAmanUjian() ||
+        Date.now() < (window.graceOrientationTime || 0) ||
+        Date.now() < (window.ujianEntryShieldUntil || 0)
+    ) {
+        return { aman: true, alasan: "" };
+    }
+
+    let rawSW = window.screen.availWidth || window.screen.width || window.innerWidth;
+    let rawSH = window.screen.availHeight || window.screen.height || window.innerHeight;
     let iw = window.innerWidth;
     let ih = window.innerHeight;
     let uw = window.outerWidth || iw;
     let uh = window.outerHeight || ih;
 
+    // Sesuaikan orientasi layar acuan (Portrait vs Landscape) agar rotasi layar selalu aman
+    let isLandscape = iw > ih;
+    let sw = isLandscape ? Math.max(rawSW, rawSH) : Math.min(rawSW, rawSH);
+    let sh = isLandscape ? Math.min(rawSW, rawSH) : Math.max(rawSW, rawSH);
+
     let isMobileDevice = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints && navigator.maxTouchPoints > 1);
-    let activeTag = document.activeElement ? document.activeElement.tagName : '';
-    let isTypingInput = (activeTag === 'INPUT' || activeTag === 'TEXTAREA');
 
     if (isMobileDevice) {
-        let minSideScreen = Math.min(sw, sh);
-        let minSideWindow = Math.min(iw, ih);
-
-        // Deteksi Split-Screen Samping atau Jendela Pop-up Mengambang di HP/Tablet
-        if (iw < sw * 0.82 && minSideWindow < minSideScreen * 0.82) {
-            return { aman: false, alasan: "Terdeteksi mode Layar Terbelah (Split-Screen) atau Jendela Pop-up Mengambang!" };
-        }
-        // Deteksi Split-Screen Atas-Bawah di HP/Tablet (Saat tidak sedang membuka keyboard ketik)
-        if (!isTypingInput && ih < sh * 0.62) {
-            return { aman: false, alasan: "Ukuran tinggi layar terlalu kecil (Terdeteksi Split-Screen / Jendela Pop-up)!" };
+        // Di HP/Tablet: hanya deteksi jika LEBAR layar menyempit drastis akibat Split-Screen samping (< 70% lebar orientasi saat ini)
+        // Perubahan tinggi (ih) diabaikan karena dipengaruhi oleh keyboard virtual, address bar, dan mode landscape
+        if (iw < sw * 0.70) {
+            return { aman: false, alasan: "Terdeteksi mode Layar Terbelah (Split-Screen) atau Jendela Mengambang!" };
         }
     } else {
-        // Deteksi Split-Screen atau Resize Jendela di Laptop/PC
-        if ((uw > 0 && uw < sw * 0.80) || (iw > 0 && iw < sw * 0.78)) {
-            return { aman: false, alasan: "Jendela browser tidak layar penuh (Terdeteksi Split-Screen Samping). Maksimalkan jendela Anda!" };
+        // Di Laptop/PC: gunakan outerWidth & outerHeight agar fitur Zoom Browser (Ctrl +/-) tidak dianggap memperkecil jendela
+        if (uw > 0 && uw < sw * 0.72) {
+            return { aman: false, alasan: "Jendela browser diperkecil (Terdeteksi Split-Screen Samping). Maksimalkan jendela Anda!" };
         }
-        if ((uh > 0 && uh < sh * 0.75) || (!isTypingInput && ih > 0 && ih < sh * 0.68)) {
+        if (uh > 0 && uh < sh * 0.68) {
             return { aman: false, alasan: "Tinggi jendela browser diperkecil (Terdeteksi Split-Screen Atas-Bawah)!" };
         }
     }
@@ -274,6 +306,10 @@ window.cekKondisiLayarPenuhDanBersih = function() {
 };
 
 window.aktifkanFullscreenUjian = function() {
+    // Jangan paksa native requestFullscreen pada HP/Tablet agar fitur Pinch-to-Zoom & Keyboard Virtual tidak bentrok
+    let isTouchDevice = (navigator.maxTouchPoints && navigator.maxTouchPoints > 1) || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    if (isTouchDevice) return;
+
     let elem = document.documentElement;
     try {
         if (elem.requestFullscreen) elem.requestFullscreen().catch(function() {});
@@ -296,7 +332,6 @@ window.verifikasiMasukUjian = function() {
     let namaLengkap = kelas === "Umum" ? document.getElementById('ujian-input-nama-manual').value.trim() : document.getElementById('ujian-select-nama').value;
     let kode = document.getElementById('input-kode-ujian').value.trim().toUpperCase();
 
-    // Paksa gunakan Kelas & Nama asli dari akun siswa yang sedang login (Anti-Joki / Anti-Manipulasi)
     if (statLogin === "siswa" && userLogin !== "sbd") {
         let akunResmi = window.ambilAkunSiswaAktifUjian();
         if (!akunResmi || !akunResmi.kelas || !akunResmi.namaLengkap) {
@@ -353,7 +388,7 @@ window.verifikasiMasukUjian = function() {
         } else if (statusLM === "Selesai" || statusLM === "Dikeluarkan") {
             return alert("⚠️ AKSES DITOLAK MUTLAK!\n\nStatus ujian Anda tercatat: " + statusLM.toUpperCase() + ".\nAnda tidak dapat masuk kembali ke ujian ini tanpa izin dari Guru (Guru harus mereset nama Anda dari Live Monitor).");
         } else if (statusLM === "Sedang Mengerjakan") {
-            let lanjut = confirm("⚠️ TERDETEKSI TERKELUAR DARI UJIAN!\n\nSistem menemukan sesi Anda sebelumnya terputus di tengah jalan.\nAnda dapat masuk kembali untuk melanjutkannya (waktu & jawaban tersimpan), NAMUN pelanggaran Anda akan bertambah +1.\n\nKlik OK untuk meneruskan ujian.");
+            let lanjut = confirm("⚠️ TERDETEKSI TERKELUAR DARI UJIAN!\n\nSistem menemukan sesi Anda sebelumnya terputus di tengah jalan.\nAnda dapat masuk kembali untuk melanjutkannya (waktu & jawaban tersimpan).\n\nKlik OK untuk meneruskan ujian.");
             if (!lanjut) return;
             isResumeMode = true;
         }
@@ -365,16 +400,15 @@ window.verifikasiMasukUjian = function() {
     let soalDisiapkan = paketData.soal.map(function(q, i) { return Object.assign({}, q, { originalIndex: i }); });
     soalDisiapkan.sort(function() { return Math.random() - 0.5; });
 
-    let cekLayar = window.cekKondisiLayarPenuhDanBersih();
-    if (!cekLayar.aman) {
-        return alert("⚠️ TIDAK DAPAT MEMULAI UJIAN!\n\n" + cekLayar.alasan + "\n\nPastikan layar bersih, penuh (Full Screen), dan tidak membuka aplikasi tambahan.");
-    }
+    // Aktifkan pelindung transisi masuk ujian & penutupan keyboard kode ujian selama 5 detik penuh
+    window.ujianEntryShieldUntil = Date.now() + 5000;
+    window.graceOrientationTime = Date.now() + 5000;
+    window.graceKeyboardTime = Date.now() + 5000;
+    window.graceZoomTime = Date.now() + 5000;
 
     if (document.activeElement && typeof document.activeElement.blur === "function") {
         document.activeElement.blur();
     }
-    window.ujianEntryShieldUntil = Date.now() + 4000;
-    window.graceOrientationTime = Date.now() + 4000;
     window.aktifkanFullscreenUjian();
 
     window.sesiUjianSiswa = {
@@ -396,62 +430,6 @@ window.verifikasiMasukUjian = function() {
     window.bukaRuangUjianStrict();
 };
 
-// =========================================================================
-// 2. RUANG UJIAN KETAT (STRICT MODE, TIMER, & PENGUMPULAN JAWABAN)
-// =========================================================================
-window.alertAmanUjian = function(pesan, onDone) {
-    window.sedangDialogSistem = true;
-    if (typeof window.tampilkanCustomDialog === "function") {
-        window.tampilkanCustomDialog("alert", String(pesan || ""), null, function() {
-            setTimeout(function() { window.sedangDialogSistem = false; }, 400);
-            if (onDone) onDone();
-        });
-        let mdl = document.getElementById("modal-custom-dialog");
-        if (mdl) mdl.style.zIndex = "10000005";
-    } else {
-        alert(pesan);
-        setTimeout(function() { window.sedangDialogSistem = false; }, 800);
-        if (onDone) onDone();
-    }
-};
-
-window.confirmAmanUjian = function(pesan, onResult) {
-    window.sedangDialogSistem = true;
-    if (typeof window.tampilkanCustomDialog === "function" && typeof onResult === "function") {
-        window.tampilkanCustomDialog("confirm", String(pesan || ""), null, function(isYes) {
-            setTimeout(function() { window.sedangDialogSistem = false; }, 400);
-            onResult(Boolean(isYes));
-        });
-        let mdl = document.getElementById("modal-custom-dialog");
-        if (mdl) mdl.style.zIndex = "10000005";
-        return;
-    }
-    let hasil = window._originalConfirm ? window._originalConfirm(pesan) : confirm(pesan);
-    setTimeout(function() { window.sedangDialogSistem = false; }, 800);
-    if (onResult) onResult(hasil);
-    return hasil;
-};
-
-window.simpanCadanganLokalUjian = function() {
-    if (!window.sesiUjianSiswa) return;
-    try {
-        let keyCadangan = 'cadangan_ujian_' + window.sesiUjianSiswa.kode + '_' + window.sesiUjianSiswa.kelas + '_' + window.sesiUjianSiswa.nama;
-        localStorage.setItem(keyCadangan, JSON.stringify({
-            jawaban: window.sesiUjianSiswa.jawaban || {},
-            violationCount: window.violationCount || 0,
-            sisaDetik: window.sisaDetikUjian || (window.sesiUjianSiswa.durasi * 60)
-        }));
-    } catch (e) {}
-};
-
-window.hapusCadanganLokalUjian = function() {
-    if (!window.sesiUjianSiswa) return;
-    try {
-        let keyCadangan = 'cadangan_ujian_' + window.sesiUjianSiswa.kode + '_' + window.sesiUjianSiswa.kelas + '_' + window.sesiUjianSiswa.nama;
-        localStorage.removeItem(keyCadangan);
-    } catch (e) {}
-};
-
 window.bukaRuangUjianStrict = function() {
     let header = document.getElementById('header-wrap');
     let nav = document.getElementById('main-nav');
@@ -464,7 +442,13 @@ window.bukaRuangUjianStrict = function() {
     document.body.classList.add('strict-mode-active');
 
     let room = document.getElementById('ujian-strict-room');
-    if (room) room.style.display = 'block';
+    if (room) {
+        room.style.display = 'block';
+        room.setAttribute('tabindex', '-1');
+        try { room.focus({ preventScroll: true }); } catch (e) {}
+    }
+    try { window.focus(); } catch (e) {}
+
     let judulUI = document.getElementById('ujian-judul-ui');
     if (judulUI) {
         judulUI.style.color = '#c0392b';
@@ -484,11 +468,11 @@ window.bukaRuangUjianStrict = function() {
     if (dataLokal && dataLokal.jawaban) {
         window.sesiUjianSiswa.jawaban = dataLokal.jawaban;
         let prevLokalViolation = (dataLokal.violationCount !== undefined) ? dataLokal.violationCount : (pkt.prevPelanggaran || 0);
-        window.violationCount = pkt.isResumeMode ? (prevLokalViolation + 1) : prevLokalViolation;
+        window.violationCount = prevLokalViolation;
         window.sisaDetikUjian = dataLokal.sisaDetik || (pkt.durasi * 60);
     } else {
         window.sesiUjianSiswa.jawaban = {};
-        window.violationCount = pkt.isResumeMode ? ((pkt.prevPelanggaran || 0) + 1) : 0;
+        window.violationCount = pkt.prevPelanggaran || 0;
         window.sisaDetikUjian = pkt.durasi * 60;
     }
 
@@ -497,7 +481,7 @@ window.bukaRuangUjianStrict = function() {
         let overlay = document.getElementById('strict-warning-overlay');
         if (overlay) overlay.style.display = 'none';
 
-        window.alertAmanUjian("❌ AKSES DIBLOKIR!\n\nPenambahan penalti karena Anda keluar dari sesi sebelumnya membuat total pelanggaran Anda mencapai batas maksimal (5x).\n\nUjian dihentikan paksa dan hasil Anda akan otomatis dikumpulkan!");
+        window.alertAmanUjian("❌ AKSES DIBLOKIR!\n\nTotal pelanggaran Anda telah mencapai batas maksimal (5x).\n\nUjian dihentikan paksa dan hasil Anda akan otomatis dikumpulkan!");
 
         window.simpanCadanganLokalUjian();
         window.kumpulkanUjianSiswa(true, true);
@@ -512,8 +496,10 @@ window.bukaRuangUjianStrict = function() {
     window.lastOrientation = window.innerWidth > window.innerHeight ? 'landscape' : 'portrait';
     window.initUjianWidth = window.innerWidth;
     window.initUjianHeight = window.innerHeight;
-    window.ujianEntryShieldUntil = Date.now() + 4000;
-    window.graceOrientationTime = Date.now() + 4000;
+    window.ujianEntryShieldUntil = Date.now() + 5000;
+    window.graceOrientationTime = Date.now() + 5000;
+    window.graceKeyboardTime = Date.now() + 5000;
+    window.graceZoomTime = Date.now() + 5000;
     window.isStrictUjianActive = true;
 
     window.aktifkanWakeLockUjian();
@@ -521,7 +507,6 @@ window.bukaRuangUjianStrict = function() {
     window.setTiraiPrivasiUjian(false);
     window.history.pushState({ inExam: true }, null, window.location.href);
 
-    // Blokir API Screen Recording bawaan browser jika dipanggil ekstensi/script
     if (navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) {
         navigator.mediaDevices.getDisplayMedia = function() {
             window.triggerPelanggaran("Terdeteksi percobaan merekam layar (Screen Recording)!");
@@ -532,12 +517,12 @@ window.bukaRuangUjianStrict = function() {
     clearInterval(window.screenGuardInterval);
     window.screenGuardInterval = setInterval(function() {
         if (!window.isStrictUjianActive || window.isPenaltyActive || window.sedangDialogSistem) return;
-        if (Date.now() < window.ujianEntryShieldUntil || Date.now() < window.graceOrientationTime) return;
-
-        // Jika fokus direbut oleh Floating App / Jendela Lain (meskipun kursor sebelumnya di kotak INPUT)
-        if (!document.hasFocus()) {
-            window.setTiraiPrivasiUjian(true);
-            window.triggerPelanggaran("Fokus layar hilang (Membuka Aplikasi Mengambang / Pindah Jendela)!");
+        if (
+            Date.now() < (window.ujianEntryShieldUntil || 0) ||
+            Date.now() < (window.graceOrientationTime || 0) ||
+            window.apakahSedangBukaKeyboardUjian() ||
+            window.apakahSedangZoomAmanUjian()
+        ) {
             return;
         }
 
@@ -548,7 +533,7 @@ window.bukaRuangUjianStrict = function() {
         } else {
             window.setTiraiPrivasiUjian(false);
         }
-    }, 1200);
+    }, 1500);
 
     if (typeof window.simpanStatusLiveMonitorKeDB === "function") {
         if (typeof window.modeHematServerUjian === "function") window.modeHematServerUjian(false);
@@ -995,7 +980,7 @@ window.kumpulkanUjianSiswa = function(isForce, isKicked) {
 };
 
 // =========================================================================
-// 3. SENSOR ANTI-CHEAT PRESISI (ANDROID, DESKTOP, & SCREENSHOT)
+// 3. SENSOR ANTI-CHEAT PRESISI (AMAN ROTASI, AMAN ZOOM, & AMAN KEYBOARD)
 // =========================================================================
 document.addEventListener('copy', function(e) {
     if (window.isStrictUjianActive && sessionStorage.getItem("statusLogin") !== "admin") {
@@ -1022,17 +1007,55 @@ document.addEventListener('selectstart', function(e) {
     }
 });
 
-// Sensor Sentuhan 3 Jari atau Lebih (Anti Three-Finger Screenshot di Android / iPad)
-document.addEventListener('touchstart', function(e) {
-    if (!window.isStrictUjianActive || window.sedangDialogSistem) return;
-    if (sessionStorage.getItem("statusLogin") === "admin") return;
-
-    if (e.touches && e.touches.length >= 3) {
-        e.preventDefault();
-        window.setTiraiPrivasiUjian(true);
-        window.triggerPelanggaran("Terdeteksi gestur 3 jari (Percobaan Screenshot / Split-Screen)!");
+// Pelacak Aktivitas Keyboard Virtual (Memberi masa aman saat buka maupun tutup keyboard)
+document.addEventListener('focusin', function(e) {
+    let t = e.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) {
+        window.graceKeyboardTime = Date.now() + 4000;
+        clearTimeout(window.blurCheckTimer);
     }
-}, { passive: false });
+}, true);
+
+document.addEventListener('focusout', function(e) {
+    let t = e.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) {
+        // Beri jeda 3.5 detik saat keyboard virtual bergerak menutup agar tidak dideteksi sebagai Split-Screen
+        window.graceKeyboardTime = Date.now() + 3500;
+        clearTimeout(window.blurCheckTimer);
+    }
+}, true);
+
+// Pelacak Gestur Pinch-to-Zoom (2 Jari atau Lebih) Agar 100% Aman
+document.addEventListener('touchstart', function(e) {
+    if (!window.isStrictUjianActive) return;
+    if (e.touches && e.touches.length >= 2) {
+        window.graceZoomTime = Date.now() + 3000;
+    }
+    let t = e.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT')) {
+        window.graceKeyboardTime = Date.now() + 4000;
+    }
+}, { passive: true });
+
+document.addEventListener('touchmove', function(e) {
+    if (!window.isStrictUjianActive) return;
+    if (e.touches && e.touches.length >= 2) {
+        window.graceZoomTime = Date.now() + 3000;
+    }
+}, { passive: true });
+
+if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', function() {
+        if (!window.isStrictUjianActive) return;
+        if (window.visualViewport.scale && Math.abs(window.visualViewport.scale - 1) > 0.03) {
+            window.graceZoomTime = Date.now() + 3000;
+        }
+        // Jika lebar visualViewport tetap sama dengan layar tetapi tingginya berubah, berarti keyboard virtual sedang muncul/menutup
+        if (Math.abs(window.visualViewport.width - window.innerWidth) < 30 && window.visualViewport.height < window.innerHeight * 0.9) {
+            window.graceKeyboardTime = Date.now() + 3500;
+        }
+    });
+}
 
 document.addEventListener('keydown', function(e) {
     if (e.key === 'AudioVolumeUp' || e.key === 'AudioVolumeDown' || e.key === 'AudioVolumeMute' || e.keyCode === 174 || e.keyCode === 175 || e.keyCode === 173) {
@@ -1041,6 +1064,13 @@ document.addEventListener('keydown', function(e) {
 
     if (window.isStrictUjianActive && sessionStorage.getItem("statusLogin") !== "admin") {
         let keyUpper = (e.key || '').toUpperCase();
+
+        // Izinkan pintasan Zoom In / Zoom Out di keyboard (Ctrl/Cmd + '+', '-', '0')
+        if ((e.ctrlKey || e.metaKey) && (e.key === '+' || e.key === '-' || e.key === '=' || e.key === '0')) {
+            window.graceZoomTime = Date.now() + 3000;
+            return;
+        }
+
         let isPrintScreen = (e.key === 'PrintScreen' || e.keyCode === 44);
         let isMacShot = (e.metaKey && e.shiftKey && (keyUpper === '3' || keyUpper === '4' || keyUpper === '5' || keyUpper === '6'));
         let isWinSnip = (e.metaKey && e.shiftKey && keyUpper === 'S');
@@ -1081,7 +1111,7 @@ window.triggerPelanggaran = function(alasanKhusus) {
     if (sessionStorage.getItem("statusLogin") === "admin") return;
 
     let now = Date.now();
-    if (now - window.lastViolationTime < 1200) return;
+    if (now - window.lastViolationTime < 1500) return;
     window.lastViolationTime = now;
 
     window.setTiraiPrivasiUjian(true);
@@ -1166,22 +1196,41 @@ document.addEventListener("visibilitychange", function() {
 
 window.addEventListener("blur", function() {
     if (!window.isStrictUjianActive || window.sedangDialogSistem) return;
-    if (Date.now() < (window.ujianEntryShieldUntil || 0) || Date.now() < (window.graceOrientationTime || 0)) return;
-
-    // Langsung kaburkan soal seketika (0 ms) saat fokus hilang agar tidak bisa di-screenshot / dibaca dari balik Floating App
-    window.setTiraiPrivasiUjian(true);
+    if (
+        Date.now() < (window.ujianEntryShieldUntil || 0) ||
+        Date.now() < (window.graceOrientationTime || 0) ||
+        window.apakahSedangBukaKeyboardUjian() ||
+        window.apakahSedangZoomAmanUjian()
+    ) {
+        return;
+    }
 
     clearTimeout(window.blurCheckTimer);
     window.blurCheckTimer = setTimeout(function() {
         if (!window.isStrictUjianActive || window.sedangDialogSistem) return;
-        if (Date.now() < (window.ujianEntryShieldUntil || 0)) return;
-
-        if (!document.hasFocus() && document.visibilityState === 'hidden') {
-            window.triggerPelanggaran("Keluar dari aplikasi ujian / membuka tab peramban lain!");
-        } else if (!document.hasFocus()) {
-            window.triggerPelanggaran("Fokus layar direbut oleh Aplikasi Mengambang (Floating App / Pop-up Overlay)!");
+        if (
+            Date.now() < (window.ujianEntryShieldUntil || 0) ||
+            Date.now() < (window.graceOrientationTime || 0) ||
+            window.apakahSedangBukaKeyboardUjian() ||
+            window.apakahSedangZoomAmanUjian()
+        ) {
+            return;
         }
-    }, 900);
+
+        // Jika halaman benar-benar ditinggalkan (hidden)
+        if (document.visibilityState === 'hidden') {
+            window.setTiraiPrivasiUjian(true);
+            window.triggerPelanggaran("Keluar dari aplikasi ujian / membuka tab peramban lain!");
+            return;
+        }
+
+        // Pada Desktop/Laptop: jika pengguna mengklik aplikasi lain di luar browser
+        let isMobileDevice = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints && navigator.maxTouchPoints > 1);
+        if (!isMobileDevice && !document.hasFocus()) {
+            window.setTiraiPrivasiUjian(true);
+            window.triggerPelanggaran("Fokus layar berpindah ke jendela atau aplikasi lain di luar ujian!");
+        }
+    }, 1200);
 });
 
 window.addEventListener("focus", function() {
@@ -1191,25 +1240,54 @@ window.addEventListener("focus", function() {
     }
 });
 
-window.addEventListener("orientationchange", function() {
-    window.graceOrientationTime = Date.now() + 1500;
+window.tandaiPerubahanOrientasiAman = function() {
+    window.graceOrientationTime = Date.now() + 3500;
+    clearTimeout(window.blurCheckTimer);
     setTimeout(function() {
         window.lastOrientation = window.innerWidth > window.innerHeight ? 'landscape' : 'portrait';
         window.initUjianWidth = window.innerWidth;
         window.initUjianHeight = window.innerHeight;
-    }, 500);
-});
+    }, 600);
+};
+
+window.addEventListener("orientationchange", window.tandaiPerubahanOrientasiAman);
+if (window.screen && window.screen.orientation && window.screen.orientation.addEventListener) {
+    window.screen.orientation.addEventListener("change", window.tandaiPerubahanOrientasiAman);
+}
 
 window.addEventListener("resize", function() {
     if (!window.isStrictUjianActive || window.sedangDialogSistem) return;
-    let currentOrientation = window.innerWidth > window.innerHeight ? 'landscape' : 'portrait';
-    if (currentOrientation !== window.lastOrientation) {
-        window.graceOrientationTime = Date.now() + 1200;
-        window.lastOrientation = currentOrientation;
+
+    // 1. Cek apakah terjadi perubahan Zoom Browser (devicePixelRatio)
+    let curDPR = window.devicePixelRatio || 1;
+    if (Math.abs(curDPR - (window.lastDPRUjian || 1)) > 0.01) {
+        window.lastDPRUjian = curDPR;
+        window.graceZoomTime = Date.now() + 3000;
         return;
     }
 
-    if (Date.now() < (window.ujianEntryShieldUntil || 0) || Date.now() < (window.graceOrientationTime || 0)) return;
+    // 2. Cek apakah orientasi Portrait <-> Landscape berubah
+    let currentOrientation = window.innerWidth > window.innerHeight ? 'landscape' : 'portrait';
+    if (currentOrientation !== window.lastOrientation) {
+        window.lastOrientation = currentOrientation;
+        window.tandaiPerubahanOrientasiAman();
+        return;
+    }
+
+    // 3. Jika lebar layar tetap sama namun hanya tinggi yang berubah di HP/Tablet, itu adalah Keyboard Virtual / Address Bar
+    if (window.initUjianWidth && Math.abs(window.innerWidth - window.initUjianWidth) < 25) {
+        window.graceKeyboardTime = Date.now() + 3000;
+        return;
+    }
+
+    if (
+        Date.now() < (window.ujianEntryShieldUntil || 0) ||
+        Date.now() < (window.graceOrientationTime || 0) ||
+        window.apakahSedangBukaKeyboardUjian() ||
+        window.apakahSedangZoomAmanUjian()
+    ) {
+        return;
+    }
 
     let cek = window.cekKondisiLayarPenuhDanBersih();
     if (!cek.aman) {

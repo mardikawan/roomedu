@@ -946,7 +946,7 @@ window.pastikanBannerPanenXPLatihanAda = function() {
         '<div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;">' +
             '<div>' +
                 '<div style="font-size:13px; font-weight:900; color:#d35400;">🌾 ACARA KHUSUS: PANEN XP RAYA!</div>' +
-                '<div style="font-size:11px; color:#475569; line-height:1.4; margin-top:2px;">Kerjakan minimal <b>50 Soal</b> dan raih minimal <b>40 Benar</b> untuk klaim bonus <b>+200 XP & +200 Coin</b>!</div>' +
+                '<div style="font-size:11px; color:#475569; line-height:1.4; margin-top:2px;">Kerjakan minimal <b>50 Soal</b> dan raih minimal <b>40 Benar</b> untuk mendapatkan <b>Tambahan Bonus +200 XP & +200 Coin</b> di luar skor dasarmu!</div>' +
             '</div>' +
             '<button type="button" class="btn-action" style="background:#d35400; color:#fff; width:auto; padding:6px 12px; font-size:11px; border-radius:18px; white-space:nowrap;" onclick="document.getElementById(\'latihan-jumlah-soal\').value=50; if(window.tampilkanBadgeHadiahKuis) window.tampilkanBadgeHadiahKuis(this, \'🌾 Mode Panen XP (50 Soal) Diaktifkan!\');">🔥 Set 50 Soal</button>' +
         '</div>';
@@ -975,12 +975,33 @@ window.evaluasiBonusPanenXPLatihan = function() {
 
     if (totalSoal >= 50 && totalBenar >= 40) {
         sesi._panenClaimed = true;
+        
+        // Hitung total XP dasar yang didapat siswa dari tipe soal yang dijawab benar
+        let baseXP = 0;
+        if (sesi.soal && sesi.hasilBenar) {
+            sesi.soal.forEach(function(q, i) {
+                if (sesi.hasilBenar[i]) {
+                    let t = String(q.type || "PG").toUpperCase();
+                    let p = (typeof window.dapatkanPoinXPPerSoal === "function") 
+                        ? window.dapatkanPoinXPPerSoal(t) 
+                        : (t === "PGK" ? 20 : (t === "IS" ? 50 : (t === "ESSAY" ? 100 : 10)));
+                    baseXP += p;
+                }
+            });
+        } else {
+            baseXP = totalBenar * 10; // Hitungan dasar cadangan jika parameter tidak valid
+        }
+
+        let totalPanenXP = baseXP + 200;
+
+        // Tambahkan Bonus +200-nya ke Database
         if (typeof window.tambahXPSiswa === "function") window.tambahXPSiswa(200, "bonus_panen_xp");
+        
         if (msgBox) {
-            msgBox.innerHTML += '<div style="margin-top:8px; padding:10px; background:linear-gradient(135deg, #fef9e7, #dcfce7); color:#15803d; border:2px solid #22c55e; border-radius:8px; font-weight:900; font-size:13px;">🌾 BONUS PANEN XP RAYA TERCAPAI! (' + totalBenar + '/' + totalSoal + ' Benar)<br>Kamu mendapatkan tambahan <b>+200 XP & +200 Coin</b>!</div>';
+            msgBox.innerHTML += '<div style="margin-top:8px; padding:10px; background:linear-gradient(135deg, #fef9e7, #dcfce7); color:#15803d; border:2px solid #22c55e; border-radius:8px; font-weight:900; font-size:13px;">🌾 BONUS PANEN XP RAYA TERCAPAI! (' + totalBenar + '/' + totalSoal + ' Benar)<br>Skor Dasar: <b>' + baseXP + ' XP</b> + Bonus: <b>200 XP</b><br>Total Didapat: <b>' + totalPanenXP + ' XP & ' + totalPanenXP + ' Coin</b>!</div>';
         }
         if (typeof window.tampilkanBadgeHadiahKuis === "function") {
-            window.tampilkanBadgeHadiahKuis(null, "🌾 PANEN XP RAYA! +200 XP & +200 Coin!");
+            window.tampilkanBadgeHadiahKuis(null, "🌾 PANEN XP RAYA! Total " + totalPanenXP + " XP!");
         }
     }
 };
