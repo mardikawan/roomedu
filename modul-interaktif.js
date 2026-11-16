@@ -2318,13 +2318,16 @@ window.eksekusiGeneratePromptVI = function() {
         instruksiVisualKhusus =
 `3. SPESIFIKASI VISUAL KHUSUS — PETA KONSEP BERJENJANG (KODE HIERARKI 1, 1a, 1aa, 1ab, 1b, 1ba):
    - JANGAN gunakan partikel aliran energi!
+   - ATURAN MUTLAK KELOMPOK HIERARKI (ANTI-DAFTAR DATAR):
+     * DILARANG KERAS meratakan semua sub-materi menjadi cabang tingkat 1 yang sejajar!
+     * Materi WAJIB dikelompokkan ke dalam 3 hingga 5 Pilar Kategori Utama (Level 2: 1a, 1b, 1c) terlebih dahulu, kemudian rinciannya dimasukkan sebagai anak dari Pilar Kategori tersebut (Level 3: 1aa, 1ab, 1ba).
    - DESAIN KAPSUL WAJIB 1 BARIS HORIZONTAL (DILARANG KERAS FLEX-COL / TUMPUK ATAS-BAWAH!):
      * Setiap balok konsep WAJIB berbentuk kapsul/pil 1 baris memanjang ke samping (class="concept-node vi-node-item inline-flex flex-row items-center gap-1.5 whitespace-nowrap px-2.5 py-1 rounded-lg bg-slate-800/95 border border-slate-600 shadow-md cursor-pointer absolute -translate-x-1/2 -translate-y-1/2") yang di dalamnya berjejer ke samping: [Badge Kode] [Emoji] [Nama Konsep 1 Baris Tanpa Enter].
    - TATA LETAK KOLOM HIERARKI:
      * Induk Pusat (Root) di tengah kanvas (left: 50%, top: 50%).
-     * Cabang Tingkat 1 di kolom dalam kiri (left: 33%) dan kolom dalam kanan (left: 67%).
-     * Sub-Cabang Tingkat 2 di kolom luar kiri (left: 11%) dan kolom luar kanan (left: 89%).
-   - Dua kotak ringkasan di bagian bawah #info-active diberi judul kontekstual: "INDUK & JALUR HIERARKI" dan "RINCIAN KONSEP / SUB-CABANG".`;
+     * Cabang Pilar Kategori (Tingkat 1) di kolom dalam kiri (left: 33%) dan kolom dalam kanan (left: 67%).
+     * Sub-Cabang Rincian (Tingkat 2) di kolom luar kiri (left: 11%) dan kolom luar kanan (left: 89%).
+   - Dua kotak ringkasan di bagian bawah #info-active diberi judul kontekstual: "KATEGORI INDUK HIERARKI" dan "RINCIAN KONSEP CABANG".`;
     } else if (visual === "anatomi_3d") {
         namaVisualLabel = "ATLAS ANATOMI 3D INTERAKTIF (THREE.JS GLB MODELS)";
         instruksiVisualKhusus =
