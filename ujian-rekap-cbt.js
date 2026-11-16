@@ -236,39 +236,38 @@ window.graceKeyboardTime = 0;
 window.graceZoomTime = 0;
 window.lastDPRUjian = window.devicePixelRatio || 1;
 
-window.apakahSedangBukaKeyboardUjian = function() {
-    let el = document.activeElement;
-    let tag = (el && el.tagName) ? el.tagName.toUpperCase() : '';
-    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (el && el.isContentEditable)) {
-        window.graceKeyboardTime = Date.now() + 3500;
-        return true;
-    }
+window.apakahPerangkatIPhone = function() {
+    let ua = navigator.userAgent || '';
+    return /iPhone|iPod/i.test(ua);
+};
+
+window.apakahTransisiKeyboardAktif = function() {
     return Date.now() < (window.graceKeyboardTime || 0);
 };
 
-window.apakahSedangZoomAmanUjian = function() {
-    if (window.visualViewport && window.visualViewport.scale && Math.abs(window.visualViewport.scale - 1) > 0.03) {
-        return true;
-    }
-    if (window.currentTextZoomPct && window.currentTextZoomPct !== 100) {
-        return true;
-    }
+window.apakahTransisiZoomAktif = function() {
     return Date.now() < (window.graceZoomTime || 0);
 };
 
 window.cekKondisiLayarPenuhDanBersih = function() {
-    // 1. Pelanggaran mutlak jika tab disembunyikan atau pindah aplikasi
+    // 1. MUTLAK: Jika halaman disembunyikan (pindah tab, tekan tombol Home, pindah aplikasi), LANGSUNG PELANGGARAN!
     if (document.visibilityState === 'hidden' || document.hidden) {
-        return { aman: false, alasan: "Aplikasi berjalan di latar belakang (Membuka Tab Baru / Keluar Aplikasi)." };
+        return { aman: false, alasan: "Keluar dari ruang ujian atau membuka tab/aplikasi lain!" };
     }
 
-    // 2. Jika sedang membuka/menutup keyboard, baru memutar orientasi, atau sedang zoom in/out -> 100% AMAN
+    // 2. Masa transisi masuk ujian, putar orientasi, animasi keyboard, atau sedang mencubit zoom -> AMAN untuk ukuran layar
     if (
-        window.apakahSedangBukaKeyboardUjian() ||
-        window.apakahSedangZoomAmanUjian() ||
+        Date.now() < (window.ujianEntryShieldUntil || 0) ||
         Date.now() < (window.graceOrientationTime || 0) ||
-        Date.now() < (window.ujianEntryShieldUntil || 0)
+        window.apakahTransisiKeyboardAktif() ||
+        window.apakahTransisiZoomAktif()
     ) {
+        return { aman: true, alasan: "" };
+    }
+
+    // 3. Khusus iPhone (iOS): iPhone tidak memiliki fitur Split-Screen.
+    // Perubahan innerWidth/innerHeight di Safari iPhone murni berasal dari Zoom (Pinch / Page Zoom 'aA') & Address Bar.
+    if (window.apakahPerangkatIPhone()) {
         return { aman: true, alasan: "" };
     }
 
@@ -279,21 +278,33 @@ window.cekKondisiLayarPenuhDanBersih = function() {
     let uw = window.outerWidth || iw;
     let uh = window.outerHeight || ih;
 
-    // Sesuaikan orientasi layar acuan (Portrait vs Landscape) agar rotasi layar selalu aman
+    // Hitung lebar & tinggi aktual dengan memperhitungkan skala Zoom (agar Zoom In/Out tidak dianggap Split-Screen)
+    let vScale = (window.visualViewport && window.visualViewport.scale) ? window.visualViewport.scale : 1;
+    let vWidth = (window.visualViewport && window.visualViewport.width) ? window.visualViewport.width : iw;
+    let effectiveWidth = Math.max(iw, vWidth * vScale);
+
+    // Sesuaikan orientasi layar acuan (Portrait vs Landscape)
     let isLandscape = iw > ih;
     let sw = isLandscape ? Math.max(rawSW, rawSH) : Math.min(rawSW, rawSH);
     let sh = isLandscape ? Math.min(rawSW, rawSH) : Math.max(rawSW, rawSH);
 
-    let isMobileDevice = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints && navigator.maxTouchPoints > 1);
+    let isMobileOrTablet = /Android|iPad|iPhone|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints && navigator.maxTouchPoints > 1);
 
-    if (isMobileDevice) {
-        // Di HP/Tablet: hanya deteksi jika LEBAR layar menyempit drastis akibat Split-Screen samping (< 70% lebar orientasi saat ini)
-        // Perubahan tinggi (ih) diabaikan karena dipengaruhi oleh keyboard virtual, address bar, dan mode landscape
-        if (iw < sw * 0.70) {
+    if (isMobileOrTablet) {
+        // Di Android & iPad: deteksi Split-Screen jika lebar efektif menyempit drastis (< 68% lebar layar orientasi saat ini)
+        if (effectiveWidth < sw * 0.68) {
             return { aman: false, alasan: "Terdeteksi mode Layar Terbelah (Split-Screen) atau Jendela Mengambang!" };
         }
+        // Deteksi Split-Screen Atas-Bawah di Android jika sedang TIDAK mengetik di kotak input
+        let activeEl = document.activeElement;
+        let activeTag = (activeEl && activeEl.tagName) ? activeEl.tagName.toUpperCase() : '';
+        let sedangFokusKetik = (activeTag === 'INPUT' || activeTag === 'TEXTAREA' || activeTag === 'SELECT');
+        let effectiveHeight = (window.visualViewport && window.visualViewport.height) ? (window.visualViewport.height * vScale) : ih;
+        if (!sedangFokusKetik && !window.apakahTransisiKeyboardAktif() && effectiveHeight < sh * 0.52) {
+            return { aman: false, alasan: "Ukuran layar terlalu pendek (Terdeteksi Split-Screen Atas-Bawah / Pop-up App)!" };
+        }
     } else {
-        // Di Laptop/PC: gunakan outerWidth & outerHeight agar fitur Zoom Browser (Ctrl +/-) tidak dianggap memperkecil jendela
+        // Di Laptop/PC: gunakan outerWidth & outerHeight agar Zoom Browser (Ctrl +/-) tetap aman
         if (uw > 0 && uw < sw * 0.72) {
             return { aman: false, alasan: "Jendela browser diperkecil (Terdeteksi Split-Screen Samping). Maksimalkan jendela Anda!" };
         }
@@ -306,7 +317,6 @@ window.cekKondisiLayarPenuhDanBersih = function() {
 };
 
 window.aktifkanFullscreenUjian = function() {
-    // Jangan paksa native requestFullscreen pada HP/Tablet agar fitur Pinch-to-Zoom & Keyboard Virtual tidak bentrok
     let isTouchDevice = (navigator.maxTouchPoints && navigator.maxTouchPoints > 1) || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
     if (isTouchDevice) return;
 
@@ -388,7 +398,7 @@ window.verifikasiMasukUjian = function() {
         } else if (statusLM === "Selesai" || statusLM === "Dikeluarkan") {
             return alert("⚠️ AKSES DITOLAK MUTLAK!\n\nStatus ujian Anda tercatat: " + statusLM.toUpperCase() + ".\nAnda tidak dapat masuk kembali ke ujian ini tanpa izin dari Guru (Guru harus mereset nama Anda dari Live Monitor).");
         } else if (statusLM === "Sedang Mengerjakan") {
-            let lanjut = confirm("⚠️ TERDETEKSI TERKELUAR DARI UJIAN!\n\nSistem menemukan sesi Anda sebelumnya terputus di tengah jalan.\nAnda dapat masuk kembali untuk melanjutkannya (waktu & jawaban tersimpan).\n\nKlik OK untuk meneruskan ujian.");
+            let lanjut = confirm("⚠️ TERDETEKSI TERKELUAR DARI UJIAN!\n\nSistem menemukan sesi Anda sebelumnya terputus di tengah jalan.\nAnda dapat masuk kembali untuk melanjutkannya (waktu & jawaban tersimpan), NAMUN pelanggaran Anda akan bertambah +1.\n\nKlik OK untuk meneruskan ujian.");
             if (!lanjut) return;
             isResumeMode = true;
         }
@@ -400,11 +410,10 @@ window.verifikasiMasukUjian = function() {
     let soalDisiapkan = paketData.soal.map(function(q, i) { return Object.assign({}, q, { originalIndex: i }); });
     soalDisiapkan.sort(function() { return Math.random() - 0.5; });
 
-    // Aktifkan pelindung transisi masuk ujian & penutupan keyboard kode ujian selama 5 detik penuh
-    window.ujianEntryShieldUntil = Date.now() + 5000;
-    window.graceOrientationTime = Date.now() + 5000;
-    window.graceKeyboardTime = Date.now() + 5000;
-    window.graceZoomTime = Date.now() + 5000;
+    window.ujianEntryShieldUntil = Date.now() + 3500;
+    window.graceOrientationTime = Date.now() + 3500;
+    window.graceKeyboardTime = Date.now() + 3500;
+    window.graceZoomTime = Date.now() + 3500;
 
     if (document.activeElement && typeof document.activeElement.blur === "function") {
         document.activeElement.blur();
@@ -438,12 +447,14 @@ window.bukaRuangUjianStrict = function() {
     if (nav) nav.style.display = 'none';
     if (breadcrumb) breadcrumb.style.display = 'none';
 
-    document.body.style.overflow = 'hidden';
+    // Gunakan overflow auto & touch-action pinch-zoom agar Safari iPhone leluasa melakukan Pinch-to-Zoom tanpa mental
+    document.body.style.overflow = 'auto';
     document.body.classList.add('strict-mode-active');
 
     let room = document.getElementById('ujian-strict-room');
     if (room) {
         room.style.display = 'block';
+        room.style.touchAction = 'pan-x pan-y pinch-zoom';
         room.setAttribute('tabindex', '-1');
         try { room.focus({ preventScroll: true }); } catch (e) {}
     }
@@ -467,14 +478,15 @@ window.bukaRuangUjianStrict = function() {
 
     if (dataLokal && dataLokal.jawaban) {
         window.sesiUjianSiswa.jawaban = dataLokal.jawaban;
-        let prevLokalViolation = (dataLokal.violationCount !== undefined) ? dataLokal.violationCount : (pkt.prevPelanggaran || 0);
-        window.violationCount = prevLokalViolation;
+        let prevLokalViolation = Math.max(Number(dataLokal.violationCount) || 0, Number(pkt.prevPelanggaran) || 0);
+        window.violationCount = pkt.isResumeMode ? (prevLokalViolation + 1) : prevLokalViolation;
         window.sisaDetikUjian = dataLokal.sisaDetik || (pkt.durasi * 60);
     } else {
         window.sesiUjianSiswa.jawaban = {};
-        window.violationCount = pkt.prevPelanggaran || 0;
+        window.violationCount = pkt.isResumeMode ? ((Number(pkt.prevPelanggaran) || 0) + 1) : (Number(pkt.prevPelanggaran) || 0);
         window.sisaDetikUjian = pkt.durasi * 60;
     }
+    window.simpanCadanganLokalUjian();
 
     if (window.violationCount >= 5) {
         window.isStrictUjianActive = false;
@@ -483,7 +495,6 @@ window.bukaRuangUjianStrict = function() {
 
         window.alertAmanUjian("❌ AKSES DIBLOKIR!\n\nTotal pelanggaran Anda telah mencapai batas maksimal (5x).\n\nUjian dihentikan paksa dan hasil Anda akan otomatis dikumpulkan!");
 
-        window.simpanCadanganLokalUjian();
         window.kumpulkanUjianSiswa(true, true);
         return;
     }
@@ -496,10 +507,10 @@ window.bukaRuangUjianStrict = function() {
     window.lastOrientation = window.innerWidth > window.innerHeight ? 'landscape' : 'portrait';
     window.initUjianWidth = window.innerWidth;
     window.initUjianHeight = window.innerHeight;
-    window.ujianEntryShieldUntil = Date.now() + 5000;
-    window.graceOrientationTime = Date.now() + 5000;
-    window.graceKeyboardTime = Date.now() + 5000;
-    window.graceZoomTime = Date.now() + 5000;
+    window.ujianEntryShieldUntil = Date.now() + 3500;
+    window.graceOrientationTime = Date.now() + 3500;
+    window.graceKeyboardTime = Date.now() + 2500;
+    window.graceZoomTime = Date.now() + 2500;
     window.isStrictUjianActive = true;
 
     window.aktifkanWakeLockUjian();
@@ -517,15 +528,24 @@ window.bukaRuangUjianStrict = function() {
     clearInterval(window.screenGuardInterval);
     window.screenGuardInterval = setInterval(function() {
         if (!window.isStrictUjianActive || window.isPenaltyActive || window.sedangDialogSistem) return;
-        if (
-            Date.now() < (window.ujianEntryShieldUntil || 0) ||
-            Date.now() < (window.graceOrientationTime || 0) ||
-            window.apakahSedangBukaKeyboardUjian() ||
-            window.apakahSedangZoomAmanUjian()
-        ) {
+
+        // 1. Pengecekan Mutlak: Jika tab/aplikasi berada di latar belakang (keluar ujian), langsung jatuhkan pelanggaran!
+        if (document.visibilityState === 'hidden' || document.hidden) {
+            window.setTiraiPrivasiUjian(true);
+            window.triggerPelanggaran("Keluar dari ruang ujian atau membuka aplikasi lain!");
             return;
         }
 
+        // 2. Pengecekan Kehilangan Fokus (Membuka Floating App / Jendela Lain / App Switcher)
+        if (Date.now() > (window.ujianEntryShieldUntil || 0) && !window.apakahTransisiKeyboardAktif() && !window.apakahTransisiZoomAktif()) {
+            if (!document.hasFocus()) {
+                window.setTiraiPrivasiUjian(true);
+                window.triggerPelanggaran("Fokus layar berpindah ke aplikasi mengambang atau ke luar ruang ujian!");
+                return;
+            }
+        }
+
+        // 3. Pengecekan Split-Screen
         let statusLayar = window.cekKondisiLayarPenuhDanBersih();
         if (!statusLayar.aman) {
             window.setTiraiPrivasiUjian(true);
@@ -533,7 +553,7 @@ window.bukaRuangUjianStrict = function() {
         } else {
             window.setTiraiPrivasiUjian(false);
         }
-    }, 1500);
+    }, 1200);
 
     if (typeof window.simpanStatusLiveMonitorKeDB === "function") {
         if (typeof window.modeHematServerUjian === "function") window.modeHematServerUjian(false);
@@ -980,7 +1000,7 @@ window.kumpulkanUjianSiswa = function(isForce, isKicked) {
 };
 
 // =========================================================================
-// 3. SENSOR ANTI-CHEAT PRESISI (AMAN ROTASI, AMAN ZOOM, & AMAN KEYBOARD)
+// 3. SENSOR ANTI-CHEAT PRESISI (SAFARI IPHONE ZOOM AMAN & DETEKSI KELUAR MUTLAK)
 // =========================================================================
 document.addEventListener('copy', function(e) {
     if (window.isStrictUjianActive && sessionStorage.getItem("statusLogin") !== "admin") {
@@ -1007,11 +1027,11 @@ document.addEventListener('selectstart', function(e) {
     }
 });
 
-// Pelacak Aktivitas Keyboard Virtual (Memberi masa aman saat buka maupun tutup keyboard)
+// 1. Pelacak Transisi Keyboard Virtual (Hanya memberi jeda 1.5 detik saat animasi buka/tutup keyboard)
 document.addEventListener('focusin', function(e) {
     let t = e.target;
     if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) {
-        window.graceKeyboardTime = Date.now() + 4000;
+        window.graceKeyboardTime = Date.now() + 1500;
         clearTimeout(window.blurCheckTimer);
     }
 }, true);
@@ -1019,40 +1039,54 @@ document.addEventListener('focusin', function(e) {
 document.addEventListener('focusout', function(e) {
     let t = e.target;
     if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) {
-        // Beri jeda 3.5 detik saat keyboard virtual bergerak menutup agar tidak dideteksi sebagai Split-Screen
-        window.graceKeyboardTime = Date.now() + 3500;
+        window.graceKeyboardTime = Date.now() + 1500;
         clearTimeout(window.blurCheckTimer);
     }
 }, true);
 
-// Pelacak Gestur Pinch-to-Zoom (2 Jari atau Lebih) Agar 100% Aman
+// 2. Pelacak Gestur Pinch-to-Zoom (Termasuk Event Khusus Safari iOS: gesturestart, gesturechange, gestureend)
+window.tandaiGesturZoomAktif = function() {
+    if (!window.isStrictUjianActive) return;
+    window.graceZoomTime = Date.now() + 2500;
+    clearTimeout(window.blurCheckTimer);
+};
+
+document.addEventListener('gesturestart', window.tandaiGesturZoomAktif, { passive: true });
+document.addEventListener('gesturechange', window.tandaiGesturZoomAktif, { passive: true });
+document.addEventListener('gestureend', window.tandaiGesturZoomAktif, { passive: true });
+
 document.addEventListener('touchstart', function(e) {
     if (!window.isStrictUjianActive) return;
     if (e.touches && e.touches.length >= 2) {
-        window.graceZoomTime = Date.now() + 3000;
+        window.tandaiGesturZoomAktif();
     }
     let t = e.target;
     if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT')) {
-        window.graceKeyboardTime = Date.now() + 4000;
+        window.graceKeyboardTime = Date.now() + 1500;
     }
 }, { passive: true });
 
 document.addEventListener('touchmove', function(e) {
     if (!window.isStrictUjianActive) return;
     if (e.touches && e.touches.length >= 2) {
-        window.graceZoomTime = Date.now() + 3000;
+        window.tandaiGesturZoomAktif();
     }
 }, { passive: true });
 
 if (window.visualViewport) {
+    window.lastVVScale = window.visualViewport.scale || 1;
     window.visualViewport.addEventListener('resize', function() {
         if (!window.isStrictUjianActive) return;
-        if (window.visualViewport.scale && Math.abs(window.visualViewport.scale - 1) > 0.03) {
-            window.graceZoomTime = Date.now() + 3000;
+        let curScale = window.visualViewport.scale || 1;
+        // Jika skala berubah, berarti siswa sedang melakukan Pinch-to-Zoom
+        if (Math.abs(curScale - (window.lastVVScale || 1)) > 0.01) {
+            window.lastVVScale = curScale;
+            window.graceZoomTime = Date.now() + 2500;
+            return;
         }
-        // Jika lebar visualViewport tetap sama dengan layar tetapi tingginya berubah, berarti keyboard virtual sedang muncul/menutup
-        if (Math.abs(window.visualViewport.width - window.innerWidth) < 30 && window.visualViewport.height < window.innerHeight * 0.9) {
-            window.graceKeyboardTime = Date.now() + 3500;
+        // Jika lebar visualViewport tetap sama tetapi tingginya menyusut, berarti keyboard virtual muncul/menutup
+        if (Math.abs(window.visualViewport.width - window.innerWidth) < 35) {
+            window.graceKeyboardTime = Date.now() + 1500;
         }
     });
 }
@@ -1065,9 +1099,8 @@ document.addEventListener('keydown', function(e) {
     if (window.isStrictUjianActive && sessionStorage.getItem("statusLogin") !== "admin") {
         let keyUpper = (e.key || '').toUpperCase();
 
-        // Izinkan pintasan Zoom In / Zoom Out di keyboard (Ctrl/Cmd + '+', '-', '0')
         if ((e.ctrlKey || e.metaKey) && (e.key === '+' || e.key === '-' || e.key === '=' || e.key === '0')) {
-            window.graceZoomTime = Date.now() + 3000;
+            window.graceZoomTime = Date.now() + 2500;
             return;
         }
 
@@ -1184,53 +1217,57 @@ window.cancelHukuman = function() {
     window.alertAmanUjian("Kunci penalti berhasil dibuka oleh Guru.");
 };
 
+// 3. DETEKSI MUTLAK KELUAR RUANG UJIAN (Pindah Tab, Home Screen, Pindah Aplikasi, Kunci Layar)
+// Tidak boleh diblokir oleh status keyboard maupun zoom!
 document.addEventListener("visibilitychange", function() {
-    if (document.visibilityState === 'hidden' && window.isStrictUjianActive && !window.sedangDialogSistem) {
+    if (!window.isStrictUjianActive || window.sedangDialogSistem) return;
+    if (document.visibilityState === 'hidden' || document.hidden) {
         window.setTiraiPrivasiUjian(true);
-        window.triggerPelanggaran("Keluar dari tab ujian atau membuka tab/aplikasi lain!");
-    } else if (document.visibilityState === 'visible' && window.isStrictUjianActive) {
+        window.triggerPelanggaran("Keluar dari ruang ujian atau membuka tab/aplikasi lain!");
+    } else if (document.visibilityState === 'visible') {
         if (!window.isPenaltyActive) window.setTiraiPrivasiUjian(false);
         window.aktifkanWakeLockUjian();
     }
 });
 
+window.addEventListener("pagehide", function() {
+    if (window.isStrictUjianActive && !window.sedangDialogSistem) {
+        window.setTiraiPrivasiUjian(true);
+        window.triggerPelanggaran("Meninggalkan atau menutup halaman ujian!");
+    }
+});
+
+// 4. DETEKSI KEHILANGAN FOKUS (Floating App, App Switcher, Control Center, Pindah Jendela di Semua Perangkat)
 window.addEventListener("blur", function() {
     if (!window.isStrictUjianActive || window.sedangDialogSistem) return;
-    if (
-        Date.now() < (window.ujianEntryShieldUntil || 0) ||
-        Date.now() < (window.graceOrientationTime || 0) ||
-        window.apakahSedangBukaKeyboardUjian() ||
-        window.apakahSedangZoomAmanUjian()
-    ) {
-        return;
-    }
+    if (Date.now() < (window.ujianEntryShieldUntil || 0)) return;
 
     clearTimeout(window.blurCheckTimer);
     window.blurCheckTimer = setTimeout(function() {
         if (!window.isStrictUjianActive || window.sedangDialogSistem) return;
-        if (
-            Date.now() < (window.ujianEntryShieldUntil || 0) ||
-            Date.now() < (window.graceOrientationTime || 0) ||
-            window.apakahSedangBukaKeyboardUjian() ||
-            window.apakahSedangZoomAmanUjian()
-        ) {
-            return;
-        }
 
-        // Jika halaman benar-benar ditinggalkan (hidden)
-        if (document.visibilityState === 'hidden') {
+        // Jika halaman disembunyikan ke latar belakang -> Langsung Pelanggaran!
+        if (document.visibilityState === 'hidden' || document.hidden) {
             window.setTiraiPrivasiUjian(true);
             window.triggerPelanggaran("Keluar dari aplikasi ujian / membuka tab peramban lain!");
             return;
         }
 
-        // Pada Desktop/Laptop: jika pengguna mengklik aplikasi lain di luar browser
-        let isMobileDevice = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints && navigator.maxTouchPoints > 1);
-        if (!isMobileDevice && !document.hasFocus()) {
-            window.setTiraiPrivasiUjian(true);
-            window.triggerPelanggaran("Fokus layar berpindah ke jendela atau aplikasi lain di luar ujian!");
+        // Jika sedang dalam masa transisi singkat (rotasi/zoom/buka keyboard) tetapi masih di dalam halaman, abaikan
+        if (
+            Date.now() < (window.graceOrientationTime || 0) ||
+            window.apakahTransisiKeyboardAktif() ||
+            window.apakahTransisiZoomAktif()
+        ) {
+            return;
         }
-    }, 1200);
+
+        // Baik di HP/Tablet maupun Laptop: jika fokus dokumen benar-benar hilang keluar dari halaman ujian
+        if (!document.hasFocus()) {
+            window.setTiraiPrivasiUjian(true);
+            window.triggerPelanggaran("Fokus layar berpindah ke luar ruang ujian (Membuka Aplikasi Mengambang / Panel Sistem)!");
+        }
+    }, 850);
 });
 
 window.addEventListener("focus", function() {
@@ -1241,13 +1278,13 @@ window.addEventListener("focus", function() {
 });
 
 window.tandaiPerubahanOrientasiAman = function() {
-    window.graceOrientationTime = Date.now() + 3500;
+    window.graceOrientationTime = Date.now() + 3000;
     clearTimeout(window.blurCheckTimer);
     setTimeout(function() {
         window.lastOrientation = window.innerWidth > window.innerHeight ? 'landscape' : 'portrait';
         window.initUjianWidth = window.innerWidth;
         window.initUjianHeight = window.innerHeight;
-    }, 600);
+    }, 500);
 };
 
 window.addEventListener("orientationchange", window.tandaiPerubahanOrientasiAman);
@@ -1258,15 +1295,21 @@ if (window.screen && window.screen.orientation && window.screen.orientation.addE
 window.addEventListener("resize", function() {
     if (!window.isStrictUjianActive || window.sedangDialogSistem) return;
 
-    // 1. Cek apakah terjadi perubahan Zoom Browser (devicePixelRatio)
-    let curDPR = window.devicePixelRatio || 1;
-    if (Math.abs(curDPR - (window.lastDPRUjian || 1)) > 0.01) {
-        window.lastDPRUjian = curDPR;
-        window.graceZoomTime = Date.now() + 3000;
+    // 1. Jika di iPhone (iOS), resize murni berasal dari Zoom Safari ('aA' / Pinch) atau Address Bar -> 100% Aman
+    if (window.apakahPerangkatIPhone()) {
+        window.graceZoomTime = Date.now() + 2000;
         return;
     }
 
-    // 2. Cek apakah orientasi Portrait <-> Landscape berubah
+    // 2. Cek apakah terjadi perubahan Zoom Browser (devicePixelRatio)
+    let curDPR = window.devicePixelRatio || 1;
+    if (Math.abs(curDPR - (window.lastDPRUjian || 1)) > 0.01) {
+        window.lastDPRUjian = curDPR;
+        window.graceZoomTime = Date.now() + 2500;
+        return;
+    }
+
+    // 3. Cek apakah orientasi Portrait <-> Landscape berubah
     let currentOrientation = window.innerWidth > window.innerHeight ? 'landscape' : 'portrait';
     if (currentOrientation !== window.lastOrientation) {
         window.lastOrientation = currentOrientation;
@@ -1274,17 +1317,17 @@ window.addEventListener("resize", function() {
         return;
     }
 
-    // 3. Jika lebar layar tetap sama namun hanya tinggi yang berubah di HP/Tablet, itu adalah Keyboard Virtual / Address Bar
-    if (window.initUjianWidth && Math.abs(window.innerWidth - window.initUjianWidth) < 25) {
-        window.graceKeyboardTime = Date.now() + 3000;
+    // 4. Jika lebar layar tetap sama namun hanya tinggi yang berubah di HP/Tablet, itu adalah Keyboard Virtual / Address Bar
+    if (window.initUjianWidth && Math.abs(window.innerWidth - window.initUjianWidth) < 30) {
+        window.graceKeyboardTime = Date.now() + 1500;
         return;
     }
 
     if (
         Date.now() < (window.ujianEntryShieldUntil || 0) ||
         Date.now() < (window.graceOrientationTime || 0) ||
-        window.apakahSedangBukaKeyboardUjian() ||
-        window.apakahSedangZoomAmanUjian()
+        window.apakahTransisiKeyboardAktif() ||
+        window.apakahTransisiZoomAktif()
     ) {
         return;
     }

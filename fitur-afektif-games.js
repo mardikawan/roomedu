@@ -1890,7 +1890,13 @@ window.resetAntiMacroSession = function() {
 };
 
 window.verifikasiKlikManusiaAsli = function(evt, minBacaMs) {
-    let batasMin = Math.max(2000, Number(minBacaMs) || 2000); // Wajib minimal jeda 2 detik (2000 ms) antar menjawab soal!
+    // MATIKAN ANTI-MACRO DI RUANG UJIAN CBT
+    if (window.isStrictUjianActive) return true;
+    if (evt && evt.target && evt.target.closest && evt.target.closest("#ujian-strict-room")) {
+        if (!window.sesiLatihanSiswa) return true;
+    }
+
+    let batasMin = Math.max(2000, Number(minBacaMs) || 2000);
     let now = Date.now();
     let guard = window.antiMacroGuard;
 
@@ -1904,7 +1910,6 @@ window.verifikasiKlikManusiaAsli = function(evt, minBacaMs) {
 
     let selisih = guard.lastClickTime ? (now - guard.lastClickTime) : 99999;
 
-    // Jika menjawab lagi kurang dari 2 detik, langsung tolak klik tersebut!
     if (selisih < batasMin) {
         guard.fastClickStrikes++;
         let sisaDetik = ((batasMin - selisih) / 1000).toFixed(1);
@@ -1936,13 +1941,14 @@ window.verifikasiKlikManusiaAsli = function(evt, minBacaMs) {
     return true;
 };
 
-// Pencegat Global Fase Capture: Menangkal Klik Membabi Buta (< 2 Detik) di Latihan, Ujian, dan Kuis Materi
+// Pencegat Global Fase Capture: Hanya Aktif di Latihan & Kuis Materi (MATI Saat Ujian CBT)
 document.addEventListener("click", function(e) {
     if (sessionStorage.getItem("statusLogin") === "admin") return;
+    if (window.isStrictUjianActive) return; // Bebaskan klik sepenuhnya saat Ujian CBT berlangsung
+
     let btnOpsi = e.target.closest(".quiz-option-btn");
     if (!btnOpsi || btnOpsi.disabled) return;
 
-    // Jika opsi adalah label PGK yang hanya mencentang checkbox, izinkan centang tapi cegat tombol kirim PGK-nya
     if (btnOpsi.tagName === "LABEL" && btnOpsi.querySelector('input[type="checkbox"]')) return;
 
     if (!window.verifikasiKlikManusiaAsli(e, 2000)) {
