@@ -876,9 +876,9 @@ window.bukaRuangUjianStrict = function() {
     }
     window.simpanCadanganLokalUjian();
 
-    if (window.violationCount >= 5 && !isAdmin) {
+    if (window.violationCount >= 6 && !isAdmin) {
         window.isStrictUjianActive = false;
-        window.alertAmanUjian("❌ AKSES DIBLOKIR!\n\nTotal pelanggaran Anda telah mencapai batas maksimal (5x).\n\nUjian dihentikan paksa dan hasil Anda akan otomatis dikumpulkan!");
+        window.alertAmanUjian("❌ AKSES DIBLOKIR!\n\nTotal pelanggaran Anda telah mencapai batas maksimal (6x).\n\nUjian dihentikan paksa dan hasil Anda akan otomatis dikumpulkan!");
         window.kumpulkanUjianSiswa(true, true);
         return;
     }
@@ -1223,8 +1223,23 @@ window.kumpulkanUjianSiswa = function(isForce, isKicked) {
         if (btnKumpul) {
             btnKumpul.disabled = true;
             btnKumpul.style.background = "#f39c12";
-            btnKumpul.innerText = "⏳ Mengirim Nilai & Jawaban ke Server...";
+            btnKumpul.innerText = "⏳ Memproses...";
         }
+
+        // TAMPILKAN OVERLAY LOADING KUMPUL UJIAN
+        let loadingKumpul = document.getElementById("loading-kumpul-ujian");
+        if (!loadingKumpul) {
+            loadingKumpul = document.createElement("div");
+            loadingKumpul.id = "loading-kumpul-ujian";
+            loadingKumpul.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(11, 57, 84, 0.95); backdrop-filter:blur(6px); z-index:20000000; display:flex; flex-direction:column; justify-content:center; align-items:center; color:white; font-family:'Poppins', sans-serif;";
+            loadingKumpul.innerHTML = 
+                '<div style="width:60px; height:60px; border:6px solid rgba(255,255,255,0.2); border-top-color:#27ae60; border-radius:50%; animation:spinKumpulCBT 1s linear infinite; margin-bottom:20px;"></div>' +
+                '<h2 style="margin:0; font-size:24px; letter-spacing:1px; font-weight:900; text-align:center;">Mengirim Jawaban...</h2>' +
+                '<p style="font-size:14px; opacity:0.9; margin-top:10px; font-weight:600; text-align:center; padding:0 20px;">Mohon tunggu, sedang menyinkronkan nilai Anda ke server Guru.</p>' +
+                '<style>@keyframes spinKumpulCBT { to { transform: rotate(360deg); } }</style>';
+            document.body.appendChild(loadingKumpul);
+        }
+        loadingKumpul.style.display = "flex";
 
         clearInterval(window.timerIntervalUjian);
         clearInterval(window.penaltyInterval);
@@ -1381,6 +1396,8 @@ window.kumpulkanUjianSiswa = function(isForce, isKicked) {
         window.adminRekapNilaiData[safeKelas][safePaket][safeNama] = payloadRekap;
 
         function selesaikanKeluarRuangUjian() {
+            let loadingKumpul = document.getElementById("loading-kumpul-ujian");
+            if (loadingKumpul) loadingKumpul.style.display = "none";
             try {
                 if (sessionStorage.getItem("statusLogin") === "siswa" && typeof window.tambahXPSiswa === "function" && totalXPUjian > 0) {
                     window.tambahXPSiswa(totalXPUjian, "ujian", soalBenarUjian);
@@ -1426,6 +1443,9 @@ window.kumpulkanUjianSiswa = function(isForce, isKicked) {
                         } else {
                             // JANGAN HAPUS LOCAL STORAGE. Beri peringatan dan kembalikan tombol.
                             window._sedangMengirimUjian = false;
+                            let loadingKumpul = document.getElementById("loading-kumpul-ujian");
+                            if (loadingKumpul) loadingKumpul.style.display = "none";
+                            
                             let btnKumpul = document.getElementById("btn-kumpul-ujian-utama");
                             if (btnKumpul) {
                                 btnKumpul.disabled = false;
@@ -1695,7 +1715,7 @@ window.triggerPelanggaran = function(alasanKhusus) {
             kelas: pkt.kelas,
             nama: pkt.nama,
             paket: pkt.paket,
-            status: window.violationCount >= 5 ? "Dikeluarkan" : "Sedang Mengerjakan",
+            status: window.violationCount >= 6 ? "Dikeluarkan" : "Sedang Mengerjakan",
             pelanggaran: window.violationCount,
             waktuUpdate: new Date().toISOString()
         };
@@ -1711,7 +1731,7 @@ window.triggerPelanggaran = function(alasanKhusus) {
         if (typeof window.simpanStatusLiveMonitorKeDB === "function") {
             if (typeof window.modeHematServerUjian === "function") window.modeHematServerUjian(false);
             window.simpanStatusLiveMonitorKeDB(pkt.paket, pkt.kelas, pkt.nama, payloadPelanggaran);
-            if (window.violationCount < 5) {
+            if (window.violationCount < 6) {
                 setTimeout(function() {
                     if (window.isStrictUjianActive && typeof window.modeHematServerUjian === "function") {
                         window.modeHematServerUjian(true);
@@ -1727,14 +1747,15 @@ window.triggerPelanggaran = function(alasanKhusus) {
 
     if (window.violationCount === 1) window.penaltyWaitTime = 30;
     else if (window.violationCount === 2) window.penaltyWaitTime = 300;
-    else if (window.violationCount === 3) window.penaltyWaitTime = 4500;
-    else if (window.violationCount === 4) window.penaltyWaitTime = 6000;
-    else if (window.violationCount >= 5) {
+    else if (window.violationCount === 3) window.penaltyWaitTime = 1200;
+    else if (window.violationCount === 4) window.penaltyWaitTime = 2400;
+    else if (window.violationCount === 5) window.penaltyWaitTime = 3600;
+    else if (window.violationCount >= 6) {
         if (overlay) overlay.style.display = 'none';
         window.isPenaltyActive = false;
         window.isStrictUjianActive = false;
         window.setTiraiPrivasiUjian(false);
-        window.alertAmanUjian("❌ PELANGGARAN MAKSIMAL (5x)!\n\nSistem mendeteksi aktivitas mencurigakan berulang kali. Ujian dihentikan paksa dan hasil pekerjaan Anda telah dikirim ke Rekap Nilai Guru!");
+        window.alertAmanUjian("❌ PELANGGARAN MAKSIMAL (6x)!\n\nSistem mendeteksi aktivitas mencurigakan berulang kali. Ujian dihentikan paksa dan hasil pekerjaan Anda telah dikirim ke Rekap Nilai Guru!");
         window.kumpulkanUjianSiswa(true, true);
         return;
     }
@@ -1744,7 +1765,7 @@ window.triggerPelanggaran = function(alasanKhusus) {
     if (overlay) overlay.style.display = 'flex';
 
     let teksAlasan = alasanKhusus ? ' (' + alasanKhusus + ')' : '';
-    if (info) info.innerText = 'Pelanggaran ke-' + window.violationCount + '/5!' + teksAlasan + ' ' + (window.violationCount === 4 ? '(PERINGATAN TERAKHIR!)' : '');
+    if (info) info.innerText = 'Pelanggaran ke-' + window.violationCount + '/6!' + teksAlasan + ' ' + (window.violationCount === 5 ? '(PERINGATAN TERAKHIR!)' : '');
     if (countdownEl) countdownEl.innerText = window.penaltyWaitTime;
 
     window.penaltyInterval = setInterval(function() {

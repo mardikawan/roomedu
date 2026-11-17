@@ -12,8 +12,8 @@ if (localStorage.getItem("statusLogin_mahardika")) {
     sessionStorage.setItem("guruTarget", localStorage.getItem("guruTarget_mahardika"));
 }
 
-// FORCE WIPE SYSTEM (Reset sesi lama setelah perbaikan hak akses)
-let currentAppVersion = "2.0.2";
+// FORCE WIPE SYSTEM (Reset sesi lama setelah pindah ke database baru)
+let currentAppVersion = "2.0.3";
 if (localStorage.getItem("app_version_mahardika") !== currentAppVersion) {
     sessionStorage.clear();
     localStorage.setItem("app_version_mahardika", currentAppVersion);
