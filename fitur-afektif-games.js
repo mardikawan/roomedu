@@ -1508,6 +1508,47 @@ window.apakahKelasSMALeaderboard = function(namaKelas) {
             kls.indexOf("X-") === 0 || kls.indexOf("XI-") === 0 || kls.indexOf("XII-") === 0);
 };
 
+// --- FUNGSI ADMIN TOOLS LEADERBOARD ---
+window.adminTambahXPSiswa = function(uKey) {
+    let inp = document.getElementById('inp-add-xp-' + uKey);
+    if (!inp) return;
+    let val = parseInt(inp.value, 10);
+    if (isNaN(val) || val <= 0) return alert("⚠️ Masukkan angka XP/Coin yang valid!");
+    
+    if (confirm("Tambahkan +" + val + " XP & Coin ke siswa ini?")) {
+        let lb = window.leaderboardSiswaData[uKey];
+        if (lb) {
+            let curTotal = Number(lb.xpTotal !== undefined ? lb.xpTotal : lb.xp) || 0;
+            let curCoin = Number(lb.coin !== undefined ? lb.coin : (lb.xpTersedia !== undefined ? lb.xpTersedia : lb.xp)) || 0;
+            
+            lb.xpTotal = curTotal + val;
+            lb.xp = lb.xpTotal;
+            lb.coin = curCoin + val;
+            lb.xpTersedia = lb.coin;
+
+            if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
+                window.simpanLeaderboardSiswaKeDB(uKey, lb);
+            }
+            inp.value = "";
+            window.renderTabelLeaderboard();
+            alert("✅ Berhasil menambahkan +" + val + " XP & Coin!");
+        }
+    }
+};
+
+window.adminHapusFotoSiswa = function(uKey) {
+    if (confirm("🗑️ Yakin ingin menghapus foto profil siswa ini? Foto akan diganti ke avatar bawaan.")) {
+        let lb = window.leaderboardSiswaData[uKey];
+        if (lb) {
+            lb.foto = ""; 
+            if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
+                window.simpanLeaderboardSiswaKeDB(uKey, lb);
+            }
+            window.renderTabelLeaderboard();
+        }
+    }
+};
+
 window.renderTabelLeaderboard = function() {
     let container = document.getElementById('leaderboard-list-container');
     if (!container) return;
@@ -1594,15 +1635,30 @@ window.renderTabelLeaderboard = function() {
             ? '<span style="display:inline-flex; align-items:center; gap:4px; background:#dcfce7; color:#15803d; border:1px solid #86efac; padding:1px 8px; border-radius:12px; font-size:10px; font-weight:800;">🟢 Online</span>'
             : '<span style="display:inline-flex; align-items:center; gap:4px; background:#f1f5f9; color:#64748b; border:1px solid #cbd5e1; padding:1px 8px; border-radius:12px; font-size:10px; font-weight:700;">⚪ Offline</span>';
 
-        // 2. Tulisan di atas tombol Visit KHUSUS ADMIN (Muncul "Login" jika sedang aktif, atau kapan terakhir login)
+        // 2. Tulisan di atas tombol Visit KHUSUS ADMIN (Muncul "Login" jika sedang aktif, atau kapan terakhir login, lengkap dengan jam & menit)
         let infoLoginAdminHtml = '';
+        let adminToolsHtml = '';
+        
         if (isAdminViewer) {
             let waktuTerakhir = siswa.waktuLoginTerakhir || siswa.loginTerakhir || "Belum tercatat";
+            if (lastActMs > 0) {
+                let d = new Date(lastActMs);
+                waktuTerakhir = String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth()+1).padStart(2, '0') + '/' + d.getFullYear() + ' ' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+            }
+
             if (isCurrentlyOnline) {
-                infoLoginAdminHtml = '<div style="font-size:10px; font-weight:800; color:#16a34a; background:#f0fdf4; border:1px solid #bbf7d0; padding:2px 8px; border-radius:8px; white-space:nowrap;">🟢 Login (Sedang Aktif)</div>';
+                infoLoginAdminHtml = '<div style="font-size:10px; font-weight:800; color:#16a34a; background:#f0fdf4; border:1px solid #bbf7d0; padding:2px 8px; border-radius:8px; white-space:nowrap;">🟢 Sedang Aktif di Web</div>';
             } else {
                 infoLoginAdminHtml = '<div style="font-size:10px; font-weight:700; color:#475569; background:rgba(255,255,255,0.85); border:1px solid #cbd5e1; padding:2px 8px; border-radius:8px; white-space:nowrap;">🕒 Login: ' + waktuTerakhir + '</div>';
             }
+
+            // Alat Tambah XP & Hapus Foto Profil (Khusus Admin) - Diposisikan Kanan Atas
+            adminToolsHtml = 
+                '<div style="position:absolute; top:12px; right:12px; display:flex; gap:6px; align-items:center; z-index:10; background:rgba(255,255,255,0.9); padding:4px; border-radius:6px; box-shadow:0 2px 4px rgba(0,0,0,0.05);">' +
+                    '<input type="number" id="inp-add-xp-' + uKeySafe + '" placeholder="+XP/Coin" style="width:75px; font-size:10px; padding:4px 6px; border:1px solid #cbd5e1; border-radius:4px; font-family:\'Poppins\', sans-serif; font-weight:bold; outline:none;">' +
+                    '<button type="button" onclick="window.adminTambahXPSiswa(\'' + uKeySafe + '\')" style="background:#27ae60; color:white; border:none; padding:4px 8px; border-radius:4px; font-size:10px; font-weight:bold; cursor:pointer; transition:0.2s;" onmouseover="this.style.background=\'#219653\'" onmouseout="this.style.background=\'#27ae60\'">➕ Tambah</button>' +
+                    '<button type="button" onclick="window.adminHapusFotoSiswa(\'' + uKeySafe + '\')" style="background:#e74c3c; color:white; border:none; padding:4px 8px; border-radius:4px; font-size:10px; font-weight:bold; cursor:pointer; transition:0.2s;" onmouseover="this.style.background=\'#c0392b\'" onmouseout="this.style.background=\'#e74c3c\'">🗑️ Foto</button>' +
+                '</div>';
         }
 
         let btnVisitHtml = (!isSelf && uKeySafe)
@@ -1611,6 +1667,7 @@ window.renderTabelLeaderboard = function() {
 
         html +=
         '<div class="' + classBorder + '" style="display:flex; align-items:flex-start; gap:12px; ' + styleDefault + ' padding:14px 15px; border-radius:12px; position:relative;">' +
+            adminToolsHtml +
             '<div style="display:flex; align-items:center; gap:10px; flex-shrink:0; z-index:2; margin-top:2px;">' +
                 '<div style="font-size:20px; font-weight:900; color:' + (i < 3 ? '#d35400' : '#64748b') + '; width:24px; text-align:center;">' + medali + '</div>' +
                 avatarHtml +
