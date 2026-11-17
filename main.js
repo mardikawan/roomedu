@@ -1829,10 +1829,162 @@ window.renderBlocks = function() {
     let container = document.getElementById('blocks-container');
     if (container) container.innerHTML = html;
 
+    if (typeof window.renderHomeSideBlocks === 'function') {
+        window.renderHomeSideBlocks();
+    }
+
     if (window.renderMathJax) window.renderMathJax();
     setTimeout(function() {
         if (typeof window.inisialisasiSemuaCanvas === 'function') window.inisialisasiSemuaCanvas();
     }, 150);
+};
+
+/* =========================================================
+   CONTENT BLOCK KIRI & KANAN KHUSUS HALAMAN HOME
+   ========================================================= */
+window.homeLeftBlocksData = window.homeLeftBlocksData || [];
+window.homeRightBlocksData = window.homeRightBlocksData || [];
+
+window.pastikanWadahHomeSideAda = function() {
+    let editorWrap = document.getElementById('main-editor-wrapper');
+    let blocksCont = document.getElementById('blocks-container');
+    if (!editorWrap || !blocksCont) return;
+
+    let layoutGrid = document.getElementById('home-three-col-layout');
+    if (!layoutGrid) {
+        layoutGrid = document.createElement('div');
+        layoutGrid.id = 'home-three-col-layout';
+        layoutGrid.className = 'home-three-col-layout';
+
+        let leftSide = document.createElement('div');
+        leftSide.id = 'home-left-sidebar';
+        leftSide.className = 'home-side-column home-side-left';
+
+        let rightSide = document.createElement('div');
+        rightSide.id = 'home-right-sidebar';
+        rightSide.className = 'home-side-column home-side-right';
+
+        editorWrap.insertBefore(layoutGrid, blocksCont);
+        layoutGrid.appendChild(leftSide);
+        layoutGrid.appendChild(blocksCont);
+        layoutGrid.appendChild(rightSide);
+    }
+};
+
+window.renderHomeSideBlocks = function() {
+    window.pastikanWadahHomeSideAda();
+    let leftSide = document.getElementById('home-left-sidebar');
+    let rightSide = document.getElementById('home-right-sidebar');
+    let layoutGrid = document.getElementById('home-three-col-layout');
+    if (!leftSide || !rightSide || !layoutGrid) return;
+
+    let currentBab = (window.babAktif || "home").toLowerCase();
+    let isEdit = document.body.classList.contains('mode-edit-aktif') || document.documentElement.classList.contains('force-edit-mode');
+
+    // HANYA TAMPIL DI HALAMAN HOME
+    if (currentBab !== "home") {
+        leftSide.style.display = 'none';
+        rightSide.style.display = 'none';
+        layoutGrid.classList.remove('is-home-active');
+        return;
+    }
+
+    layoutGrid.classList.add('is-home-active');
+    let leftArr = Array.isArray(window.homeLeftBlocksData) ? window.homeLeftBlocksData : [];
+    let rightArr = Array.isArray(window.homeRightBlocksData) ? window.homeRightBlocksData : [];
+
+    // Sembunyikan kolom samping di mode siswa jika belum ada blok yang ditambahkan
+    leftSide.style.display = (isEdit || leftArr.length > 0) ? 'flex' : 'none';
+    rightSide.style.display = (isEdit || rightArr.length > 0) ? 'flex' : 'none';
+
+    function bangunHTMLKolomSamping(posisi, arrData) {
+        let labelPosisi = posisi === 'left' ? 'Kiri' : 'Kanan';
+        let htmlSamping = '';
+
+        arrData.forEach(function(item, idx) {
+            let bgCol = item.bg || '#ffffff';
+            htmlSamping +=
+                '<div class="home-side-card-wrap">' +
+                    (isEdit ? (
+                        '<div class="home-side-controls">' +
+                            (arrData.length > 1 ? '<button type="button" onclick="window.geserBlokSampingHome(\'' + posisi + '\', ' + idx + ', -1)" title="Geser Naik">⬆️</button>' : '') +
+                            (arrData.length > 1 ? '<button type="button" onclick="window.geserBlokSampingHome(\'' + posisi + '\', ' + idx + ', 1)" title="Geser Turun">⬇️</button>' : '') +
+                            '<button type="button" onclick="window.hapusBlokSampingHome(\'' + posisi + '\', ' + idx + ')" style="color:#e74c3c;" title="Hapus Blok ' + labelPosisi + '">🗑️ Hapus</button>' +
+                        '</div>'
+                    ) : '') +
+                    '<div class="content-block home-side-editable" ' + (isEdit ? 'contenteditable="true"' : '') + ' data-side-pos="' + posisi + '" data-side-index="' + idx + '" style="background:' + bgCol + ';" oninput="window.ketikBlokSampingHome(\'' + posisi + '\', ' + idx + ', this)">' +
+                        (item.html || '<p>Ketik materi blok ' + labelPosisi.toLowerCase() + '...</p>') +
+                    '</div>' +
+                '</div>';
+        });
+
+        if (isEdit) {
+            htmlSamping +=
+                '<button type="button" class="btn-add-side-home" onclick="window.tambahBlokSampingHome(\'' + posisi + '\')">' +
+                    '⊕ Tambah Content Block ' + labelPosisi +
+                '</button>';
+        }
+        return htmlSamping;
+    }
+
+    leftSide.innerHTML = bangunHTMLKolomSamping('left', leftArr);
+    rightSide.innerHTML = bangunHTMLKolomSamping('right', rightArr);
+};
+
+window.tambahBlokSampingHome = function(posisi) {
+    let blokBaru = {
+        id: 'side_' + posisi + '_' + Date.now(),
+        html: '<h3>Info ' + (posisi === 'left' ? 'Kiri' : 'Kanan') + '</h3><p>Ketik pengumuman atau materi di sini...</p>',
+        bg: '#ffffff'
+    };
+    if (posisi === 'left') {
+        if (!Array.isArray(window.homeLeftBlocksData)) window.homeLeftBlocksData = [];
+        window.homeLeftBlocksData.push(blokBaru);
+    } else {
+        if (!Array.isArray(window.homeRightBlocksData)) window.homeRightBlocksData = [];
+        window.homeRightBlocksData.push(blokBaru);
+    }
+    window.renderHomeSideBlocks();
+    if (typeof window.simpanKeDB === 'function') window.simpanKeDB('home');
+};
+
+window.hapusBlokSampingHome = function(posisi, idx) {
+    window.tampilkanCustomDialog("confirm", "Hapus Content Block " + (posisi === 'left' ? 'Kiri' : 'Kanan') + " ini?", null, function(isYes) {
+        if (!isYes) return;
+        if (posisi === 'left' && Array.isArray(window.homeLeftBlocksData)) {
+            window.homeLeftBlocksData.splice(idx, 1);
+        } else if (posisi === 'right' && Array.isArray(window.homeRightBlocksData)) {
+            window.homeRightBlocksData.splice(idx, 1);
+        }
+        window.renderHomeSideBlocks();
+        if (typeof window.simpanKeDB === 'function') window.simpanKeDB('home');
+    });
+};
+
+window.geserBlokSampingHome = function(posisi, idx, dir) {
+    let arr = posisi === 'left' ? window.homeLeftBlocksData : window.homeRightBlocksData;
+    if (!Array.isArray(arr)) return;
+    if (idx + dir >= 0 && idx + dir < arr.length) {
+        let temp = arr[idx];
+        arr[idx] = arr[idx + dir];
+        arr[idx + dir] = temp;
+        window.renderHomeSideBlocks();
+        if (typeof window.simpanKeDB === 'function') window.simpanKeDB('home');
+    }
+};
+
+window.ketikBlokSampingHome = function(posisi, idx, el) {
+    let arr = posisi === 'left' ? window.homeLeftBlocksData : window.homeRightBlocksData;
+    if (Array.isArray(arr) && arr[idx]) {
+        arr[idx].html = el.innerHTML;
+    }
+    let st = document.getElementById('save-status-bar');
+    if (st) st.innerHTML = "<span style='color:#e67e22;'>✍️ Typing...</span>";
+    clearTimeout(window.typingTimer);
+    window.typingTimer = setTimeout(function() {
+        if (typeof window.simpanKeDB === 'function') window.simpanKeDB('home');
+        window.typingTimer = null;
+    }, 450);
 };
 
 window.activeBlockIndex = -1;
@@ -2237,16 +2389,16 @@ window.prosesLoginSistem = function() {
     let guruTarget = sessionStorage.getItem("guruTarget") || window.guruAktif || "mahardika";
     let dataSiswa = null;
 
-    // SISTEM LOGIN 5 LEVEL (Tamu, SBD, Superadmin, Admin, Siswa)
-    if (userKey === "sbd" && pass === "semangat") {
-        emailTarget = "siswa@sbd.com"; // Email dummy untuk Universal bypass
-        roleTarget = "siswa";
-    } 
+    // SISTEM LOGIN (Tamu, Superadmin, Admin Guru, & Akun Masing-Masing Siswa)
+    if (userKey === "sbd") {
+        btn.innerText = oldText; btn.disabled = false;
+        return alert("❌ Akun bersama SBD telah dinonaktifkan. Silakan login menggunakan Username & Password akun siswa Anda masing-masing.");
+    }
     else if (userKey === "mahardika") {
         emailTarget = "mahardika@admin.com";
         roleTarget = "admin";
         guruTarget = "mahardika";
-    } 
+    }
     else if (window.daftarAkunGuru && window.daftarAkunGuru[userKey]) {
         emailTarget = userKey + "@guru.com";
         roleTarget = "admin";
@@ -2470,6 +2622,9 @@ window.prosesLupaPassword = function() {
 
 window.prosesLogoutSistem = function(forceLogout) {
     if(forceLogout === true || confirm("Yakin ingin keluar dari akun ini?")) {
+        if (sessionStorage.getItem("statusLogin") === "siswa" && typeof window.updatePresensiOnlineSiswa === "function") {
+            window.updatePresensiOnlineSiswa(false, false);
+        }
         let prevStatus = sessionStorage.getItem("statusLogin");
         let currentGuru = sessionStorage.getItem("guruTarget") || "mahardika";
         
@@ -4824,12 +4979,9 @@ window.perbaruiUIHeaderProfilSiswa = function() {
             if (lb.foto) document.getElementById('header-profil-foto').src = lb.foto;
             document.getElementById('header-profil-foto').style.borderColor = lencana.warna;
 
-            let today = new Date().toLocaleDateString('id-ID');
-            if (lb.loginTerakhir !== today) {
-                lb.loginTerakhir = today;
-                if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
-                    window.simpanLeaderboardSiswaKeDB(uName, lb);
-                }
+            if (!window._presensiSesiTercatat && typeof window.updatePresensiOnlineSiswa === "function") {
+                window._presensiSesiTercatat = true;
+                window.updatePresensiOnlineSiswa(true, true);
             }
         }
     } else {

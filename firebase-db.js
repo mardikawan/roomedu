@@ -90,7 +90,7 @@ window.modeHematServerUjian = function(isOfflineMode) {
     }
 };
 
-// Pastikan koneksi online & token tulis Firebase aktif di proyek baru
+// Pastikan koneksi online & gunakan akun Firebase Auth masing-masing siswa (Tanpa akun bersama SBD)
 window.pastikanAuthFirebaseSiswaAktif = function(callback) {
     goOnline(db);
     if (auth.currentUser) {
@@ -98,12 +98,16 @@ window.pastikanAuthFirebaseSiswaAktif = function(callback) {
         return;
     }
     let stat = sessionStorage.getItem("statusLogin");
-    if (stat === "siswa" || stat === "tamu") {
-        signInWithEmailAndPassword(auth, "siswa@sbd.com", "semangat").then(function() {
+    let rawU = (sessionStorage.getItem("username") || "").trim().toLowerCase();
+    if (stat === "siswa" && rawU) {
+        let dataSiswa = (window.akunSiswaData && window.akunSiswaData[rawU]) ? window.akunSiswaData[rawU] : null;
+        let emailSiswa = (dataSiswa && dataSiswa.gmail) ? dataSiswa.gmail : (rawU + "@siswamahardika.com");
+        let passSiswa = (dataSiswa && dataSiswa.password && String(dataSiswa.password).length >= 6) ? String(dataSiswa.password) : "123456";
+
+        signInWithEmailAndPassword(auth, emailSiswa, passSiswa).then(function() {
             if (callback) callback();
         }).catch(function() {
-            // Jika di proyek Firebase baru belum ada akun jembatan ini, buatkan otomatis 1x
-            createUserWithEmailAndPassword(auth, "siswa@sbd.com", "semangat").then(function() {
+            createUserWithEmailAndPassword(auth, emailSiswa, passSiswa).then(function() {
                 if (callback) callback();
             }).catch(function() {
                 if (callback) callback();
@@ -113,6 +117,51 @@ window.pastikanAuthFirebaseSiswaAktif = function(callback) {
         if (callback) callback();
     }
 };
+
+// Fungsi Update Status Online/Offline & Waktu Login Terakhir Siswa ke Firebase
+window.updatePresensiOnlineSiswa = function(isOnlineNow, isInitialLogin) {
+    let stat = sessionStorage.getItem("statusLogin");
+    let rawU = (sessionStorage.getItem("username") || "").trim().toLowerCase();
+    if (stat !== "siswa" || !rawU || rawU === "mahardika" || rawU === "tamu" || window.isStrictUjianActive) return;
+
+    let cleanKey = window.sanitasiKeyRekapFirebase ? window.sanitasiKeyRekapFirebase(rawU).toLowerCase() : rawU;
+    let now = new Date();
+    let waktuStr = String(now.getDate()).padStart(2, '0') + '/' +
+                   String(now.getMonth() + 1).padStart(2, '0') + '/' +
+                   now.getFullYear() + ' ' +
+                   String(now.getHours()).padStart(2, '0') + ':' +
+                   String(now.getMinutes()).padStart(2, '0');
+
+    let payloadUpdate = {
+        isOnline: Boolean(isOnlineNow),
+        lastActive: Date.now()
+    };
+    if (isInitialLogin) {
+        payloadUpdate.waktuLoginTerakhir = waktuStr;
+        payloadUpdate.loginTerakhir = waktuStr;
+    }
+
+    if (window.leaderboardSiswaData && window.leaderboardSiswaData[cleanKey]) {
+        Object.assign(window.leaderboardSiswaData[cleanKey], payloadUpdate);
+    }
+
+    window.pastikanAuthFirebaseSiswaAktif(function() {
+        update(ref(db, basePath + '/leaderboard_siswa/' + cleanKey), payloadUpdate).catch(function() {});
+    });
+};
+
+// Jalankan detak presensi (heartbeat) setiap 2 menit selama siswa aktif membuka web
+setInterval(function() {
+    if (document.visibilityState === "visible" && sessionStorage.getItem("statusLogin") === "siswa" && !window.isStrictUjianActive) {
+        window.updatePresensiOnlineSiswa(true, false);
+    }
+}, 120000);
+
+window.addEventListener("beforeunload", function() {
+    if (sessionStorage.getItem("statusLogin") === "siswa") {
+        window.updatePresensiOnlineSiswa(false, false);
+    }
+});
 
 // Pengiriman Nilai Ujian dengan JaminanTerkirim (Callback Sukses/Gagal)
 window.kirimNilaiUjianAmanKeDB = function(pathInfo, payload, onSuccess, onError) {
@@ -450,27 +499,29 @@ window.muatKontenHalaman = function(slugBab) {
             let parsed = JSON.parse(cachedData);
             window.contentBlocksData = parsed.blocksObj || [];
             window.floatingBoxesData = parsed.floatingBoxesObj || [];
+            window.homeLeftBlocksData = parsed.leftBlocksObj || [];
+            window.homeRightBlocksData = parsed.rightBlocksObj || [];
             
             if(typeof window.renderBlocks === 'function') window.renderBlocks(); 
             if(typeof window.renderFloatingBoxes === 'function') window.renderFloatingBoxes();
             
-            window.isLoadingRoom = false; // Langsung buka gembok, admin bisa langsung ngetik!
+            window.isLoadingRoom = false;
             if(st) st.innerHTML = "<span style='color:#2ecc71;'>⚡ Ready</span>";
         } catch(e) {}
     } else {
-        if(container) container.innerHTML = ''; // Kosongkan layar hanya jika cache belum ada
+        if(container) container.innerHTML = '';
     }
     
     // 2. SINKRONISASI DIAM-DIAM DARI FIREBASE (Latar Belakang)
     let timeoutFirebase = setTimeout(function() {
-        window.isLoadingRoom = false; // Buka kunci layar jika sinyal macet
+        window.isLoadingRoom = false;
         if (st) st.innerHTML = "<span style='color:#e74c3c;'>⚠️ Koneksi Lambat</span>";
     }, 8000);
 
     get(child(ref(db), basePath + '/materi_koleksi/' + targetRoom)).then(function(snap) {
         clearTimeout(timeoutFirebase);
         if (window.babAktif !== targetRoom) {
-            window.isLoadingRoom = false; // Wajib dibuka agar bisa mengetik di room baru
+            window.isLoadingRoom = false;
             return;
         }
 
@@ -479,13 +530,16 @@ window.muatKontenHalaman = function(slugBab) {
         if (dataDariServer) {
             window.contentBlocksData = JSON.parse(JSON.stringify(dataDariServer.blocksObj)); 
             window.floatingBoxesData = JSON.parse(JSON.stringify(dataDariServer.floatingBoxesObj || [])); 
+            window.homeLeftBlocksData = JSON.parse(JSON.stringify(dataDariServer.leftBlocksObj || []));
+            window.homeRightBlocksData = JSON.parse(JSON.stringify(dataDariServer.rightBlocksObj || []));
             
-            // Perbarui cache dengan data segar dari server
             sessionStorage.setItem(cacheKey, JSON.stringify(dataDariServer));
         } else {
             if (!cachedData) {
                 window.contentBlocksData = [{type:'text', html:"<p>Ketik materi...</p>", bg:"#ffffff", pattern:"", color:"#333333", width:"M", padTop:"40px", padBot:"40px", drawing:""}]; 
                 window.floatingBoxesData = []; 
+                window.homeLeftBlocksData = [];
+                window.homeRightBlocksData = [];
             }
         }
         
@@ -496,7 +550,6 @@ window.muatKontenHalaman = function(slugBab) {
 
         window.isLoadingRoom = false;
         
-        // Render ulang hanya jika ada pembaruan dari server yang beda dari cache
         if(typeof window.renderBlocks === 'function') window.renderBlocks(); 
         if(typeof window.renderFloatingBoxes === 'function') window.renderFloatingBoxes();
         if(typeof window.updateBreadcrumb === 'function') window.updateBreadcrumb();
@@ -1222,10 +1275,33 @@ window.simpanKeDB = function(slugTujuan) {
         return block;
     });
     
+    // Sinkronkan juga isi HTML dari Content Block Samping Kiri & Kanan jika sedang di halaman HOME
+    if (targetBab === "home") {
+        document.querySelectorAll('#home-left-sidebar .home-side-editable').forEach(function(el) {
+            let idx = parseInt(el.getAttribute('data-side-index'), 10);
+            if (window.homeLeftBlocksData && window.homeLeftBlocksData[idx]) {
+                window.homeLeftBlocksData[idx].html = el.innerHTML;
+            }
+        });
+        document.querySelectorAll('#home-right-sidebar .home-side-editable').forEach(function(el) {
+            let idx = parseInt(el.getAttribute('data-side-index'), 10);
+            if (window.homeRightBlocksData && window.homeRightBlocksData[idx]) {
+                window.homeRightBlocksData[idx].html = el.innerHTML;
+            }
+        });
+    }
+
     let payloadFloating = window.floatingBoxesData || [];
+    let payloadLeft = (targetBab === "home") ? (window.homeLeftBlocksData || []) : [];
+    let payloadRight = (targetBab === "home") ? (window.homeRightBlocksData || []) : [];
 
     try {
-        sessionStorage.setItem('cache_room_' + (window.guruAktif || 'mahardika') + '_' + targetBab, JSON.stringify({ blocksObj: payloadBlocks, floatingBoxesObj: payloadFloating }));
+        sessionStorage.setItem('cache_room_' + (window.guruAktif || 'mahardika') + '_' + targetBab, JSON.stringify({
+            blocksObj: payloadBlocks,
+            floatingBoxesObj: payloadFloating,
+            leftBlocksObj: payloadLeft,
+            rightBlocksObj: payloadRight
+        }));
     } catch (cacheError) {
         console.warn("Memori cache lokal penuh. Data tetap diamankan di Firebase.");
         sessionStorage.clear();
@@ -1234,10 +1310,12 @@ window.simpanKeDB = function(slugTujuan) {
     let st = document.getElementById('save-status-bar');
     if(st) st.innerHTML = "<span style='color:#3498db;'>☁️ Syncing (" + targetBab + ")...</span>"; 
     
-    // Simpan struktur dasar (tanpa array slides yang besar)
+    // Simpan struktur dasar beserta blok samping kiri & kanan HOME
     set(ref(db, basePath + '/materi_koleksi/' + targetBab), {
         blocksObj: payloadBlocks, 
-        floatingBoxesObj: payloadFloating
+        floatingBoxesObj: payloadFloating,
+        leftBlocksObj: payloadLeft,
+        rightBlocksObj: payloadRight
     }).then(function() {
         // SETELAH struktur utama aman, barulah kita tembakkan array slides PDF secara spesifik per indeks
         let janjiSimpanSlides = [];

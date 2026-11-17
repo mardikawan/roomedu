@@ -1583,6 +1583,28 @@ window.renderTabelLeaderboard = function() {
 
         let uKeySafe = String(siswa._userKey || "").replace(/'/g, "\\'");
         let isSelf = (uKeySafe.toLowerCase() === currentUsername);
+        let isAdminViewer = (sessionStorage.getItem("statusLogin") === "admin") || (typeof window.isAdminSession === "function" && window.isAdminSession());
+
+        // Deteksi apakah siswa sedang aktif di web (Online jika isSelf, atau isOnline=true & aktif dalam 3 menit terakhir)
+        let lastActMs = Number(siswa.lastActive) || 0;
+        let isCurrentlyOnline = isSelf || (Boolean(siswa.isOnline) && (Date.now() - lastActMs < 180000));
+
+        // 1. Indikator Online / Offline untuk SELURUH SISWA
+        let badgeOnlinePublicHtml = isCurrentlyOnline
+            ? '<span style="display:inline-flex; align-items:center; gap:4px; background:#dcfce7; color:#15803d; border:1px solid #86efac; padding:1px 8px; border-radius:12px; font-size:10px; font-weight:800;">🟢 Online</span>'
+            : '<span style="display:inline-flex; align-items:center; gap:4px; background:#f1f5f9; color:#64748b; border:1px solid #cbd5e1; padding:1px 8px; border-radius:12px; font-size:10px; font-weight:700;">⚪ Offline</span>';
+
+        // 2. Tulisan di atas tombol Visit KHUSUS ADMIN (Muncul "Login" jika sedang aktif, atau kapan terakhir login)
+        let infoLoginAdminHtml = '';
+        if (isAdminViewer) {
+            let waktuTerakhir = siswa.waktuLoginTerakhir || siswa.loginTerakhir || "Belum tercatat";
+            if (isCurrentlyOnline) {
+                infoLoginAdminHtml = '<div style="font-size:10px; font-weight:800; color:#16a34a; background:#f0fdf4; border:1px solid #bbf7d0; padding:2px 8px; border-radius:8px; white-space:nowrap;">🟢 Login (Sedang Aktif)</div>';
+            } else {
+                infoLoginAdminHtml = '<div style="font-size:10px; font-weight:700; color:#475569; background:rgba(255,255,255,0.85); border:1px solid #cbd5e1; padding:2px 8px; border-radius:8px; white-space:nowrap;">🕒 Login: ' + waktuTerakhir + '</div>';
+            }
+        }
+
         let btnVisitHtml = (!isSelf && uKeySafe)
             ? '<button type="button" class="lb-visit-btn" onclick="window.tutupModal(\'modal-leaderboard\'); window.kunjungiHabitatSiswaLain(\'' + uKeySafe + '\');" title="Kunjungi Habitat ' + namaUtama + '">🏡 Visit</button>'
             : '';
@@ -1601,14 +1623,18 @@ window.renderTabelLeaderboard = function() {
                 '<div style="font-size:11px; color:#475569; display:flex; align-items:center; flex-wrap:wrap; gap:5px;">' +
                     '<span style="background:' + lencana.bg + '; color:' + lencana.warna + '; border:1px solid ' + lencana.border + '; padding:1px 7px; border-radius:10px; font-weight:bold;">' + lencana.ikon + ' ' + lencana.nama + '</span>' +
                     '<span>• <b>' + siswa.kelas + '</b></span>' +
+                    badgeOnlinePublicHtml +
                 '</div>' +
-                '<!-- Jumlah XP, Soal Selesai, & Tombol Visit Tepat di Bawah Nama -->' +
-                '<div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-top:4px; padding-top:6px; border-top:1px dashed rgba(100,116,139,0.25);">' +
+                '<!-- Jumlah XP, Soal Selesai, Info Login Admin, & Tombol Visit -->' +
+                '<div style="display:flex; align-items:flex-end; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-top:4px; padding-top:6px; border-top:1px dashed rgba(100,116,139,0.25);">' +
                     '<div style="display:flex; align-items:baseline; gap:8px; flex-wrap:wrap;">' +
                         '<span style="font-size:20px; font-weight:900; color:#0b3954; font-family:\'Bebas Neue\', sans-serif; letter-spacing:0.5px;">' + xpTotalSiswa.toLocaleString('id-ID') + ' XP</span>' +
                         '<span style="font-size:11px; color:#475569; font-weight:bold;">🔥 ' + totalDikerjakan + ' Soal Selesai</span>' +
                     '</div>' +
-                    btnVisitHtml +
+                    '<div style="display:flex; flex-direction:column; align-items:flex-end; gap:5px;">' +
+                        infoLoginAdminHtml +
+                        btnVisitHtml +
+                    '</div>' +
                 '</div>' +
             '</div>' +
         '</div>';
