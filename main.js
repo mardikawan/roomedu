@@ -1681,13 +1681,15 @@ window.renderBlocks = function() {
         // 2. TIPE BLOK KUIS INLINE
         else if (blok.type === 'quiz') {
             let judulKuis = blok.quizTitle || '🧩 Uji Pemahaman';
+            let judulBersihKuis = judulKuis.replace(/🧩/g, '').trim().replace(/'/g, "\\'");
             let editJudulAttr = isEdit ? 'contenteditable="true" style="outline:none; border-bottom:1px dashed #3498db; padding-bottom:2px;" onblur="window.contentBlocksData[' + index + '].quizTitle=this.innerText; if(window.simpanKeDB) window.simpanKeDB();"' : '';
 
             let qi = '<div class="quiz-container" id="inline-kuis-' + index + '">' +
                     '<div class="quiz-header">' +
                         '<h3 class="quiz-title" ' + editJudulAttr + '>' + judulKuis + '</h3>' +
-                        '<div>' +
-                            '<button class="btn-action" style="background:#34495e;width:auto;font-size:11px;padding:6px 12px;margin-right:5px;" onclick="cetakKuisPDF(\'inline-kuis-' + index + '\',\'Materi\')">🖨️ Cetak</button>' +
+                        '<div style="display:flex; gap:5px; flex-wrap:wrap;">' +
+                            '<button class="btn-action" style="background:#2c3e50;width:auto;font-size:11px;padding:6px 12px;" onclick="cetakKuisPDF(\'inline-kuis-' + index + '\',\'' + judulBersihKuis + '\')">🖨️ PDF</button>' +
+                            '<button class="btn-action" style="background:#2980b9;width:auto;font-size:11px;padding:6px 12px;" onclick="exportWordKuis(\'inline-kuis-' + index + '\',\'' + judulBersihKuis + '\')">📄 Word</button>' +
                             (isEdit ? '<button class="btn-action" style="background:#2e7d32;width:auto;font-size:11px;padding:6px 12px;" onclick="bukaAIQuizModal(' + index + ')">🤖 Ekstrak</button>' : '') +
                         '</div>' +
                     '</div>';
@@ -2285,25 +2287,9 @@ window.prosesLoginSistem = function() {
         if (roleTarget === "siswa" || roleTarget === "tamu") window.location.reload();
         else window.location.href = "index.html?guru=" + encodeURIComponent(guruTarget) + "&bab=home";
     }, function(err) {
-        // Jika gagal Auth tapi cocok dengan data lokal (kasus Siswa akun otomatis), aktifkan jembatan Auth siswa lalu izinkan masuk!
-        if (roleTarget === "siswa" && dataSiswa && (pass === dataSiswa.password || pass === "123456")) {
-            sessionStorage.setItem("statusLogin", roleTarget);
-            sessionStorage.setItem("username", userKey);
-            sessionStorage.setItem("guruTarget", guruTarget);
-
-            localStorage.setItem("statusLogin_mahardika", roleTarget);
-            localStorage.setItem("username_mahardika", userKey);
-            localStorage.setItem("guruTarget_mahardika", guruTarget);
-
-            window.loginFirebase("siswa@sbd.com", "semangat", function() {
-                window.location.reload();
-            }, function() {
-                window.location.reload();
-            });
-        } else {
-            btn.innerText = oldText; btn.disabled = false;
-            alert("❌ Akses Ditolak: Kredensial tidak valid.");
-        }
+        // Hapus paksaan login akun bersama, pastikan siswa masuk pakai kredensial aslinya
+        btn.innerText = oldText; btn.disabled = false;
+        alert("❌ Akses Ditolak: Kredensial tidak valid. Pastikan username dan password benar.");
     });
 };
 

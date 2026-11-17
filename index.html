@@ -106,7 +106,7 @@
         <p style="font-size:18px; max-width:600px;">Anda keluar dari halaman ujian, mengubah ukuran layar (split-screen), atau membuka aplikasi lain. Aktivitas dicatat!</p>
         <h2 id="strict-countdown" style="font-size:100px; margin:20px 0; font-family:'Bebas Neue';">30</h2>
         <p style="font-size:18px;">Ujian dilanjutkan setelah waktu tunggu selesai.</p>
-        <input type="password" id="strict-override-pwd" placeholder="Sandi Darurat (Opsional)" style="margin-top:30px; padding:10px; border-radius:6px; border:none; text-align:center; font-family:'Poppins'; width:200px; outline:none; color:#333;" oninput="if(this.value==='matahari'){window.cancelHukuman();this.value='';}">
+        <input type="password" id="strict-override-pwd" placeholder="Sandi Darurat (Opsional)" style="margin-top:30px; padding:10px; border-radius:6px; border:none; text-align:center; font-family:'Poppins'; width:200px; outline:none; color:#333;" oninput="if(btoa(this.value.toLowerCase())==='bWF0YWhhcmk='){window.cancelHukuman();this.value='';}">
     </div>
     
     <div id="ujian-strict-room">

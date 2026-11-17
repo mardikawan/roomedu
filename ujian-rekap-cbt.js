@@ -437,10 +437,30 @@ window.aktifkanFullscreenUjian = function() {
     if (window.apakahPerangkatIPhone()) return;
 
     let elem = document.documentElement;
+    let opsiImmersive = { navigationUI: "hide" };
     try {
-        if (elem.requestFullscreen) elem.requestFullscreen().catch(function() {});
-        else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
-        else if (elem.msRequestFullscreen) elem.msRequestFullscreen();
+        if (elem.requestFullscreen) {
+            elem.requestFullscreen(opsiImmersive).catch(function() {
+                elem.requestFullscreen().catch(function() {});
+            });
+        } else if (elem.webkitRequestFullscreen) {
+            elem.webkitRequestFullscreen();
+        } else if (elem.msRequestFullscreen) {
+            elem.msRequestFullscreen();
+        }
+        if (navigator.keyboard && typeof navigator.keyboard.lock === "function") {
+            navigator.keyboard.lock(["Escape", "MetaLeft", "MetaRight", "AltLeft", "Tab"]).catch(function() {});
+        }
+    } catch (e) {}
+};
+
+// Pengunci Mati Tombol Back (15 Lapis Buffer Tanpa Pop-up & Tanpa Ruang Palsu)
+window.pasangKunciMatiTombolBack = function() {
+    if (sessionStorage.getItem("statusLogin") === "admin") return;
+    try {
+        for (let i = 0; i < 15; i++) {
+            window.history.pushState({ inExamLocked: true, step: i }, "", window.location.href);
+        }
     } catch (e) {}
 };
 
@@ -698,7 +718,8 @@ window.simpanCadanganLokalUjian = function() {
         localStorage.setItem(keyCadangan, JSON.stringify({
             jawaban: window.sesiUjianSiswa.jawaban || {},
             violationCount: window.violationCount || 0,
-            sisaDetik: window.sisaDetikUjian || (window.sesiUjianSiswa.durasi * 60)
+            sisaDetik: window.sisaDetikUjian || (window.sesiUjianSiswa.durasi * 60),
+            urutanSoal: window.sesiUjianSiswa.soal // Kunci urutan soal hasil pengacakan pertama
         }));
     } catch (e) {}
 };
@@ -760,11 +781,18 @@ window.bukaRuangUjianStrict = function() {
     if (dataLokal && dataLokal.jawaban) {
         window.sesiUjianSiswa.jawaban = dataLokal.jawaban;
         let prevLokalViolation = Math.max(Number(dataLokal.violationCount) || 0, Number(pkt.prevPelanggaran) || 0);
-        window.violationCount = pkt.isResumeMode ? (prevLokalViolation + 1) : prevLokalViolation;
+        
+        // Hapus penalti +1 ganda karena penalti sudah dicatat saat siswa terkeluar
+        window.violationCount = prevLokalViolation; 
         window.sisaDetikUjian = dataLokal.sisaDetik || (pkt.durasi * 60);
+        
+        // Pulihkan urutan soal persis seperti saat ujian baru dimulai agar jawaban tidak tertukar
+        if (dataLokal.urutanSoal && dataLokal.urutanSoal.length > 0) {
+            window.sesiUjianSiswa.soal = dataLokal.urutanSoal;
+        }
     } else {
         window.sesiUjianSiswa.jawaban = {};
-        window.violationCount = pkt.isResumeMode ? ((Number(pkt.prevPelanggaran) || 0) + 1) : (Number(pkt.prevPelanggaran) || 0);
+        window.violationCount = Number(pkt.prevPelanggaran) || 0; // Hapus penalti ganda
         window.sisaDetikUjian = pkt.durasi * 60;
     }
     window.simpanCadanganLokalUjian();
@@ -795,7 +823,7 @@ window.bukaRuangUjianStrict = function() {
 
     window.aktifkanWakeLockUjian();
     window.pasangWatermarkIdentitasUjian();
-    window.history.pushState({ inExam: true }, null, window.location.href);
+    window.pasangKunciMatiTombolBack();
 
     if (navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) {
         navigator.mediaDevices.getDisplayMedia = function() {
@@ -966,7 +994,11 @@ window.renderSoalUjianSiswa = function() {
 
         if (q.type === 'IS' || q.type === 'Essay' || opsiArr.length === 0) {
             let valLama = (typeof ansLama === 'string') ? ansLama.replace(/"/g, '&quot;') : '';
-            html += '<input type="text" class="input-box" value="' + valLama + '" placeholder="Ketik jawaban Anda..." style="font-size:15px; font-weight:600; border:2px solid #3498db; width:100%; box-sizing:border-box;" oninput="window.simpanJawabanUjian(' + idx + ', this.value, \'' + q.type + '\', this)">';
+            if (q.type === 'Essay') {
+                html += '<textarea class="input-box" placeholder="Ketik jawaban uraian/essay Anda di sini..." style="font-size:14px; font-weight:normal; border:2px solid #3498db; width:100%; box-sizing:border-box; min-height:120px; resize:vertical; line-height:1.5;" oninput="window.simpanJawabanUjian(' + idx + ', this.value, \'' + q.type + '\', this)">' + valLama + '</textarea>';
+            } else {
+                html += '<input type="text" class="input-box" value="' + valLama + '" placeholder="Ketik jawaban singkat Anda..." style="font-size:15px; font-weight:600; border:2px solid #3498db; width:100%; box-sizing:border-box;" oninput="window.simpanJawabanUjian(' + idx + ', this.value, \'' + q.type + '\', this)">';
+            }
         } else {
             html += '<div class="quiz-options">';
             opsiArr.forEach(function(opt) {
@@ -1058,10 +1090,14 @@ window.mulaiTimerUjian = function() {
     if (typeof window.sisaDetikUjian !== 'number' || window.sisaDetikUjian <= 0) {
         window.sisaDetikUjian = window.sesiUjianSiswa.durasi * 60;
     }
+    
+    // Tentukan waktu target selesai berdasarkan waktu jam perangkat (anti-throttle)
+    window.targetWaktuSelesaiUjian = Date.now() + (window.sisaDetikUjian * 1000);
 
     clearInterval(window.timerIntervalUjian);
     window.timerIntervalUjian = setInterval(function() {
-        window.sisaDetikUjian--;
+        // Hitung sisa detik berdasarkan selisih waktu nyata
+        window.sisaDetikUjian = Math.max(0, Math.floor((window.targetWaktuSelesaiUjian - Date.now()) / 1000));
         if (window.sisaDetikUjian % 10 === 0) {
             window.simpanCadanganLokalUjian();
         }
@@ -1301,24 +1337,34 @@ window.kumpulkanUjianSiswa = function(isForce, isKicked) {
                 });
             }
 
-            if (typeof window.kirimNilaiUjianAmanKeDB === "function") {
-                window.kirimNilaiUjianAmanKeDB(pathRekap, payloadRekap, function() {
+            let attemptKirim = function(retryCount) {
+                if (typeof window.kirimNilaiUjianAmanKeDB === "function") {
+                    window.kirimNilaiUjianAmanKeDB(pathRekap, payloadRekap, function() {
+                        selesaikanKeluarRuangUjian();
+                    }, function() {
+                        if (retryCount > 0) {
+                            setTimeout(function() { attemptKirim(retryCount - 1); }, 3000);
+                        } else {
+                            // JANGAN HAPUS LOCAL STORAGE. Beri peringatan dan kembalikan tombol.
+                            window._sedangMengirimUjian = false;
+                            let btnKumpul = document.getElementById("btn-kumpul-ujian-utama");
+                            if (btnKumpul) {
+                                btnKumpul.disabled = false;
+                                btnKumpul.style.background = "#27ae60";
+                                btnKumpul.innerText = "📥 Coba Kumpulkan Lagi";
+                            }
+                            window.alertAmanUjian("❌ GAGAL MENGIRIM JAWABAN!\n\nKoneksi internet Anda mungkin terputus. Jawaban Anda MASIH AMAN di perangkat ini.\nSilakan periksa koneksi internet Anda, lalu tekan tombol 'Coba Kumpulkan Lagi'.");
+                        }
+                    });
+                } else if (typeof window.simpanNilaiUjianKeDB === "function") {
+                    window.simpanNilaiUjianKeDB(pathRekap, payloadRekap);
+                    setTimeout(selesaikanKeluarRuangUjian, 1500);
+                } else {
                     selesaikanKeluarRuangUjian();
-                }, function() {
-                    setTimeout(function() {
-                        window.kirimNilaiUjianAmanKeDB(pathRekap, payloadRekap, function() {
-                            selesaikanKeluarRuangUjian();
-                        }, function() {
-                            selesaikanKeluarRuangUjian();
-                        });
-                    }, 1200);
-                });
-            } else if (typeof window.simpanNilaiUjianKeDB === "function") {
-                window.simpanNilaiUjianKeDB(pathRekap, payloadRekap);
-                setTimeout(selesaikanKeluarRuangUjian, 1500);
-            } else {
-                selesaikanKeluarRuangUjian();
-            }
+                }
+            };
+            
+            attemptKirim(3); // Coba 3 kali dengan jeda 3 detik, jika gagal total jangan hapus jawaban
         };
 
         if (typeof window.pastikanAuthFirebaseSiswaAktif === "function") {
@@ -1367,11 +1413,63 @@ document.addEventListener('selectstart', function(e) {
     }
 });
 
-// Penahan Tombol Kembali (Hardware Back Button / Swipe Back) selama ujian berlangsung
+// 1. Kunci Mati Tombol Kembali (Hardware Back / Swipe Back) Tanpa Pop-up & Tanpa Ruang Palsu
 window.addEventListener('popstate', function(e) {
     if (window.isStrictUjianActive && sessionStorage.getItem("statusLogin") !== "admin") {
-        window.history.pushState({ inExam: true }, null, window.location.href);
-        window.alertAmanUjian("⚠️ Tombol Kembali (Back) dikunci selama ujian berlangsung! Gunakan tombol Kumpulkan Jawaban di bagian bawah jika sudah selesai.");
+        try {
+            for (let i = 0; i < 5; i++) {
+                window.history.pushState({ inExamLocked: true, t: Date.now() }, "", window.location.href);
+            }
+        } catch (err) {}
+    }
+});
+
+// 2. Blokir Tarikan Jari dari Tepi Bawah (Home Bar), Tepi Atas (Notifikasi), & Tepi Samping (Swipe Back)
+document.addEventListener('touchstart', function(e) {
+    if (!window.isStrictUjianActive || sessionStorage.getItem("statusLogin") === "admin") return;
+
+    // Paksa kembali ke Immersive Fullscreen & WakeLock setiap kali layar disentuh
+    if (!window.apakahPerangkatIPhone() && !document.fullscreenElement && !document.webkitFullscreenElement) {
+        window.aktifkanFullscreenUjian();
+    }
+    if (!window.ujianWakeLock) {
+        window.aktifkanWakeLockUjian();
+    }
+
+    if (e.touches && e.touches.length === 1) {
+        let touch = e.touches[0];
+        let x = touch.clientX;
+        let y = touch.clientY;
+        let w = window.innerWidth;
+        let h = window.innerHeight;
+
+        // Matikan tarikan dari tepi kiri/kanan (<= 28px) dan tepi bawah/atas (<= 28px)
+        let isEdgeSwipeBack = (x <= 28 || x >= w - 28);
+        let isBottomHomeSwipe = (y >= h - 32);
+        let isTopBarSwipe = (y <= 24);
+
+        if (isEdgeSwipeBack || isBottomHomeSwipe || isTopBarSwipe) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+    }
+}, { passive: false, capture: true });
+
+// 3. Cegah Penutupan Tab / Refresh Paksa Selama Ujian
+window.addEventListener('beforeunload', function(e) {
+    if (window.isStrictUjianActive && !window._sedangMengirimUjian && sessionStorage.getItem("statusLogin") !== "admin") {
+        e.preventDefault();
+        e.returnValue = '';
+        return '';
+    }
+});
+
+// 4. Jika Siswa Menarik Bilah Navigasi Keluar dari Fullscreen, Kunci Kembali Saat Menyentuh Layar
+document.addEventListener('fullscreenchange', function() {
+    if (window.isStrictUjianActive && sessionStorage.getItem("statusLogin") !== "admin") {
+        if (!document.fullscreenElement && !window.sedangDialogSistem) {
+            window.graceOrientationTime = Date.now() + 1200;
+        }
     }
 });
 
@@ -1548,10 +1646,10 @@ window.triggerPelanggaran = function(alasanKhusus) {
     let info = document.getElementById('strict-warning-info');
     let countdownEl = document.getElementById('strict-countdown');
 
-    if (window.violationCount === 1) window.penaltyWaitTime = 600;
-    else if (window.violationCount === 2) window.penaltyWaitTime = 1000;
-    else if (window.violationCount === 3) window.penaltyWaitTime = 2000;
-    else if (window.violationCount === 4) window.penaltyWaitTime = 3000;
+    if (window.violationCount === 1) window.penaltyWaitTime = 30;
+    else if (window.violationCount === 2) window.penaltyWaitTime = 300;
+    else if (window.violationCount === 3) window.penaltyWaitTime = 4500;
+    else if (window.violationCount === 4) window.penaltyWaitTime = 6000;
     else if (window.violationCount >= 5) {
         if (overlay) overlay.style.display = 'none';
         window.isPenaltyActive = false;

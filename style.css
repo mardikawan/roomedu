@@ -240,6 +240,7 @@ input[type="radio"][name^="kunci-"]:checked {
 #ai-tutor-footer { padding: 10px; border-top: 1px solid #eee; background: white; display:flex; gap:5px; }
 
 .strict-mode-active * { user-select: none !important; -webkit-user-select: none !important; -moz-user-select: none !important; -ms-user-select: none !important; -webkit-touch-callout: none !important; }
+html:has(body.strict-mode-active), body.strict-mode-active, #ujian-strict-room { overscroll-behavior: none !important; }
 
 /* =========================================
    RESPONSIVE MULTI-DEVICE (IPHONE, ANDROID, TABLET, & LAPTOP)

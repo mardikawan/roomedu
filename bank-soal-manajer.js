@@ -827,9 +827,11 @@ window.renderManajerSoal = function() {
                     badgeC1 + badgeC2 + badgeHOTS +
                 '</div>' +
             '</div>' +
-            '<div style="display:flex; align-items:center; gap:10px;">' +
-                '<span style="color:#27ae60; font-weight:900; font-size:13px; margin-right:5px; white-space:nowrap;">' + g.total + ' Total Soal</span>' +
-                '<div style="display:flex; gap:5px;">' +
+            '<div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">' +
+                '<span style="color:#27ae60; font-weight:900; font-size:13px; margin-right:4px; white-space:nowrap;">' + g.total + ' Total Soal</span>' +
+                '<div style="display:flex; gap:5px; flex-wrap:wrap;">' +
+                    '<button class="btn-action" style="background:#2c3e50; color:white; padding:6px 10px; font-size:11px; width:auto;" title="Cetak PDF Bab Ini" onclick="window.cetakBankLatihanGroup(\'pdf\', \'' + safeKls + '\', \'' + safeMpl + '\', \'' + safeBab + '\')">🖨️ PDF</button>' +
+                    '<button class="btn-action" style="background:#2980b9; color:white; padding:6px 10px; font-size:11px; width:auto;" title="Export Word Bab Ini" onclick="window.cetakBankLatihanGroup(\'word\', \'' + safeKls + '\', \'' + safeMpl + '\', \'' + safeBab + '\')">📄 Word</button>' +
                     '<button class="btn-action" style="background:#f1c40f; color:#2c3e50; padding:6px 12px; font-size:12px; width:auto;" onclick="window.tambahSoalBankLatihan(\'' + repKey + '\')">➕ Tambah</button>' +
                     '<button class="btn-delete-soal" style="padding:6px 12px; font-size:12px; width:auto;" onclick="window.hapusBankLatihanGroup(\'' + safeKls + '\', \'' + safeMpl + '\', \'' + safeBab + '\')">🗑️ Hapus</button>' +
                 '</div>' +
@@ -838,6 +840,40 @@ window.renderManajerSoal = function() {
     });
 
     listEl.innerHTML = html;
+};
+
+window.cetakBankLatihanGroup = function(format, kelas, mapel, bab) {
+    let data = window.adminBankLatihanData || {};
+    let urutan = { 'C1': 1, 'C2': 2, 'HOTS': 3 };
+    let paketCocok = [];
+
+    Object.keys(data).forEach(function(k) {
+        let item = data[k];
+        if (item && item.kelas === kelas && item.mapel === mapel && item.bab === bab) {
+            paketCocok.push(item);
+        }
+    });
+
+    paketCocok.sort(function(a, b) {
+        let lvlA = urutan[(a.kesulitan || '').toUpperCase()] || 99;
+        let lvlB = urutan[(b.kesulitan || '').toUpperCase()] || 99;
+        return lvlA - lvlB;
+    });
+
+    let gabunganSoal = [];
+    paketCocok.forEach(function(p) {
+        let arr = Array.isArray(p.soal) ? p.soal : Object.values(p.soal || {});
+        gabunganSoal = gabunganSoal.concat(arr);
+    });
+
+    if (gabunganSoal.length === 0) {
+        return alert("Belum ada soal pada bab ini untuk dicetak!");
+    }
+
+    let judulCetak = (bab + ' ' + mapel + ' ' + kelas).toUpperCase();
+    if (typeof window.cetakDokumenUniversal === "function") {
+        window.cetakDokumenUniversal(format, judulCetak, gabunganSoal);
+    }
 };
 
 window.hapusBankLatihanGroup = function(kelas, mapel, bab) {

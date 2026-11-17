@@ -251,6 +251,8 @@ window.generateKapsulModul = function(judul, rawCode, extraCss, frameId) {
     }
 
     bodyInner = bodyInner.replace(/\b(const|let)\s+([a-zA-Z0-9_$]+)\s*=\s*(\[|\{)/g, "var $2 = window.$2 = $3");
+    bodyInner = bodyInner.replace(/\b(const|let|var)\s+(buildConnections|drawConnections|renderConnections|updateConnections|renderLines|drawLines|updateLines|drawPaths|renderSVG)\s*=/g, "var $2 = window.$2 =");
+    bodyInner = bodyInner.replace(/\bfunction\s+(buildConnections|drawConnections|renderConnections|updateConnections|renderLines|drawLines|updateLines|drawPaths|renderSVG)\s*\(/g, "window.$1 = function $1(");
 
     let combinedCheck = headContent + " " + bodyAttrs + " " + bodyInner;
     let hasTailwindScript = /tailwindcss\.com/i.test(combinedCheck);
@@ -767,7 +769,7 @@ let runtimeScript =
         "    var nodes = Array.from(document.querySelectorAll('[data-vi-node-key]'));" +
         "    var nodeCenters = nodes.map(function(n) {" +
         "      var r = n.getBoundingClientRect();" +
-        "      return { key: n.getAttribute('data-vi-node-key'), el: n, cx: (r.left - svgRect.left) + r.width / 2, cy: (r.top - svgRect.top) + r.height / 2, w: r.width, h: r.height };" +
+        "      return { key: n.getAttribute('data-vi-node-key'), el: n, cx: (r.left - svgRect.left) + r.width / 2, cy: (r.top - svgRect.top) + r.height / 2, left: r.left - svgRect.left, right: r.right - svgRect.left, w: r.width, h: r.height };" +
         "    });" +
         "    function cariNodeTerdekat(px, py) {" +
         "      var best = null, minDist = 999999;" +
@@ -775,7 +777,7 @@ let runtimeScript =
         "        var dx = Math.max(0, Math.abs(px - nc.cx) - nc.w / 2);" +
         "        var dy = Math.max(0, Math.abs(py - nc.cy) - nc.h / 2);" +
         "        var d = Math.hypot(dx, dy);" +
-        "        if (d < minDist && d < 65) { minDist = d; best = nc; }" +
+        "        if (d < minDist && d < 85) { minDist = d; best = nc; }" +
         "      });" +
         "      return best;" +
         "    }" +
@@ -783,9 +785,9 @@ let runtimeScript =
         "      if (p.getAttribute('data-vi-from-key') && p.getAttribute('data-vi-to-key')) return;" +
         "      var d = p.getAttribute('d') || '';" +
         "      var nums = (d.match(/-?\\d+(?:\\.\\d+)?/g) || []).map(Number);" +
-        "      if (nums.length >= 8 && /^[Mm]/.test(d.trim()) && /[Cc]/.test(d)) {" +
+        "      if (nums.length >= 6 && /^[Mm]/.test(d.trim())) {" +
         "        var nStart = cariNodeTerdekat(nums[0], nums[1]);" +
-        "        var nEnd = cariNodeTerdekat(nums[6], nums[7]);" +
+        "        var nEnd = cariNodeTerdekat(nums[nums.length - 2], nums[nums.length - 1]);" +
         "        if (nStart) p.setAttribute('data-vi-from-key', nStart.key);" +
         "        if (nEnd) p.setAttribute('data-vi-to-key', nEnd.key);" +
         "      }" +
@@ -799,6 +801,16 @@ let runtimeScript =
         "      if (nStart) ln.setAttribute('data-vi-from-key', nStart.key);" +
         "      if (nEnd) ln.setAttribute('data-vi-to-key', nEnd.key);" +
         "    });" +
+        "    svg.querySelectorAll('circle').forEach(function(c) {" +
+        "      if (c.getAttribute('data-vi-node-key')) return;" +
+        "      var cx = parseFloat(c.getAttribute('cx')), cy = parseFloat(c.getAttribute('cy'));" +
+        "      var nNear = cariNodeTerdekat(cx, cy);" +
+        "      if (nNear) {" +
+        "        c.setAttribute('data-vi-node-key', nNear.key);" +
+        "        var side = (cx < nNear.cx - nNear.w * 0.25) ? 'left' : ((cx > nNear.cx + nNear.w * 0.25) ? 'right' : 'center');" +
+        "        c.setAttribute('data-vi-node-side', side);" +
+        "      }" +
+        "    });" +
         "    zoomSurf.style.transform = prevTf;" +
         "  }" +
         "  function perbaruiGarisSVGDariPosisiDOM() {" +
@@ -810,7 +822,7 @@ let runtimeScript =
         "    var svgRect = svg.getBoundingClientRect();" +
         "    function infoKotak(key) {" +
         "      if (!key) return null;" +
-        "      var el = document.querySelector('[data-vi-node-key=\"' + key + '\"]');" +
+        "      var el = document.querySelector('#nodes-container [data-vi-node-key=\"' + key + '\"]') || document.querySelector('[data-vi-node-key=\"' + key + '\"]');" +
         "      if (!el) return null;" +
         "      var r = el.getBoundingClientRect();" +
         "      return { cx: (r.left - svgRect.left) + r.width / 2, cy: (r.top - svgRect.top) + r.height / 2, left: r.left - svgRect.left, right: r.right - svgRect.left, w: r.width, h: r.height };" +
@@ -837,18 +849,29 @@ let runtimeScript =
         "      ln.setAttribute('x1', fBox.cx.toFixed(1)); ln.setAttribute('y1', fBox.cy.toFixed(1));" +
         "      ln.setAttribute('x2', tBox.cx.toFixed(1)); ln.setAttribute('y2', tBox.cy.toFixed(1));" +
         "    });" +
+        "    svg.querySelectorAll('circle[data-vi-node-key]').forEach(function(c) {" +
+        "      var nBox = infoKotak(c.getAttribute('data-vi-node-key'));" +
+        "      if (!nBox) return;" +
+        "      var side = c.getAttribute('data-vi-node-side') || 'center';" +
+        "      var nx = side === 'left' ? nBox.left : (side === 'right' ? nBox.right : nBox.cx);" +
+        "      c.setAttribute('cx', nx.toFixed(1));" +
+        "      c.setAttribute('cy', nBox.cy.toFixed(1));" +
+        "    });" +
         "    zoomSurf.style.transform = prevTf;" +
         "  }" +
         "  function sinkronkanKoordinatKeDataAI(nodeEl, nodeKey, nx, ny) {" +
+        "    var fullTxt = (nodeEl.innerText || nodeEl.textContent || '').trim();" +
         "    var texts = Array.from(nodeEl.querySelectorAll('span, div')).map(function(s) { return s.textContent.trim(); }).filter(Boolean);" +
+        "    var attrIds = [nodeKey, nodeEl.id, nodeEl.getAttribute('data-id'), nodeEl.getAttribute('data-code'), nodeEl.getAttribute('data-key')].filter(Boolean);" +
         "    Object.keys(window).forEach(function(wKey) {" +
         "      var arr = window[wKey];" +
         "      if (Array.isArray(arr)) {" +
         "        arr.forEach(function(item) {" +
         "          if (item && typeof item === 'object') {" +
-        "            var matchId = (item.id && (item.id === nodeKey || item.id === nodeEl.id));" +
-        "            var matchCode = (item.code && texts.indexOf(String(item.code)) !== -1);" +
-        "            var matchName = (item.name && texts.indexOf(String(item.name)) !== -1) || (item.title && texts.indexOf(String(item.title)) !== -1);" +
+        "            var matchId = (item.id && attrIds.indexOf(String(item.id)) !== -1) || (item.code && attrIds.indexOf(String(item.code)) !== -1);" +
+        "            var matchCode = (item.code && (texts.indexOf(String(item.code)) !== -1 || fullTxt.indexOf(String(item.code) + ' ') === 0));" +
+        "            var itemNm = String(item.name || item.title || item.label || '').trim();" +
+        "            var matchName = itemNm && (texts.indexOf(itemNm) !== -1 || fullTxt.indexOf(itemNm) !== -1);" +
         "            if (matchId || matchCode || matchName) {" +
         "              if (typeof item.x === 'number') item.x = nx;" +
         "              if (typeof item.y === 'number') item.y = ny;" +
@@ -1040,8 +1063,9 @@ let runtimeScript =
         "          var cNode = (window.__viCustomGraph.addedNodes || []).find(function(n) { return n.id === nodeKey; });" +
         "          if (cNode) { cNode.x = cleanX; cNode.y = cleanY; }" +
         "          sinkronkanKoordinatKeDataAI(nodeEl, nodeKey, cleanX, cleanY);" +
-        "          panggilBuildConnectionsAman();" +
-        "          perbaruiGarisSVGDariPosisiDOM();" +
+        "          var sudahDigambarAI = panggilBuildConnectionsAman();" +
+        "          ikatGarisSVGKeNodeTerdekat();" +
+        "          if (!sudahDigambarAI) perbaruiGarisSVGDariPosisiDOM();" +
         "          gambarGarisCabangCustom();" +
         "        }" +
         "      }" +
@@ -1198,20 +1222,33 @@ let runtimeScript =
         "      host.appendChild(card);" +
         "    });" +
         "  }" +
+        "  function bungkusFungsiGarisAIAman() {" +
+        "    ['buildConnections', 'drawConnections', 'renderConnections', 'updateConnections', 'renderLines', 'drawLines', 'updateLines', 'drawPaths', 'renderSVG'].forEach(function(fnName) {" +
+        "      if (typeof window[fnName] === 'function' && !window[fnName]._viWrappedSafe) {" +
+        "        var origFn = window[fnName];" +
+        "        var wrapped = function() {" +
+        "          var zoomSurf = document.getElementById('vi-zoom-pan-surface');" +
+        "          var prevTf = zoomSurf ? zoomSurf.style.transform : '';" +
+        "          if (zoomSurf) zoomSurf.style.transform = 'none';" +
+        "          var res;" +
+        "          try { res = origFn.apply(this, arguments); } catch(e) {}" +
+        "          if (zoomSurf) zoomSurf.style.transform = prevTf;" +
+        "          return res;" +
+        "        };" +
+        "        wrapped._viWrappedSafe = true;" +
+        "        window[fnName] = wrapped;" +
+        "      }" +
+        "    });" +
+        "  }" +
         "  function panggilBuildConnectionsAman() {" +
-        "    var zoomSurf = document.getElementById('vi-zoom-pan-surface');" +
-        "    var prevTf = zoomSurf ? zoomSurf.style.transform : '';" +
-        "    if (zoomSurf) zoomSurf.style.transform = 'none';" +
-        "    if (typeof window.buildConnections === 'function') {" +
-        "      try { window.buildConnections(); } catch(e) {}" +
-        "    }" +
-        "    if (typeof window.drawConnections === 'function') {" +
-        "      try { window.drawConnections(); } catch(e) {}" +
-        "    }" +
-        "    if (typeof window.renderLines === 'function') {" +
-        "      try { window.renderLines(); } catch(e) {}" +
-        "    }" +
-        "    if (zoomSurf) zoomSurf.style.transform = prevTf;" +
+        "    bungkusFungsiGarisAIAman();" +
+        "    var called = false;" +
+        "    ['buildConnections', 'drawConnections', 'renderConnections', 'updateConnections', 'renderLines', 'drawLines', 'updateLines', 'drawPaths', 'renderSVG'].forEach(function(fnName) {" +
+        "      if (typeof window[fnName] === 'function') {" +
+        "        try { window[fnName](); called = true; } catch(e) {}" +
+        "      }" +
+        "    });" +
+        "    return called;" +
         "  }" +
         "  function cariRootWrapperNode(el, nodesCont) {" +
         "    var cur = el;" +
@@ -1422,9 +1459,9 @@ let runtimeScript =
         "  }, true);" +
         "  function picuKalibrasiGarisDanUkuran() {" +
         "    kalibrasiKepadatanDanTataLetak();" +
-        "    panggilBuildConnectionsAman();" +
+        "    var sudahDigambarAI = panggilBuildConnectionsAman();" +
         "    ikatGarisSVGKeNodeTerdekat();" +
-        "    perbaruiGarisSVGDariPosisiDOM();" +
+        "    if (!sudahDigambarAI) perbaruiGarisSVGDariPosisiDOM();" +
         "    gambarGarisCabangCustom();" +
         "  }" +
         "  window.addEventListener('message', function(ev) {" +
@@ -1484,8 +1521,9 @@ let runtimeScript =
         "    if (window.ResizeObserver) {" +
         "      var ro = new ResizeObserver(function() {" +
         "        if (!_isDraggingNode) {" +
-        "          panggilBuildConnectionsAman();" +
-        "          perbaruiGarisSVGDariPosisiDOM();" +
+        "          var sudahDigambarAI = panggilBuildConnectionsAman();" +
+        "          ikatGarisSVGKeNodeTerdekat();" +
+        "          if (!sudahDigambarAI) perbaruiGarisSVGDariPosisiDOM();" +
         "          gambarGarisCabangCustom();" +
         "        }" +
         "      });" +

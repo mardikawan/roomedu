@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-app.js";
-import { getDatabase, ref, set, get, child, onValue, remove, goOffline, goOnline } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-database.js";
+import { getDatabase, ref, set, get, child, onValue, remove, goOffline, goOnline, update } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-database.js";
 import { getAuth, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword, sendEmailVerification, updatePassword, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-auth.js";
 // IMPORT FIREBASE STORAGE
 import { getStorage, ref as sRef, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-storage.js";
@@ -60,32 +60,23 @@ window.buatAkunAuthGuru = function(email, password, onSuccess, onError) {
     }).catch(function(err) { if(onError) onError(err); });
 };
 
-// PENGATUR LALU LINTAS SERVER (PASTIKAN KONEKSI SELALU ONLINE SAAT UJIAN & PENGUMPULAN NILAI)
+// PENGATUR LALU LINTAS SERVER (OFFLINE SAAT PENGERJAAN, ONLINE SAAT KUMPUL NILAI)
 window.modeHematServerUjian = function(isOfflineMode) {
     try {
-        goOnline(db);
+        if (isOfflineMode) {
+            goOffline(db);
+        } else {
+            goOnline(db);
+        }
     } catch (e) {
         console.warn("Pengaturan koneksi:", e);
     }
 };
 
-// Jembatan Otomatis agar Akun Siswa (123456) Selalu Memiliki Izin Tulis ke Firebase
+// Pastikan koneksi online saat akan menulis data. Auth Firebase menggunakan kredensial asli siswa
 window.pastikanAuthFirebaseSiswaAktif = function(callback) {
     goOnline(db);
-    if (auth.currentUser) {
-        if (callback) callback();
-        return;
-    }
-    let stat = sessionStorage.getItem("statusLogin");
-    if (stat === "siswa" || stat === "tamu") {
-        signInWithEmailAndPassword(auth, "siswa@sbd.com", "semangat").then(function() {
-            if (callback) callback();
-        }).catch(function() {
-            if (callback) callback();
-        });
-    } else {
-        if (callback) callback();
-    }
+    if (callback) callback();
 };
 
 // Pengiriman Nilai Ujian dengan JaminanTerkirim (Callback Sukses/Gagal)
@@ -645,19 +636,17 @@ window.ambilDataSiswaDiObjekRekap = function(objRekapPaket, namaSiswa) {
 window.simpanRekapNilaiPenuhKeDB = function() {
     if (sessionStorage.getItem("statusLogin") !== "admin") return;
     let rawRekap = window.adminRekapNilaiData || {};
-    let cleanRekap = {};
+    let updates = {};
 
     Object.keys(rawRekap).forEach(function(kls) {
         let safeKls = window.sanitasiKeyRekapFirebase(kls);
         if (!safeKls) return;
-        if (!cleanRekap[safeKls]) cleanRekap[safeKls] = {};
-
+        
         let paketMap = rawRekap[kls] || {};
         Object.keys(paketMap).forEach(function(pkt) {
             let safePkt = window.sanitasiKeyRekapFirebase(pkt);
             if (!safePkt) return;
-            if (!cleanRekap[safeKls][safePkt]) cleanRekap[safeKls][safePkt] = {};
-
+            
             let siswaMap = paketMap[pkt] || {};
             Object.keys(siswaMap).forEach(function(nama) {
                 let safeNama = window.sanitasiKeyRekapFirebase(nama);
@@ -666,16 +655,18 @@ window.simpanRekapNilaiPenuhKeDB = function() {
                 if (!item.namaAsli) item.namaAsli = nama;
                 if (!item.kelasAsli) item.kelasAsli = kls;
                 if (!item.paketAsli) item.paketAsli = pkt;
-                cleanRekap[safeKls][safePkt][safeNama] = item;
+                
+                // Gunakan update path spesifik per anak (Granular Write) agar tidak menimpa data baru di server
+                updates[safeKls + '/' + safePkt + '/' + safeNama] = item;
             });
         });
     });
 
-    window.adminRekapNilaiData = cleanRekap;
-    set(ref(db, basePath + '/admin_rekap_nilai'), cleanRekap).then(function() {
+    // Menggunakan update(), bukan set(), untuk melindungi data siswa yang sedang ujian
+    update(ref(db, basePath + '/admin_rekap_nilai'), updates).then(function() {
         if (typeof window.showSaveToast === "function") window.showSaveToast();
     }).catch(function(err) {
-        console.error("Gagal menyimpan Rekap Nilai ke DB:", err);
+        console.error("Gagal memperbarui Rekap Nilai ke DB:", err);
     });
 };
 
@@ -884,12 +875,20 @@ window.pastikanListenerBankUjianAktif = function() {
     if (window._heavyListenersAttached.bankUjian) return;
     window._heavyListenersAttached.bankUjian = true;
 
-    onValue(ref(db, basePath + '/admin_bank_ujian'), function(snap) {
-        window.adminBankUjianData = snap.exists() ? snap.val() : {};
-        if (typeof window.renderManajerUjian === "function" && document.getElementById('modal-manajer-ujian') && document.getElementById('modal-manajer-ujian').style.display === 'flex') {
-            window.renderManajerUjian();
-        }
-    });
+    let dbRef = ref(db, basePath + '/admin_bank_ujian');
+    if (sessionStorage.getItem("statusLogin") === "admin") {
+        onValue(dbRef, function(snap) {
+            window.adminBankUjianData = snap.exists() ? snap.val() : {};
+            if (typeof window.renderManajerUjian === "function" && document.getElementById('modal-manajer-ujian') && document.getElementById('modal-manajer-ujian').style.display === 'flex') {
+                window.renderManajerUjian();
+            }
+        });
+    } else {
+        // Siswa cukup Get 1x saat butuh, mencegah server jebol akibat broadcast onValue ke 300 perangkat
+        get(dbRef).then(function(snap) {
+            window.adminBankUjianData = snap.exists() ? snap.val() : {};
+        });
+    }
 };
 
 // Tarik Data Administrasi Berat (Absensi, Agenda, Rekap Nilai, Live Monitor) khusus untuk Admin / Saat Modal Dibuka

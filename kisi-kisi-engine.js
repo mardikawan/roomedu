@@ -458,9 +458,16 @@ window.eksekusiGenerateKisiKisi = function(jenisUjian, tapel, mapel, kelasFase, 
     }
     if (daftarHalaman.length === 0) daftarHalaman.push([]);
 
-    // Jika teks CP sangat panjang (> 420 karakter), bagi secara proporsional ke halaman 1 dan 2
-    // agar tinggi teks CP tidak pernah melebihi tinggi baris soal di halaman 1
-    let cpBersih = (cp || "-").trim();
+    // OTOMATISASI CAPAIAN PEMBELAJARAN (CP) BERDASARKAN KELAS/FASE
+    let cpOtomatis = "";
+    if (kelasFase.toUpperCase().indexOf("FASE E") !== -1 || kelasFase.toUpperCase().indexOf("KELAS X") !== -1) {
+        cpOtomatis = "Pada akhir Fase E, peserta didik memiliki kemampuan menciptakan solusi atas permasalahan berdasarkan isu lokal, nasional, atau global yang terkait dengan pemahaman keanekaragaman makhluk hidup dan peranannya, virus dan peranannya, inovasi teknologi biologi, komponen ekosistem dan interaksi antar komponen, serta perubahan lingkungan; kemampuan ini ditopang oleh keterampilan proses ilmiah yang mencakup mengamati, mempertanyakan dan memprediksi, merencanakan dan melakukan penyelidikan, memproses serta menganalisis data dan informasi, mengevaluasi dan merefleksi, hingga mengomunikasikan hasil penyelidikan secara utuh dengan mempertimbangkan aspek keamanan, lingkungan, dan etika.";
+    } else {
+        cpOtomatis = "Pada akhir fase F, peserta didik memiliki kemampuan mendeskripsikan bioproses yang terjadi dalam sel, dan menganalisis keterkaitan struktur organ pada sistem organ dengan fungsinya serta kelainan atau gangguan yang muncul pada sistem organ tersebut. Selanjutnya peserta didik memiliki kemampuan menerapkan konsep pewarisan sifat, pertumbuhan dan perkembangan dalam kehidupan sehari-hari dan mengevaluasi gagasan baru mengenai evolusi. Konsep-konsep yang dipelajari diterapkan untuk memecahkan masalah kehidupan yang diselesaikan dengan keterampilan proses secara mandiri hingga menciptakan ide atau produk untuk mengatasi permasalahan tersebut. Melalui keterampilan proses juga dibangun sikap ilmiah dan profil pelajar pancasila.";
+    }
+
+    // Mengabaikan input CP dari kolom UI (dibiarkan kosong pun tidak apa-apa) dan menggunakan CP Otomatis
+    let cpBersih = cpOtomatis.trim();
     let kataCP = cpBersih.split(/\s+/);
     let potonganCPPerHalaman = [];
 

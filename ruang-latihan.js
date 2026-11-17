@@ -538,7 +538,7 @@ window.renderSoalLatihanSiswa = function() {
     window.sesiLatihanSiswa.hasilSudahTampil = false;
     window.sesiLatihanSiswa.minigameTriggeredMap = {};
 
-    let judulCetak = ('Latihan Mandiri - ' + (window.sesiLatihanSiswa.bab || '') + ' (' + (window.sesiLatihanSiswa.kesulitan || '') + ')').replace(/'/g, "\\'");
+    let judulCetak = ((window.sesiLatihanSiswa.bab || 'LATIHAN') + ' ' + (window.sesiLatihanSiswa.mapel || '') + ' ' + (window.sesiLatihanSiswa.kelas || '')).trim().replace(/'/g, "\\'");
 
     let html = '<div style="max-width:800px; margin:0 auto;">';
 
@@ -1711,93 +1711,282 @@ window.klikGambarSpotDiff = function(evt, svgEl) {
 };
 
 // =========================================================================
-// 6. MESIN PRINTER UNIVERSAL SOAL (PDF & WORD)
+// 6. MESIN PRINTER UNIVERSAL SOAL & LEMBAR KUNCI KOSONG (PDF & WORD)
 // =========================================================================
-window.cetakDokumenUniversal = function(format, judul, dataSoal) {
-    if (!dataSoal || dataSoal.length === 0) return alert("Belum ada soal untuk dicetak!");
 
-    let html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">';
-    html += '<head><meta charset="utf-8"><title>' + judul + '</title>';
-    html += '<style>';
-    html += '@page { size: A4; margin: 1in; } ';
-    html += 'body { font-family: "Times New Roman", Times, serif; font-size: 10pt; color: #000; line-height: 1.5; margin: 0; padding: 0; } ';
-    html += 'h1 { font-size: 12pt; font-weight: bold; text-align: center; margin-bottom: 20pt; } ';
-    html += '.soal-item { margin-bottom: 15pt; page-break-inside: avoid; } ';
-    html += '.soal-teks { margin-bottom: 5pt; } ';
-    html += '.opsi-list { list-style-type: none; padding-left: 15pt; margin: 0; } ';
-    html += '.opsi-item { margin-bottom: 3pt; } ';
-    html += '.titik-isian { letter-spacing: 2pt; font-weight: normal; } ';
-    html += '</style></head><body>';
-    html += '<h1>' + judul + '</h1>';
+window.bersihkanTeksSoalCetak = function(teks) {
+    let s = String(teks || '').trim();
+    s = s.replace(/^\d+[\.\)]\s*/, '');
+    while (s.toLowerCase().endsWith('<br>')) s = s.slice(0, -4).trim();
+    return s;
+};
 
-    dataSoal.forEach(function(q, i) {
-        html += '<div class="soal-item">';
-        let qText = q.question || '';
-        let opsiArr = Array.isArray(q.options) ? q.options : [];
+window.normalisasiDataSoalUntukCetak = function(dataSoal) {
+    return (dataSoal || []).filter(Boolean).map(function(q) {
+        let rawType = String(q.type || q.tipe || 'PG').toUpperCase();
+        let tipe = 'PG';
+        if (rawType === 'IS' || rawType === 'SHORT_ANSWER' || rawType === 'ISIAN' || rawType === 'ISIAN SINGKAT') tipe = 'IS';
+        else if (rawType === 'ESSAY' || rawType === 'ESAI' || rawType === 'URAIAN') tipe = 'Essay';
+        else if (rawType === 'PGK') tipe = 'PGK';
 
-        if (q.type === 'IS' || q.type === 'short_answer' || (q.type !== 'Essay' && opsiArr.length === 0)) {
-            qText += ' <span class="titik-isian">....................</span>';
-        } else if (q.type === 'Essay') {
-            qText += '<br><br><span class="titik-isian">....................................................................................................</span><br><span class="titik-isian">....................................................................................................</span><br><span class="titik-isian">....................................................................................................</span>';
-        }
+        let rawOpts = Array.isArray(q.options) ? q.options : [];
+        let opsiBersih = rawOpts.map(function(opt, idx) {
+            let labelAsli = typeof opt === 'object' ? String(opt.label || String.fromCharCode(65 + idx)).toUpperCase().trim() : String.fromCharCode(65 + idx);
+            let teksAsli = typeof opt === 'object' ? String(opt.text !== undefined ? opt.text : '').trim() : String(opt || '').trim().replace(/^[A-Ea-e][\.\)]\s*/, '');
+            return { label: labelAsli, text: teksAsli };
+        });
 
-        html += '<div class="soal-teks">' + (i + 1) + '. ' + qText + '</div>';
+        if (opsiBersih.length === 0 && tipe === 'PG') tipe = 'IS';
 
-        if (opsiArr.length > 0 && q.type !== 'IS' && q.type !== 'Essay') {
-            html += '<ul class="opsi-list">';
-            opsiArr.forEach(function(opt, optIdx) {
-                let label = opt.label || String.fromCharCode(65 + optIdx);
-                let text = opt.text || opt;
-                html += '<li class="opsi-item">' + label + '. ' + text + '</li>';
-            });
-            html += '</ul>';
-        }
-        html += '</div>';
+        let rawCorrect = q.correct || q.correctAnswers || q.kunci || [];
+        if (typeof rawCorrect === 'string') rawCorrect = [rawCorrect];
+        else if (!Array.isArray(rawCorrect)) rawCorrect = Object.values(rawCorrect);
+
+        return { type: tipe, question: window.bersihkanTeksSoalCetak(q.question || q.soal || ''), options: opsiBersih, correct: rawCorrect };
     });
+};
 
-    html += '</body></html>';
+window.cetakDokumenUniversal = function(format, judul, dataSoal) {
+    let soalList = window.normalisasiDataSoalUntukCetak(dataSoal);
+    if (!soalList || soalList.length === 0) {
+        if (typeof window.tampilkanCustomDialog === "function") {
+            window.tampilkanCustomDialog("alert", "Belum ada soal untuk dicetak!", null, null);
+        } else {
+            alert("Belum ada soal untuk dicetak!");
+        }
+        return;
+    }
 
-    if (format === 'word') {
-        let blob = new Blob(['\ufeff', html], { type: 'application/msword' });
-        let url = URL.createObjectURL(blob);
-        let link = document.createElement('a');
-        link.href = url;
-        link.download = judul.replace(/[^a-z0-9]/gi, '_') + '.doc';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    } else if (format === 'pdf') {
-        let printWin = window.open('', '', 'width=800,height=600');
-        printWin.document.write(html);
+    let pesanConfirm = "Apakah Anda ingin menyertakan LEMBAR KUNCI JAWABAN KOSONG di halaman paling akhir?";
+    
+    let eksekusiCetak = function(cetakKunci) {
+        let judulUpper = String(judul || 'EVALUASI PEMBELAJARAN').trim().toUpperCase();
+
+        // 1. KOP SURAT SEKOLAH MENGGUNAKAN DIRECT LINK GAMBAR
+        let kopHtml = 
+            '<table style="width:100%; border-collapse:collapse; border-bottom:3px solid #000; margin-bottom:2pt;">' +
+               '<tr>' +
+                  '<td style="width:15%; text-align:center; vertical-align:middle; padding-bottom:5pt;">' +
+                     '<img src="https://lh3.googleusercontent.com/d/1lxMkCHRQ4uDmeuGUZ4kay_PW8GJU28KE" style="width:115px; height:auto;">' +
+                  '</td>' +
+                  '<td style="width:85%; text-align:center; vertical-align:middle; line-height:1.2; padding-bottom:5pt;">' +
+                     '<div style="font-size:12pt; font-weight:bold; color:#000080; margin-bottom:2pt; font-family:\'Times New Roman\',Times,serif;">Yayasan Buddhayana Batam</div>' +
+                     '<div style="font-size:16pt; font-weight:bold; color:#000080; margin-bottom:2pt; font-family:\'Times New Roman\',Times,serif;">SMAS BODHI DHARMA BATAM</div>' +
+                     '<div style="font-size:14pt; font-weight:bold; color:#cc0000; font-family:\'KaiTi\', \'SimSun\', serif; margin-bottom:2pt;">菩 提 达 摩 学 校</div>' +
+                     '<div style="font-size:9pt; color:#000; font-family:\'Times New Roman\',Times,serif;">NPSN : 69900648<br>TERAKREDITASI A<br>Email : smabodhidharmabatam@gmail.com</div>' +
+                     '<div style="font-size:8pt; color:#000; font-family:\'Times New Roman\',Times,serif;">Komp. Limindo Trade Centre, Kel. Taman Baloi Kec. Batam Kota, Kota Batam - Telp. (0778) 416 7266, 4167436</div>' +
+                  '</td>' +
+               '</tr>' +
+            '</table>' +
+            '<div style="border-top:1px solid #000; width:100%; height:1px; margin-bottom:15pt;"></div>';
+
+        // 2. JUDUL & IDENTITAS SISWA
+        let blokIdentitasHtml =
+            '<div style="margin-bottom:15pt; page-break-inside:avoid; break-inside:avoid;">' +
+                '<p class="MsoNormal" align="center" style="margin:0 0 10pt 0; font-family:\'Times New Roman\',Times,serif; font-size:14pt; font-weight:bold; text-align:center; line-height:1.5; text-transform:uppercase;">' + judulUpper + '</p>' +
+                '<p class="MsoNormal" style="margin:0; font-family:\'Times New Roman\',Times,serif; font-size:10pt; font-weight:normal; text-align:left; line-height:1.5;">NAMA &nbsp;: _______________________</p>' +
+                '<p class="MsoNormal" style="margin:0; font-family:\'Times New Roman\',Times,serif; font-size:10pt; font-weight:normal; text-align:left; line-height:1.5;">KELAS : _______________________</p>' +
+            '</div>';
+
+        // 3. RAKIT TEKS SOAL & OPSI JAWABAN (RATA KIRI-KANAN / JUSTIFY)
+        let soalHtml = '';
+        soalList.forEach(function(q, i) {
+            let qText = q.question;
+            if (q.type === 'IS') {
+                if (qText.indexOf('....') === -1) qText += ' ....';
+            } else if (q.type === 'Essay') {
+                qText += '<br>........................................................................................................................<br>........................................................................................................................';
+            }
+
+            soalHtml += '<div style="margin-bottom:12pt; page-break-inside:avoid; break-inside:avoid;">';
+            soalHtml += '<p class="MsoNormal" style="margin:0; font-family:\'Times New Roman\',Times,serif; font-size:10pt; line-height:1.25; text-align:justify;">' + (i + 1) + '. ' + qText + '</p>';
+
+            if (q.options.length > 0 && q.type !== 'IS' && q.type !== 'Essay') {
+                q.options.forEach(function(opt) {
+                    soalHtml += '<p class="MsoNormal" style="margin:0; font-family:\'Times New Roman\',Times,serif; font-size:10pt; line-height:1.25; text-align:justify;">' + opt.label + '. ' + opt.text + '</p>';
+                });
+            }
+            soalHtml += '</div>';
+        });
+
+        // 4. LEMBAR KUNCI JAWABAN KOSONG
+        let ljkHtml = '';
+        if (cetakKunci) {
+            ljkHtml += kopHtml;
+            ljkHtml += '<p class="MsoNormal" align="center" style="text-align:center; font-family:\'Times New Roman\',Times,serif; font-size:14pt; font-weight:bold; margin:5pt 0 10pt 0;">LEMBAR KUNCI JAWABAN</p>';
+            
+            ljkHtml += '<div style="margin-bottom:8pt; page-break-inside:avoid; break-inside:avoid;">' +
+                '<p class="MsoNormal" style="margin:0; font-family:\'Times New Roman\',Times,serif; font-size:10pt; font-weight:normal; text-align:left; line-height:1.5;">NAMA &nbsp;: _______________________</p>' +
+                '<p class="MsoNormal" style="margin:0; font-family:\'Times New Roman\',Times,serif; font-size:10pt; font-weight:normal; text-align:left; line-height:1.5;">KELAS : _______________________</p>' +
+            '</div>';
+
+            ljkHtml += '<table style="width:100%; border-collapse:collapse; border:none; font-family:\'Times New Roman\',Times,serif;"><tr>';
+            
+            // Kolom Kiri: Pilihan Ganda (Tabel 1-40)
+            ljkHtml += '<td style="width:40%; vertical-align:top; border:none; padding-right:10pt;">';
+            ljkHtml += '<p style="font-weight:bold; font-size:10pt; margin:0 0 4pt 0;">PILIHAN GANDA</p>';
+            ljkHtml += '<table style="width:100%; border-collapse:collapse; text-align:center; font-size:9pt;">';
+            for (let i = 0; i < 40; i++) {
+                ljkHtml += '<tr style="height:14pt;"><td style="border:1px solid #000; width:15%; font-weight:bold; padding:0;">' + (i + 1) + '</td>';
+                ['A', 'B', 'C', 'D', 'E'].forEach(function(opt) {
+                    ljkHtml += '<td style="border:1px solid #000; width:17%; font-weight:bold; padding:0;">' + opt + '</td>';
+                });
+                ljkHtml += '</tr>';
+            }
+            ljkHtml += '</table></td>';
+
+            // Kolom Kanan: Isian (Tabel 1-40)
+            ljkHtml += '<td style="width:60%; vertical-align:top; border:none; padding-left:10pt;">';
+            ljkHtml += '<p style="font-weight:bold; font-size:10pt; margin:0 0 4pt 0;">ISIAN</p>';
+            ljkHtml += '<table style="width:100%; border-collapse:collapse; text-align:left; font-size:9pt;">';
+            ljkHtml += '<tr style="height:14pt;"><td style="border:1px solid #000; width:10%; text-align:center; font-weight:bold; padding:0;">NO</td><td style="border:1px solid #000; width:90%; text-align:center; font-weight:bold; padding:0;">JAWABAN</td></tr>';
+            for (let i = 0; i < 40; i++) {
+                ljkHtml += '<tr style="height:14pt;">';
+                ljkHtml += '<td style="border:1px solid #000; text-align:center; font-weight:bold; padding:0;">' + (i + 1) + '</td>';
+                ljkHtml += '<td style="border:1px solid #000; padding-left:5pt; font-weight:bold; color:#000;"></td>';
+                ljkHtml += '</tr>';
+            }
+            ljkHtml += '</table></td>';
+            ljkHtml += '</tr></table>';
+        }
+
+        // 5. EXPORT KE MICROSOFT WORD (.doc)
+        if (format === 'word') {
+            let wordHtml =
+                '<html xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">' +
+                '<head><meta charset="utf-8"><title>' + judulUpper + '</title>' +
+                '<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom><w:DoNotOptimizeForBrowser/></w:WordDocument></xml><![endif]-->' +
+                '<style>' +
+                    'p.MsoNormal, div.MsoNormal, li.MsoNormal { margin: 0in; font-size: 10.0pt; font-family: "Times New Roman", Times, serif; }' +
+                    /* Section 1: Kop Surat & Identitas (1 Kolom Penuh) */
+                    '@page Section1 { size: 595.3pt 841.9pt; margin: 36.0pt 36.0pt 0pt 36.0pt; mso-header-margin: 36.0pt; mso-footer-margin: 36.0pt; mso-paper-source: 0; }' +
+                    'div.Section1 { page: Section1; }' +
+                    /* Section 2: Area Soal (2 Kolom) */
+                    '@page Section2 { size: 595.3pt 841.9pt; margin: 10pt 36.0pt 36.0pt 36.0pt; mso-columns: 2 even 21.3pt; mso-header-margin: 36.0pt; mso-footer-margin: 36.0pt; mso-paper-source: 0; }' +
+                    'div.Section2 { page: Section2; }' +
+                    /* Section 3: LJK (1 Kolom, Halaman Baru, MARGIN BAWAH 0.2 INCH / 14.4pt) */
+                    '@page Section3 { size: 595.3pt 841.9pt; margin: 36.0pt 36.0pt 14.4pt 36.0pt; mso-header-margin: 36.0pt; mso-footer-margin: 14.4pt; mso-paper-source: 0; }' +
+                    'div.Section3 { page: Section3; }' +
+                '</style></head><body lang="ID" style="tab-interval:36.0pt; margin:0; padding:0;">' +
+                
+                '<div class="Section1">' + kopHtml + blokIdentitasHtml + '</div>' +
+                
+                '<span style="font-size:10.0pt; font-family:\'Times New Roman\',Times,serif;"><br clear="all" style="page-break-before:auto; mso-break-type:section-break"></span>' +
+                '<div class="Section2">' + soalHtml + '</div>';
+
+            if (cetakKunci) {
+                wordHtml += '<span style="font-size:10.0pt; font-family:\'Times New Roman\',Times,serif;"><br clear="all" style="page-break-before:always; mso-break-type:section-break"></span>' +
+                            '<div class="Section3">' + ljkHtml + '</div>';
+            }
+
+            wordHtml += '</body></html>';
+
+            let blob = new Blob(['\ufeff', wordHtml], { type: 'application/msword' });
+            let url = URL.createObjectURL(blob);
+            let link = document.createElement('a');
+            link.href = url;
+            link.download = judulUpper.replace(/[^a-zA-Z0-9]/g, '_') + '.doc';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            return;
+        }
+
+        // 6. CETAK KE PRINTER / PDF
+        let pdfHtml =
+            '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + judulUpper + '</title>' +
+            '<style>' +
+                /* Margin bawah 0.2 inch khusus untuk seluruh PDF */
+                '@page { size: A4 portrait; margin: 0.5in 0.5in 0.2in 0.5in; }' +
+                '* { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }' +
+                'body { font-family: "Times New Roman", Times, serif; font-size: 10pt; color: #000000; margin: 0; padding: 0; background: #ffffff; }' +
+                '.satu-kolom { width: 100%; text-align: left; }' +
+                '.dua-kolom { column-count: 2; column-gap: 2.13ch; width: 100%; text-align: left; }' +
+                '.page-break { page-break-before: always; break-before: page; }' +
+            '</style></head><body>' +
+                
+                '<div class="satu-kolom">' + kopHtml + blokIdentitasHtml + '</div>' +
+                '<div class="dua-kolom">' + soalHtml + '</div>';
+
+            if (cetakKunci) {
+                pdfHtml += '<div class="page-break satu-kolom">' + ljkHtml + '</div>';
+            }
+
+            pdfHtml += '</body></html>';
+
+        let printWin = window.open('', '_blank', 'width=850,height=700');
+        if (!printWin) return alert("Pop-up diblokir oleh browser. Izinkan pop-up untuk mencetak PDF.");
+        
+        printWin.document.open();
+        printWin.document.write(pdfHtml);
         printWin.document.close();
-        printWin.focus();
-        setTimeout(function() {
-            printWin.print();
-            printWin.close();
-        }, 500);
+
+        let imgEl = printWin.document.querySelector('img');
+        let sudahPrint = false;
+        function eksekusiCetakLanjut() {
+            if (sudahPrint) return;
+            sudahPrint = true;
+            printWin.focus();
+            setTimeout(function() { printWin.print(); printWin.close(); }, 350);
+        }
+        if (imgEl && !imgEl.complete) {
+            imgEl.onload = eksekusiCetakLanjut;
+            imgEl.onerror = eksekusiCetakLanjut;
+            setTimeout(eksekusiCetakLanjut, 1500);
+        } else {
+            eksekusiCetakLanjut();
+        }
+    };
+
+    // Panggil modal konfirmasi dengan gaya modern web Anda
+    if (typeof window.tampilkanCustomDialog === "function") {
+        window.tampilkanCustomDialog("confirm", pesanConfirm, null, function(isYes) {
+            eksekusiCetak(isYes);
+        });
+    } else {
+        let isYes = confirm(pesanConfirm);
+        eksekusiCetak(isYes);
     }
 };
 
 window.cetakKuisPDF = function(containerId, judul) {
     let soalArr = [];
-    if (containerId.indexOf('inline-kuis-') === 0) {
+    let judulFinal = judul || 'EVALUASI PEMBELAJARAN';
+    if (containerId && containerId.indexOf('inline-kuis-') === 0) {
         let idx = containerId.split('-')[2];
-        soalArr = window.contentBlocksData[idx].questions;
-    } else {
-        soalArr = window.sesiLatihanSiswa ? window.sesiLatihanSiswa.soal : (window.sesiUjianSiswa ? window.sesiUjianSiswa.soal : []);
+        let blok = window.contentBlocksData ? window.contentBlocksData[idx] : null;
+        if (blok) {
+            soalArr = blok.questions || [];
+            if (blok.quizTitle) judulFinal = blok.quizTitle.replace(/🧩/g, '').trim() || judulFinal;
+        }
+    } else if (window.sesiLatihanSiswa && window.sesiLatihanSiswa.soal) {
+        soalArr = window.sesiLatihanSiswa.soal;
+        if (window.sesiLatihanSiswa.bab) judulFinal = 'LATIHAN ' + (window.sesiLatihanSiswa.mapel || '') + ' - ' + window.sesiLatihanSiswa.bab;
+    } else if (window.sesiUjianSiswa && window.sesiUjianSiswa.soal) {
+        soalArr = window.sesiUjianSiswa.soal;
+        if (window.sesiUjianSiswa.paket) judulFinal = window.sesiUjianSiswa.paket;
     }
-    window.cetakDokumenUniversal('pdf', judul || 'Kuis', soalArr);
+    window.cetakDokumenUniversal('pdf', judulFinal, soalArr);
 };
 
 window.exportWordKuis = function(containerId, judul) {
     let soalArr = [];
-    if (containerId.indexOf('inline-kuis-') === 0) {
+    let judulFinal = judul || 'EVALUASI PEMBELAJARAN';
+    if (containerId && containerId.indexOf('inline-kuis-') === 0) {
         let idx = containerId.split('-')[2];
-        soalArr = window.contentBlocksData[idx].questions;
-    } else {
-        soalArr = window.sesiLatihanSiswa ? window.sesiLatihanSiswa.soal : (window.sesiUjianSiswa ? window.sesiUjianSiswa.soal : []);
+        let blok = window.contentBlocksData ? window.contentBlocksData[idx] : null;
+        if (blok) {
+            soalArr = blok.questions || [];
+            if (blok.quizTitle) judulFinal = blok.quizTitle.replace(/🧩/g, '').trim() || judulFinal;
+        }
+    } else if (window.sesiLatihanSiswa && window.sesiLatihanSiswa.soal) {
+        soalArr = window.sesiLatihanSiswa.soal;
+        if (window.sesiLatihanSiswa.bab) judulFinal = 'LATIHAN ' + (window.sesiLatihanSiswa.mapel || '') + ' - ' + window.sesiLatihanSiswa.bab;
+    } else if (window.sesiUjianSiswa && window.sesiUjianSiswa.soal) {
+        soalArr = window.sesiUjianSiswa.soal;
+        if (window.sesiUjianSiswa.paket) judulFinal = window.sesiUjianSiswa.paket;
     }
-    window.cetakDokumenUniversal('word', judul || 'Kuis', soalArr);
+    window.cetakDokumenUniversal('word', judulFinal, soalArr);
 };
 
 // =========================================================================
