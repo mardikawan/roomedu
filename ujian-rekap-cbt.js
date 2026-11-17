@@ -672,7 +672,25 @@ window.verifikasiMasukUjian = function() {
     };
 
     window.tutupModal('modal-enter-ujian');
-    window.tampilkanPersiapanUjian();
+    
+    // Panggil modal persiapan menggunakan fungsi bawaan agar Z-Index aman
+    window.bukaModal('modal-persiapan-ujian');
+};
+
+/* =========================================
+   FUNGSI ANIMASI LOADING MASUK UJIAN
+   ========================================= */
+window.mulaiLoadingMasukUjian = function() {
+    window.tutupModal('modal-persiapan-ujian');
+    
+    let loading = document.getElementById("loading-masuk-ujian");
+    if (loading) loading.style.display = "flex";
+
+    // Jeda 2 detik untuk animasi loading sebelum layar berubah ke ruang ujian ketat
+    setTimeout(function() {
+        if (loading) loading.style.display = "none";
+        window.bukaRuangUjianStrict();
+    }, 2000);
 };
 
 /* =========================================

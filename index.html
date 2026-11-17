@@ -365,6 +365,32 @@
     </div>
     
 
+    <!-- MODAL PERSIAPAN UJIAN -->
+    <div id="modal-persiapan-ujian" class="modal-overlay" onclick="if(event.target===this)tutupModal('modal-persiapan-ujian')">
+        <div class="modal-box" style="width:450px; text-align:center; border-radius:14px; overflow:hidden; box-shadow:0 15px 35px rgba(0,0,0,0.3);">
+            <div class="modal-header" style="background:#0b3954; color:white; padding:16px;">
+                <h3 style="margin:0; font-size:18px;">⚠️ Persiapan Sebelum Ujian</h3>
+            </div>
+            <div class="modal-body" style="padding:25px; text-align:left;">
+                <div style="font-size:50px; text-align:center; margin-bottom:12px;">📱</div>
+                <p style="font-size:14px; font-weight:bold; color:#c0392b; margin-top:0;">Mohon pastikan hal berikut sebelum mulai:</p>
+                <ul style="font-size:13px; color:#2c3e50; line-height:1.6; padding-left:20px; margin-bottom:20px; font-weight:600;">
+                    <li style="margin-bottom:6px;">Matikan notifikasi (WhatsApp, IG, dll) atau aktifkan fitur <b style="color:#e67e22;">Jangan Ganggu (Do Not Disturb)</b> di HP Anda.</li>
+                    <li style="margin-bottom:6px;">Atur kecerahan layar senyaman mungkin.</li>
+                    <li>Ujian ini dilindungi sensor keamanan. <b style="color:#c0392b;">Menutup browser, me-refresh halaman, atau membuka aplikasi lain akan menambah poin pelanggaran otomatis!</b></li>
+                </ul>
+                <button type="button" class="btn-action" style="background:#27ae60; width:100%; padding:14px; font-size:15px; border-radius:30px; font-weight:900; box-shadow:0 4px 10px rgba(39,174,96,0.3);" onclick="window.mulaiLoadingMasukUjian()">✅ OKE, SAYA MENGERTI & SIAP!</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- LAYAR LOADING FULLSCREEN (Animasi 2 Detik) -->
+    <div id="loading-masuk-ujian" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:#0b3954; z-index:20000000; flex-direction:column; justify-content:center; align-items:center; color:white; font-family:'Poppins', sans-serif;">
+        <div style="width:50px; height:50px; border:5px solid rgba(255,255,255,0.2); border-top-color:#f1c40f; border-radius:50%; animation:spinLoadingCBT 1s linear infinite; margin-bottom:25px;"></div>
+        <h2 style="margin:0; font-size:24px; font-weight:800; letter-spacing:1px;">Memasuki Ruang Ujian...</h2>
+        <p style="font-size:13px; opacity:0.8; margin-top:8px;">Menyiapkan soal dan mengaktifkan sensor keamanan ketat...</p>
+        <style>@keyframes spinLoadingCBT { to { transform: rotate(360deg); } }</style>
+    </div>
     <!-- MODAL REKAP NILAI (LEDGER) -->
     <div id="modal-rekap-nilai" class="modal-overlay" onclick="if(event.target===this)tutupModal('modal-rekap-nilai')">
         <div class="modal-box" style="width: 880px; max-height: 90vh; display:flex; flex-direction:column;">
