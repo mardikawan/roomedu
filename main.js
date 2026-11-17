@@ -4190,9 +4190,18 @@ window.batalLatex = function(el, event) {
 };
 
 window.restoreMathJax = function() {
-    if (typeof MathJax !== 'undefined' && MathJax.startup && MathJax.startup.document) { 
-        MathJax.startup.document.state(0); 
-        MathJax.startup.document.restore(); 
+    if (typeof MathJax !== 'undefined' && MathJax.startup && MathJax.startup.document) {
+        try {
+            MathJax.startup.document.state(0); 
+            // Pastikan fungsi restore ada sebelum memanggilnya untuk mencegah crash TypeError
+            if (typeof MathJax.startup.document.restore === "function") {
+                MathJax.startup.document.restore();
+            } else if (typeof MathJax.startup.document.clear === "function") {
+                MathJax.startup.document.clear();
+            }
+        } catch (e) {
+            console.warn("MathJax restore ditunda:", e);
+        }
     }
 };
 
@@ -4335,6 +4344,7 @@ window.pasangDragModalFloating = function(headerId, boxId) {
         }
     }
 
+    // KUNCI PERBAIKAN: Hanya izinkan drag jika kursor menyentuh HEADER, bukan area lain.
     headerEl.addEventListener('pointerdown', function(e) {
         if (e.target.closest('button') || boxEl.classList.contains('cg-maximized')) return;
         isDragging = true;
@@ -4344,21 +4354,26 @@ window.pasangDragModalFloating = function(headerId, boxId) {
         let rect = boxEl.getBoundingClientRect();
         startX = rect.left;
         startY = rect.top;
+        
+        // Hentikan perambatan klik agar tidak memblokir input di editor
+        e.stopPropagation();
         try { headerEl.setPointerCapture(e.pointerId); } catch (err) {}
     });
 
-    headerEl.addEventListener('pointermove', function(e) {
+    window.addEventListener('pointermove', function(e) {
         if (!isDragging) return;
-        let nextLeft = Math.max(0, Math.min(window.innerWidth - 100, startX + (e.clientX - mouseX)));
-        let nextTop = Math.max(0, Math.min(window.innerHeight - 60, startY + (e.clientY - mouseY)));
+        // Pindahkan kotak dengan pembatasan area layar
+        let nextLeft = Math.max(0, Math.min(window.innerWidth - 80, startX + (e.clientX - mouseX)));
+        let nextTop = Math.max(0, Math.min(window.innerHeight - 40, startY + (e.clientY - mouseY)));
         boxEl.style.right = 'auto';
         boxEl.style.bottom = 'auto';
         boxEl.style.left = nextLeft + 'px';
         boxEl.style.top = nextTop + 'px';
+        e.preventDefault(); // Cegah block text tanpa sengaja saat geser
     });
 
-    headerEl.addEventListener('pointerup', akhiriDrag);
-    headerEl.addEventListener('pointercancel', akhiriDrag);
+    window.addEventListener('pointerup', akhiriDrag);
+    window.addEventListener('pointercancel', akhiriDrag);
     headerEl.addEventListener('lostpointercapture', akhiriDrag);
 };
 
@@ -4660,27 +4675,32 @@ window.renderKalenderGuru = function() {
 };
 
 window.klikTanggalKalenderGuru = function(dateKey) {
-    let judul = prompt("➕ Tambah Pengingat Agenda pada Tanggal " + dateKey + ":\n(Pengingat ini akan muncul di Lonceng Notifikasi Admin Anda)");
-    if (!judul || !judul.trim()) return;
-    let jam = prompt("Jam Agenda (Opsional, contoh: 08:00):", "");
+    window.tampilkanCustomDialog("prompt", "➕ Tambah Pengingat Agenda pada Tanggal " + dateKey + ":\n(Pengingat ini akan muncul di Lonceng Notifikasi Admin Anda)", "", function(judul) {
+        if (!judul || !judul.trim()) return;
+        
+        // Beri jeda sedikit agar modal pertama selesai ditutup sebelum membuka modal kedua
+        setTimeout(function() {
+            window.tampilkanCustomDialog("prompt", "Jam Agenda (Opsional, contoh: 08:00):", "", function(jam) {
+                if (!window.adminJadwalKalenderData) window.adminJadwalKalenderData = { excelHtml: "", events: {} };
+                if (!window.adminJadwalKalenderData.events) window.adminJadwalKalenderData.events = {};
+                if (!Array.isArray(window.adminJadwalKalenderData.events[dateKey])) {
+                    window.adminJadwalKalenderData.events[dateKey] = window.adminJadwalKalenderData.events[dateKey]
+                        ? Object.values(window.adminJadwalKalenderData.events[dateKey])
+                        : [];
+                }
 
-    if (!window.adminJadwalKalenderData) window.adminJadwalKalenderData = { excelHtml: "", events: {} };
-    if (!window.adminJadwalKalenderData.events) window.adminJadwalKalenderData.events = {};
-    if (!Array.isArray(window.adminJadwalKalenderData.events[dateKey])) {
-        window.adminJadwalKalenderData.events[dateKey] = window.adminJadwalKalenderData.events[dateKey]
-            ? Object.values(window.adminJadwalKalenderData.events[dateKey])
-            : [];
-    }
+                window.adminJadwalKalenderData.events[dateKey].push({
+                    id: 'cal_' + Date.now(),
+                    title: judul.trim(),
+                    jam: (jam || '').trim(),
+                    dibuat: new Date().toISOString()
+                });
 
-    window.adminJadwalKalenderData.events[dateKey].push({
-        id: 'cal_' + Date.now(),
-        title: judul.trim(),
-        jam: (jam || '').trim(),
-        dibuat: new Date().toISOString()
+                window.renderKalenderGuru();
+                if (typeof window.simpanJadwalKalenderKeDB === "function") window.simpanJadwalKalenderKeDB();
+            });
+        }, 400);
     });
-
-    window.renderKalenderGuru();
-    if (typeof window.simpanJadwalKalenderKeDB === "function") window.simpanJadwalKalenderKeDB();
 };
 
 window.hapusAgendaKalenderGuru = function(dateKey, idx) {
@@ -4688,14 +4708,15 @@ window.hapusAgendaKalenderGuru = function(dateKey, idx) {
     let item = window.adminJadwalKalenderData.events[dateKey][idx];
     if (!item) return;
 
-    if (confirm('Hapus agenda "' + item.title + '" pada tanggal ' + dateKey + '?')) {
+    window.tampilkanCustomDialog("confirm", 'Hapus agenda "' + item.title + '" pada tanggal ' + dateKey + '?', null, function(isYes) {
+        if (!isYes) return;
         window.adminJadwalKalenderData.events[dateKey].splice(idx, 1);
         if (window.adminJadwalKalenderData.events[dateKey].length === 0) {
             delete window.adminJadwalKalenderData.events[dateKey];
         }
         window.renderKalenderGuru();
         if (typeof window.simpanJadwalKalenderKeDB === "function") window.simpanJadwalKalenderKeDB();
-    }
+    });
 };
 
 window.muatTabelJadwalExcel = function() {
