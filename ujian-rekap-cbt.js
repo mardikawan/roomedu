@@ -672,7 +672,63 @@ window.verifikasiMasukUjian = function() {
     };
 
     window.tutupModal('modal-enter-ujian');
-    window.bukaRuangUjianStrict();
+    window.tampilkanPersiapanUjian();
+};
+
+/* =========================================
+   MODAL PERSIAPAN & ANIMASI LOADING UJIAN
+   ========================================= */
+window.tampilkanPersiapanUjian = function() {
+    let modal = document.getElementById("modal-persiapan-ujian");
+    if (!modal) {
+        modal = document.createElement("div");
+        modal.id = "modal-persiapan-ujian";
+        modal.className = "modal-overlay";
+        modal.style.zIndex = "10000000";
+        modal.innerHTML = 
+            '<div class="modal-box" style="width:450px; max-width:92vw; text-align:center; border-radius:14px; overflow:hidden; box-shadow:0 15px 35px rgba(0,0,0,0.3);">' +
+                '<div class="modal-header" style="background:#0b3954; color:white; padding:16px;">' +
+                    '<h3 style="margin:0; font-size:18px;">⚠️ Persiapan Sebelum Ujian</h3>' +
+                '</div>' +
+                '<div class="modal-body" style="padding:25px; text-align:left;">' +
+                    '<div style="font-size:50px; text-align:center; margin-bottom:12px;">📱</div>' +
+                    '<p style="font-size:14px; font-weight:bold; color:#c0392b; margin-top:0;">Mohon pastikan hal berikut sebelum menekan tombol Oke:</p>' +
+                    '<ul style="font-size:13px; color:#2c3e50; line-height:1.6; padding-left:20px; margin-bottom:20px; font-weight:600;">' +
+                        '<li style="margin-bottom:6px;">Matikan notifikasi (WhatsApp, IG, dll) atau aktifkan fitur <b style="color:#e67e22;">Jangan Ganggu (Do Not Disturb)</b> di HP Anda.</li>' +
+                        '<li style="margin-bottom:6px;">Atur kecerahan layar senyaman mungkin karena layar akan menyala terus.</li>' +
+                        '<li>Ujian ini dilindungi sensor keamanan. <b style="color:#c0392b;">Menutup browser, me-refresh halaman, atau membuka aplikasi lain akan menambah poin pelanggaran secara otomatis!</b></li>' +
+                    '</ul>' +
+                    '<button type="button" class="btn-action" style="background:#27ae60; width:100%; padding:14px; font-size:15px; border-radius:30px; font-weight:900; box-shadow:0 4px 10px rgba(39,174,96,0.3);" onclick="window.mulaiLoadingMasukUjian()">✅ OKE, SAYA MENGERTI & SIAP!</button>' +
+                '</div>' +
+            '</div>';
+        document.body.appendChild(modal);
+    }
+    modal.style.display = "flex";
+};
+
+window.mulaiLoadingMasukUjian = function() {
+    let modal = document.getElementById("modal-persiapan-ujian");
+    if (modal) modal.style.display = "none";
+
+    let loading = document.getElementById("loading-masuk-ujian");
+    if (!loading) {
+        loading = document.createElement("div");
+        loading.id = "loading-masuk-ujian";
+        loading.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:#0b3954; z-index:20000000; display:flex; flex-direction:column; justify-content:center; align-items:center; color:white; font-family:'Poppins', sans-serif;";
+        loading.innerHTML = 
+            '<div style="width:50px; height:50px; border:5px solid rgba(255,255,255,0.2); border-top-color:#f1c40f; border-radius:50%; animation:spinLoadingCBT 1s linear infinite; margin-bottom:25px;"></div>' +
+            '<h2 style="margin:0; font-size:24px; letter-spacing:1px; font-weight:800;">Memasuki Ruang Ujian...</h2>' +
+            '<p style="font-size:13px; opacity:0.8; margin-top:8px; font-weight:600;">Menyiapkan soal dan mengaktifkan sensor keamanan...</p>' +
+            '<style>@keyframes spinLoadingCBT { to { transform: rotate(360deg); } }</style>';
+        document.body.appendChild(loading);
+    }
+    loading.style.display = "flex";
+
+    // Jeda 2 detik lalu masuk ke ruang ujian sebenarnya
+    setTimeout(function() {
+        loading.style.display = "none";
+        window.bukaRuangUjianStrict();
+    }, 2000);
 };
 
 // =========================================================================
@@ -780,9 +836,14 @@ window.bukaRuangUjianStrict = function() {
 
     if (dataLokal && dataLokal.jawaban) {
         window.sesiUjianSiswa.jawaban = dataLokal.jawaban;
-        let prevLokalViolation = Math.max(Number(dataLokal.violationCount) || 0, Number(pkt.prevPelanggaran) || 0);
+        let serverViolation = Number(pkt.prevPelanggaran) || 0;
+        let prevLokalViolation = Math.max(Number(dataLokal.violationCount) || 0, serverViolation);
         
-        // Hapus penalti +1 ganda karena penalti sudah dicatat saat siswa terkeluar
+        // PASTI KENA PENALTI: Jika masuk lewat mode resume (refresh/terkeluar), pastikan pelanggaran bertambah minimal +1.
+        // Logika ini mencegah hukuman ganda tapi memastikan siswa yang nge-refresh tetap dihukum.
+        if (pkt.isResumeMode && prevLokalViolation <= serverViolation) {
+            prevLokalViolation = serverViolation + 1;
+        }
         window.violationCount = prevLokalViolation; 
         window.sisaDetikUjian = dataLokal.sisaDetik || (pkt.durasi * 60);
         
@@ -792,7 +853,7 @@ window.bukaRuangUjianStrict = function() {
         }
     } else {
         window.sesiUjianSiswa.jawaban = {};
-        window.violationCount = Number(pkt.prevPelanggaran) || 0; // Hapus penalti ganda
+        window.violationCount = pkt.isResumeMode ? (Number(pkt.prevPelanggaran) || 0) + 1 : (Number(pkt.prevPelanggaran) || 0);
         window.sisaDetikUjian = pkt.durasi * 60;
     }
     window.simpanCadanganLokalUjian();
