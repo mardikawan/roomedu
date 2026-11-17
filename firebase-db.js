@@ -253,9 +253,50 @@ document.addEventListener("visibilitychange", function() {
     }
 });
 
-// Pastikan koneksi online & gunakan akun Firebase Auth masing-masing siswa saat hendak menulis data
+// JALUR TULIS TANPA KUOTA KONEKSI WEBSOCKET (0 SLOT KONEKSI - AMAN UNTUK >500 SISWA SERENTAK)
+window.tulisDataRestFirebase = async function(path, payload, method, onSuccess, onError) {
+    let cleanPath = String(path || "").replace(/^\/+|\/+$/g, "");
+    let httpMethod = method || "PUT";
+    let url = firebaseConfig.databaseURL + "/" + cleanPath + ".json";
+
+    try {
+        if (auth && auth.currentUser) {
+            try {
+                let token = await auth.currentUser.getIdToken(false);
+                if (token) url += "?auth=" + encodeURIComponent(token);
+            } catch (e) {}
+        }
+        let res = await fetch(url, {
+            method: httpMethod,
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+            try { sessionStorage.removeItem("rest_ttl_" + cleanPath); } catch (e) {}
+            if (onSuccess) onSuccess();
+            return;
+        }
+        throw new Error("REST write status " + res.status);
+    } catch (err) {
+        // Fallback ke WebSocket SDK hanya jika jalur REST gagal
+        window.mulaiOperasiTulisDB();
+        let dbRef = ref(db, cleanPath);
+        let op = (httpMethod === "PATCH" && payload && typeof payload === "object")
+            ? update(dbRef, payload)
+            : (payload === null ? remove(dbRef) : set(dbRef, payload));
+
+        op.then(function() {
+            window.selesaiOperasiTulisDB(800);
+            if (onSuccess) onSuccess();
+        }).catch(function(e) {
+            window.selesaiOperasiTulisDB(800);
+            if (onError) onError(e);
+        });
+    }
+};
+
+// Pastikan sesi Auth siap tanpa menahan counter koneksi WebSocket menggantung
 window.pastikanAuthFirebaseSiswaAktif = function(callback) {
-    window.mulaiOperasiTulisDB();
     if (auth.currentUser) {
         if (callback) callback();
         return;
@@ -267,12 +308,16 @@ window.pastikanAuthFirebaseSiswaAktif = function(callback) {
         let emailSiswa = (dataSiswa && dataSiswa.gmail) ? dataSiswa.gmail : (rawU + "@siswamahardika.com");
         let passSiswa = (dataSiswa && dataSiswa.password && String(dataSiswa.password).length >= 6) ? String(dataSiswa.password) : "123456";
 
+        window.mulaiOperasiTulisDB();
         signInWithEmailAndPassword(auth, emailSiswa, passSiswa).then(function() {
+            window.selesaiOperasiTulisDB(500);
             if (callback) callback();
         }).catch(function() {
             createUserWithEmailAndPassword(auth, emailSiswa, passSiswa).then(function() {
+                window.selesaiOperasiTulisDB(500);
                 if (callback) callback();
             }).catch(function() {
+                window.selesaiOperasiTulisDB(500);
                 if (callback) callback();
             });
         });
@@ -281,7 +326,7 @@ window.pastikanAuthFirebaseSiswaAktif = function(callback) {
     }
 };
 
-// Fungsi Update Status Online/Offline & Waktu Login Terakhir Siswa (Mode Ketuk-Lepas 0 Koneksi Menggantung)
+// Fungsi Update Status Online/Offline Siswa via REST PATCH (0 Koneksi WebSocket)
 window.updatePresensiOnlineSiswa = function(isOnlineNow, isInitialLogin) {
     let stat = sessionStorage.getItem("statusLogin");
     let rawU = (sessionStorage.getItem("username") || "").trim().toLowerCase();
@@ -308,16 +353,10 @@ window.updatePresensiOnlineSiswa = function(isOnlineNow, isInitialLogin) {
         Object.assign(window.leaderboardSiswaData[cleanKey], payloadUpdate);
     }
 
-    window.pastikanAuthFirebaseSiswaAktif(function() {
-        update(ref(db, basePath + '/leaderboard_siswa/' + cleanKey), payloadUpdate).then(function() {
-            window.selesaiOperasiTulisDB(1500);
-        }).catch(function() {
-            window.selesaiOperasiTulisDB(1500);
-        });
-    });
+    window.tulisDataRestFirebase(basePath + '/leaderboard_siswa/' + cleanKey, payloadUpdate, "PATCH");
 };
 
-// Detak presensi hanya berjalan jika siswa benar-benar aktif dalam 5 menit terakhir (diubah ke 4 menit agar hemat)
+// Detak presensi berjalan tiap 4 menit tanpa membuka koneksi WebSocket
 setInterval(function() {
     let aktifBaruSaja = (Date.now() - (window._lastUserActivityTime || 0)) < 240000;
     if (document.visibilityState === "visible" && aktifBaruSaja && sessionStorage.getItem("statusLogin") === "siswa" && !window.isStrictUjianActive && !window._isIdleDisconnected) {
@@ -331,21 +370,15 @@ window.addEventListener("beforeunload", function() {
     }
 });
 
-// Pengiriman Nilai Ujian dengan Jaminan Terkirim + Putus Koneksi Otomatis Setelah Sukses
+// Pengiriman Nilai Ujian via REST PUT (0 Koneksi WebSocket + Anti-Bentrok 100+ Siswa)
 window.kirimNilaiUjianAmanKeDB = function(pathInfo, payload, onSuccess, onError) {
-    try {
-        window.mulaiOperasiTulisDB();
-        set(ref(db, basePath + '/' + pathInfo), payload).then(function() {
-            window.selesaiOperasiTulisDB(2500);
-            if (onSuccess) onSuccess();
-        }).catch(function(err) {
-            window.selesaiOperasiTulisDB(2500);
-            if (onError) onError(err);
-        });
-    } catch (e) {
-        window.selesaiOperasiTulisDB(2500);
-        if (onError) onError(e);
-    }
+    let cleanSubPath = String(pathInfo || "").replace(/^\/+/, "");
+    window.tulisDataRestFirebase(basePath + '/' + cleanSubPath, payload, "PUT", function() {
+        try { sessionStorage.removeItem("rest_ttl_" + basePath + "/admin_rekap_nilai"); } catch (e) {}
+        if (onSuccess) onSuccess();
+    }, function(err) {
+        if (onError) onError(err);
+    });
 };
 
 /* =========================================
@@ -1186,15 +1219,11 @@ window.simpanLeaderboardSiswaKeDB = function(usernameKey, dataObj) {
         window._lastSaveLBTime = Date.now();
         window.leaderboardLoaded = true;
 
-        window.pastikanAuthFirebaseSiswaAktif(function() {
-            set(ref(db, basePath + '/leaderboard_siswa/' + cleanKey), merged).then(function() {
-                window.selesaiOperasiTulisDB(2000);
-                if (typeof window.perbaruiTampilanSaldoXPPet === "function") window.perbaruiTampilanSaldoXPPet();
-                if (typeof window.perbaruiUIHeaderProfilSiswa === "function") window.perbaruiUIHeaderProfilSiswa();
-            }).catch(function(err) {
-                window.selesaiOperasiTulisDB(2000);
-                console.error("Gagal menyimpan XP/Coin ke Firebase:", err);
-            });
+        window.tulisDataRestFirebase(basePath + '/leaderboard_siswa/' + cleanKey, merged, "PUT", function() {
+            if (typeof window.perbaruiTampilanSaldoXPPet === "function") window.perbaruiTampilanSaldoXPPet();
+            if (typeof window.perbaruiUIHeaderProfilSiswa === "function") window.perbaruiUIHeaderProfilSiswa();
+        }, function(err) {
+            console.error("Gagal menyimpan XP/Coin ke Firebase:", err);
         });
     };
 
@@ -1326,14 +1355,14 @@ document.addEventListener('click', function(e) {
     let t = e.target.closest('[onclick*="modal-enter-ujian"], [onclick*="bukaModalMasukUjianSiswa"]');
     if (t) window.pastikanListenerBankUjianAktif(false);
 
-    let adm = e.target.closest('#admin-menu-bar span, [onclick*="modal-rekap-nilai"], [onclick*="modal-manajer-ujian"], [onclick*="bukaModalAdministrasi"], [onclick*="bukaModalPerkembanganSiswa"], #filter-rekap-kelas, #filter-rekap-paket');
+    let adm = e.target.closest('#admin-menu-bar span, [onclick*="modal-rekap-nilai"], [onclick*="modal-manajer-ujian"], [onclick*="bukaModalAdministrasi"], [onclick*="bukaModalPerkembanganSiswa"], [onclick*="tab-ledger"], [onclick*="tab-remedial-admin"], [onclick*="bukaModalSpreadsheetNilai"], [onclick*="bukaModalRemedial"], #filter-rekap-kelas, #filter-rekap-paket');
     if (adm) {
         window.pastikanListenerAdminBeratAktif();
         if (typeof window.muatDataAfektifRest === "function") window.muatDataAfektifRest();
     }
 }, true);
 
-// Fungsi Kirim Status Siswa ke Live Monitor (Burst Mode: Kirim lalu Putus Koneksi)
+// Fungsi Kirim Status Siswa ke Live Monitor via REST PUT (0 Koneksi WebSocket)
 window.simpanStatusLiveMonitorKeDB = function(paket, kelas, nama, payload) {
     if (!paket || !kelas || !nama) return;
     let safeNama = window.sanitasiKeyRekapFirebase(nama);
@@ -1341,11 +1370,7 @@ window.simpanStatusLiveMonitorKeDB = function(paket, kelas, nama, payload) {
     let safeKelas = window.sanitasiKeyRekapFirebase(kelas);
 
     let pathLM = basePath + '/admin_live_monitor/' + safePaket + '/' + safeKelas + '/' + safeNama;
-    window.mulaiOperasiTulisDB();
-    set(ref(db, pathLM), payload).then(function() {
-        window.selesaiOperasiTulisDB(2000);
-    }).catch(function(err) {
-        window.selesaiOperasiTulisDB(2000);
+    window.tulisDataRestFirebase(pathLM, payload, "PUT", null, function(err) {
         console.error("Gagal memperbarui Live Monitor:", err);
     });
 };
@@ -1476,12 +1501,9 @@ window.simpanUjianAktifKeDB = function() {
 };
 
 window.simpanNilaiUjianKeDB = function(pathInfo, payload) {
-    window.mulaiOperasiTulisDB();
-    set(ref(db, basePath + '/' + pathInfo), payload).then(function() {
-        window.selesaiOperasiTulisDB(2500);
+    window.kirimNilaiUjianAmanKeDB(pathInfo, payload, function() {
         console.log("Nilai ujian berhasil direkam secara permanen ke server.");
-    }).catch(function(error) {
-        window.selesaiOperasiTulisDB(2500);
+    }, function(error) {
         console.error("Gagal mengirim nilai ujian:", error);
     });
 };

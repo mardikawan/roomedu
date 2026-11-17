@@ -824,7 +824,9 @@ window.hapusKolomUjianLedgerLangsung = function(idx) {
         }
         window.renderLedgerSiswa();
         if (typeof window.simpanLedgerMetaKeDB === "function") window.simpanLedgerMetaKeDB();
-        if (typeof window.simpanRekapNilaiPenuhKeDB === "function") window.simpanRekapNilaiPenuhKeDB();
+        if (typeof window.kirimNilaiUjianAmanKeDB === "function") {
+            window.kirimNilaiUjianAmanKeDB('admin_rekap_nilai/' + safeKls + '/' + safeOld, null);
+        }
     }
 };
 
@@ -862,10 +864,16 @@ window.editKolomUjianLedger = function(idx) {
                 delete window.adminRekapNilaiData[kls][oldName];
                 delete window.adminRekapNilaiData[kls][safeOld];
             }
+            if (typeof window.kirimNilaiUjianAmanKeDB === "function") {
+                window.kirimNilaiUjianAmanKeDB('admin_rekap_nilai/' + safeKls + '/' + safeNew, dataLama, function() {
+                    if (safeOld !== safeNew) {
+                        window.kirimNilaiUjianAmanKeDB('admin_rekap_nilai/' + safeKls + '/' + safeOld, null);
+                    }
+                });
+            }
         }
         window.renderLedgerSiswa();
         if (typeof window.simpanLedgerMetaKeDB === "function") window.simpanLedgerMetaKeDB();
-        if (typeof window.simpanRekapNilaiPenuhKeDB === "function") window.simpanRekapNilaiPenuhKeDB();
     }
 };
 
@@ -879,6 +887,7 @@ window.editNilaiSiswaLedger = function(kolom, nama, nilaiLama) {
     let safeKls = window.sanitasiKeyRekapFirebase(kls);
     let safeKol = window.sanitasiKeyRekapFirebase(kolom);
     let safeNama = window.sanitasiKeyRekapFirebase(nama);
+    let pathItem = 'admin_rekap_nilai/' + safeKls + '/' + safeKol + '/' + safeNama;
 
     if (!window.adminRekapNilaiData) window.adminRekapNilaiData = {};
     if (!window.adminRekapNilaiData[safeKls]) window.adminRekapNilaiData[safeKls] = {};
@@ -890,10 +899,14 @@ window.editNilaiSiswaLedger = function(kolom, nama, nilaiLama) {
     if (n === "") {
         delete window.adminRekapNilaiData[safeKls][safeKol][safeNama];
         delete window.adminRekapNilaiData[safeKls][safeKol][nama];
+        window.renderLedgerSiswa();
+        if (typeof window.kirimNilaiUjianAmanKeDB === "function") {
+            window.kirimNilaiUjianAmanKeDB(pathItem, null);
+        }
     } else {
         let num = parseFloat(n);
         if (!isNaN(num) && num >= 0 && num <= 100) {
-            let record = existingObj || {
+            let record = existingObj ? Object.assign({}, existingObj) : {
                 namaAsli: nama,
                 kelasAsli: kls,
                 paketAsli: kolom,
@@ -903,13 +916,16 @@ window.editNilaiSiswaLedger = function(kolom, nama, nilaiLama) {
             record.nilaiAkhir = num;
             window.adminRekapNilaiData[safeKls][safeKol][safeNama] = record;
             if (nama !== safeNama) delete window.adminRekapNilaiData[safeKls][safeKol][nama];
+            window.renderLedgerSiswa();
+            if (typeof window.kirimNilaiUjianAmanKeDB === "function") {
+                window.kirimNilaiUjianAmanKeDB(pathItem, record);
+            } else if (typeof window.simpanRekapNilaiPenuhKeDB === "function") {
+                window.simpanRekapNilaiPenuhKeDB();
+            }
         } else {
             return alert("⚠️ Masukkan angka nilai yang valid (0 - 100)!");
         }
     }
-
-    window.renderLedgerSiswa();
-    if (typeof window.simpanRekapNilaiPenuhKeDB === "function") window.simpanRekapNilaiPenuhKeDB();
 };
 
 window.exportExcelLedgerSiswa = function() {
