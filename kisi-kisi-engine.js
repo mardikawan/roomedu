@@ -444,20 +444,6 @@ window.eksekusiGenerateKisiKisi = function(jenisUjian, tapel, mapel, kelasFase, 
         };
     });
 
-    // Bagi soal menjadi per halaman cetak agar rowspan Capaian Pembelajaran & Kompetensi
-    // selalu tertutup rapat di dalam bingkai tabel tiap halaman (tidak pernah tembus ke bawah!)
-    let daftarHalaman = [];
-    let cursor = 0;
-    let ukuranHalamanPertama = 4; // Halaman 1 memuat Kop Surat + 4 soal
-    let ukuranHalamanLanjut = 5;  // Halaman berikutnya memuat 5 soal per halaman
-
-    while (cursor < hasilAnalisis.length) {
-        let limit = (daftarHalaman.length === 0) ? ukuranHalamanPertama : ukuranHalamanLanjut;
-        daftarHalaman.push(hasilAnalisis.slice(cursor, cursor + limit));
-        cursor += limit;
-    }
-    if (daftarHalaman.length === 0) daftarHalaman.push([]);
-
     // OTOMATISASI CAPAIAN PEMBELAJARAN (CP) BERDASARKAN KELAS/FASE
     let cpOtomatis = "";
     if (kelasFase.toUpperCase().indexOf("FASE E") !== -1 || kelasFase.toUpperCase().indexOf("KELAS X") !== -1) {
@@ -466,15 +452,76 @@ window.eksekusiGenerateKisiKisi = function(jenisUjian, tapel, mapel, kelasFase, 
         cpOtomatis = "Pada akhir fase F, peserta didik memiliki kemampuan mendeskripsikan bioproses yang terjadi dalam sel, dan menganalisis keterkaitan struktur organ pada sistem organ dengan fungsinya serta kelainan atau gangguan yang muncul pada sistem organ tersebut. Selanjutnya peserta didik memiliki kemampuan menerapkan konsep pewarisan sifat, pertumbuhan dan perkembangan dalam kehidupan sehari-hari dan mengevaluasi gagasan baru mengenai evolusi. Konsep-konsep yang dipelajari diterapkan untuk memecahkan masalah kehidupan yang diselesaikan dengan keterampilan proses secara mandiri hingga menciptakan ide atau produk untuk mengatasi permasalahan tersebut. Melalui keterampilan proses juga dibangun sikap ilmiah dan profil pelajar pancasila.";
     }
 
-    // Mengabaikan input CP dari kolom UI (dibiarkan kosong pun tidak apa-apa) dan menggunakan CP Otomatis
     let cpBersih = cpOtomatis.trim();
+
+    // =====================================================================
+    // UKUR TINGGI ASLI SETIAP BARIS SOAL DI DOM AGAR PAS 1 HALAMAN PENUH
+    // (Mencegah Kop terpisah di Hal 1 & mencegah halaman kosong di tengah)
+    // =====================================================================
+    let measureWrap = document.createElement('div');
+    measureWrap.style.cssText = "position:absolute; left:-99999px; top:0; width:1020px; visibility:hidden; pointer-events:none; font-family:'Times New Roman', Times, serif; font-size:9.5pt; line-height:1.25;";
+    let measureRowsHtml = '';
+    hasilAnalisis.forEach(function(item) {
+        measureRowsHtml +=
+            '<tr>' +
+                '<td width="14%" style="padding:5px 6px;"></td>' +
+                '<td width="13%" style="padding:5px 6px; vertical-align:top;">' + item.kompetensi + '</td>' +
+                '<td width="17%" style="padding:5px 6px; vertical-align:top;">' + item.indikator + '</td>' +
+                '<td width="5%" style="padding:5px 6px; vertical-align:top; text-align:center;">' + item.bentukSoal + '</td>' +
+                '<td width="5%" style="padding:5px 6px; vertical-align:top; text-align:center;">' + item.nomor + '</td>' +
+                '<td width="34%" style="padding:5px 6px; vertical-align:top;">' + item.teksSoalLengkap + '</td>' +
+                '<td width="6%" style="padding:5px 6px; vertical-align:top; text-align:center; font-weight:bold;">' + item.kunci + '</td>' +
+                '<td width="6%" style="padding:5px 6px; vertical-align:top; text-align:center; font-weight:bold;">' + item.levelKog + '</td>' +
+            '</tr>';
+    });
+    measureWrap.innerHTML = '<table style="width:100%; border-collapse:collapse; table-layout:fixed;"><tbody>' + measureRowsHtml + '</tbody></table>';
+    document.body.appendChild(measureWrap);
+
+    let trElements = measureWrap.querySelectorAll('tr');
+    hasilAnalisis.forEach(function(item, idx) {
+        let h = trElements[idx] ? trElements[idx].offsetHeight : 110;
+        item.tinggiPx = Math.max(52, h);
+    });
+    measureWrap.remove();
+
+    // Batas tinggi aman baris tabel pada kertas A4 Landscape:
+    // Halaman 1 dikurangi tinggi Kop Judul & Info (~110px) -> maksimal 460px
+    // Halaman 2 dst tanpa Kop -> maksimal 575px
+    let BATAS_TINGGI_HAL_1 = 460;
+    let BATAS_TINGGI_HAL_LANJUT = 575;
+
+    let daftarHalaman = [];
+    let halamanSekarang = [];
+    let tinggiSekarang = 0;
+
+    hasilAnalisis.forEach(function(item) {
+        let batasAktif = (daftarHalaman.length === 0) ? BATAS_TINGGI_HAL_1 : BATAS_TINGGI_HAL_LANJUT;
+        if (halamanSekarang.length > 0 && (tinggiSekarang + item.tinggiPx) > batasAktif) {
+            daftarHalaman.push({ soal: halamanSekarang, totalTinggi: tinggiSekarang });
+            halamanSekarang = [item];
+            tinggiSekarang = item.tinggiPx;
+        } else {
+            halamanSekarang.push(item);
+            tinggiSekarang += item.tinggiPx;
+        }
+    });
+    if (halamanSekarang.length > 0) {
+        daftarHalaman.push({ soal: halamanSekarang, totalTinggi: tinggiSekarang });
+    }
+    if (daftarHalaman.length === 0) {
+        daftarHalaman.push({ soal: [], totalTinggi: 0 });
+    }
+
+    // Distribusi teks CP agar mengikuti kapasitas tinggi Halaman 1 (tidak mendorong tabel turun)
     let kataCP = cpBersih.split(/\s+/);
     let potonganCPPerHalaman = [];
+    let tinggiHal1 = daftarHalaman[0].totalTinggi || 350;
+    // Kira-kira 1 kata CP membutuhkan ~5px tinggi di kolom lebar 14%
+    let kapasitasKataHal1 = Math.max(38, Math.min(60, Math.floor(tinggiHal1 / 5.2)));
 
-    if (kataCP.length > 55 && daftarHalaman.length > 1) {
-        let batasKataHal1 = 50;
-        potonganCPPerHalaman[0] = kataCP.slice(0, batasKataHal1).join(' ');
-        potonganCPPerHalaman[1] = kataCP.slice(batasKataHal1).join(' ');
+    if (kataCP.length > kapasitasKataHal1 && daftarHalaman.length > 1) {
+        potonganCPPerHalaman[0] = kataCP.slice(0, kapasitasKataHal1).join(' ');
+        potonganCPPerHalaman[1] = kataCP.slice(kapasitasKataHal1).join(' ');
     } else {
         potonganCPPerHalaman[0] = cpBersih;
     }
@@ -485,7 +532,9 @@ window.eksekusiGenerateKisiKisi = function(jenisUjian, tapel, mapel, kelasFase, 
 
     let htmlSemuaHalaman = "";
 
-    daftarHalaman.forEach(function(kelompokSoal, pageIdx) {
+    daftarHalaman.forEach(function(paketHalaman, pageIdx) {
+        let kelompokSoal = paketHalaman.soal;
+
         // Hitung rowspan Kompetensi khusus di dalam halaman ini saja (tidak lintas halaman)
         for (let i = 0; i < kelompokSoal.length; i++) {
             if (i > 0 && kelompokSoal[i].kompetensi === kelompokSoal[i - 1].kompetensi) {
@@ -527,13 +576,15 @@ window.eksekusiGenerateKisiKisi = function(jenisUjian, tapel, mapel, kelasFase, 
         });
 
         let kopHTML = (pageIdx === 0)
-            ? '<h2 contenteditable="true">KISI-KISI SOAL ' + jenisUjian + '</h2>' +
-              '<h3 contenteditable="true">SMAS BODHI DHARMA BATAM - TAHUN PELAJARAN ' + tapel + '</h3>' +
-              '<table class="kop-info">' +
-                  '<tr><td width="130">Mata Pelajaran</td><td width="15">:</td><td contenteditable="true">' + mapel + '</td></tr>' +
-                  '<tr><td>Kelas / Fase</td><td>:</td><td contenteditable="true">' + kelasFase + '</td></tr>' +
-                  '<tr><td>Jumlah Soal</td><td>:</td><td contenteditable="true">' + stringRincianSoal + '</td></tr>' +
-              '</table>'
+            ? '<div class="kop-kisi-wrap">' +
+                  '<h2 contenteditable="true">KISI-KISI SOAL ' + jenisUjian + '</h2>' +
+                  '<h3 contenteditable="true">SMAS BODHI DHARMA BATAM - TAHUN PELAJARAN ' + tapel + '</h3>' +
+                  '<table class="kop-info">' +
+                      '<tr><td width="130">Mata Pelajaran</td><td width="15">:</td><td contenteditable="true">' + mapel + '</td></tr>' +
+                      '<tr><td>Kelas / Fase</td><td>:</td><td contenteditable="true">' + kelasFase + '</td></tr>' +
+                      '<tr><td>Jumlah Soal</td><td>:</td><td contenteditable="true">' + stringRincianSoal + '</td></tr>' +
+                  '</table>' +
+              '</div>'
             : '';
 
         let classPageBreak = (pageIdx < daftarHalaman.length - 1) ? 'kisi-sheet page-break-sheet' : 'kisi-sheet';
@@ -564,24 +615,25 @@ window.eksekusiGenerateKisiKisi = function(jenisUjian, tapel, mapel, kelasFase, 
     let htmlDoc = `
     <html><head><title>Kisi-Kisi Ujian - ${mapel}</title>
     <style>
-        body { font-family: 'Times New Roman', Times, serif; padding: 20px; line-height: 1.32; color: black; background: #e2e8f0; margin: 0; }
+        body { font-family: 'Times New Roman', Times, serif; padding: 20px; line-height: 1.25; color: black; background: #e2e8f0; margin: 0; }
         .no-print-bar { background: #0b3954; color: white; padding: 12px 20px; font-family: sans-serif; font-size: 13px; display: flex; justify-content: space-between; align-items: center; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
         .no-print-bar button { background: #27ae60; color: white; border: none; padding: 8px 18px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 13px; }
-        .kisi-sheet { background: #ffffff; padding: 18px 22px; margin: 0 auto 24px auto; max-width: 1080px; box-shadow: 0 4px 14px rgba(0,0,0,0.1); box-sizing: border-box; }
-        h2 { text-align: center; margin-top: 0; margin-bottom: 4px; font-size: 13pt; font-weight: bold; text-transform: uppercase; }
-        h3 { text-align: center; margin-top: 0; margin-bottom: 20px; font-size: 13pt; font-weight: bold; text-transform: uppercase; }
-        .kop-info { width: 100%; margin-bottom: 14px; font-weight: bold; font-size: 10.5pt; border-collapse: collapse; }
-        .kop-info td { padding: 2px 0; border: none !important; }
-        table.kisi-table { width: 100%; border-collapse: collapse; font-size: 10pt; border: 1.5px solid black; }
-        table.kisi-table th, table.kisi-table td { border: 1px solid black; padding: 6px 8px; vertical-align: top; }
-        table.kisi-table th { background-color: #ffffff; text-align: center; font-weight: bold; padding: 8px 6px; }
+        .kisi-sheet { background: #ffffff; padding: 16px 20px; margin: 0 auto 24px auto; max-width: 1060px; box-shadow: 0 4px 14px rgba(0,0,0,0.1); box-sizing: border-box; }
+        .kop-kisi-wrap { page-break-inside: avoid; break-inside: avoid; page-break-after: avoid; break-after: avoid; }
+        h2 { text-align: center; margin-top: 0; margin-bottom: 2px; font-size: 12.5pt; font-weight: bold; text-transform: uppercase; }
+        h3 { text-align: center; margin-top: 0; margin-bottom: 12px; font-size: 12.5pt; font-weight: bold; text-transform: uppercase; }
+        .kop-info { width: 100%; margin-bottom: 10px; font-weight: bold; font-size: 10pt; border-collapse: collapse; }
+        .kop-info td { padding: 1.5px 0; border: none !important; }
+        table.kisi-table { width: 100%; border-collapse: collapse; font-size: 9.5pt; border: 1.5px solid black; table-layout: fixed; word-wrap: break-word; }
+        table.kisi-table th, table.kisi-table td { border: 1px solid black; padding: 5px 6px; vertical-align: top; }
+        table.kisi-table th { background-color: #ffffff; text-align: center; font-weight: bold; padding: 6px 5px; }
         td[contenteditable="true"]:focus { outline: 2px solid #3498db; background: #f0f8ff; }
 
         @media print {
             .no-print-bar { display: none !important; }
             body { padding: 0; margin: 0; background: #ffffff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            @page { size: A4 landscape; margin: 10mm 12mm; }
-            .kisi-sheet { box-shadow: none !important; margin: 0 !important; padding: 0 !important; max-width: 100% !important; width: 100% !important; }
+            @page { size: A4 landscape; margin: 8mm 10mm; }
+            .kisi-sheet { box-shadow: none !important; margin: 0 !important; padding: 0 !important; max-width: 100% !important; width: 100% !important; page-break-inside: avoid !important; break-inside: avoid !important; }
             .page-break-sheet { page-break-after: always !important; break-after: page !important; }
             table.kisi-table { page-break-inside: auto !important; border: 1.5px solid black !important; }
             tr { page-break-inside: avoid !important; break-inside: avoid !important; }
@@ -590,7 +642,7 @@ window.eksekusiGenerateKisiKisi = function(jenisUjian, tapel, mapel, kelasFase, 
     </style>
     </head><body>
         <div class="no-print-bar">
-            <span>💡 <b>Mode Validasi Guru:</b> Setiap lembar telah dikunci batas bawah tabelnya agar tidak pernah tembus halaman. Anda bebas mengedit teks sebelum mencetak.</span>
+            <span>💡 <b>Mode Validasi Guru:</b> Tinggi setiap halaman telah diukur otomatis agar Kop dan Tabel menyatu serta padat di tiap lembar A4.</span>
             <button onclick="window.print()">🖨️ Cetak / Simpan PDF</button>
         </div>
         ${htmlSemuaHalaman}
