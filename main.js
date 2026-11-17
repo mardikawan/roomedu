@@ -1619,6 +1619,23 @@ window.cekBatasTinggiA4Input = function(e, el) {
     }, 150);
 };
 
+window.toggleCollapseBlock = function(idx) {
+    if (!window.contentBlocksData[idx]) return;
+    window.contentBlocksData[idx].isCollapsed = !window.contentBlocksData[idx].isCollapsed;
+    window.renderBlocks();
+    if (typeof window.simpanKeDB === 'function') window.simpanKeDB();
+};
+
+window.updateBlockTitle = function(idx, newTitle) {
+    if (!window.contentBlocksData[idx]) return;
+    let bersih = newTitle.replace(/\n/g, '').trim();
+    window.contentBlocksData[idx].blockTitle = bersih;
+    if (window.contentBlocksData[idx].type === 'quiz') {
+        window.contentBlocksData[idx].quizTitle = bersih;
+    }
+    if (typeof window.simpanKeDB === 'function') window.simpanKeDB();
+};
+
 window.renderBlocks = function() {
     let html = '';
     let isEdit = document.body.classList.contains('mode-edit-aktif') || document.documentElement.classList.contains('force-edit-mode');
@@ -1631,6 +1648,24 @@ window.renderBlocks = function() {
         let txtCol = blok.color || '#333333';
         let padTop = blok.padTop || '25px';
         let padBot = blok.padBot || '25px';
+
+        // Logika Toggle (Collapse) Baris Judul
+        let isCollapsed = Boolean(blok.isCollapsed);
+        let titleStr = blok.blockTitle || blok.quizTitle || (blok.type === 'quiz' ? '🧩 Uji Pemahaman' : 'Judul Materi...');
+        let safeTitle = titleStr.replace(/"/g, '&quot;');
+        let editTitleAttr = isEdit ? 'contenteditable="true" style="outline:none; border-bottom:1px dashed #3498db; cursor:text;" onblur="window.updateBlockTitle(' + index + ', this.innerText)"' : '';
+        let btnIcon = isCollapsed ? '▶' : '▼';
+        
+        if (blok.type === 'quiz') {
+            blok.quizTitle = titleStr; // Sinkronkan judul kuis agar 1 pintu
+        }
+
+        let collapseBarHtml = '<div class="block-collapse-bar" style="display:flex; align-items:center; gap:10px; padding:12px 20px; background:#f8fafc; border-bottom:1px solid #e2e8f0; border-radius:10px 10px 0 0; z-index:50; position:relative; box-shadow:0 2px 4px rgba(0,0,0,0.02);">' +
+            '<button type="button" onclick="window.toggleCollapseBlock(' + index + ')" style="background:#e2e8f0; border:1px solid #cbd5e1; border-radius:50%; width:28px; height:28px; font-size:12px; cursor:pointer; color:#334155; display:flex; align-items:center; justify-content:center; transition:0.2s;" title="Buka/Tutup Blok" onmouseover="this.style.background=\'#cbd5e1\'" onmouseout="this.style.background=\'#e2e8f0\'">' + btnIcon + '</button>' +
+            '<div style="font-size:16px; font-weight:800; color:#1e293b; flex:1;" ' + editTitleAttr + '>' + titleStr + '</div>' +
+        '</div>';
+
+        let displayStyle = isCollapsed ? 'none' : 'block';
 
         // 1. TIPE BLOK SLIDE PDF
         if (blok.type === 'pdf_slides') {
@@ -1645,48 +1680,49 @@ window.renderBlocks = function() {
             let floatImgsHtml = window.renderFloatImagesHTML(index, sIdx, curSlide.floatImages || []);
 
             html += '<div class="block-wrapper' + (isFocus ? ' pdf-focus-fullscreen' : '') + '" data-index="' + index + '" style="padding-top:' + padTop + ';padding-bottom:' + padBot + ';">' +
-                '<div class="content-block pdf-landscape-block ' + patClass + '" data-index="' + index + '" data-block-type="pdf_slides" style="background-color:' + bgCol + '; position:relative; overflow:visible !important;">' +
+                '<div class="content-block pdf-landscape-block ' + patClass + '" data-index="' + index + '" data-block-type="pdf_slides" style="background-color:' + bgCol + '; position:relative; overflow:visible !important; border-radius:10px;">' +
                     '<div class="block-controls">' +
                         '<button onclick="geserBlok(' + index + ', -1)" title="Geser Naik">⬆️</button>' +
                         '<button onclick="geserBlok(' + index + ', 1)" title="Geser Turun">⬇️</button>' +
                         '<button onclick="bukaSidebarBlock(' + index + ')" title="Pengaturan Blok">⚙️ Setting</button>' +
                         '<button onclick="hapusBlok(' + index + ')" title="Hapus Blok">🗑️ Delete</button>' +
                     '</div>' +
-                    '<div class="pdf-slide-nav-bar" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:nowrap; overflow-x:auto; border-radius:8px 8px 0 0;">' +
-                        '<div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">' +
-                            '<button onclick="window.gantiSlidePDF(' + index + ', -1)" ' + (sIdx <= 0 ? 'disabled' : '') + '>◀ Prev</button>' +
-                            '<span style="font-weight:bold; color:#f1c40f; display:flex; align-items:center; gap:4px; font-size:11px;">Hal ' +
-                                '<input type="number" min="1" max="' + slides.length + '" value="' + (sIdx + 1) + '" ' +
-                                'style="width:35px; text-align:center; font-weight:bold; background:rgba(255,255,255,0.2); color:#f1c40f; border:1px solid rgba(255,255,255,0.3); border-radius:4px; padding:2px;" ' +
-                                'onchange="window.lompatKeSlidePDF(' + index + ', this.value)" ' +
-                                'onkeydown="if(event.key===\'Enter\'){ this.blur(); window.lompatKeSlidePDF(' + index + ', this.value); }"> / ' + slides.length +
-                            '</span>' +
-                            '<button onclick="window.gantiSlidePDF(' + index + ', 1)" ' + (sIdx >= slides.length - 1 ? 'disabled' : '') + '>Next ▶</button>' +
+                    collapseBarHtml +
+                    '<div class="block-collapsible-area" style="display:' + displayStyle + '; width:100%; position:relative;">' +
+                        '<div class="pdf-slide-nav-bar" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:nowrap; overflow-x:auto;">' +
+                            '<div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">' +
+                                '<button onclick="window.gantiSlidePDF(' + index + ', -1)" ' + (sIdx <= 0 ? 'disabled' : '') + '>◀ Prev</button>' +
+                                '<span style="font-weight:bold; color:#f1c40f; display:flex; align-items:center; gap:4px; font-size:11px;">Hal ' +
+                                    '<input type="number" min="1" max="' + slides.length + '" value="' + (sIdx + 1) + '" ' +
+                                    'style="width:35px; text-align:center; font-weight:bold; background:rgba(255,255,255,0.2); color:#f1c40f; border:1px solid rgba(255,255,255,0.3); border-radius:4px; padding:2px;" ' +
+                                    'onchange="window.lompatKeSlidePDF(' + index + ', this.value)" ' +
+                                    'onkeydown="if(event.key===\'Enter\'){ this.blur(); window.lompatKeSlidePDF(' + index + ', this.value); }"> / ' + slides.length +
+                                '</span>' +
+                                '<button onclick="window.gantiSlidePDF(' + index + ', 1)" ' + (sIdx >= slides.length - 1 ? 'disabled' : '') + '>Next ▶</button>' +
+                            '</div>' +
+                            '<div style="font-weight:700; color:#ecf0f1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; text-align:center; margin:0 10px; font-size:11px;" title="' + (blok.title || 'Slide Materi PDF') + '">📄 ' + (blok.title || 'Slide Materi PDF') + '</div>' +
+                            '<div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">' +
+                                '<button onclick="window.toggleDrawingMode()" style="background:#ffeaa7; color:#2c3e50; border-color:#fdcb6e;">🖍️ Draw</button>' +
+                                '<button onclick="window.toggleFokusSlidePDF(' + index + ')" style="background:#2980b9;">' + (isFocus ? '🗗 Tutup Fokus' : '🔍 Mode Fokus') + '</button>' +
+                                '<button onclick="window.exportSlidePDFKeA4(' + index + ')" style="background:#27ae60;">📥 Export PDF</button>' +
+                            '</div>' +
                         '</div>' +
-                        '<div style="font-weight:700; color:#ecf0f1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; text-align:center; margin:0 10px; font-size:11px;" title="' + (blok.title || 'Slide Materi PDF') + '">📄 ' + (blok.title || 'Slide Materi PDF') + '</div>' +
-                        '<div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">' +
-                            '<button onclick="window.toggleDrawingMode()" style="background:#ffeaa7; color:#2c3e50; border-color:#fdcb6e;">🖍️ Draw</button>' +
-                            '<button onclick="window.toggleFokusSlidePDF(' + index + ')" style="background:#2980b9;">' + (isFocus ? '🗗 Tutup Fokus' : '🔍 Mode Fokus') + '</button>' +
-                            '<button onclick="window.exportSlidePDFKeA4(' + index + ')" style="background:#27ae60;">📥 Export PDF</button>' +
+                        '<div class="pdf-slide-stage" data-index="' + index + '" data-slide-index="' + sIdx + '" onpointerdown="window.mulaiSwipeSlidePDF(event, ' + index + ')" onpointerup="window.akhirSwipeSlidePDF(event, ' + index + ')" style="border-radius:0 0 8px 8px;">' +
+                            '<img class="pdf-slide-bg" src="' + (curSlide.bg || '') + '" alt="Slide PDF">' +
+                            '<div class="draw-float-layer" data-index="' + index + '" data-slide-index="' + sIdx + '">' + floatImgsHtml + '</div>' +
+                            '<canvas class="drawing-layer" data-index="' + index + '" data-slide-index="' + sIdx + '"></canvas>' +
                         '</div>' +
-                    '</div>' +
-                    '<div class="pdf-slide-stage" data-index="' + index + '" data-slide-index="' + sIdx + '" onpointerdown="window.mulaiSwipeSlidePDF(event, ' + index + ')" onpointerup="window.akhirSwipeSlidePDF(event, ' + index + ')" style="border-radius:0 0 8px 8px;">' +
-                        '<img class="pdf-slide-bg" src="' + (curSlide.bg || '') + '" alt="Slide PDF">' +
-                        '<div class="draw-float-layer" data-index="' + index + '" data-slide-index="' + sIdx + '">' + floatImgsHtml + '</div>' +
-                        '<canvas class="drawing-layer" data-index="' + index + '" data-slide-index="' + sIdx + '"></canvas>' +
                     '</div>' +
                 '</div>' +
             '</div>';
         }
         // 2. TIPE BLOK KUIS INLINE
         else if (blok.type === 'quiz') {
-            let judulKuis = blok.quizTitle || '🧩 Uji Pemahaman';
-            let judulBersihKuis = judulKuis.replace(/🧩/g, '').trim().replace(/'/g, "\\'");
-            let editJudulAttr = isEdit ? 'contenteditable="true" style="outline:none; border-bottom:1px dashed #3498db; padding-bottom:2px;" onblur="window.contentBlocksData[' + index + '].quizTitle=this.innerText; if(window.simpanKeDB) window.simpanKeDB();"' : '';
+            let judulBersihKuis = titleStr.replace(/🧩/g, '').trim().replace(/'/g, "\\'");
 
-            let qi = '<div class="quiz-container" id="inline-kuis-' + index + '">' +
-                    '<div class="quiz-header">' +
-                        '<h3 class="quiz-title" ' + editJudulAttr + '>' + judulKuis + '</h3>' +
+            // Judul kuis sudah digabung di collapseBar, jadi hapus `<h3 class="quiz-title">` yang ada di dalam
+            let qi = '<div class="quiz-container" id="inline-kuis-' + index + '" style="margin:0; border:none; box-shadow:none; padding:20px;">' +
+                    '<div class="quiz-header" style="justify-content:flex-end; padding-bottom:0; border-bottom:none; margin-bottom:15px;">' +
                         '<div style="display:flex; gap:5px; flex-wrap:wrap;">' +
                             '<button class="btn-action" style="background:#2c3e50;width:auto;font-size:11px;padding:6px 12px;" onclick="cetakKuisPDF(\'inline-kuis-' + index + '\',\'' + judulBersihKuis + '\')">🖨️ PDF</button>' +
                             '<button class="btn-action" style="background:#2980b9;width:auto;font-size:11px;padding:6px 12px;" onclick="exportWordKuis(\'inline-kuis-' + index + '\',\'' + judulBersihKuis + '\')">📄 Word</button>' +
@@ -1781,12 +1817,15 @@ window.renderBlocks = function() {
 
             let floatImgsQuiz = window.renderFloatImagesHTML(index, -1, blok.floatImages || []);
             html += '<div class="block-wrapper" data-index="' + index + '" style="padding-top:' + padTop + ';padding-bottom:' + padBot + ';">' +
-                '<div class="a4-paper-wrapper dynamic-block-shell" data-width="' + widthMode + '">' +
+                '<div class="a4-paper-wrapper dynamic-block-shell" data-width="' + widthMode + '" style="background-color:' + bgCol + '; border:1px solid #cbd5e1; border-radius:10px; box-shadow:0 4px 16px rgba(15, 23, 42, 0.08); overflow:visible;">' +
                     '<div class="block-controls"><button onclick="geserBlok(' + index + ', -1)">⬆️</button><button onclick="geserBlok(' + index + ', 1)">⬇️</button><button onclick="bukaSidebarBlock(' + index + ')">⚙️ Setting</button><button onclick="hapusBlok(' + index + ')">🗑️ Delete</button></div>' +
-                    '<div class="draw-float-layer" data-index="' + index + '">' + floatImgsQuiz + '</div>' +
-                    '<canvas class="drawing-layer" data-index="' + index + '"></canvas>' +
-                    '<div class="content-block dynamic-content-block ' + patClass + '" data-index="' + index + '" data-width="' + widthMode + '" style="background-color:' + bgCol + ';">' +
-                        qi +
+                    collapseBarHtml +
+                    '<div class="block-collapsible-area" style="display:' + displayStyle + '; width:100%; position:relative;">' +
+                        '<div class="draw-float-layer" data-index="' + index + '">' + floatImgsQuiz + '</div>' +
+                        '<canvas class="drawing-layer" data-index="' + index + '"></canvas>' +
+                        '<div class="content-block dynamic-content-block ' + patClass + '" data-index="' + index + '" data-width="' + widthMode + '" style="background-color:transparent; border:none!important; box-shadow:none!important; min-height:0!important; padding:0!important;">' +
+                            qi +
+                        '</div>' +
                     '</div>' +
                 '</div>' +
             '</div>';
@@ -1802,10 +1841,13 @@ window.renderBlocks = function() {
             }
 
             html += '<div class="block-wrapper" data-index="' + index + '" style="padding-top:' + padTop + ';padding-bottom:' + padBot + ';">' +
-                '<div class="a4-paper-wrapper dynamic-block-shell" data-width="' + widthMode + '">' +
+                '<div class="a4-paper-wrapper dynamic-block-shell" data-width="' + widthMode + '" style="border:1px solid #cbd5e1; border-radius:10px; box-shadow:0 4px 16px rgba(15, 23, 42, 0.08); overflow:visible; background-color:' + bgCol + ';">' +
                     (isEdit ? '<div class="block-controls"><button onclick="geserBlok(' + index + ', -1)">⬆️</button><button onclick="geserBlok(' + index + ', 1)">⬇️</button><button onclick="hapusBlok(' + index + ')">🗑️ Delete</button></div>' : '') +
-                    '<div class="content-block dynamic-content-block" data-width="' + widthMode + '" data-index="' + index + '" style="border:none !important; box-shadow:none !important; background:transparent !important; min-height:auto !important; padding:0 !important;">' +
-                        htmlKartu +
+                    collapseBarHtml +
+                    '<div class="block-collapsible-area" style="display:' + displayStyle + '; width:100%; position:relative;">' +
+                        '<div class="content-block dynamic-content-block" data-width="' + widthMode + '" data-index="' + index + '" style="border:none !important; box-shadow:none !important; background:transparent !important; min-height:auto !important; padding:0 !important;">' +
+                            htmlKartu +
+                        '</div>' +
                     '</div>' +
                 '</div>' +
             '</div>';
@@ -1814,12 +1856,15 @@ window.renderBlocks = function() {
         else {
             let floatImgsText = window.renderFloatImagesHTML(index, -1, blok.floatImages || []);
             html += '<div class="block-wrapper" data-index="' + index + '" style="padding-top:' + padTop + ';padding-bottom:' + padBot + ';">' +
-                '<div class="a4-paper-wrapper dynamic-block-shell" data-width="' + widthMode + '">' +
+                '<div class="a4-paper-wrapper dynamic-block-shell" data-width="' + widthMode + '" style="background-color:' + bgCol + '; border:1px solid #cbd5e1; border-radius:10px; box-shadow:0 4px 16px rgba(15, 23, 42, 0.08); overflow:visible;">' +     
                     '<div class="block-controls"><button onclick="geserBlok(' + index + ', -1)">⬆️</button><button onclick="geserBlok(' + index + ', 1)">⬇️</button><button onclick="bukaSidebarBlock(' + index + ')">⚙️ Setting</button><button onclick="hapusBlok(' + index + ')">🗑️ Delete</button></div>' +
-                    '<div class="draw-float-layer" data-index="' + index + '">' + floatImgsText + '</div>' +
-                    '<canvas class="drawing-layer" data-index="' + index + '"></canvas>' +
-                    '<div class="content-block a4-portrait-block dynamic-content-block ' + patClass + '" ' + (isEdit ? 'contenteditable="true"' : '') + ' data-index="' + index + '" data-block-type="text" data-width="' + widthMode + '" style="background-color:' + bgCol + '; color:' + txtCol + ';" oninput="window.cekBatasTinggiA4Input(event, this)">' +
-                        blok.html +
+                    collapseBarHtml +
+                    '<div class="block-collapsible-area" style="display:' + displayStyle + '; width:100%; position:relative;">' +
+                        '<div class="draw-float-layer" data-index="' + index + '">' + floatImgsText + '</div>' +
+                        '<canvas class="drawing-layer" data-index="' + index + '"></canvas>' +
+                        '<div class="content-block a4-portrait-block dynamic-content-block ' + patClass + '" ' + (isEdit ? 'contenteditable="true"' : '') + ' data-index="' + index + '" data-block-type="text" data-width="' + widthMode + '" style="background-color:transparent; color:' + txtCol + '; border:none!important; box-shadow:none!important;" oninput="window.cekBatasTinggiA4Input(event, this)">' +
+                            blok.html +
+                        '</div>' +
                     '</div>' +
                 '</div>' +
             '</div>';
@@ -2010,74 +2055,34 @@ window.perbaruiIndeksSemuaBlokDOM = function() {
 };
 
 window.tambahBlokBaruAkhir = function() { 
-    let newBlock = {type:'text', html:"<p>Ketik materi...</p>", bg:"#ffffff", pattern:"", color:"#333333", width:"M", padTop:"40px", padBot:"40px", drawing:"", floatImages:[]};
+    let newBlock = {
+        type: 'text', html: "<p>Ketik materi...</p>", bg: "#ffffff", pattern: "", 
+        color: "#333333", width: "M", padTop: "40px", padBot: "40px", drawing: "", 
+        floatImages: [], isCollapsed: false, blockTitle: "Materi Baru"
+    };
     window.contentBlocksData.push(newBlock);
-    
-    let index = window.contentBlocksData.length - 1;
-    let isEdit = document.body.classList.contains('mode-edit-aktif') || document.documentElement.classList.contains('force-edit-mode');
-    
-    let html = '<div class="block-wrapper" data-index="' + index + '" style="padding-top:40px;padding-bottom:40px;">' +
-        '<div class="a4-paper-wrapper dynamic-block-shell" data-width="M">' +
-            (isEdit ? '<div class="block-controls"><button onclick="geserBlok(' + index + ', -1)">⬆️</button><button onclick="geserBlok(' + index + ', 1)">⬇️</button><button onclick="bukaSidebarBlock(' + index + ')">⚙️ Setting</button><button onclick="hapusBlok(' + index + ')">🗑️ Delete</button></div>' : '') +
-            '<div class="draw-float-layer" data-index="' + index + '"></div>' +
-            '<canvas class="drawing-layer" data-index="' + index + '"></canvas>' +
-            '<div class="content-block a4-portrait-block dynamic-content-block" ' + (isEdit ? 'contenteditable="true"' : '') + ' data-index="' + index + '" data-block-type="text" data-width="M" style="background-color:#ffffff; color:#333333;" oninput="window.cekBatasTinggiA4Input(event, this)">' +
-                '<p>Ketik materi...</p>' +
-            '</div>' +
-        '</div>' +
-    '</div>';
-    
-    document.getElementById('blocks-container').insertAdjacentHTML('beforeend', html);
-    
-    if (typeof window.inisialisasiSatuCanvas === 'function') {
-        let lastWrap = document.getElementById('blocks-container').lastElementChild;
-        let cvs = lastWrap.querySelector('.drawing-layer');
-        if (cvs) window.inisialisasiSatuCanvas(cvs);
-    }
-    
+    window.renderBlocks();
+    window.perbaruiIndeksSemuaBlokDOM();
     if (window.simpanKeDB) window.simpanKeDB(); 
-    window.scrollTo({top:document.body.scrollHeight, behavior:'smooth'}); 
+    window.scrollTo({top: document.body.scrollHeight, behavior: 'smooth'}); 
 }; 
 
 window.tambahBlokBaruTengah = function() {
-    let newBlock = { type: "text", html: "<p>Ketik materi...</p>", bg: "#ffffff", pattern: "", color: "#333333", width: "M", padTop: "40px", padBot: "40px", drawing: "", floatImages: [] };
-    let index = window.activeBlockIndex > -1 ? window.activeBlockIndex + 1 : window.contentBlocksData.length;
+    let newBlock = { 
+        type: "text", html: "<p>Ketik materi...</p>", bg: "#ffffff", pattern: "", 
+        color: "#333333", width: "M", padTop: "40px", padBot: "40px", drawing: "", 
+        floatImages: [], isCollapsed: false, blockTitle: "Materi Baru"
+    };
     
     if (window.activeBlockIndex > -1 && window.activeBlockIndex < window.contentBlocksData.length) {
         window.contentBlocksData.splice(window.activeBlockIndex + 1, 0, newBlock);
     } else {
         window.contentBlocksData.push(newBlock);
     }
-    document.getElementById("sidebar-block").classList.remove("open");
     
-    let isEdit = document.body.classList.contains('mode-edit-aktif') || document.documentElement.classList.contains('force-edit-mode');
-    let html = '<div class="block-wrapper" data-index="' + index + '" style="padding-top:40px;padding-bottom:40px;">' +
-        '<div class="a4-paper-wrapper dynamic-block-shell" data-width="M">' +
-            (isEdit ? '<div class="block-controls"><button onclick="geserBlok(' + index + ', -1)">⬆️</button><button onclick="geserBlok(' + index + ', 1)">⬇️</button><button onclick="bukaSidebarBlock(' + index + ')">⚙️ Setting</button><button onclick="hapusBlok(' + index + ')">🗑️ Delete</button></div>' : '') +
-            '<div class="draw-float-layer" data-index="' + index + '"></div>' +
-            '<canvas class="drawing-layer" data-index="' + index + '"></canvas>' +
-            '<div class="content-block a4-portrait-block dynamic-content-block" ' + (isEdit ? 'contenteditable="true"' : '') + ' data-index="' + index + '" data-block-type="text" data-width="M" style="background-color:#ffffff; color:#333333;" oninput="window.cekBatasTinggiA4Input(event, this)">' +
-                '<p>Ketik materi...</p>' +
-            '</div>' +
-        '</div>' +
-    '</div>';
-
-    let container = document.getElementById('blocks-container');
-    if (window.activeBlockIndex > -1 && window.activeBlockIndex < container.children.length) {
-        container.children[window.activeBlockIndex].insertAdjacentHTML('afterend', html);
-        window.perbaruiIndeksSemuaBlokDOM();
-    } else {
-        container.insertAdjacentHTML('beforeend', html);
-    }
-
-    if (typeof window.inisialisasiSatuCanvas === 'function') {
-        let newWrap = container.children[index];
-        if (newWrap) {
-            let cvs = newWrap.querySelector('.drawing-layer');
-            if (cvs) window.inisialisasiSatuCanvas(cvs);
-        }
-    }
-
+    document.getElementById("sidebar-block").classList.remove("open");
+    window.renderBlocks();
+    window.perbaruiIndeksSemuaBlokDOM();
     if (window.simpanKeDB) window.simpanKeDB();
 };
 
@@ -5060,14 +5065,34 @@ window.prosesUploadFotoProfil = function(input) {
     if (!f) return;
     let uName = sessionStorage.getItem("username");
     
-    window.kompresGambar(f, function(dataUrl) {
-        document.getElementById('profil-img-preview').src = dataUrl;
-        if (window.leaderboardSiswaData[uName]) {
-            window.leaderboardSiswaData[uName].foto = dataUrl;
-            if (typeof window.simpanLeaderboardSiswaKeDB === "function") window.simpanLeaderboardSiswaKeDB(uName, window.leaderboardSiswaData[uName]);
-            window.perbaruiUIHeaderProfilSiswa();
-        }
-    });
+    // Kompres khusus Avatar Profil ke ukuran mikro 160x160px (~5 KB) agar menghemat 95% kuota Download Leaderboard
+    let reader = new FileReader();
+    reader.onload = function(e) {
+        let img = new Image();
+        img.onload = function() {
+            let canvas = document.createElement('canvas');
+            let MAX_AVATAR = 160;
+            let w = img.width, h = img.height;
+            if (w > h) { if (w > MAX_AVATAR) { h *= MAX_AVATAR / w; w = MAX_AVATAR; } }
+            else { if (h > MAX_AVATAR) { w *= MAX_AVATAR / h; h = MAX_AVATAR; } }
+            canvas.width = Math.round(w);
+            canvas.height = Math.round(h);
+            let ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            let dataUrl = canvas.toDataURL('image/jpeg', 0.65);
+
+            document.getElementById('profil-img-preview').src = dataUrl;
+            if (window.leaderboardSiswaData && window.leaderboardSiswaData[uName]) {
+                window.leaderboardSiswaData[uName].foto = dataUrl;
+                if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
+                    window.simpanLeaderboardSiswaKeDB(uName, window.leaderboardSiswaData[uName]);
+                }
+                window.perbaruiUIHeaderProfilSiswa();
+            }
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(f);
 };
 
 window.kirimVerifikasiGmailProfil = function() {
