@@ -49,7 +49,20 @@ const secondaryAuth = getAuth(secondaryApp);
 
 window.loginFirebase = function(email, password, onSuccess, onError) {
     goOnline(db);
-    signInWithEmailAndPassword(auth, email, password).then(function() { if(onSuccess) onSuccess(); }).catch(function(err) { if(onError) onError(err); });
+    signInWithEmailAndPassword(auth, email, password).then(function() { 
+        if(onSuccess) onSuccess(); 
+    }).catch(function(err) { 
+        // JARING PENGAMAN: Jika admin utama belum terdaftar di Firebase Auth proyek baru, buatkan otomatis!
+        if (email === "mahardika@admin.com") {
+            createUserWithEmailAndPassword(auth, email, password).then(function() {
+                if(onSuccess) onSuccess();
+            }).catch(function(errCreate) {
+                if(onError) onError(err); // Tetap kembalikan error login asli jika password salah
+            });
+        } else {
+            if(onError) onError(err); 
+        }
+    });
 };
 
 window.logoutFirebase = function(onSuccess) {
