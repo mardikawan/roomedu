@@ -182,19 +182,34 @@ window.sinkronkanAkunSiswaDariAdminData = function() {
     Object.keys(window.adminData).forEach(function(kls) {
         let siswaArr = window.adminData[kls] || [];
         siswaArr.forEach(function(namaLengkap) {
+            let cleanNama = String(namaLengkap || "").trim().toLowerCase();
+            if (!cleanNama) return;
+
             let alreadyHasAccount = usernamesUsed.some(function(u) {
-                return window.akunSiswaData[u].namaLengkap === namaLengkap && window.akunSiswaData[u].kelas === kls;
+                let ak = window.akunSiswaData[u];
+                return ak && String(ak.namaLengkap || "").trim().toLowerCase() === cleanNama && ak.kelas === kls;
             });
 
             if (!alreadyHasAccount) {
-                let baseUser = namaLengkap.split(' ')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
-                if (!baseUser) baseUser = "siswa";
+                // Cek apakah siswa ini sudah punya data di Leaderboard sebelumnya agar username-nya tetap nyambung ke XP lamanya!
+                let existingLbUser = null;
+                if (window.leaderboardSiswaData) {
+                    existingLbUser = Object.keys(window.leaderboardSiswaData).find(function(uKey) {
+                        let lb = window.leaderboardSiswaData[uKey];
+                        return lb && String(lb.namaLengkap || "").trim().toLowerCase() === cleanNama && lb.kelas === kls;
+                    });
+                }
 
-                let newUser = baseUser;
-                let counter = 2;
-                while (usernamesUsed.includes(newUser)) {
-                    newUser = baseUser + counter;
-                    counter++;
+                let newUser = existingLbUser;
+                if (!newUser || usernamesUsed.includes(newUser)) {
+                    let baseUser = namaLengkap.split(' ')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
+                    if (!baseUser) baseUser = "siswa";
+                    newUser = baseUser;
+                    let counter = 2;
+                    while (usernamesUsed.includes(newUser)) {
+                        newUser = baseUser + counter;
+                        counter++;
+                    }
                 }
 
                 window.akunSiswaData[newUser] = {
@@ -209,10 +224,14 @@ window.sinkronkanAkunSiswaDariAdminData = function() {
                 usernamesUsed.push(newUser);
                 isModified = true;
 
-                if (typeof window.simpanLeaderboardSiswaKeDB === "function" && (!window.leaderboardSiswaData || !window.leaderboardSiswaData[newUser])) {
-                    window.simpanLeaderboardSiswaKeDB(newUser, {
-                        kelas: kls, namaLengkap: namaLengkap, xp: 0, loginTerakhir: "", statSoal: { PG: 0, PGK: 0, IS: 0, Essay: 0 }
-                    });
+                // Hanya inisialisasi leaderboard jika leaderboard sudah dimuat dari server dan siswa ini benar-benar belum ada datanya
+                if (window.leaderboardLoaded && typeof window.simpanLeaderboardSiswaKeDB === "function") {
+                    let sudahAdaLB = window.leaderboardSiswaData && (window.leaderboardSiswaData[newUser] || existingLbUser);
+                    if (!sudahAdaLB) {
+                        window.simpanLeaderboardSiswaKeDB(newUser, {
+                            kelas: kls, namaLengkap: namaLengkap, xp: 0, xpTotal: 0, coin: 0, xpTersedia: 0, loginTerakhir: "", statSoal: { PG: 0, PGK: 0, IS: 0, Essay: 0 }
+                        });
+                    }
                 }
             }
         });
@@ -358,20 +377,83 @@ window.renderListSiswaAdmin = function() {
         }
 
         let safeS = s.replace(/'/g, "\\'");
+        let userAktifSiswa = cariAkun.length > 0 ? cariAkun[0].username : '';
+        let passSaatIni = cariAkun.length > 0 ? (cariAkun[0].password || '123456') : '123456';
+
         htmlSiswa +=
-            '<li style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; border-bottom:1px dashed #eee; background:#fcfcfc;">' +
+            '<li style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; border-bottom:1px dashed #eee; background:#fcfcfc; gap:8px; flex-wrap:wrap;">' +
                 '<div style="font-size:13px; font-weight:bold; color:#333;">' +
                     '<span style="display:inline-block; width:20px; height:20px; background:#2c3e50; color:white; text-align:center; border-radius:50%; line-height:20px; font-size:10px; margin-right:10px;">' + (idx + 1) + '</span>' +
                     s + ' ' + infoAkun +
                 '</div>' +
-                '<div style="display:flex; gap:6px;">' +
-                    (cariAkun.length > 1 ? '<button style="background:#e67e22; color:white; border:none; padding:4px 8px; font-size:10px; border-radius:4px; cursor:pointer;" onclick="window.bersihkanAkunGandaSiswa(\'' + safeS + '\')">🧹 Sortir Akun</button>' : '') +
+                '<div style="display:flex; gap:6px; align-items:center;">' +
+                    (cariAkun.length > 1 ? '<button style="background:#e67e22; color:white; border:none; padding:4px 8px; font-size:10px; border-radius:4px; cursor:pointer; font-weight:bold;" onclick="window.bersihkanAkunGandaSiswa(\'' + safeS + '\')">🧹 Sortir Akun</button>' : '') +
+                    '<button style="background:#2980b9; color:white; border:none; padding:4px 8px; font-size:10px; border-radius:4px; cursor:pointer; font-weight:bold;" title="Lihat Username & Reset Password Siswa (XP/Coin Tetap Aman)" onclick="window.resetPasswordSiswaAdmin(\'' + safeS + '\')">🔑 Reset Pass</button>' +
                     '<button style="background:none; color:#c0392b; border:none; font-size:11px; cursor:pointer; font-weight:bold;" onclick="hapusSiswaAdmin(\'' + safeS + '\')">🗑️ Hapus</button>' +
                 '</div>' +
             '</li>';
     });
 
     listSiswa.innerHTML = htmlSiswa || '<p style="color:#7f8c8d; font-size:12px; text-align:center;">Kelas ini masih kosong. Silakan input nama siswa di atas.</p>';
+};
+
+window.resetPasswordSiswaAdmin = function(namaLengkap) {
+    let kls = window.kelasAktifAdmin;
+    if (!kls) return alert("Pilih kelas terlebih dahulu!");
+
+    let cleanNama = String(namaLengkap || "").trim().toLowerCase();
+    let userKey = Object.keys(window.akunSiswaData || {}).find(function(k) {
+        let ak = window.akunSiswaData[k];
+        return ak && ak.kelas === kls && String(ak.namaLengkap || "").trim().toLowerCase() === cleanNama;
+    });
+
+    // Jika akun belum terbuat, buatkan otomatis dengan mewarisi XP/Coin lama
+    if (!userKey) {
+        window.sinkronkanAkunSiswaDariAdminData();
+        userKey = Object.keys(window.akunSiswaData || {}).find(function(k) {
+            let ak = window.akunSiswaData[k];
+            return ak && ak.kelas === kls && String(ak.namaLengkap || "").trim().toLowerCase() === cleanNama;
+        });
+    }
+
+    if (!userKey || !window.akunSiswaData[userKey]) {
+        return alert("⚠️ Data akun siswa belum ditemukan.");
+    }
+
+    let akun = window.akunSiswaData[userKey];
+    let lb = (window.leaderboardSiswaData && window.leaderboardSiswaData[userKey]) ? window.leaderboardSiswaData[userKey] : null;
+    let infoXP = lb ? ((Number(lb.xpTotal !== undefined ? lb.xpTotal : lb.xp) || 0).toLocaleString('id-ID') + " XP") : "Tetap Aman";
+
+    let passBaru = prompt(
+        "🔑 KELOLA & RESET PASSWORD SISWA\n" +
+        "----------------------------------------\n" +
+        "Nama : " + akun.namaLengkap + "\n" +
+        "Kelas : " + akun.kelas + "\n" +
+        "Username Login : " + userKey + "\n" +
+        "Password Saat Ini : " + (akun.password || "123456") + "\n" +
+        "Data XP / Coin : " + infoXP + " (100% Terlindungi)\n" +
+        "----------------------------------------\n" +
+        "Ketik password baru di bawah ini (default: 123456):",
+        "123456"
+    );
+
+    if (passBaru === null) return;
+    passBaru = passBaru.trim();
+    if (!passBaru) return alert("⚠️ Password tidak boleh kosong!");
+
+    akun.password = passBaru;
+    window.akunSiswaData[userKey] = akun;
+
+    if (typeof window.simpanAkunSiswaKeDB === "function") {
+        window.simpanAkunSiswaKeDB(userKey, akun, function() {
+            window.renderListSiswaAdmin();
+            alert("✅ Password untuk " + akun.namaLengkap + " berhasil direset!\n\nUsername: " + userKey + "\nPassword Baru: " + passBaru + "\n\nSeluruh data XP, Coin, dan progres siswa tetap utuh.");
+        });
+    } else if (typeof window.simpanSemuaAkunSiswaKeDB === "function") {
+        window.simpanSemuaAkunSiswaKeDB();
+        window.renderListSiswaAdmin();
+        alert("✅ Password untuk " + akun.namaLengkap + " berhasil direset!\n\nUsername: " + userKey + "\nPassword Baru: " + passBaru);
+    }
 };
 
 window.bersihkanAkunGandaSiswa = function(namaLengkap) {

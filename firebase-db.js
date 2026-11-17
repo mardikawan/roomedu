@@ -73,10 +73,24 @@ window.modeHematServerUjian = function(isOfflineMode) {
     }
 };
 
-// Pastikan koneksi online saat akan menulis data. Auth Firebase menggunakan kredensial asli siswa
+// Pastikan koneksi online & token tulis Firebase aktif (Mendukung akun Gmail asli maupun akun siswa lokal/reset)
 window.pastikanAuthFirebaseSiswaAktif = function(callback) {
     goOnline(db);
-    if (callback) callback();
+    if (auth.currentUser) {
+        if (callback) callback();
+        return;
+    }
+    let stat = sessionStorage.getItem("statusLogin");
+    if (stat === "siswa" || stat === "tamu") {
+        // Hanya digunakan sebagai token izin tulis ke Realtime Database jika siswa login tanpa Firebase Auth Gmail
+        signInWithEmailAndPassword(auth, "siswa@sbd.com", "semangat").then(function() {
+            if (callback) callback();
+        }).catch(function() {
+            if (callback) callback();
+        });
+    } else {
+        if (callback) callback();
+    }
 };
 
 // Pengiriman Nilai Ujian dengan JaminanTerkirim (Callback Sukses/Gagal)
@@ -836,15 +850,28 @@ window.simpanLeaderboardSiswaKeDB = function(usernameKey, dataObj) {
             });
         };
 
+        // Cari juga berdasarkan Nama Lengkap & Kelas jika siswa pernah ganti username agar XP/Coin lama tidak hilang
+        let cariExistingByNama = function() {
+            if (!window.leaderboardSiswaData) return null;
+            if (window.leaderboardSiswaData[cleanKey]) return window.leaderboardSiswaData[cleanKey];
+            let targetNama = String(dataObj.namaLengkap || "").trim().toLowerCase();
+            let targetKls = String(dataObj.kelas || "").trim();
+            if (!targetNama) return null;
+            let foundKey = Object.keys(window.leaderboardSiswaData).find(function(k) {
+                let item = window.leaderboardSiswaData[k];
+                return item && String(item.namaLengkap || "").trim().toLowerCase() === targetNama && (!targetKls || item.kelas === targetKls);
+            });
+            return foundKey ? window.leaderboardSiswaData[foundKey] : null;
+        };
+
         if (!window.leaderboardLoaded || dataObj._createdBeforeLoad) {
             get(targetRef).then(function(snap) {
-                prosesSimpanAman(snap.exists() ? snap.val() : null);
+                prosesSimpanAman(snap.exists() ? snap.val() : cariExistingByNama());
             }).catch(function() {
-                prosesSimpanAman(null);
+                prosesSimpanAman(cariExistingByNama());
             });
         } else {
-            let existingLocal = (window.leaderboardSiswaData && window.leaderboardSiswaData[cleanKey]) ? window.leaderboardSiswaData[cleanKey] : null;
-            prosesSimpanAman(existingLocal);
+            prosesSimpanAman(cariExistingByNama());
         }
     });
 };
