@@ -4,6 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <title>Sistem Belajar Mahardika</title>
+
+    <!-- KONFIGURASI PWA (ANDROID, IPHONE, IPAD, WINDOWS, & MACBOOK) -->
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#0b3954">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Mahardika">
+    <link rel="apple-touch-icon" href="./icon-192.png">
+    <link rel="icon" type="image/png" href="./icon-192.png">
+
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Fredoka:wght@400;500;600&family=Quicksand:wght@400;600;700&family=Lora:ital,wght@0,400;0,700;1,400&family=Merriweather:wght@400;700&family=Montserrat:wght@400;600;700&family=Open+Sans:wght@400;600&family=Oswald:wght@400;500&family=Playfair+Display:wght@400;700&family=Poppins:wght@400;600&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
     
     <link rel="stylesheet" href="./style.css">
@@ -291,20 +302,20 @@
                 <button class="close-btn" style="color:white;" onclick="tutupModal('modal-profil-siswa')">✕</button>
             </div>
             <div class="modal-body" style="padding:20px; background:#f8fafc;">
-                <!-- Kartu Identitas & Foto Profil -->
-                <div style="display:flex; align-items:center; gap:16px; background:white; padding:16px; border-radius:10px; border:1px solid #e2e8f0; margin-bottom:15px;">
-                    <div style="position:relative; width:76px; height:76px; flex-shrink:0;">
-                        <img id="profil-img-preview" src="" alt="Foto Siswa" style="width:76px; height:76px; border-radius:50%; object-fit:cover; border:3px solid #3498db; background:#e2e8f0;">
+                <!-- Kartu Identitas & Foto Profil (Responsif HP & Anti-Terpotong) -->
+                <div class="profil-identity-card" style="display:flex; align-items:center; gap:14px; flex-wrap:wrap; background:white; padding:16px; border-radius:12px; border:1px solid #e2e8f0; margin-bottom:15px;">
+                    <div style="position:relative; width:72px; height:72px; flex-shrink:0;">
+                        <img id="profil-img-preview" src="" alt="Foto Siswa" style="width:72px; height:72px; border-radius:50%; object-fit:cover; border:3px solid #3498db; background:#e2e8f0;">
                         <input type="file" id="input-upload-foto-profil" accept="image/*" style="display:none;" onchange="window.prosesUploadFotoProfil(this)">
                         <button type="button" onclick="document.getElementById('input-upload-foto-profil').click()" style="position:absolute; bottom:0; right:0; background:#2980b9; color:white; border:2px solid white; border-radius:50%; width:26px; height:26px; font-size:12px; cursor:pointer; display:flex; align-items:center; justify-content:center;" title="Ubah Foto Profil">📷</button>
                     </div>
-                    <div style="flex:1; min-width:0;">
+                    <div style="flex:1; min-width:155px;">
                         <div id="profil-badge-lencana" style="display:inline-block; background:#fef9e7; color:#d35400; border:1px solid #f9e79f; padding:2px 10px; border-radius:20px; font-size:11px; font-weight:bold; margin-bottom:4px;">🔍 Pengamat</div>
-                        <div id="profil-nama-asli" style="font-weight:bold; font-size:16px; color:#1e293b; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Nama Siswa</div>
-                        <div id="profil-info-kelas" style="font-size:12px; color:#64748b;">Kelas: - | Username: -</div>
-                        <div id="profil-deskripsi-lencana" style="font-size:11px; color:#0b3954; margin-top:4px; font-style:italic;"></div>
+                        <div id="profil-nama-asli" style="font-weight:800; font-size:15px; color:#1e293b; line-height:1.3; word-break:break-word;">Nama Siswa</div>
+                        <div id="profil-info-kelas" style="font-size:12px; color:#64748b; margin-top:2px;">Kelas: - | Username: -</div>
+                        <div id="profil-deskripsi-lencana" style="font-size:11px; color:#0b3954; margin-top:4px; font-style:italic; line-height:1.35;"></div>
                     </div>
-                    <div style="text-align:center; background:#e8f8f5; border:2px solid #16a085; padding:8px 12px; border-radius:8px;">
+                    <div class="profil-xp-summary-box" style="text-align:center; background:#e8f8f5; border:2px solid #16a085; padding:8px 14px; border-radius:10px; margin-left:auto;">
                         <div style="font-size:10px; font-weight:bold; color:#16a085;">TOTAL POIN</div>
                         <div id="profil-total-xp" style="font-size:24px; font-weight:900; color:#0b3954; font-family:'Bebas Neue', sans-serif; line-height:1;">0 XP</div>
                     </div>
@@ -562,19 +573,19 @@
                 <button class="close-btn" style="position:absolute; top:12px; right:15px; background:#eee; border-radius:50%; width:28px; height:28px; display:flex; align-items:center; justify-content:center; font-size:12px;" onclick="tutupModal('modal-koreksi-ujian')">✕</button>
             </div>
 
-            <!-- AREA TENGAH & KONTROL (Lebih Ramping) -->
-            <div style="flex:1; overflow-y:auto; display:flex; flex-direction:column; background:#f8f9fa; position:relative;">
+            <!-- AREA TENGAH & KONTROL (Responsif HP & Anti-Terpotong) -->
+            <div style="flex:1; min-height:0; overflow-y:auto; display:flex; flex-direction:column; background:#f8f9fa; position:relative; -webkit-overflow-scrolling:touch;">
                 
-                <div style="padding:10px 20px; background:rgba(255,255,255,0.95); backdrop-filter:blur(5px); border-bottom:1px solid #e1e8ed; display:flex; justify-content:space-between; align-items:center; gap:15px; position:sticky; top:0; z-index:10; flex-shrink:0;">
-                    <div style="display:flex; align-items:center; gap:10px; flex:1;">
-                        <label style="font-size:12px; font-weight:bold; color:#7f8c8d;">Pilih Siswa:</label>
-                        <select id="koreksi-select-siswa" class="input-box" style="margin:0; width:200px; font-weight:bold; padding:6px 10px; border-radius:6px; cursor:pointer; font-size:13px;" onchange="window.gantiSiswaKoreksi()"></select>
+                <div style="padding:10px 14px; background:rgba(255,255,255,0.96); backdrop-filter:blur(5px); border-bottom:1px solid #e1e8ed; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; position:sticky; top:0; z-index:10; flex-shrink:0;">
+                    <div style="display:flex; align-items:center; gap:8px; flex:1; min-width:180px;">
+                        <label style="font-size:12px; font-weight:bold; color:#7f8c8d; white-space:nowrap;">Pilih Siswa:</label>
+                        <select id="koreksi-select-siswa" class="input-box" style="margin:0; flex:1; min-width:130px; font-weight:bold; padding:7px 10px; border-radius:6px; cursor:pointer; font-size:13px;" onchange="window.gantiSiswaKoreksi()"></select>
                     </div>
-                    <button class="btn-action" style="background:#f39c12; width:auto; padding:6px 15px; font-size:12px; border-radius:6px; display:flex; align-items:center; gap:6px; color:white; box-shadow:0 2px 5px rgba(243,156,18,0.3);" onclick="window.centangSemuaKoreksi()">☑️ Centang Semua</button>
+                    <button class="btn-action" style="background:#f39c12; width:auto; padding:7px 14px; font-size:12px; border-radius:6px; display:flex; align-items:center; gap:6px; color:white; box-shadow:0 2px 5px rgba(243,156,18,0.3);" onclick="window.centangSemuaKoreksi()">☑️ Centang Semua</button>
                 </div>
                 
                 <!-- GRID SOAL (Padding bawah ditambah agar tidak tertutup tombol melayang) -->
-                <div id="koreksi-grid-container" style="padding:15px 20px 80px 20px; display:flex; flex-direction:column; gap:15px;"></div>
+                <div id="koreksi-grid-container" style="padding:14px 14px 85px 14px; display:flex; flex-direction:column; gap:14px;"></div>
                 
             </div>
 
@@ -1118,24 +1129,29 @@
 
     <!-- HEADER NAVBAR (DENGAN LONCENG NOTIFIKASI, LEADERBOARD, & PROFIL) -->
     <div class="header-wrapper" id="header-wrap">
-        <!-- Pojok Kiri Atas: Lonceng Notifikasi, Check-in Harian, & Papan Peringkat -->
+        <!-- Pojok Kiri Atas (Di Desktop) / Baris Pintasan Fitur (Di HP) -->
         <div class="header-left-stack" onclick="event.stopPropagation();">
-          <div style="display:flex; gap:6px; align-items:center;">
-              <button id="btn-header-notif" class="header-pill-btn" onclick="window.bukaModalNotifikasiSiswa()" title="Notifikasi Tugas & Ujian">
-                  🔔 <span>Notifikasi</span>
-                  <b id="badge-header-notif" class="header-notif-badge" style="display:none;">0</b>
-              </button>
-              <button id="btn-header-checkin" class="header-pill-btn" style="background:#f1c40f; color:#0b3954; border-color:#f39c12; font-weight:800;" onclick="window.bukaModalCheckinSiswa()" title="Check-in Keadaan Hari Ini (+100 Coin)">
-                  😊 <span>Check-in +100 Coin</span>
-              </button>
-          </div>
-          <button id="btn-header-leaderboard" class="header-pill-btn leaderboard-pill" onclick="window.bukaModalLeaderboard()" title="Papan Peringkat Sains">
-              🏆 <span>Leaderboard</span>
-          </button>
-          <button id="btn-header-nilai-saya" class="header-pill-btn" style="background:rgba(39, 174, 96, 0.28); border-color:#2ecc71; color:#ffffff; font-weight:800;" onclick="window.bukaModalNilaiSaya()" title="Lihat Hasil & Detail Ujian Saya">
-              📊 <span>Nilai Saya</span>
-          </button>
-      </div>
+            <div class="header-pill-row" style="display:flex; gap:6px; align-items:center;">
+                <button id="btn-header-notif" class="header-pill-btn" onclick="window.bukaModalNotifikasiSiswa()" title="Notifikasi Tugas & Ujian">
+                    🔔 <span>Notifikasi</span>
+                    <b id="badge-header-notif" class="header-notif-badge" style="display:none;">0</b>
+                </button>
+                <button id="btn-header-checkin" class="header-pill-btn" style="background:#f1c40f; color:#0b3954; border-color:#f39c12; font-weight:800;" onclick="window.bukaModalCheckinSiswa()" title="Check-in Keadaan Hari Ini (+100 Coin)">
+                    😊 <span>Check-in +100 Coin</span>
+                </button>
+            </div>
+            <button id="btn-header-leaderboard" class="header-pill-btn leaderboard-pill" onclick="window.bukaModalLeaderboard()" title="Papan Peringkat Sains">
+                🏆 <span>Leaderboard</span>
+            </button>
+            <div class="header-pill-row" style="display:flex; gap:6px; align-items:center;">
+                <button id="btn-header-nilai-saya" class="header-pill-btn" style="background:rgba(39, 174, 96, 0.28); border-color:#2ecc71; color:#ffffff; font-weight:800;" onclick="window.bukaModalNilaiSaya()" title="Lihat Hasil & Detail Ujian Saya">
+                    📊 <span>Nilai Saya</span>
+                </button>
+                <button id="btn-header-install-pwa" class="header-pill-btn" style="display:none; background:linear-gradient(135deg, #e67e22, #d35400); border-color:#f1c40f; color:#ffffff; font-weight:800;" onclick="window.klikInstallAplikasiPWA()" title="Download & Pasang Aplikasi di Perangkat Ini">
+                    📲 <span>Install App</span>
+                </button>
+            </div>
+        </div>
 
         <span class="header-settings-btn" onclick="bukaModal('modal-theme');event.stopPropagation();">⚙️</span>
         <h1 class="header-title" id="web-title">Mahardika</h1>

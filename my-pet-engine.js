@@ -1653,8 +1653,15 @@ window.renderTabHabitatMyPet = function() {
     });
 
     let stagePetsHtml = '';
-    let waterSlots = [ { l: 28, b: 16 }, { l: 38, b: 24 }, { l: 22, b: 28 }, { l: 34, b: 11 } ];
-    let landSlots = [ { l: 58, b: 14 }, { l: 72, b: 22 }, { l: 48, b: 26 }, { l: 84, b: 18 }, { l: 65, b: 30 }, { l: 12, b: 20 }, { l: 78, b: 30 } ];
+    let isMobileStage = window.innerWidth <= 768;
+    let waterSlots = [
+        { l: 26, b: 14 }, { l: 37, b: 24 }, { l: 20, b: 28 }, { l: 33, b: 10 }, { l: 29, b: 33 }
+    ];
+    let landSlots = [
+        { l: 58, b: 12 }, { l: 74, b: 20 }, { l: 48, b: 26 }, { l: 86, b: 16 },
+        { l: 64, b: 30 }, { l: 12, b: 18 }, { l: 79, b: 32 }, { l: 53, b: 18 },
+        { l: 69, b: 12 }, { l: 88, b: 28 }, { l: 44, b: 14 }, { l: 15, b: 32 }
+    ];
     let wIdx = 0, lIdx = 0;
 
     ownedIds.forEach(function(pid) {
@@ -1665,7 +1672,7 @@ window.renderTabHabitatMyPet = function() {
 
         let isWaterPet = (pCat.zona === "water" || pid === "ikan" || pid === "buaya");
         let slotPos = isWaterPet ? waterSlots[(wIdx++) % waterSlots.length] : landSlots[(lIdx++) % landSlots.length];
-        let ukuranDiHabitat = isMain ? 114 : 86;
+        let ukuranDiHabitat = isMobileStage ? (isMain ? 82 : 62) : (isMain ? 114 : 86);
         let svgPet = window.bangunVisualPet25DSVG(pid, pObj.outfit || {}, pLapar.animState, ukuranDiHabitat);
         let waterRipple = isWaterPet ? '<div class="mypet-water-ripple"></div>' : '';
 
@@ -1779,7 +1786,7 @@ window.renderTabHabitatMyPet = function() {
             '</div>';
     }
 
-    let detailActorSvg = window.bangunVisualPet25DSVG(activeId, activePet.outfit || {}, infoLapar.animState, 155);
+    let detailActorSvg = window.bangunVisualPet25DSVG(activeId, activePet.outfit || {}, infoLapar.animState, (window.innerWidth <= 768 ? 125 : 155));
     let titleHabitat = isVisitMode
         ? ('🏡 Sedang Berkunjung ke Habitat: <b style="color:#d97706;">' + (lb.namaLengkap || uName) + '</b>')
         : ('🏡 Sanctuary Alam Bebas (<b style="color:#16a34a;">' + ownedIds.length + ' Pet Tinggal Bersama</b>)');

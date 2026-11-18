@@ -1910,9 +1910,25 @@ window.addEventListener("resize", function() {
 // =========================================================================
 // 4. NAVIGASI CBT MELAYANG (AUTO-TRACKING JAWABAN UJIAN & LATIHAN)
 // =========================================================================
-window.toggleCbtNav = function() {
+window.toggleCbtNav = function(forceOpen) {
     let drawer = document.getElementById('cbt-nav-drawer');
-    if (drawer) drawer.classList.toggle('show-nav');
+    if (!drawer) return;
+    if (typeof forceOpen === 'boolean') {
+        if (forceOpen) drawer.classList.add('show-nav');
+        else drawer.classList.remove('show-nav');
+    } else {
+        drawer.classList.toggle('show-nav');
+    }
+};
+
+window.lompatKeSoalCBT = function(targetId) {
+    window.toggleCbtNav(false);
+    setTimeout(function() {
+        let el = document.getElementById(targetId);
+        if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }, 120);
 };
 
 window.renderCbtNavigation = function(total, tipe) {
@@ -1923,7 +1939,7 @@ window.renderCbtNavigation = function(total, tipe) {
     let html = '';
     for (let i = 0; i < total; i++) {
         let prefix = tipe === 'ujian' ? 'soal-ujian-' : 'card-latihan-';
-        html += '<button class="quiz-nav-btn" id="nav-cbt-' + i + '" onclick="document.getElementById(\'' + prefix + i + '\').scrollIntoView({behavior:\'smooth\', block:\'center\'}); window.toggleCbtNav();">' + (i + 1) + '</button>';
+        html += '<button type="button" class="quiz-nav-btn" id="nav-cbt-' + i + '" onclick="window.lompatKeSoalCBT(\'' + prefix + i + '\')">' + (i + 1) + '</button>';
     }
     grid.innerHTML = html;
     btn.style.display = 'flex';

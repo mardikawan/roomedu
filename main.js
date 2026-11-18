@@ -514,32 +514,58 @@ function aturPosisiSubMenu(ulElement) {
     ulElement.classList.add("open-sub");
     let parentLi = ulElement.parentElement;
     let rect = parentLi.getBoundingClientRect();
+    let isMobile = window.innerWidth <= 768;
     let isTopLevelDropdown = parentLi && parentLi.parentElement && (parentLi.parentElement.id === "dynamic-pages-container" || parentLi.parentElement.id === "dynamic-navbar");
 
     if (isTopLevelDropdown) {
-        // Hanya menu tingkat pertama yang butuh 'fixed' untuk lolos dari area sembunyi navbar
         ulElement.style.position = 'fixed';
-        ulElement.style.zIndex = '999999';
-        ulElement.style.top = rect.bottom + 'px';
-        ulElement.style.left = rect.left + 'px';
-        ulElement.style.right = 'auto';
-        
-        if (rect.left + 220 > window.innerWidth) {
-            ulElement.style.left = 'auto';
-            ulElement.style.right = '10px';
+        ulElement.style.zIndex = '4500';
+        ulElement.style.top = Math.max(40, rect.bottom) + 'px';
+        ulElement.style.maxHeight = '72dvh';
+        ulElement.style.overflowY = 'auto';
+
+        if (isMobile) {
+            let safeLeft = Math.max(8, Math.min(rect.left, window.innerWidth - 230));
+            ulElement.style.left = safeLeft + 'px';
+            ulElement.style.right = 'auto';
+            ulElement.style.width = '220px';
+        } else {
+            ulElement.style.left = rect.left + 'px';
+            ulElement.style.right = 'auto';
+            if (rect.left + 220 > window.innerWidth) {
+                ulElement.style.left = 'auto';
+                ulElement.style.right = '10px';
+            }
         }
     } else {
-        // Menu tingkat 2, 3, 4, dst biarkan CSS murni yang atur (position: absolute)
-        ulElement.style.position = '';
-        ulElement.style.top = '';
-        ulElement.style.left = '';
-        ulElement.style.right = '';
-        
-        // Cek batas layar kanan, jika sempit maka menu melipat ke kiri
-        if (rect.right + 220 > window.innerWidth) {
-            ulElement.classList.add("flyout-left");
-        } else {
+        if (isMobile) {
+            // Di HP: buka sub-menu tingkat lanjut ke bawah (akordeon) agar tidak terpotong ke samping layar
             ulElement.classList.remove("flyout-left");
+            ulElement.style.position = 'static';
+            ulElement.style.top = 'auto';
+            ulElement.style.left = 'auto';
+            ulElement.style.right = 'auto';
+            ulElement.style.width = '100%';
+            ulElement.style.minWidth = '0';
+            ulElement.style.boxShadow = 'none';
+            ulElement.style.margin = '0';
+            ulElement.style.paddingLeft = '14px';
+            ulElement.style.background = 'rgba(0, 0, 0, 0.22)';
+            ulElement.style.borderLeft = '2px solid #f1c40f';
+        } else {
+            ulElement.style.position = '';
+            ulElement.style.top = '';
+            ulElement.style.left = '';
+            ulElement.style.right = '';
+            ulElement.style.width = '';
+            ulElement.style.paddingLeft = '';
+            ulElement.style.background = '';
+
+            if (rect.right + 220 > window.innerWidth) {
+                ulElement.classList.add("flyout-left");
+            } else {
+                ulElement.classList.remove("flyout-left");
+            }
         }
     }
 }
@@ -2258,27 +2284,94 @@ window.startResizeFB = function(e, i) {
 };
 
 /* =========================================
-   FUNGSI KONTROL MODAL & POPUP (AUTO TOP-LAYER)
+   FUNGSI KONTROL MODAL & POPUP (AUTO TOP-LAYER, SCROLL-LOCK, & BACK BUTTON HP)
    ========================================= */
 window.topModalZIndex = 5100;
+window._openModalStack = [];
 
-window.bukaModal = function(id) { 
+window.sinkronkanKunciScrollModal = function() {
+    let adaModalTerbuka = false;
+    document.querySelectorAll('.modal-overlay').forEach(function(m) {
+        if (m.style.display === 'flex' || m.style.display === 'block') {
+            adaModalTerbuka = true;
+        }
+    });
+
+    if (adaModalTerbuka) {
+        document.body.classList.add('modal-open-lock');
+        if (!window.isStrictUjianActive) {
+            document.body.style.overflow = 'hidden';
+        }
+    } else {
+        document.body.classList.remove('modal-open-lock');
+        window._openModalStack = [];
+        if (!window.isStrictUjianActive) {
+            document.body.style.overflow = '';
+        }
+    }
+};
+
+window.bukaModal = function(id) {
     let el = document.getElementById(id);
     if (!el) return;
+
+    let sudahTerbuka = (el.style.display === 'flex');
     window.topModalZIndex += 10;
     el.style.zIndex = window.topModalZIndex;
-    el.style.display = 'flex'; 
+    el.style.display = 'flex';
+
+    // Pastikan dropdown navbar tertutup agar tidak menutupi modal di HP
+    if (typeof window.closeDropdowns === 'function') {
+        window.closeDropdowns();
+    }
+
+    // Reset posisi scroll modal-body ke atas saat pertama dibuka agar tidak nyangkut di bawah
+    if (!sudahTerbuka) {
+        let bodyEl = el.querySelector('.modal-body');
+        if (bodyEl) bodyEl.scrollTop = 0;
+    }
+
+    window._openModalStack = window._openModalStack.filter(function(mId) { return mId !== id; });
+    window._openModalStack.push(id);
+    window.sinkronkanKunciScrollModal();
+
+    // Tambahkan jejak history di HP agar tombol Back fisik menutup modal, bukan keluar dari aplikasi
+    if (!window.isStrictUjianActive && !sudahTerbuka) {
+        try {
+            window.history.pushState({ modalOpenId: id, bab: window.babAktif || 'home' }, '', window.location.href);
+        } catch (e) {}
+    }
 };
 
-window.tutupModal = function(id) { 
+window.tutupModal = function(id) {
     let el = document.getElementById(id);
-    if (el) el.style.display = 'none'; 
+    if (el) el.style.display = 'none';
+
+    if (id === 'modal-my-pet') {
+        window.isMyPetModalOpen = false;
+    }
+
+    window._openModalStack = (window._openModalStack || []).filter(function(mId) { return mId !== id; });
+    window.sinkronkanKunciScrollModal();
 };
 
-window.tutupModalHasilQuiz = function() { 
-    let modal = document.getElementById('modal-quiz-result');
-    if (modal) modal.style.display = 'none';
+window.tutupModalHasilQuiz = function() {
+    window.tutupModal('modal-quiz-result');
 };
+
+// Tangkap tombol Back fisik di HP: jika ada modal terbuka, tutup modal paling atas terlebih dahulu
+window.addEventListener('popstate', function(e) {
+    if (window.isStrictUjianActive) return;
+    if (window._openModalStack && window._openModalStack.length > 0) {
+        let topId = window._openModalStack[window._openModalStack.length - 1];
+        let el = document.getElementById(topId);
+        if (el && el.style.display === 'flex') {
+            window.tutupModal(topId);
+            return;
+        }
+    }
+    window.sinkronkanKunciScrollModal();
+}, true);
 
 window.bukaWelcomePopup = function() { 
     window.bukaModal('modal-welcome-popup'); 
@@ -2829,6 +2922,15 @@ document.addEventListener('mouseover', function(e) {
 document.addEventListener('mouseout', function(e) {
     let term = e.target.closest ? e.target.closest('.glossary-term') : null;
     if (term) window.leaveIstilah();
+});
+document.addEventListener('click', function(e) {
+    let term = e.target.closest ? e.target.closest('.glossary-term') : null;
+    if (term) {
+        window.hoverIstilah(term, e);
+    } else if (!e.target.closest('#tooltip-istilah')) {
+        let tip = document.getElementById('tooltip-istilah');
+        if (tip) tip.style.display = 'none';
+    }
 });
 
 /* =========================================
@@ -5778,3 +5880,94 @@ window.alert = function(pesan) {
         window._originalAlert(pesan);
     }
 };
+
+/* =========================================================================
+   8. MESIN REGISTRASI PWA & TOMBOL INSTALL OTOMATIS (ANDROID, IOS, & DESKTOP)
+   ========================================================================= */
+window._deferredPWAPrompt = null;
+
+window.apakahSudahModeAplikasiPWA = function() {
+    return Boolean(
+        (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
+        window.navigator.standalone === true
+    );
+};
+
+window.perbaruiVisibilitasTombolPWA = function() {
+    let btn = document.getElementById('btn-header-install-pwa');
+    if (!btn) return;
+
+    // Jika sudah dibuka sebagai aplikasi terinstal, sembunyikan tombol Install
+    if (window.apakahSudahModeAplikasiPWA()) {
+        btn.style.display = 'none';
+        return;
+    }
+
+    let isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent || '') ||
+                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+    // Munculkan tombol jika browser mendukung prompt otomatis ATAU jika menggunakan iPhone/iPad
+    if (window._deferredPWAPrompt || isIOS) {
+        btn.style.display = 'flex';
+    }
+};
+
+// 1. Daftarkan Service Worker saat halaman selesai dimuat
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function() {
+        navigator.serviceWorker.register('./sw.js').then(function() {
+            window.perbaruiVisibilitasTombolPWA();
+        }).catch(function(err) {
+            console.warn('Service Worker gagal dimuat:', err);
+        });
+    });
+}
+
+// 2. Tangkap sinyal instalasi dari Chrome/Edge (Android, Windows, MacBook)
+window.addEventListener('beforeinstallprompt', function(e) {
+    e.preventDefault();
+    window._deferredPWAPrompt = e;
+    window.perbaruiVisibilitasTombolPWA();
+});
+
+// 3. Sembunyikan tombol begitu aplikasi selesai diinstal
+window.addEventListener('appinstalled', function() {
+    window._deferredPWAPrompt = null;
+    let btn = document.getElementById('btn-header-install-pwa');
+    if (btn) btn.style.display = 'none';
+});
+
+// 4. Aksi saat siswa/guru menekan tombol "📲 Install App"
+window.klikInstallAplikasiPWA = async function() {
+    if (window._deferredPWAPrompt) {
+        window._deferredPWAPrompt.prompt();
+        let choiceResult = await window._deferredPWAPrompt.userChoice;
+        if (choiceResult && choiceResult.outcome === 'accepted') {
+            window._deferredPWAPrompt = null;
+            let btn = document.getElementById('btn-header-install-pwa');
+            if (btn) btn.style.display = 'none';
+        }
+        return;
+    }
+
+    // Panduan otomatis khusus untuk pengguna Safari di iPhone & iPad
+    let isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent || '') ||
+                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    if (isIOS) {
+        alert(
+            "📲 CARA INSTALL APLIKASI DI IPHONE / IPAD:\n" +
+            "----------------------------------------\n" +
+            "1. Pastikan Anda membuka halaman ini di browser SAFARI.\n" +
+            "2. Ketuk ikon SHARE (Kotak dengan panah ke atas ⬆️ di bar Safari).\n" +
+            "3. Geser ke bawah lalu pilih 'Tambahkan ke Layar Utama' (Add to Home Screen ➕).\n" +
+            "4. Ketuk 'Tambah' di pojok kanan atas.\n\n" +
+            "Aplikasi Mahardika akan langsung muncul di layar utama Anda!"
+        );
+    } else {
+        alert("📲 Untuk memasang aplikasi di Laptop/PC, klik ikon 'Install' (komputer dengan panah ke bawah) di sisi kanan kolom URL browser Chrome/Edge Anda.");
+    }
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(window.perbaruiVisibilitasTombolPWA, 800);
+});
