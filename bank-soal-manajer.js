@@ -910,18 +910,25 @@ window.bukaModalKontrolUjian = function() {
 
 window.renderKontrolUjian = function() {
     let selectEl = document.getElementById('admin-pilih-ujian');
+    let prevSelected = selectEl ? selectEl.value : "";
     let htmlOpt = '<option value="">-- Pilih Paket Ujian --</option>';
 
     let paketAktif = Object.values(window.adminUjianAktifData || {}).map(function(u) { return u.paket; });
-    let bankKeys = Object.keys(window.adminBankUjianData || {});
+    let bankKeys = Object.keys(window.adminBankUjianData || {}).sort();
 
     bankKeys.forEach(function(k) {
         if (!paketAktif.includes(k)) {
-            htmlOpt += '<option value="' + k + '">' + k + '</option>';
+            let isSel = (k === prevSelected) ? ' selected' : '';
+            htmlOpt += '<option value="' + k.replace(/"/g, '&quot;') + '"' + isSel + '>' + k + '</option>';
         }
     });
 
-    if (selectEl) selectEl.innerHTML = htmlOpt;
+    if (selectEl) {
+        selectEl.innerHTML = htmlOpt;
+        if (prevSelected && !paketAktif.includes(prevSelected) && bankKeys.includes(prevSelected)) {
+            selectEl.value = prevSelected;
+        }
+    }
 
     let container = document.getElementById('container-ujian-aktif');
     let aktifKeys = Object.keys(window.adminUjianAktifData || {});

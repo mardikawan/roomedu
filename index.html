@@ -238,6 +238,51 @@
         </div>
     </div>
 
+    <!-- MODAL NILAI SAYA (KHUSUS AKUN SISWA MASING-MASING) -->
+    <div id="modal-nilai-saya" class="modal-overlay" onclick="if(event.target===this)tutupModal('modal-nilai-saya')">
+        <div class="modal-box" style="width:920px; max-width:95vw; max-height:90vh; display:flex; flex-direction:column;">
+            <div class="modal-header" style="background:linear-gradient(135deg, #0b3954, #27ae60); color:white;">
+                <div>
+                    <h3 style="margin:0;">📊 Riwayat & Analisis Nilai Ujian Saya</h3>
+                    <div id="subtitle-nilai-saya" style="font-size:11px; color:#f1c40f; margin-top:2px; font-weight:bold;">Memuat identitas akun siswa...</div>
+                </div>
+                <button class="close-btn" style="color:white;" onclick="tutupModal('modal-nilai-saya')">✕</button>
+            </div>
+            <div class="modal-body" style="padding:16px; background:#f4f6f8; flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:14px;">
+                
+                <!-- Dropdown Pilih Jenis Ujian yang Pernah Diikuti -->
+                <div style="background:white; padding:14px; border-radius:10px; border:1px solid #cbd5e1; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+                    <label style="font-size:13px; font-weight:800; color:#0b3954; white-space:nowrap;">📝 Pilih Jenis Ujian:</label>
+                    <select id="select-nilai-saya-paket" class="input-box" style="margin:0; flex:1; min-width:220px; font-weight:bold; cursor:pointer; border:2px solid #27ae60;" onchange="window.pilihUjianNilaiSaya(this.value)">
+                        <option value="">-- Pilih Ujian yang Pernah Diikuti --</option>
+                    </select>
+                    <button type="button" class="btn-action" style="background:#2980b9; width:auto; padding:8px 14px; font-size:12px;" onclick="window.muatDaftarUjianNilaiSaya(true)">🔄 Segarkan</button>
+                </div>
+
+                <!-- Tabel 1 Baris Ringkasan Siswa + Tombol Lihat Detail -->
+                <div id="box-baris-nilai-saya" style="display:none; overflow-x:auto; background:white; border:1px solid #cbd5e1; border-radius:10px; padding:1px;">
+                    <table class="excel-table" style="min-width:100%; text-align:center;">
+                        <thead>
+                            <tr>
+                                <th style="background:#0b3954; text-align:left; min-width:180px;">Nama Siswa</th>
+                                <th style="background:#0b3954; width:110px;">Kelas</th>
+                                <th style="background:#0b3954; min-width:160px;">Jenis Ujian</th>
+                                <th style="background:#0b3954; width:140px;">Waktu Kumpul</th>
+                                <th style="background:#0b3954; width:110px;">Nilai Akhir</th>
+                                <th style="background:#0b3954; width:140px;">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-nilai-saya-baris"></tbody>
+                    </table>
+                </div>
+
+                <!-- Area Rincian Lengkap (Muncul Saat Klik "Lihat Detail") -->
+                <div id="area-detail-nilai-saya" style="display:none; flex-direction:column; gap:16px;"></div>
+
+            </div>
+        </div>
+    </div>
+
     <!-- MODAL PROFIL SISWA & PENGATURAN AKUN -->
     <div id="modal-profil-siswa" class="modal-overlay" onclick="if(event.target===this)tutupModal('modal-profil-siswa')">
         <div class="modal-box" style="width:500px; max-height:90vh;">
@@ -411,6 +456,7 @@
                         <button class="btn-action" style="background:#e74c3c; width:auto; padding:8px 15px;" onclick="window.bukaModalRemedial()">🔥 Remedial</button>
                         <button class="btn-action" style="background:#3498db; width:auto; padding:8px 15px;" onclick="window.bukaModalSpreadsheetNilai()">📊 Spreadsheet Nilai</button>
                         <button class="btn-action" style="background:#27ae60; width:auto; padding:8px 15px;" onclick="window.exportExcelRekapNilai()">📥 Export Rekap (Skala 0-1)</button>
+                        <button id="btn-hapus-semua-rekap" class="btn-action" style="background:#c0392b; width:auto; padding:8px 15px; display:none;" onclick="window.hapusSemuaNilaiKelasUjian()">🗑️ Hapus Data Ujian Ini</button>
                     </div>
                 </div>
 
@@ -1085,6 +1131,9 @@
           </div>
           <button id="btn-header-leaderboard" class="header-pill-btn leaderboard-pill" onclick="window.bukaModalLeaderboard()" title="Papan Peringkat Sains">
               🏆 <span>Leaderboard</span>
+          </button>
+          <button id="btn-header-nilai-saya" class="header-pill-btn" style="background:rgba(39, 174, 96, 0.28); border-color:#2ecc71; color:#ffffff; font-weight:800;" onclick="window.bukaModalNilaiSaya()" title="Lihat Hasil & Detail Ujian Saya">
+              📊 <span>Nilai Saya</span>
           </button>
       </div>
 

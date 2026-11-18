@@ -48,16 +48,15 @@ const secondaryApp = initializeApp(firebaseConfig, "SecondaryApp");
 const secondaryAuth = getAuth(secondaryApp);
 
 window.loginFirebase = function(email, password, onSuccess, onError) {
-    goOnline(db);
+    // Jangan panggil goOnline(db) saat login agar tidak memakan kuota Connections WebSocket
     signInWithEmailAndPassword(auth, email, password).then(function() { 
         if(onSuccess) onSuccess(); 
     }).catch(function(err) { 
-        // JARING PENGAMAN: Jika admin utama belum terdaftar di Firebase Auth proyek baru, buatkan otomatis!
         if (email === "mahardika@admin.com") {
             createUserWithEmailAndPassword(auth, email, password).then(function() {
                 if(onSuccess) onSuccess();
-            }).catch(function(errCreate) {
-                if(onError) onError(err); // Tetap kembalikan error login asli jika password salah
+            }).catch(function() {
+                if(onError) onError(err);
             });
         } else {
             if(onError) onError(err); 
@@ -66,7 +65,7 @@ window.loginFirebase = function(email, password, onSuccess, onError) {
 };
 
 window.logoutFirebase = function(onSuccess) {
-    goOnline(db);
+    try { goOffline(db); } catch (e) {}
     signOut(auth).then(function() { if(onSuccess) onSuccess(); });
 };
 
@@ -77,7 +76,6 @@ window.buatAkunAuthGuru = function(email, password, onSuccess, onError) {
     }).catch(function(err) { if(onError) onError(err); });
 };
 
-// Mengambil Parameter URL & Menentukan Jalur Database Multi-Guru Lebih Awal
 const urlParams = new URLSearchParams(window.location.search); 
 window.babAktif = urlParams.get('bab') || "home";
 
@@ -101,69 +99,103 @@ window.guruAktif = guruAktif;
 let basePath = "data_guru/" + guruAktif;
 
 // =========================================================================
-// MESIN HEMAT KONEKSI: REST API (0 SLOT), BURST MODE, & IDLE 5 MENIT
+// MESIN HEMAT KONEKSI & KUOTA DOWNLOAD: RAM CACHE + DEDUPLICATOR + REST API
 // =========================================================================
 window._burstOfflineTimer = null;
 window._activeWriteCount = 0;
 window._lastUserActivityTime = Date.now();
 window._isIdleDisconnected = false;
+window._ramCacheDB = window._ramCacheDB || {};
+window._inFlightGetRequests = window._inFlightGetRequests || {};
 
-// Putuskan koneksi WebSocket bawaan sejak detik pertama untuk non-admin (Siswa & Tamu = 0 Koneksi)
-if (statusSistem !== "admin") {
-    try { goOffline(db); } catch (e) {}
-}
+// Putuskan koneksi WebSocket sejak detik pertama (Semua baca/tulis memakai REST API = 0 Koneksi)
+try { goOffline(db); } catch (e) {}
 
 window.modeHematServerUjian = function(isOfflineMode) {
     try {
-        if (isOfflineMode) {
+        if (isOfflineMode || sessionStorage.getItem("statusLogin") !== "admin") {
             goOffline(db);
         } else {
             goOnline(db);
         }
-    } catch (e) {
-        console.warn("Pengaturan koneksi:", e);
-    }
+    } catch (e) {}
 };
 
-// Buka koneksi sesaat untuk menulis data, lalu otomatis putuskan kembali (Khusus Siswa/Tamu)
 window.mulaiOperasiTulisDB = function() {
     clearTimeout(window._burstOfflineTimer);
     window._activeWriteCount = (window._activeWriteCount || 0) + 1;
-    try { goOnline(db); } catch (e) {}
+    // Hanya izinkan WebSocket untuk Admin jika benar-benar diperlukan fallback
+    if (sessionStorage.getItem("statusLogin") === "admin") {
+        try { goOnline(db); } catch (e) {}
+    }
 };
 
 window.selesaiOperasiTulisDB = function(delayMs) {
     window._activeWriteCount = Math.max(0, (window._activeWriteCount || 1) - 1);
-    if (sessionStorage.getItem("statusLogin") === "admin" && !window._isIdleDisconnected) return;
-
     clearTimeout(window._burstOfflineTimer);
-    let tunggu = typeof delayMs === "number" ? delayMs : 2500;
+    let tunggu = typeof delayMs === "number" ? delayMs : 1500;
     window._burstOfflineTimer = setTimeout(function() {
-        if (window._activeWriteCount <= 0 && sessionStorage.getItem("statusLogin") !== "admin") {
+        if (window._activeWriteCount <= 0 && !window._liveMonitorSocketActive) {
             try { goOffline(db); } catch (e) {}
         }
     }, tunggu);
 };
 
-// JALUR BACA TANPA KUOTA KONEKSI + DUKUNGAN ETAG CACHE (HEMAT KUOTA DOWNLOAD)
+window.hapusCachePathDB = function(cleanPath) {
+    if (!cleanPath) return;
+    delete window._ramCacheDB[cleanPath];
+    try { sessionStorage.removeItem("rest_ttl_" + cleanPath); } catch (e) {}
+    Object.keys(window._ramCacheDB).forEach(function(k) {
+        if (cleanPath.indexOf(k) === 0 || k.indexOf(cleanPath) === 0) {
+            delete window._ramCacheDB[k];
+        }
+    });
+};
+
+// JALUR BACA SUPER CEPAT: RAM CACHE + IN-FLIGHT DEDUPLICATOR + HTTP CACHE
 window.bacaDataRestFirebase = async function(path, onSuccess, onError, opsiCache) {
     let cleanPath = String(path || "").replace(/^\/+|\/+$/g, "");
     let cacheKey = "rest_ttl_" + cleanPath;
-    let ttlMs = (opsiCache && opsiCache.ttlMs) ? opsiCache.ttlMs : 0;
+    let forceRefresh = Boolean(opsiCache && opsiCache.forceRefresh);
+    // Default cache minimal 90 detik di RAM agar klik berulang tidak menyedot kuota Download
+    let ttlMs = (opsiCache && typeof opsiCache.ttlMs === "number" && opsiCache.ttlMs > 0) ? opsiCache.ttlMs : 90000;
 
-    // Jika data masih hangat di memori lokal (belum lewat masa TTL), gunakan langsung (0 Byte Download!)
-    if (ttlMs > 0 && !opsiCache.forceRefresh) {
+    if (!forceRefresh) {
+        let ramHit = window._ramCacheDB[cleanPath];
+        if (ramHit && (Date.now() - ramHit.time < ttlMs)) {
+            if (onSuccess) onSuccess(ramHit.data);
+            return;
+        }
         try {
             let rawCached = sessionStorage.getItem(cacheKey);
             if (rawCached) {
                 let parsed = JSON.parse(rawCached);
                 if (parsed && (Date.now() - parsed.time < ttlMs)) {
+                    window._ramCacheDB[cleanPath] = parsed;
                     if (onSuccess) onSuccess(parsed.data);
                     return;
                 }
             }
         } catch (e) {}
     }
+
+    // Jika request ke path yang sama sedang berjalan, gabungkan antrean (Cegah Double Download)
+    if (window._inFlightGetRequests[cleanPath]) {
+        window._inFlightGetRequests[cleanPath].push({ onSuccess: onSuccess, onError: onError });
+        return;
+    }
+    window._inFlightGetRequests[cleanPath] = [{ onSuccess: onSuccess, onError: onError }];
+
+    let selesaikanAntrean = function(isOk, payloadOrErr) {
+        let list = window._inFlightGetRequests[cleanPath] || [];
+        delete window._inFlightGetRequests[cleanPath];
+        list.forEach(function(item) {
+            try {
+                if (isOk && item.onSuccess) item.onSuccess(payloadOrErr);
+                else if (!isOk && item.onError) item.onError(payloadOrErr);
+            } catch (e) {}
+        });
+    };
 
     let url = firebaseConfig.databaseURL + "/" + cleanPath + ".json";
     try {
@@ -173,30 +205,20 @@ window.bacaDataRestFirebase = async function(path, onSuccess, onError, opsiCache
                 if (token) url += "?auth=" + encodeURIComponent(token);
             } catch (e) {}
         }
-        // Gunakan "default" / ETag browser agar jika data di server tidak berubah, tidak menyedot kuota download
-        let res = await fetch(url, { cache: "no-cache" });
+        let res = await fetch(url, { cache: "default" });
         if (res.ok) {
             let data = await res.json();
-            if (ttlMs > 0 && data !== null) {
-                try { sessionStorage.setItem(cacheKey, JSON.stringify({ time: Date.now(), data: data })); } catch (e) {}
+            let entry = { time: Date.now(), data: data };
+            window._ramCacheDB[cleanPath] = entry;
+            if (data !== null) {
+                try { sessionStorage.setItem(cacheKey, JSON.stringify(entry)); } catch (e) {}
             }
-            if (onSuccess) onSuccess(data);
+            selesaikanAntrean(true, data);
             return;
         }
         throw new Error("REST status " + res.status);
     } catch (err) {
-        window.mulaiOperasiTulisDB();
-        get(ref(db, cleanPath)).then(function(snap) {
-            let val = snap.exists() ? snap.val() : null;
-            if (ttlMs > 0 && val !== null) {
-                try { sessionStorage.setItem(cacheKey, JSON.stringify({ time: Date.now(), data: val })); } catch (e) {}
-            }
-            if (onSuccess) onSuccess(val);
-            window.selesaiOperasiTulisDB(1500);
-        }).catch(function(e) {
-            if (onError) onError(e);
-            window.selesaiOperasiTulisDB(1500);
-        });
+        selesaikanAntrean(false, err);
     }
 };
 
@@ -370,11 +392,61 @@ window.addEventListener("beforeunload", function() {
     }
 });
 
+// JALUR BACA DAFTAR KEY RINGAN (?shallow=true) HANYA ~0.1 KB UNTUK CEK DAFTAR UJIAN SISWA
+window.bacaKeysShallowRestFirebase = async function(path, onSuccess, onError, opsiCache) {
+    let cleanPath = String(path || "").replace(/^\/+|\/+$/g, "");
+    let cacheKey = "rest_shallow_" + cleanPath;
+    let ttlMs = (opsiCache && opsiCache.ttlMs) ? opsiCache.ttlMs : 180000;
+
+    if (ttlMs > 0 && !(opsiCache && opsiCache.forceRefresh)) {
+        try {
+            let rawCached = sessionStorage.getItem(cacheKey);
+            if (rawCached) {
+                let parsed = JSON.parse(rawCached);
+                if (parsed && (Date.now() - parsed.time < ttlMs)) {
+                    if (onSuccess) onSuccess(parsed.data);
+                    return;
+                }
+            }
+        } catch (e) {}
+    }
+
+    let url = firebaseConfig.databaseURL + "/" + cleanPath + ".json?shallow=true";
+    try {
+        if (auth && auth.currentUser) {
+            try {
+                let token = await auth.currentUser.getIdToken(false);
+                if (token) url += "&auth=" + encodeURIComponent(token);
+            } catch (e) {}
+        }
+        let res = await fetch(url, { cache: "no-cache" });
+        if (res.ok) {
+            let data = await res.json();
+            if (ttlMs > 0 && data !== null) {
+                try { sessionStorage.setItem(cacheKey, JSON.stringify({ time: Date.now(), data: data })); } catch (e) {}
+            }
+            if (onSuccess) onSuccess(data);
+            return;
+        }
+        throw new Error("Shallow REST status " + res.status);
+    } catch (err) {
+        if (onError) onError(err);
+    }
+};
+
 // Pengiriman Nilai Ujian via REST PUT (0 Koneksi WebSocket + Anti-Bentrok 100+ Siswa)
 window.kirimNilaiUjianAmanKeDB = function(pathInfo, payload, onSuccess, onError) {
     let cleanSubPath = String(pathInfo || "").replace(/^\/+/, "");
     window.tulisDataRestFirebase(basePath + '/' + cleanSubPath, payload, "PUT", function() {
-        try { sessionStorage.removeItem("rest_ttl_" + basePath + "/admin_rekap_nilai"); } catch (e) {}
+        try {
+            sessionStorage.removeItem("rest_ttl_" + basePath + "/admin_rekap_nilai");
+            sessionStorage.removeItem("rest_ttl_" + basePath + "/" + cleanSubPath);
+            let parts = cleanSubPath.split("/");
+            if (parts.length >= 3) {
+                sessionStorage.removeItem("rest_shallow_" + basePath + "/admin_rekap_nilai/" + parts[1]);
+                sessionStorage.removeItem("rest_shallow_" + basePath + "/admin_rekap_nilai/" + parts[1] + "/" + parts[2]);
+            }
+        } catch (e) {}
         if (onSuccess) onSuccess();
     }, function(err) {
         if (onError) onError(err);
@@ -1268,26 +1340,36 @@ window._heavyListenersAttached = {
     adminBerat: false
 };
 
-window.pastikanListenerBankUjianAktif = function(forceRefresh) {
-    let isAdm = (sessionStorage.getItem("statusLogin") === "admin");
-    window.tarikDataRinganBerkalaRest(null, true);
+window._lastFetchTimeMap = window._lastFetchTimeMap || {};
 
-    // Jika Bank Ujian sudah dimuat di sesi ini dan bukan forceRefresh, tidak perlu unduh ulang!
-    if (!forceRefresh && window.adminBankUjianData && Object.keys(window.adminBankUjianData).length > 0 && !isAdm) {
+window.pastikanListenerBankUjianAktif = function(forceRefresh) {
+    let now = Date.now();
+    window.tarikDataRinganBerkalaRest(null, false);
+
+    // Cooldown 2 menit: jika Bank Ujian sudah ada di memori dan bukan forceRefresh, jangan unduh ulang!
+    if (!forceRefresh && window.adminBankUjianData && Object.keys(window.adminBankUjianData).length > 0 && (now - (window._lastFetchTimeMap.bankUjian || 0) < 120000)) {
         return;
     }
+    window._lastFetchTimeMap.bankUjian = now;
 
     window.bacaDataRestFirebase(basePath + '/admin_bank_ujian', function(val) {
         window.adminBankUjianData = val || {};
         if (typeof window.renderManajerUjian === "function" && document.getElementById('modal-manajer-ujian') && document.getElementById('modal-manajer-ujian').style.display === 'flex') {
             window.renderManajerUjian();
         }
-    }, null, { ttlMs: isAdm ? 0 : 300000, forceRefresh: Boolean(forceRefresh) });
+    }, null, { ttlMs: 300000, forceRefresh: Boolean(forceRefresh) });
 };
 
-// Tarik Rekap Nilai via REST On-Demand (Mencegah banjir download ratusan MB saat 35 siswa kumpul ujian bersamaan)
-window.muatRekapNilaiAdminRest = function() {
+window.muatRekapNilaiAdminRest = function(forceRefresh) {
     if (sessionStorage.getItem("statusLogin") !== "admin") return;
+    let now = Date.now();
+
+    // Cooldown 2 menit: cegah download berulang setiap ganti dropdown kelas/paket
+    if (!forceRefresh && window.adminRekapNilaiData && Object.keys(window.adminRekapNilaiData).length > 0 && (now - (window._lastFetchTimeMap.rekapNilai || 0) < 120000)) {
+        return;
+    }
+    window._lastFetchTimeMap.rekapNilai = now;
+
     window.bacaDataRestFirebase(basePath + '/admin_rekap_nilai', function(val) {
         window.adminRekapNilaiData = val || {};
         let modalRN = document.getElementById('modal-rekap-nilai');
@@ -1305,14 +1387,28 @@ window.muatRekapNilaiAdminRest = function() {
             window.muatFilterKognitifAdmin();
             window.renderTabelKognitifAdmin();
         }
-    });
+    }, null, { ttlMs: 120000, forceRefresh: Boolean(forceRefresh) });
 };
 
-window.pastikanListenerAdminBeratAktif = function() {
-    window.pastikanListenerBankUjianAktif(false);
-    window.muatRekapNilaiAdminRest();
+window.muatLiveMonitorRestSekali = function(forceRefresh) {
+    if (sessionStorage.getItem("statusLogin") !== "admin") return;
+    window.bacaDataRestFirebase(basePath + '/admin_live_monitor', function(val) {
+        window.adminLiveMonitorData = val || {};
+        if (typeof window.perbaruiBadgeNotifMonitor === "function") window.perbaruiBadgeNotifMonitor();
+        let modalMU = document.getElementById('modal-manajer-ujian');
+        let isMonitorOpen = (modalMU && modalMU.style.display === 'flex' && document.getElementById('tab-ujian-monitor') && document.getElementById('tab-ujian-monitor').style.display !== 'none');
+        if (isMonitorOpen && typeof window.renderIsiLiveMonitor === "function") {
+            window.renderIsiLiveMonitor();
+        }
+    }, null, { ttlMs: 15000, forceRefresh: Boolean(forceRefresh) });
+};
 
-    if (window._heavyListenersAttached.adminBerat) return;
+window.pastikanListenerAdminBeratAktif = function(forceRefresh) {
+    window.pastikanListenerBankUjianAktif(forceRefresh);
+    window.muatRekapNilaiAdminRest(forceRefresh);
+    window.muatLiveMonitorRestSekali(forceRefresh);
+
+    if (window._heavyListenersAttached.adminBerat && !forceRefresh) return;
     window._heavyListenersAttached.adminBerat = true;
 
     window.bacaDataRestFirebase(basePath + '/admin_absensi', function(val) {
@@ -1320,45 +1416,47 @@ window.pastikanListenerAdminBeratAktif = function() {
         if (typeof window.renderAbsensiAdmin === "function" && document.getElementById('modal-administrasi') && document.getElementById('modal-administrasi').style.display === 'flex') {
             window.renderAbsensiAdmin();
         }
-    });
+    }, null, { ttlMs: 180000, forceRefresh: Boolean(forceRefresh) });
 
     window.bacaDataRestFirebase(basePath + '/admin_agenda', function(val) {
         window.adminAgendaData = val || {};
         if (typeof window.renderAgendaAdmin === "function" && document.getElementById('modal-administrasi') && document.getElementById('modal-administrasi').style.display === 'flex') {
             window.renderAgendaAdmin();
         }
-    });
+    }, null, { ttlMs: 180000, forceRefresh: Boolean(forceRefresh) });
 
-    // Hanya Live Monitor (ukurannya sangat kecil < 10 KB) yang menggunakan onValue real-time untuk Admin
-    if (sessionStorage.getItem("statusLogin") === "admin") {
-        try { goOnline(db); } catch (e) {}
-        onValue(ref(db, basePath + '/admin_live_monitor'), function(snap) {
-            window.adminLiveMonitorData = snap.exists() ? snap.val() : {};
-            if (typeof window.perbaruiBadgeNotifMonitor === "function") window.perbaruiBadgeNotifMonitor();
-
+    // Polling ringan via REST hanya ketika modal Live Monitor sedang dibuka oleh Guru (0 Koneksi WebSocket!)
+    if (!window._liveMonitorPollInterval) {
+        window._liveMonitorPollInterval = setInterval(function() {
+            if (sessionStorage.getItem("statusLogin") !== "admin") return;
             let modalMU = document.getElementById('modal-manajer-ujian');
-            let isMonitorOpen = (modalMU && modalMU.style.display === 'flex' && document.getElementById('tab-ujian-monitor') && document.getElementById('tab-ujian-monitor').style.display !== 'none');
-            if (isMonitorOpen && typeof window.renderIsiLiveMonitor === "function") {
-                window.renderIsiLiveMonitor();
+            let tabMon = document.getElementById('tab-ujian-monitor');
+            if (modalMU && modalMU.style.display === 'flex' && tabMon && tabMon.style.display !== 'none') {
+                window.muatLiveMonitorRestSekali(true);
             }
-        });
+        }, 12000);
     }
 };
 
 if (sessionStorage.getItem("statusLogin") === "admin") {
     setTimeout(function() {
-        window.pastikanListenerAdminBeratAktif();
+        window.pastikanListenerAdminBeratAktif(false);
     }, 2500);
 }
 
+// Hapus #filter-rekap-kelas & #filter-rekap-paket dari pemicu klik agar memilih dropdown tidak memicu download ulang!
 document.addEventListener('click', function(e) {
-    let t = e.target.closest('[onclick*="modal-enter-ujian"], [onclick*="bukaModalMasukUjianSiswa"]');
+    let t = e.target.closest('[onclick*="modal-enter-ujian"]:not(.modal-overlay), [onclick*="bukaModalMasukUjianSiswa"]');
     if (t) window.pastikanListenerBankUjianAktif(false);
 
-    let adm = e.target.closest('#admin-menu-bar span, [onclick*="modal-rekap-nilai"], [onclick*="modal-manajer-ujian"], [onclick*="bukaModalAdministrasi"], [onclick*="bukaModalPerkembanganSiswa"], [onclick*="tab-ledger"], [onclick*="tab-remedial-admin"], [onclick*="bukaModalSpreadsheetNilai"], [onclick*="bukaModalRemedial"], #filter-rekap-kelas, #filter-rekap-paket');
+    let adm = e.target.closest('#admin-menu-bar span, [onclick*="modal-rekap-nilai"]:not(.modal-overlay), [onclick*="modal-manajer-ujian"]:not(.modal-overlay), [onclick*="bukaModalAdministrasi"], [onclick*="bukaModalPerkembanganSiswa"]');
     if (adm) {
-        window.pastikanListenerAdminBeratAktif();
-        if (typeof window.muatDataAfektifRest === "function") window.muatDataAfektifRest();
+        window.pastikanListenerAdminBeratAktif(false);
+        let now = Date.now();
+        if (typeof window.muatDataAfektifRest === "function" && (now - (window._lastFetchTimeMap.afektif || 0) > 120000)) {
+            window._lastFetchTimeMap.afektif = now;
+            window.muatDataAfektifRest();
+        }
     }
 }, true);
 
