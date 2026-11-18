@@ -2284,10 +2284,11 @@ window.startResizeFB = function(e, i) {
 };
 
 /* =========================================
-   FUNGSI KONTROL MODAL & POPUP (AUTO TOP-LAYER, SCROLL-LOCK, & BACK BUTTON HP)
+   FUNGSI KONTROL MODAL & POPUP (ANTI-BENTROK IOS & ANDROID)
    ========================================= */
 window.topModalZIndex = 5100;
 window._openModalStack = [];
+window._lastModalOpenTime = 0;
 
 window.sinkronkanKunciScrollModal = function() {
     let adaModalTerbuka = false;
@@ -2316,31 +2317,23 @@ window.bukaModal = function(id) {
     if (!el) return;
 
     let sudahTerbuka = (el.style.display === 'flex');
+    window._lastModalOpenTime = Date.now();
     window.topModalZIndex += 10;
     el.style.zIndex = window.topModalZIndex;
     el.style.display = 'flex';
 
-    // Pastikan dropdown navbar tertutup agar tidak menutupi modal di HP
     if (typeof window.closeDropdowns === 'function') {
         window.closeDropdowns();
     }
 
-    // Reset posisi scroll modal-body ke atas saat pertama dibuka agar tidak nyangkut di bawah
     if (!sudahTerbuka) {
         let bodyEl = el.querySelector('.modal-body');
         if (bodyEl) bodyEl.scrollTop = 0;
     }
 
-    window._openModalStack = window._openModalStack.filter(function(mId) { return mId !== id; });
+    window._openModalStack = (window._openModalStack || []).filter(function(mId) { return mId !== id; });
     window._openModalStack.push(id);
     window.sinkronkanKunciScrollModal();
-
-    // Tambahkan jejak history di HP agar tombol Back fisik menutup modal, bukan keluar dari aplikasi
-    if (!window.isStrictUjianActive && !sudahTerbuka) {
-        try {
-            window.history.pushState({ modalOpenId: id, bab: window.babAktif || 'home' }, '', window.location.href);
-        } catch (e) {}
-    }
 };
 
 window.tutupModal = function(id) {
@@ -2359,18 +2352,12 @@ window.tutupModalHasilQuiz = function() {
     window.tutupModal('modal-quiz-result');
 };
 
-// Tangkap tombol Back fisik di HP: jika ada modal terbuka, tutup modal paling atas terlebih dahulu
-window.addEventListener('popstate', function(e) {
-    if (window.isStrictUjianActive) return;
-    if (window._openModalStack && window._openModalStack.length > 0) {
-        let topId = window._openModalStack[window._openModalStack.length - 1];
-        let el = document.getElementById(topId);
-        if (el && el.style.display === 'flex') {
-            window.tutupModal(topId);
-            return;
-        }
+// Cegah semua link <a href="#"> yang memiliki onclick agar tidak memicu lompatan halaman di iOS/Android
+document.addEventListener('click', function(e) {
+    let a = e.target.closest ? e.target.closest('a[href="#"]') : null;
+    if (a && a.getAttribute('onclick')) {
+        e.preventDefault();
     }
-    window.sinkronkanKunciScrollModal();
 }, true);
 
 window.bukaWelcomePopup = function() { 
@@ -5712,13 +5699,22 @@ if (typeof window.bukaRuangLatihan === "function") {
     };
 }
 
-// 3. TOMBOL ZOOM LAYAR KESELURUHAN ALA GOOGLE CHROME (+ DAN - DI KANAN BAWAH)
+// 3. TOMBOL ZOOM LAYAR KESELURUHAN (OTOMATIS 100% DI HP AGAR TIDAK TER-ZOOM)
 window.currentTextZoomPct = parseInt(localStorage.getItem("user_text_zoom_pct") || "100", 10);
-if (isNaN(window.currentTextZoomPct) || window.currentTextZoomPct < 50 || window.currentTextZoomPct > 200) {
+if (isNaN(window.currentTextZoomPct) || window.currentTextZoomPct < 50 || window.currentTextZoomPct > 200 || window.innerWidth <= 768) {
     window.currentTextZoomPct = 100;
+    if (window.innerWidth <= 768) {
+        try { localStorage.removeItem("user_text_zoom_pct"); } catch (e) {}
+    }
 }
 
 window.terapkanZoomTeksGlobal = function(tampilkanInfo) {
+    if (window.innerWidth <= 768) {
+        window.currentTextZoomPct = 100;
+        document.documentElement.style.setProperty("--user-page-zoom", "1");
+        document.documentElement.style.setProperty("--user-font-scale", "1");
+        return;
+    }
     let scaleVal = (window.currentTextZoomPct / 100).toFixed(2);
     document.documentElement.style.setProperty("--user-page-zoom", scaleVal);
     document.documentElement.style.setProperty("--user-font-scale", "1");

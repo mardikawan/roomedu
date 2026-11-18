@@ -2867,11 +2867,11 @@ body:not(.mode-edit-aktif):not(.force-edit-mode) .vi-admin-only-btn {
 
 
 /* =========================================================================
-   ROMBAK BESAR UI/UX MOBILE-FIRST (ANTI-TERPOTONG, MODAL ANTI-NYANGKUT,
-   HEADER 2 BARIS ALA NATIVE APP, MY PET COMPACT, & CBT TOUCH-FRIENDLY)
+   ROMBAK BESAR UI/UX MOBILE-FIRST V2 (ANTI AUTO-ZOOM IPHONE, HEADER 4-GRID
+   TANPA TERPOTONG, DARK MODE CARD HEADER, & DOCK BAWAH ANTI-TUTUP MATERI)
    ========================================================================= */
 
-/* 1. KUNCI STRUKTUR FLEX MODAL GLOBAL AGAR TIDAK PERNAH NYANGKUT SAAT DI-SCROLL */
+/* 1. KUNCI STRUKTUR FLEX MODAL GLOBAL AGAR TIDAK PERNAH NYANGKUT */
 .modal-overlay {
     padding: 10px;
     box-sizing: border-box;
@@ -2905,13 +2905,25 @@ body:not(.mode-edit-aktif):not(.force-edit-mode) .vi-admin-only-btn {
     box-sizing: border-box;
 }
 
-/* Sembunyikan div kosong pada grid 3 tombol hasil latihan agar tombol tidak terjepit */
+/* Dark Mode pada Bar Judul Kartu Materi (Welcome / Materi Baru) agar tidak putih silau */
+body.dark-mode-active .block-collapse-bar {
+    background: #1e293b !important;
+    border-bottom-color: #334155 !important;
+}
+body.dark-mode-active .block-collapse-bar > div {
+    color: #f8fafc !important;
+}
+body.dark-mode-active .block-collapse-bar > button {
+    background: #334155 !important;
+    border-color: #475569 !important;
+    color: #f1f5f9 !important;
+}
+
 #quiz-result-adaptive-actions > div:empty,
 #bar-tombol-adaptif-bawah-ruang > div:empty {
     display: none !important;
 }
 
-/* Saat Ruang Ujian / Latihan atau Modal Terbuka, Sembunyikan Tombol Mengambang yang Mengganggu */
 body.strict-mode-active .fast-scroll-btns,
 body.strict-mode-active .mypet-floating-btn,
 body.modal-open-lock .fast-scroll-btns,
@@ -2919,45 +2931,57 @@ body.modal-open-lock .mypet-floating-btn {
     display: none !important;
 }
 
-/* 2. ATURAN KHUSUS LAYAR HP & TABLET KECIL (MAX-WIDTH: 768PX) */
+/* 2. TAMPILAN KHUSUS LAYAR HP (MAX-WIDTH: 768PX) */
 @media (max-width: 768px) {
 
-    /* Matikan CSS zoom pada modal di HP agar koordinat sentuh & tinggi layar 100% akurat */
-    .modal-overlay .modal-box,
-    .popup-welcome-box,
+    /* A. MATIKAN AUTO-ZOOM SAFARI IPHONE SAAT KLIK INPUT LOGIN & KUNCI ZOOM 100% */
+    #header-wrap,
+    #main-nav,
+    #admin-menu-bar,
+    .toolbar-wrapper,
+    #main-editor-wrapper,
     #ujian-strict-room > div,
-    #temporary-quiz-room > div {
+    #temporary-quiz-room > div,
+    .modal-overlay .modal-box,
+    .popup-welcome-box {
         zoom: 1 !important;
     }
 
-    /* --- A. HEADER 2 BARIS BERGAYA NATIVE APP (TIDAK PERLU GESER JUDUL) --- */
+    input[type="text"],
+    input[type="password"],
+    input[type="email"],
+    input[type="number"],
+    select,
+    textarea,
+    .input-box {
+        font-size: 16px !important; /* Wajib 16px agar iOS Safari tidak pernah auto-zoom saat mengetik */
+    }
+
+    /* B. HEADER 2 BARIS PROPORSIONAL (4 TOMBOL MUAT PENUH TANPA TERPOTONG) */
     .header-wrapper {
         display: flex !important;
         flex-direction: row !important;
         flex-wrap: wrap !important;
         align-items: center !important;
         justify-content: space-between !important;
-        padding: 10px 12px !important;
-        gap: 8px 10px !important;
+        padding: 10px 12px 8px 12px !important;
+        gap: 8px !important;
         overflow: visible !important;
     }
 
-    /* Baris 1 Kiri: Judul Aplikasi */
     .header-title {
         order: 1 !important;
-        font-size: 20px !important;
+        font-size: 19px !important;
         font-weight: 800 !important;
         text-align: left !important;
         margin: 0 !important;
         padding: 0 !important;
-        max-width: 52vw !important;
+        max-width: 50vw !important;
         white-space: nowrap !important;
         overflow: hidden !important;
         text-overflow: ellipsis !important;
-        flex-shrink: 1 !important;
     }
 
-    /* Baris 1 Kanan: Profil & Tombol Login / Logout */
     .header-right-actions {
         order: 2 !important;
         position: static !important;
@@ -2966,13 +2990,12 @@ body.modal-open-lock .mypet-floating-btn {
         display: flex !important;
         align-items: center !important;
         gap: 6px !important;
-        flex-shrink: 0 !important;
     }
 
     .header-profile-btn {
         padding: 3px 10px 3px 4px !important;
         font-size: 11px !important;
-        max-width: 135px !important;
+        max-width: 130px !important;
     }
 
     .header-profile-btn span {
@@ -2988,12 +3011,12 @@ body.modal-open-lock .mypet-floating-btn {
 
     #btn-login-utama,
     #btn-logout-utama {
-        padding: 6px 12px !important;
+        padding: 5px 12px !important;
         font-size: 11px !important;
-        border-radius: 20px !important;
+        border-radius: 18px !important;
     }
 
-    /* Baris 2 Penuh: Deretan Tombol Pintasan Siswa (Notifikasi, Check-in, Leaderboard, Nilai Saya, Install) */
+    /* Baris 2 Header: Susun tombol pintasan agar pas di layar & sinar notifikasi tidak kotak */
     .header-left-stack {
         order: 3 !important;
         position: static !important;
@@ -3001,106 +3024,208 @@ body.modal-open-lock .mypet-floating-btn {
         width: 100% !important;
         display: flex !important;
         flex-direction: row !important;
-        flex-wrap: nowrap !important;
-        overflow-x: auto !important;
-        -webkit-overflow-scrolling: touch !important;
+        flex-wrap: wrap !important;
+        justify-content: space-between !important;
         align-items: center !important;
-        gap: 6px !important;
-        padding: 4px 0 2px 0 !important;
-        border-top: 1px solid rgba(255, 255, 255, 0.14) !important;
-        scrollbar-width: none !important;
+        gap: 5px !important;
+        padding: 6px 0 2px 0 !important;
+        border-top: 1px solid rgba(255, 255, 255, 0.12) !important;
+        overflow: visible !important;
     }
 
-    .header-left-stack::-webkit-scrollbar {
-        display: none !important;
-    }
-
-    .header-left-stack .header-pill-row {
+    .header-left-stack .header-pill-row,
+    .header-left-stack > div {
         display: contents !important;
     }
 
     .header-pill-btn {
-        flex-shrink: 0 !important;
-        padding: 6px 11px !important;
-        font-size: 11px !important;
-        border-radius: 18px !important;
+        flex: 1 1 auto !important;
+        justify-content: center !important;
+        padding: 5px 7px !important;
+        font-size: 10.5px !important;
+        border-radius: 16px !important;
         white-space: nowrap !important;
+        min-width: 0 !important;
     }
 
-    /* --- B. NAVBAR MENU BAB MATERI --- */
+    /* Lembutkan animasi tombol Notifikasi di HP agar tidak membentuk kotak cahaya yang terpotong */
+    #btn-header-notif.notif-glow-active {
+        box-shadow: 0 0 0 2px #fde047, 0 2px 8px rgba(231, 76, 60, 0.5) !important;
+        transform: none !important;
+    }
+
+    /* C. NAVBAR MENU UTAMA (LATIHAN, UJIAN, HOME, KELAS) */
+    .navbar {
+        border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+    }
+
     .navbar ul#dynamic-navbar {
         flex-wrap: nowrap !important;
         overflow-x: auto !important;
         padding: 6px 10px !important;
-        gap: 4px !important;
+        gap: 6px !important;
     }
 
     .navbar a {
-        padding: 7px 11px !important;
+        padding: 6px 11px !important;
         font-size: 11.5px !important;
-        border-radius: 6px !important;
+        border-radius: 8px !important;
+        background: rgba(255, 255, 255, 0.06);
     }
 
-    /* --- C. MODAL ANTI-NYANGKUT & NYAMAN DISENTUH JARI --- */
-    .modal-overlay {
-        padding: 6px !important;
+    .navbar a.active {
+        background: rgba(241, 196, 15, 0.16) !important;
+        border-bottom: 2px solid #f1c40f !important;
+    }
+
+    /* D. PANGKAS JARAK KOSONG & RAPIKAN KARTU MATERI DI HP */
+    #main-editor-wrapper {
+        padding-top: 10px !important;
+        padding-bottom: 70px !important;
+    }
+
+    #blocks-container {
+        gap: 10px !important;
+        padding: 0 10px !important;
+    }
+
+    .block-wrapper {
+        padding-top: 2px !important;
+        padding-bottom: 2px !important;
+    }
+
+    .block-collapse-bar {
+        padding: 10px 14px !important;
+        gap: 8px !important;
+    }
+
+    .block-collapse-bar > div {
+        font-size: 13.5px !important;
+        line-height: 1.35 !important;
+    }
+
+    .block-collapse-bar > button {
+        width: 24px !important;
+        height: 24px !important;
+        font-size: 10px !important;
+        flex-shrink: 0 !important;
+    }
+
+    .content-block.a4-portrait-block,
+    .content-block.dynamic-content-block {
+        min-height: 80px !important;
+        padding: 14px 14px !important;
+        font-size: 13.5px !important;
+        line-height: 1.55 !important;
+    }
+
+    /* E. DOCK BAWAH TERPADU (MY PET & TOMBOL NAVIGASI TIDAK MENUTUPI TEKS MATERI) */
+    .bottom-breadcrumb-bar {
+        height: 46px !important;
+        padding: 0 10px !important;
+        background: rgba(15, 23, 42, 0.96) !important;
+        backdrop-filter: blur(8px) !important;
+        border-top: 1px solid rgba(255, 255, 255, 0.12) !important;
+        display: flex !important;
         align-items: center !important;
         justify-content: center !important;
+        z-index: 9000 !important;
+    }
+
+    #bottom-breadcrumb {
+        flex: 0 1 auto !important;
+        margin-left: 86px !important;
+        margin-right: 132px !important;
+        font-size: 10.5px !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        text-align: center !important;
+    }
+
+    /* Masukkan tombol My Pet ke sudut kiri dalam Dock Bawah */
+    .mypet-floating-btn {
+        left: 8px !important;
+        bottom: 7px !important;
+        height: 32px !important;
+        padding: 0 11px !important;
+        font-size: 11px !important;
+        border-radius: 16px !important;
+        box-shadow: none !important;
+        z-index: 9010 !important;
+    }
+
+    .mypet-float-icon {
+        font-size: 14px !important;
+    }
+
+    /* Susun 4 tombol bulat biru secara horizontal di sudut kanan dalam Dock Bawah */
+    .fast-scroll-btns {
+        right: 8px !important;
+        bottom: 7px !important;
+        flex-direction: row !important;
+        gap: 5px !important;
+        z-index: 9010 !important;
+    }
+
+    .fast-scroll-btns button {
+        width: 30px !important;
+        height: 30px !important;
+        font-size: 13px !important;
+        background: rgba(52, 152, 219, 0.25) !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        box-shadow: none !important;
+    }
+
+    #btn-zoom-in-global,
+    #btn-zoom-out-global {
+        display: none !important;
+    }
+
+    /* F. MODAL, PROFIL, LEADERBOARD, MY PET, & CBT DI HP */
+    .modal-overlay {
+        padding: 6px !important;
     }
 
     .modal-box {
         width: 100% !important;
         max-width: 96vw !important;
-        max-height: 91dvh !important;
-        height: auto !important;
+        max-height: 90dvh !important;
         border-radius: 14px !important;
-        margin: auto !important;
     }
 
-    /* Khusus modal berdimensi besar tetap punya tinggi proporsional di HP */
     #modal-my-pet .mypet-modal-box,
     #modal-manajer-ujian .modal-box,
     #modal-administrasi .modal-box,
     #modal-perkembangan-siswa .modal-box,
     #modal-koreksi-ujian .modal-box,
     #modal-spreadsheet-nilai .modal-box {
-        height: 91dvh !important;
-        max-height: 91dvh !important;
+        height: 90dvh !important;
+        max-height: 90dvh !important;
     }
 
     .modal-header {
         padding: 12px 14px !important;
-        gap: 8px !important;
     }
 
     .modal-header h3 {
         font-size: 15px !important;
-        line-height: 1.3 !important;
     }
 
-    /* Perbesar area sentuh tombol silang (Close) agar tidak pernah meleset di HP */
     .close-btn {
-        width: 32px !important;
-        height: 32px !important;
-        min-width: 32px !important;
-        min-height: 32px !important;
+        width: 30px !important;
+        height: 30px !important;
         border-radius: 50% !important;
         background: rgba(0, 0, 0, 0.08) !important;
         display: inline-flex !important;
         align-items: center !important;
         justify-content: center !important;
-        font-size: 16px !important;
-        flex-shrink: 0 !important;
+        font-size: 15px !important;
     }
 
     .modal-body {
         padding: 12px !important;
-    }
-
-    /* --- D. MODAL PROFIL SISWA & LEADERBOARD DI HP --- */
-    .profil-identity-card {
-        padding: 12px !important;
-        gap: 10px !important;
     }
 
     .profil-xp-summary-box {
@@ -3109,13 +3234,10 @@ body.modal-open-lock .mypet-floating-btn {
         display: flex !important;
         align-items: center !important;
         justify-content: space-between !important;
-        padding: 8px 14px !important;
     }
 
-    /* Cegah Admin Tools di Leaderboard menimpa nama siswa pada layar HP */
     #leaderboard-list-container > div {
         padding: 12px !important;
-        gap: 10px !important;
         flex-wrap: wrap !important;
     }
 
@@ -3127,58 +3249,19 @@ body.modal-open-lock .mypet-floating-btn {
         order: -1 !important;
     }
 
-    /* --- E. MY PET SANCTUARY (HABITAT, SHOP 2 KOLOM, & WARDROBE) DI HP --- */
-    .mypet-header {
-        padding: 10px 12px !important;
-        gap: 8px !important;
-    }
-
-    .mypet-header h3 {
-        font-size: 15px !important;
-    }
-
-    .mypet-xp-pill {
-        padding: 3px 8px !important;
-        flex-direction: row !important;
-        align-items: center !important;
-        gap: 6px !important;
-    }
-
-    .mypet-xp-pill strong {
-        font-size: 12px !important;
-    }
-
-    .mypet-tabs-bar {
-        padding: 6px 10px !important;
-        gap: 6px !important;
-    }
-
-    .mypet-tab-btn {
-        padding: 6px 12px !important;
-        font-size: 11px !important;
-    }
-
-    .mypet-body-container {
-        padding: 10px !important;
-    }
-
     .mypet-habitat-stage {
-        height: 205px !important;
-        margin-bottom: 10px !important;
+        height: 200px !important;
     }
 
     .mypet-detail-card {
         flex-direction: column !important;
         align-items: stretch !important;
         padding: 12px !important;
-        gap: 12px !important;
     }
 
     .mypet-detail-avatar-box {
         width: 100% !important;
-        min-height: 135px !important;
-        padding: 8px !important;
-        box-sizing: border-box !important;
+        min-height: 130px !important;
     }
 
     .mypet-detail-info-box {
@@ -3191,127 +3274,29 @@ body.modal-open-lock .mypet-floating-btn {
         gap: 8px !important;
     }
 
-    .mypet-shop-card {
-        padding: 10px 8px !important;
-    }
-
-    /* Wardrobe: Susun kartu preview pet di atas dan katalog baju di bawah secara utuh */
     #mypet-view-wardrobe > div {
         flex-direction: column !important;
         align-items: stretch !important;
-        gap: 12px !important;
     }
 
     #mypet-view-wardrobe > div > div:first-child {
         width: 100% !important;
-        box-sizing: border-box !important;
     }
 
-    #mypet-view-wardrobe > div > div:last-child {
-        min-width: 0 !important;
-        width: 100% !important;
-    }
-
-    /* --- F. RUANG UJIAN CBT, RUANG LATIHAN, & HASIL KUIS DI HP --- */
     #ujian-strict-room,
     #temporary-quiz-room {
-        padding: 60px 10px 95px 10px !important;
-    }
-
-    #ujian-timer-fixed {
-        top: 10px !important;
-        padding: 5px 16px !important;
-        font-size: 16px !important;
-    }
-
-    .btn-close-room {
-        top: 10px !important;
-        right: 10px !important;
-        padding: 6px 12px !important;
-        font-size: 11px !important;
-    }
-
-    .quiz-question-card {
-        padding: 14px 12px !important;
-        margin-bottom: 16px !important;
-        border-radius: 10px !important;
-    }
-
-    .quiz-question-text {
-        font-size: 14.5px !important;
-        line-height: 1.5 !important;
+        padding: 58px 10px 95px 10px !important;
     }
 
     .quiz-option-btn {
         min-height: 44px !important;
         padding: 10px 12px !important;
         font-size: 13.5px !important;
-        line-height: 1.4 !important;
-        display: flex !important;
-        align-items: center !important;
-        gap: 8px !important;
     }
 
-    /* Tombol Hasil Latihan Adaptif: Susun penuh 1 kolom di HP agar teks tidak pernah terpotong */
     #quiz-result-adaptive-actions,
     #bar-tombol-adaptif-bawah-ruang {
         grid-template-columns: 1fr !important;
         gap: 8px !important;
-    }
-
-    /* --- G. MINI-GAMES & FLOATING BUTTONS RAMPING DI HP --- */
-    .minigame-modal-box {
-        width: 96vw !important;
-    }
-
-    .minigame-header-bar {
-        padding: 10px 12px !important;
-        flex-wrap: wrap !important;
-    }
-
-    .minigame-stage-body {
-        padding: 12px 10px !important;
-        min-height: 230px !important;
-    }
-
-    .mg-memory-grid {
-        max-width: 270px !important;
-        gap: 6px !important;
-    }
-
-    .mg-whack-grid {
-        max-width: 250px !important;
-        gap: 8px !important;
-    }
-
-    /* Rampingkan tombol mengambang kanan bawah & sembunyikan tombol zoom +/- di HP */
-    .fast-scroll-btns {
-        right: 10px !important;
-        bottom: 42px !important;
-        gap: 6px !important;
-    }
-
-    .fast-scroll-btns button {
-        width: 34px !important;
-        height: 34px !important;
-        font-size: 14px !important;
-        opacity: 0.88;
-    }
-
-    #btn-zoom-in-global,
-    #btn-zoom-out-global {
-        display: none !important;
-    }
-
-    .mypet-floating-btn {
-        left: 10px !important;
-        bottom: 42px !important;
-        padding: 7px 13px !important;
-        font-size: 12px !important;
-    }
-
-    .bottom-breadcrumb-bar {
-        padding: 6px 12px !important;
-        font-size: 11px !important;
     }
 }
