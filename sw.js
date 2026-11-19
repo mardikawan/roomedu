@@ -17,9 +17,8 @@ const CORE_ASSETS = [
     './firebase-db.js'
 ];
 
-// 1. Saat pertama kali diinstal: simpan file kerangka aplikasi
+// 1. Saat versi baru diinstal: simpan file kerangka lalu tunggu persetujuan tombol Perbarui
 self.addEventListener('install', function(event) {
-    self.skipWaiting();
     event.waitUntil(
         caches.open(CACHE_NAME).then(function(cache) {
             return Promise.allSettled(
@@ -29,6 +28,13 @@ self.addEventListener('install', function(event) {
             );
         })
     );
+});
+
+// Dengarkan perintah dari tombol "Perbarui Sekarang" di layar aplikasi
+self.addEventListener('message', function(event) {
+    if (event.data && event.data.type === 'SKIP_WAITING') {
+        self.skipWaiting();
+    }
 });
 
 // 2. Saat versi baru aktif: bersihkan cache versi lama secara otomatis

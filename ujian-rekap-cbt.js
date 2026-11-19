@@ -4246,7 +4246,9 @@ window.pilihUjianNilaiSaya = function(pktKey) {
 
     if (boxBaris) boxBaris.style.display = "block";
     if (tbodyBaris) {
-        tbodyBaris.innerHTML = '<tr><td colspan="6" style="padding:18px; color:#2980b9; font-weight:bold;">⏳ Memuat data nilai ujian Anda...</td></tr>';
+        tbodyBaris.innerHTML = (typeof window.buatHTMLSkeleton === "function")
+            ? window.buatHTMLSkeleton("table-row", 6)
+            : '<tr><td colspan="6" style="padding:18px; color:#2980b9; font-weight:bold;">⏳ Memuat data nilai ujian Anda...</td></tr>';
     }
 
     let guruAktif = window.guruAktif || sessionStorage.getItem("guruTarget") || "mahardika";

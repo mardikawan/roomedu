@@ -3425,21 +3425,338 @@ document.addEventListener("DOMContentLoaded", function() {
 
 
 /* =========================================
-   MESIN INDEXED-DB UNTUK FILE LOKAL (0% BEBAN FIREBASE)
+   MESIN INDEXED-DB UNTUK FILE LOKAL & MODE BACA OFFLINE PER BAB
    ========================================= */
 window.initLocalDB = function() {
     return new Promise(function(resolve, reject) {
-        let req = indexedDB.open("MahardikaLocalDB", 1);
+        let req = indexedDB.open("MahardikaLocalDB", 2);
         req.onupgradeneeded = function(e) {
             let db = e.target.result;
             if (!db.objectStoreNames.contains("mediaFiles")) {
                 db.createObjectStore("mediaFiles", { keyPath: "id" });
+            }
+            if (!db.objectStoreNames.contains("offlineRooms")) {
+                db.createObjectStore("offlineRooms", { keyPath: "id" });
             }
         };
         req.onsuccess = function(e) { resolve(e.target.result); };
         req.onerror = function(e) { reject(e); };
     });
 };
+
+window.buatKeyOfflineBab = function(guru, slug) {
+    return (guru || window.guruAktif || "mahardika").toLowerCase() + "__" + (slug || window.babAktif || "home");
+};
+
+window.ambilJudulBabDariSlug = function(slug) {
+    let target = slug || window.babAktif || "home";
+    if (Array.isArray(window.pagesData)) {
+        let found = window.pagesData.find(function(p) { return p && p.slug === target; });
+        if (found && found.title) return found.title;
+    }
+    return target === "home" ? "Beranda (HOME)" : target.replace(/-/g, " ").toUpperCase();
+};
+
+window.simpanBabOfflineIdb = async function(guru, slug, dataObj) {
+    let db = await window.initLocalDB();
+    let payloadStr = JSON.stringify(dataObj || {});
+    let sizeKB = Math.max(1, Math.round((payloadStr.length * 2) / 1024));
+    let record = {
+        id: window.buatKeyOfflineBab(guru, slug),
+        guru: (guru || window.guruAktif || "mahardika").toLowerCase(),
+        slug: slug || "home",
+        title: window.ambilJudulBabDariSlug(slug),
+        savedAt: Date.now(),
+        sizeKB: sizeKB,
+        data: dataObj
+    };
+    return new Promise(function(resolve, reject) {
+        let tx = db.transaction("offlineRooms", "readwrite");
+        tx.objectStore("offlineRooms").put(record);
+        tx.oncomplete = function() { resolve(record); };
+        tx.onerror = function(err) { reject(err); };
+    });
+};
+
+window.muatBabOfflineIdb = async function(guru, slug) {
+    try {
+        let db = await window.initLocalDB();
+        let key = window.buatKeyOfflineBab(guru, slug);
+        return await new Promise(function(resolve) {
+            let tx = db.transaction("offlineRooms", "readonly");
+            let req = tx.objectStore("offlineRooms").get(key);
+            req.onsuccess = function(e) { resolve(e.target.result || null); };
+            req.onerror = function() { resolve(null); };
+        });
+    } catch (e) {
+        return null;
+    }
+};
+
+window.hapusBabOfflineIdb = async function(guru, slug) {
+    let db = await window.initLocalDB();
+    let key = window.buatKeyOfflineBab(guru, slug);
+    return new Promise(function(resolve, reject) {
+        let tx = db.transaction("offlineRooms", "readwrite");
+        tx.objectStore("offlineRooms").delete(key);
+        tx.oncomplete = function() { resolve(true); };
+        tx.onerror = function(err) { reject(err); };
+    });
+};
+
+window.ambilSemuaBabOfflineIdb = async function(guru) {
+    try {
+        let db = await window.initLocalDB();
+        let targetGuru = (guru || window.guruAktif || "mahardika").toLowerCase();
+        return await new Promise(function(resolve) {
+            let tx = db.transaction("offlineRooms", "readonly");
+            let req = tx.objectStore("offlineRooms").getAll();
+            req.onsuccess = function(e) {
+                let all = e.target.result || [];
+                let filtered = all.filter(function(item) { return item && item.guru === targetGuru; });
+                filtered.sort(function(a, b) { return (b.savedAt || 0) - (a.savedAt || 0); });
+                resolve(filtered);
+            };
+            req.onerror = function() { resolve([]); };
+        });
+    } catch (e) {
+        return [];
+    }
+};
+
+window.pastikanBarOfflineBabAda = function() {
+    let editorWrap = document.getElementById("main-editor-wrapper");
+    if (!editorWrap) return null;
+
+    let bar = document.getElementById("offline-bab-bar");
+    if (!bar) {
+        bar = document.createElement("div");
+        bar.id = "offline-bab-bar";
+        bar.className = "offline-bab-bar";
+        bar.innerHTML =
+            '<div class="offline-bab-status" id="offline-bab-status-text">' +
+                '<span class="offline-dot-online"></span> <span>Siap dibaca</span>' +
+            '</div>' +
+            '<div class="offline-bab-actions">' +
+                '<button type="button" id="btn-simpan-bab-offline" class="offline-pill-btn primary" onclick="window.toggleSimpanBabOffline()">📥 Simpan Offline</button>' +
+                '<button type="button" id="btn-sync-bab-online" class="offline-pill-btn secondary" style="display:none;" onclick="window.perbaruiBabOfflineDariServer()" title="Tarik versi terbaru dari server">🔄 Update</button>' +
+                '<button type="button" id="btn-pustaka-offline" class="offline-pill-btn library" onclick="window.bukaModalPustakaOffline()">📚 Offline (<span id="count-bab-offline">0</span>)</button>' +
+            '</div>';
+        editorWrap.insertBefore(bar, editorWrap.firstChild);
+    }
+    return bar;
+};
+
+window.perbaruiBarOfflineBab = async function() {
+    let bar = window.pastikanBarOfflineBabAda();
+    if (!bar) return;
+
+    let guru = window.guruAktif || "mahardika";
+    let slug = window.babAktif || "home";
+    let savedRecord = await window.muatBabOfflineIdb(guru, slug);
+    let semuaTersimpan = await window.ambilSemuaBabOfflineIdb(guru);
+
+    let countEl = document.getElementById("count-bab-offline");
+    if (countEl) countEl.innerText = String(semuaTersimpan.length);
+
+    let btnSimpan = document.getElementById("btn-simpan-bab-offline");
+    let btnSync = document.getElementById("btn-sync-bab-online");
+    let statusEl = document.getElementById("offline-bab-status-text");
+    let isOnline = navigator.onLine !== false;
+
+    if (savedRecord) {
+        let d = new Date(savedRecord.savedAt || Date.now());
+        let tglStr = String(d.getDate()).padStart(2, "0") + "/" + String(d.getMonth() + 1).padStart(2, "0") + " " +
+                     String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+
+        if (statusEl) {
+            statusEl.innerHTML = isOnline
+                ? '<span class="offline-dot-saved"></span> <span>Tersimpan Offline (' + tglStr + ')</span>'
+                : '<span class="offline-dot-offline"></span> <span>Mode Offline Aktif (' + tglStr + ')</span>';
+        }
+        if (btnSimpan) {
+            btnSimpan.className = "offline-pill-btn saved";
+            btnSimpan.innerHTML = "✅ Tersimpan (Hapus)";
+            btnSimpan.setAttribute("data-saved", "1");
+        }
+        if (btnSync) {
+            btnSync.style.display = isOnline ? "inline-flex" : "none";
+        }
+    } else {
+        if (statusEl) {
+            statusEl.innerHTML = isOnline
+                ? '<span class="offline-dot-online"></span> <span>Mode Online</span>'
+                : '<span class="offline-dot-offline"></span> <span>Sedang Offline</span>';
+        }
+        if (btnSimpan) {
+            btnSimpan.className = "offline-pill-btn primary";
+            btnSimpan.innerHTML = "📥 Simpan Offline";
+            btnSimpan.setAttribute("data-saved", "0");
+        }
+        if (btnSync) {
+            btnSync.style.display = "none";
+        }
+    }
+};
+
+window.toggleSimpanBabOffline = async function() {
+    let guru = window.guruAktif || "mahardika";
+    let slug = window.babAktif || "home";
+    let btn = document.getElementById("btn-simpan-bab-offline");
+    let sudahSimpan = btn && btn.getAttribute("data-saved") === "1";
+
+    if (sudahSimpan) {
+        window.tampilkanCustomDialog("confirm", 'Hapus materi "' + window.ambilJudulBabDariSlug(slug) + '" dari penyimpanan offline perangkat ini?', null, async function(isYes) {
+            if (!isYes) return;
+            await window.hapusBabOfflineIdb(guru, slug);
+            window.perbaruiBarOfflineBab();
+        });
+        return;
+    }
+
+    if (!window.contentBlocksData || window.contentBlocksData.length === 0) {
+        return alert("⚠️ Materi bab ini masih kosong atau sedang dimuat. Tunggu sebentar lalu coba lagi.");
+    }
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerText = "⏳ Menyimpan...";
+    }
+
+    try {
+        let payload = {
+            blocksObj: JSON.parse(JSON.stringify(window.contentBlocksData || [])),
+            floatingBoxesObj: JSON.parse(JSON.stringify(window.floatingBoxesData || [])),
+            leftBlocksObj: JSON.parse(JSON.stringify(window.homeLeftBlocksData || [])),
+            rightBlocksObj: JSON.parse(JSON.stringify(window.homeRightBlocksData || []))
+        };
+        let saved = await window.simpanBabOfflineIdb(guru, slug, payload);
+        if (btn) btn.disabled = false;
+        await window.perbaruiBarOfflineBab();
+        alert('✅ Materi "' + saved.title + '" berhasil disimpan offline (' + saved.sizeKB + ' KB).\n\nSekarang bab ini tetap dapat dibuka kapan saja meskipun tanpa internet!');
+    } catch (err) {
+        if (btn) btn.disabled = false;
+        await window.perbaruiBarOfflineBab();
+        alert("❌ Gagal menyimpan materi offline: " + (err ? err.message : "Memori perangkat penuh."));
+    }
+};
+
+window.perbaruiBabOfflineDariServer = function() {
+    if (navigator.onLine === false) {
+        return alert("📴 Perangkat sedang offline. Sambungkan internet untuk mengambil pembaruan materi terbaru.");
+    }
+    let slug = window.babAktif || "home";
+    let btnSync = document.getElementById("btn-sync-bab-online");
+    if (btnSync) {
+        btnSync.disabled = true;
+        btnSync.innerText = "⏳ Memperbarui...";
+    }
+    window._autoUpdateOfflineAfterFetch = slug;
+    if (typeof window.muatKontenHalaman === "function") {
+        window.muatKontenHalaman(slug, true);
+    }
+};
+
+window.pastikanModalPustakaOfflineAda = function() {
+    let modal = document.getElementById("modal-pustaka-offline");
+    if (modal) return modal;
+
+    modal = document.createElement("div");
+    modal.id = "modal-pustaka-offline";
+    modal.className = "modal-overlay";
+    modal.onclick = function(e) {
+        if (e.target === modal) window.tutupModal("modal-pustaka-offline");
+    };
+    modal.innerHTML =
+        '<div class="modal-box" style="width:520px; max-height:85dvh;">' +
+            '<div class="modal-header" style="background:#0b3954; color:#ffffff;">' +
+                '<div>' +
+                    '<h3 style="margin:0;">📚 Pustaka Baca Offline</h3>' +
+                    '<div style="font-size:11px; color:#bae6fd; margin-top:2px;">Materi tersimpan di perangkat ini (0 Byte kuota internet)</div>' +
+                '</div>' +
+                '<button type="button" class="close-btn" style="color:#ffffff;" onclick="window.tutupModal(\'modal-pustaka-offline\')">✕</button>' +
+            '</div>' +
+            '<div class="modal-body" style="background:#f8fafc; padding:14px;">' +
+                '<div id="list-pustaka-offline-container" style="display:flex; flex-direction:column; gap:10px;"></div>' +
+            '</div>' +
+        '</div>';
+    document.body.appendChild(modal);
+    return modal;
+};
+
+window.bukaModalPustakaOffline = async function() {
+    window.pastikanModalPustakaOfflineAda();
+    let listEl = document.getElementById("list-pustaka-offline-container");
+    let guru = window.guruAktif || "mahardika";
+    let daftar = await window.ambilSemuaBabOfflineIdb(guru);
+
+    if (!daftar || daftar.length === 0) {
+        listEl.innerHTML =
+            '<div style="text-align:center; padding:32px 16px; color:#64748b; background:#ffffff; border:1px dashed #cbd5e1; border-radius:10px;">' +
+                '<div style="font-size:36px; margin-bottom:8px;">📭</div>' +
+                '<div style="font-weight:800; color:#1e293b; margin-bottom:4px;">Belum Ada Bab Tersimpan Offline</div>' +
+                '<div style="font-size:12px;">Buka bab materi yang ingin dipelajari, lalu tekan tombol <b>📥 Simpan Offline</b> di atas materi.</div>' +
+            '</div>';
+    } else {
+        let totalKB = daftar.reduce(function(acc, item) { return acc + (Number(item.sizeKB) || 0); }, 0);
+        let totalStr = totalKB >= 1024 ? ((totalKB / 1024).toFixed(2) + " MB") : (totalKB + " KB");
+
+        let html =
+            '<div style="display:flex; justify-content:space-between; align-items:center; background:#e0f2fe; border:1px solid #7dd3fc; color:#0369a1; padding:8px 12px; border-radius:8px; font-size:11.5px; font-weight:700;">' +
+                '<span>📦 Total: ' + daftar.length + ' Bab Tersimpan</span>' +
+                '<span>💾 Ukuran: ' + totalStr + '</span>' +
+            '</div>';
+
+        daftar.forEach(function(item) {
+            let d = new Date(item.savedAt || Date.now());
+            let waktu = String(d.getDate()).padStart(2, "0") + "/" + String(d.getMonth() + 1).padStart(2, "0") + "/" + d.getFullYear() + " " +
+                        String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+            let safeSlug = String(item.slug || "").replace(/'/g, "\\'");
+            let isCurrent = (item.slug === (window.babAktif || "home"));
+
+            html +=
+                '<div class="offline-library-card">' +
+                    '<div style="flex:1; min-width:0; cursor:pointer;" onclick="window.bukaBabDariPustakaOffline(\'' + safeSlug + '\')">' +
+                        '<div style="font-weight:800; font-size:13.5px; color:#0b3954; word-break:break-word;">' +
+                            '📖 ' + (item.title || item.slug) +
+                            (isCurrent ? ' <span style="background:#dcfce7; color:#15803d; font-size:10px; padding:1px 6px; border-radius:8px; margin-left:4px;">Sedang Dibuka</span>' : '') +
+                        '</div>' +
+                        '<div style="font-size:11px; color:#64748b; margin-top:3px;">Disimpan: ' + waktu + ' • ' + (item.sizeKB || 1) + ' KB</div>' +
+                    '</div>' +
+                    '<div style="display:flex; gap:6px; flex-shrink:0;">' +
+                        '<button type="button" class="btn-action" style="background:#0b3954; width:auto; padding:6px 12px; font-size:11px; border-radius:16px;" onclick="window.bukaBabDariPustakaOffline(\'' + safeSlug + '\')">Buka</button>' +
+                        '<button type="button" style="background:#fee2e2; color:#dc2626; border:1px solid #fecaca; border-radius:8px; padding:6px 9px; font-size:12px; cursor:pointer; font-weight:bold;" onclick="window.hapusBabDariPustakaOffline(\'' + safeSlug + '\')" title="Hapus dari Offline">🗑️</button>' +
+                    '</div>' +
+                '</div>';
+        });
+
+        listEl.innerHTML = html;
+    }
+
+    window.bukaModal("modal-pustaka-offline");
+};
+
+window.bukaBabDariPustakaOffline = function(slug) {
+    window.tutupModal("modal-pustaka-offline");
+    if (typeof window.navigasiHalaman === "function") {
+        window.navigasiHalaman(null, slug);
+    } else if (typeof window.muatKontenHalaman === "function") {
+        window.muatKontenHalaman(slug, false);
+    }
+};
+
+window.hapusBabDariPustakaOffline = async function(slug) {
+    let guru = window.guruAktif || "mahardika";
+    await window.hapusBabOfflineIdb(guru, slug);
+    await window.perbaruiBarOfflineBab();
+    window.bukaModalPustakaOffline();
+};
+
+window.addEventListener("online", function() { window.perbaruiBarOfflineBab(); });
+window.addEventListener("offline", function() { window.perbaruiBarOfflineBab(); });
+document.addEventListener("DOMContentLoaded", function() {
+    setTimeout(window.perbaruiBarOfflineBab, 500);
+});
 
 window.simpanFileLokalIdb = async function(id, fileBlob) {
     try {
@@ -5470,18 +5787,94 @@ window.simpanNamaPanggilanProfil = function() {
     alert("✅ Nama panggilan berhasil diperbarui!");
 };
 
+window.konversiDataUrlKeBlobAvatar = function(dataUrl) {
+    let parts = String(dataUrl || "").split(",");
+    if (parts.length < 2) return null;
+    let mimeMatch = parts[0].match(/:(.*?);/);
+    let mime = mimeMatch ? mimeMatch[1] : "image/jpeg";
+    let bstr = atob(parts[1]);
+    let n = bstr.length;
+    let u8arr = new Uint8Array(n);
+    while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new Blob([u8arr], { type: mime });
+};
+
 window.prosesUploadFotoProfil = function(input) {
     let f = input.files && input.files[0];
     if (!f) return;
-    let uName = sessionStorage.getItem("username");
-    
-    // Kompres khusus Avatar Profil ke ukuran mikro 160x160px (~5 KB) agar menghemat 95% kuota Download Leaderboard
+    let rawU = sessionStorage.getItem("username") || "";
+    let cleanU = (typeof window.normalisasiUsernameSiswa === "function")
+        ? window.normalisasiUsernameSiswa(rawU)
+        : rawU.trim().toLowerCase();
+
+    let btnCam = input.nextElementSibling;
+    let oldIcon = btnCam ? btnCam.innerText : "📷";
+    if (btnCam) {
+        btnCam.disabled = true;
+        btnCam.innerText = "⏳";
+    }
+
+    let selesaiUI = function() {
+        if (btnCam) {
+            btnCam.disabled = false;
+            btnCam.innerText = oldIcon;
+        }
+        input.value = "";
+    };
+
+    let simpanUrlFotoKeProfil = function(urlFoto) {
+        let previewEl = document.getElementById('profil-img-preview');
+        if (previewEl) previewEl.src = urlFoto;
+
+        let lb = (window.leaderboardSiswaData && (window.leaderboardSiswaData[cleanU] || window.leaderboardSiswaData[rawU])) || null;
+        if (lb) {
+            lb.foto = urlFoto;
+            window.leaderboardSiswaData[cleanU] = lb;
+            if (rawU) window.leaderboardSiswaData[rawU] = lb;
+            if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
+                window.simpanLeaderboardSiswaKeDB(cleanU, lb);
+            }
+            window.perbaruiUIHeaderProfilSiswa();
+        }
+        selesaiUI();
+    };
+
+    // Jika file adalah GIF animasi: unggah langsung tanpa canvas agar animasi tetap bergerak!
+    let isGif = (f.type === 'image/gif') || (f.name && /\.gif$/i.test(f.name));
+    if (isGif) {
+        if (f.size > 2 * 1024 * 1024) {
+            selesaiUI();
+            return alert("⚠️ Ukuran file GIF terlalu besar (Maksimal 2 MB). Pilih GIF dengan ukuran lebih kecil ya!");
+        }
+        let previewEl = document.getElementById('profil-img-preview');
+        if (previewEl) previewEl.src = URL.createObjectURL(f);
+
+        if (typeof window.uploadFotoProfilKeStorage === "function") {
+            window.uploadFotoProfilKeStorage(f, cleanU, function(downloadUrl) {
+                simpanUrlFotoKeProfil(downloadUrl);
+                if (typeof window.tampilkanBadgeHadiahKuis === "function") {
+                    window.tampilkanBadgeHadiahKuis(null, "✅ Foto profil GIF animasi berhasil dipasang!");
+                }
+            }, function(err) {
+                console.warn("Gagal upload GIF ke Storage:", err);
+                selesaiUI();
+                alert("❌ Gagal mengunggah foto GIF. Pastikan koneksi stabil dan ukuran di bawah 2 MB.");
+            });
+        } else {
+            selesaiUI();
+            alert("⚠️ Layanan Firebase Storage belum siap. Muat ulang halaman lalu coba lagi.");
+        }
+        return;
+    }
+
     let reader = new FileReader();
     reader.onload = function(e) {
         let img = new Image();
         img.onload = function() {
             let canvas = document.createElement('canvas');
-            let MAX_AVATAR = 160;
+            let MAX_AVATAR = 200;
             let w = img.width, h = img.height;
             if (w > h) { if (w > MAX_AVATAR) { h *= MAX_AVATAR / w; w = MAX_AVATAR; } }
             else { if (h > MAX_AVATAR) { w *= MAX_AVATAR / h; h = MAX_AVATAR; } }
@@ -5489,20 +5882,137 @@ window.prosesUploadFotoProfil = function(input) {
             canvas.height = Math.round(h);
             let ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-            let dataUrl = canvas.toDataURL('image/jpeg', 0.65);
 
-            document.getElementById('profil-img-preview').src = dataUrl;
-            if (window.leaderboardSiswaData && window.leaderboardSiswaData[uName]) {
-                window.leaderboardSiswaData[uName].foto = dataUrl;
-                if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
-                    window.simpanLeaderboardSiswaKeDB(uName, window.leaderboardSiswaData[uName]);
+            // Tampilkan pratinjau lokal seketika agar terasa instan
+            let fallbackDataUrl = canvas.toDataURL('image/jpeg', 0.65);
+            let previewEl = document.getElementById('profil-img-preview');
+            if (previewEl) previewEl.src = fallbackDataUrl;
+
+            let prosesUnggahBlob = function(blob) {
+                if (blob && typeof window.uploadFotoProfilKeStorage === "function") {
+                    window.uploadFotoProfilKeStorage(blob, cleanU, function(downloadUrl) {
+                        simpanUrlFotoKeProfil(downloadUrl);
+                        if (typeof window.tampilkanBadgeHadiahKuis === "function") {
+                            window.tampilkanBadgeHadiahKuis(null, "✅ Foto profil tersimpan ringan di Cloud Storage!");
+                        }
+                    }, function(err) {
+                        console.warn("Storage upload gagal, memakai cadangan lokal:", err);
+                        simpanUrlFotoKeProfil(fallbackDataUrl);
+                    });
+                } else {
+                    simpanUrlFotoKeProfil(fallbackDataUrl);
                 }
-                window.perbaruiUIHeaderProfilSiswa();
+            };
+
+            if (canvas.toBlob) {
+                canvas.toBlob(function(blob) {
+                    prosesUnggahBlob(blob || window.konversiDataUrlKeBlobAvatar(fallbackDataUrl));
+                }, 'image/jpeg', 0.72);
+            } else {
+                prosesUnggahBlob(window.konversiDataUrlKeBlobAvatar(fallbackDataUrl));
             }
         };
+        img.onerror = selesaiUI;
         img.src = e.target.result;
     };
+    reader.onerror = selesaiUI;
     reader.readAsDataURL(f);
+};
+
+// Alat 1-Klik Admin untuk Memindahkan Foto Base64 Lama di Leaderboard ke Firebase Storage
+window.perbaruiBannerMigrasiFotoAdmin = function() {
+    let lbCont = document.getElementById('leaderboard-list-container');
+    if (!lbCont || !lbCont.parentElement) return;
+
+    let oldBanner = document.getElementById('admin-banner-migrasi-foto');
+    let isAdmin = (sessionStorage.getItem("statusLogin") === "admin") || (typeof window.isAdminSession === "function" && window.isAdminSession());
+    if (!isAdmin) {
+        if (oldBanner) oldBanner.remove();
+        return;
+    }
+
+    let rawMap = window.leaderboardSiswaData || {};
+    let daftarBase64 = Object.keys(rawMap).filter(function(k) {
+        let item = rawMap[k];
+        return item && typeof item.foto === "string" && item.foto.indexOf("data:image/") === 0;
+    });
+
+    if (daftarBase64.length === 0) {
+        if (oldBanner) oldBanner.remove();
+        return;
+    }
+
+    if (!oldBanner) {
+        oldBanner = document.createElement('div');
+        oldBanner.id = 'admin-banner-migrasi-foto';
+        oldBanner.style.cssText = 'background:#fef3c7; border:1.5px solid #f59e0b; border-radius:10px; padding:10px 14px; margin-bottom:12px; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;';
+        lbCont.parentElement.insertBefore(oldBanner, lbCont);
+    }
+
+    oldBanner.innerHTML =
+        '<div style="font-size:12px; color:#92400e; font-weight:700; flex:1; min-width:200px;">' +
+            '⚡ Ditemukan <b>' + daftarBase64.length + ' foto profil lama (Base64)</b> yang memberatkan kuota Download Realtime Database.' +
+        '</div>' +
+        '<button type="button" id="btn-migrasi-foto-storage" class="btn-action" style="background:#d97706; width:auto; padding:7px 14px; font-size:11.5px; border-radius:20px;" onclick="window.migrasiSemuaFotoBase64KeStorage()">☁️ Pindahkan Semua ke Storage</button>';
+};
+
+window.migrasiSemuaFotoBase64KeStorage = async function() {
+    if (typeof window.uploadFotoProfilKeStorage !== "function") {
+        return alert("⚠️ Mesin Firebase Storage belum siap. Silakan muat ulang halaman.");
+    }
+
+    let rawMap = window.leaderboardSiswaData || {};
+    let targetKeys = Object.keys(rawMap).filter(function(k) {
+        let item = rawMap[k];
+        return item && typeof item.foto === "string" && item.foto.indexOf("data:image/") === 0;
+    });
+
+    if (targetKeys.length === 0) {
+        window.perbaruiBannerMigrasiFotoAdmin();
+        return alert("✅ Seluruh foto profil sudah ringan (tidak ada lagi Base64 di Realtime Database)!");
+    }
+
+    let btn = document.getElementById('btn-migrasi-foto-storage');
+    if (btn) btn.disabled = true;
+
+    let berhasil = 0;
+    let gagal = 0;
+
+    for (let i = 0; i < targetKeys.length; i++) {
+        let uKey = targetKeys[i];
+        let item = rawMap[uKey];
+        if (btn) btn.innerText = '⏳ Memindahkan (' + (i + 1) + '/' + targetKeys.length + ')...';
+
+        let blob = window.konversiDataUrlKeBlobAvatar(item.foto);
+        if (!blob) {
+            gagal++;
+            continue;
+        }
+
+        await new Promise(function(resolve) {
+            window.uploadFotoProfilKeStorage(blob, uKey, function(downloadUrl) {
+                item.foto = downloadUrl;
+                if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
+                    window.simpanLeaderboardSiswaKeDB(uKey, item);
+                }
+                berhasil++;
+                resolve();
+            }, function(err) {
+                console.warn("Gagal migrasi foto " + uKey + ":", err);
+                gagal++;
+                resolve();
+            });
+        });
+    }
+
+    window.perbaruiBannerMigrasiFotoAdmin();
+    if (typeof window.renderTabelLeaderboard === "function") window.renderTabelLeaderboard();
+
+    if (gagal > 0 && berhasil === 0) {
+        alert("❌ Migrasi gagal (" + gagal + " akun). Pastikan Firebase Storage Rules sudah mengizinkan akses tulis ke folder profil_siswa.");
+    } else {
+        alert("✅ Selesai! " + berhasil + " foto profil berhasil dipindahkan ke Firebase Storage" + (gagal > 0 ? " (" + gagal + " gagal)" : "") + ". Kuota Download Leaderboard kini jauh lebih hemat!");
+    }
 };
 
 window.kirimVerifikasiGmailProfil = function() {
@@ -5597,12 +6107,27 @@ window.terapkanGantiKredensialProfil = function() {
     });
 };
 
-// 6. Mesin Papan Peringkat (Leaderboard Filterable)
+// 6. Mesin Papan Peringkat (Leaderboard Filterable dengan Skeleton Loading)
 window.bukaModalLeaderboard = function() {
     document.getElementById('lb-filter-cakupan').value = 'semua';
     document.getElementById('lb-box-subfilter').style.display = 'none';
-    window.renderTabelLeaderboard();
+
+    let cont = document.getElementById('leaderboard-list-container');
+    let belumPernahTarikPenuh = !window._lastFullLBFetchTime;
+    if (cont && belumPernahTarikPenuh && typeof window.buatHTMLSkeleton === 'function') {
+        cont.innerHTML = window.buatHTMLSkeleton('leaderboard', 5);
+    } else {
+        window.renderTabelLeaderboard();
+        if (typeof window.perbaruiBannerMigrasiFotoAdmin === 'function') window.perbaruiBannerMigrasiFotoAdmin();
+    }
+
     window.bukaModal('modal-leaderboard');
+    if (belumPernahTarikPenuh && typeof window.muatLeaderboardPenuhSekali === 'function') {
+        window.muatLeaderboardPenuhSekali(function() {
+            window.renderTabelLeaderboard();
+            if (typeof window.perbaruiBannerMigrasiFotoAdmin === 'function') window.perbaruiBannerMigrasiFotoAdmin();
+        }, false);
+    }
 };
 
 window.ubahFilterLeaderboard = function() {
@@ -6208,14 +6733,123 @@ window.perbaruiVisibilitasTombolPWA = function() {
     }
 };
 
-// 1. Daftarkan Service Worker saat halaman selesai dimuat
+// 1. Daftarkan Service Worker & Mesin Banner Update Otomatis PWA
+window._pwaRegistrationAktif = null;
+window._pwaRefreshingPage = false;
+window._lastPwaUpdateCheckMs = 0;
+
+window.tampilkanBannerUpdatePWA = function(reg) {
+    // Jangan pernah mengganggu siswa saat ruang ujian ketat sedang berjalan
+    if (window.isStrictUjianActive) return;
+    if (!reg || !reg.waiting) return;
+
+    window._pwaRegistrationAktif = reg;
+
+    let existing = document.getElementById('pwa-update-banner');
+    if (existing) {
+        existing.style.display = 'flex';
+        return;
+    }
+
+    let banner = document.createElement('div');
+    banner.id = 'pwa-update-banner';
+    banner.className = 'pwa-update-banner';
+    banner.innerHTML =
+        '<div class="pwa-update-info">' +
+            '<span class="pwa-update-icon">✨</span>' +
+            '<div class="pwa-update-text">' +
+                '<strong>Pembaruan Tersedia</strong>' +
+                '<span>Versi terbaru aplikasi siap dipasang.</span>' +
+            '</div>' +
+        '</div>' +
+        '<div class="pwa-update-actions">' +
+            '<button type="button" id="btn-pwa-apply-update" class="pwa-update-btn-now" onclick="window.terapkanUpdatePWA()">🔄 Perbarui</button>' +
+            '<button type="button" class="pwa-update-btn-close" onclick="window.tutupBannerUpdatePWA()" title="Tutup sementara">✕</button>' +
+        '</div>';
+
+    document.body.appendChild(banner);
+};
+
+window.tutupBannerUpdatePWA = function() {
+    let banner = document.getElementById('pwa-update-banner');
+    if (banner) banner.style.display = 'none';
+};
+
+window.terapkanUpdatePWA = function() {
+    if (window.isStrictUjianActive) return;
+
+    let reg = window._pwaRegistrationAktif;
+    let btn = document.getElementById('btn-pwa-apply-update');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerText = '⏳ Memperbarui...';
+    }
+
+    if (reg && reg.waiting) {
+        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+        // Pengaman jika browser tidak memicu controllerchange dalam 3 detik
+        setTimeout(function() {
+            if (!window._pwaRefreshingPage) {
+                window._pwaRefreshingPage = true;
+                window.location.reload();
+            }
+        }, 3000);
+    } else {
+        window.location.reload();
+    }
+};
+
+window.pantauUpdateServiceWorker = function(reg) {
+    if (!reg) return;
+    window._pwaRegistrationAktif = reg;
+
+    // Jika versi baru sudah selesai diunduh dan sedang menunggu
+    if (reg.waiting && navigator.serviceWorker.controller) {
+        window.tampilkanBannerUpdatePWA(reg);
+    }
+
+    // Tangkap ketika Service Worker baru mulai terdeteksi di latar belakang
+    reg.addEventListener('updatefound', function() {
+        let newWorker = reg.installing;
+        if (!newWorker) return;
+
+        newWorker.addEventListener('statechange', function() {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                window.tampilkanBannerUpdatePWA(reg);
+            }
+        });
+    });
+};
+
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', function() {
-        navigator.serviceWorker.register('./sw.js').then(function() {
+        navigator.serviceWorker.register('./sw.js').then(function(reg) {
+            window._lastPwaUpdateCheckMs = Date.now();
             window.perbaruiVisibilitasTombolPWA();
+            window.pantauUpdateServiceWorker(reg);
+
+            // Cek pembaruan otomatis saat siswa membuka kembali aplikasi (cooldown 10 menit)
+            document.addEventListener('visibilitychange', function() {
+                if (document.visibilityState === 'visible' && !window.isStrictUjianActive) {
+                    let now = Date.now();
+                    if (now - window._lastPwaUpdateCheckMs >= 600000) {
+                        window._lastPwaUpdateCheckMs = now;
+                        reg.update().catch(function() {});
+                    } else if (reg.waiting && navigator.serviceWorker.controller) {
+                        window.tampilkanBannerUpdatePWA(reg);
+                    }
+                }
+            });
         }).catch(function(err) {
             console.warn('Service Worker gagal dimuat:', err);
         });
+    });
+
+    // Muat ulang otomatis begitu Service Worker versi baru resmi mengambil alih
+    navigator.serviceWorker.addEventListener('controllerchange', function() {
+        if (window._pwaRefreshingPage || window.isStrictUjianActive) return;
+        window._pwaRefreshingPage = true;
+        window.location.reload();
     });
 }
 
@@ -6267,3 +6901,61 @@ window.klikInstallAplikasiPWA = async function() {
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(window.perbaruiVisibilitasTombolPWA, 800);
 });
+
+/* =========================================================================
+   9. GENERATOR SKELETON LOADING UNIVERSAL (MATERI, LEADERBOARD, & TABEL)
+   ========================================================================= */
+window.buatHTMLSkeleton = function(tipe, jumlah) {
+    let count = Math.max(1, parseInt(jumlah, 10) || 2);
+    let html = '';
+
+    if (tipe === 'materi') {
+        for (let i = 0; i < count; i++) {
+            html +=
+                '<div class="sk-materi-card">' +
+                    '<div class="sk-materi-head">' +
+                        '<div class="sk-box sk-circle-sm"></div>' +
+                        '<div class="sk-box sk-line" style="width:48%; height:16px;"></div>' +
+                    '</div>' +
+                    '<div class="sk-materi-body">' +
+                        '<div class="sk-box sk-line" style="width:94%;"></div>' +
+                        '<div class="sk-box sk-line" style="width:86%;"></div>' +
+                        '<div class="sk-box sk-line" style="width:72%;"></div>' +
+                        '<div class="sk-box sk-rect-media"></div>' +
+                        '<div class="sk-box sk-line" style="width:90%;"></div>' +
+                        '<div class="sk-box sk-line" style="width:62%;"></div>' +
+                    '</div>' +
+                '</div>';
+        }
+        return html;
+    }
+
+    if (tipe === 'leaderboard') {
+        for (let i = 0; i < count; i++) {
+            html +=
+                '<div class="sk-lb-card">' +
+                    '<div class="sk-box sk-circle-md"></div>' +
+                    '<div style="flex:1; display:flex; flex-direction:column; gap:8px;">' +
+                        '<div class="sk-box sk-line" style="width:55%; height:14px;"></div>' +
+                        '<div class="sk-box sk-line" style="width:38%; height:11px;"></div>' +
+                        '<div class="sk-box sk-line" style="width:70%; height:11px;"></div>' +
+                    '</div>' +
+                    '<div class="sk-box sk-pill-sm"></div>' +
+                '</div>';
+        }
+        return html;
+    }
+
+    if (tipe === 'table-row') {
+        let cols = Math.max(2, count);
+        html += '<tr class="sk-table-row">';
+        for (let c = 0; c < cols; c++) {
+            let lebar = c === 0 ? '75%' : '60%';
+            html += '<td style="padding:14px 10px;"><div class="sk-box sk-line" style="width:' + lebar + '; margin:0 auto;"></div></td>';
+        }
+        html += '</tr>';
+        return html;
+    }
+
+    return '<div class="sk-materi-card"><div class="sk-materi-body"><div class="sk-box sk-line" style="width:80%;"></div><div class="sk-box sk-line" style="width:60%;"></div></div></div>';
+};

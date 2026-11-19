@@ -1430,7 +1430,17 @@ window.bukaLaciMakanHabitat = false;
 // 1. RENDER TAB HABITAT (PANGGUNG HABITAT + KARTU INTERAKSI PET AKTIF)
 window.bukaLaciMakanHabitat = false;
 window.bukaLaciMainanHabitat = false;
+window.bukaLaciStikerHabitat = false;
 window.modeKunjunganPet = null; // Menyimpan username tuan rumah jika sedang berkunjung
+
+window.KATALOG_STIKER_PENYEMANGAT = [
+    { id: "stk_semangat", ikon: "🔥", teks: "Semangat belajarnya!", warna: "#ea580c", bg: "#fff7ed" },
+    { id: "stk_keren",    ikon: "🌟", teks: "Habitatmu keren banget!", warna: "#ca8a04", bg: "#fefce8" },
+    { id: "stk_imut",     ikon: "🐾", teks: "Pet kamu gemesin!", warna: "#db2777", bg: "#fdf2f8" },
+    { id: "stk_juara",    ikon: "🏆", teks: "Gas terus jadi juara!", warna: "#2563eb", bg: "#eff6ff" },
+    { id: "stk_hebat",    ikon: "💪", teks: "Kamu pasti bisa!", warna: "#16a34a", bg: "#f0fdf4" },
+    { id: "stk_teman",    ikon: "🤝", teks: "Sukses selalu ya!", warna: "#7c3aed", bg: "#f5f3ff" }
+];
 
 // GENERATOR ILUSTRASI VEKTOR SVG 2.5D UNTUK DEKORASI TAMAN (BUKAN EMOJI MENTAH)
 window.bangunSVGDeKorasiHabitat = function(decId) {
@@ -1791,10 +1801,19 @@ window.renderTabHabitatMyPet = function() {
         ? ('🏡 Sedang Berkunjung ke Habitat: <b style="color:#d97706;">' + (lb.namaLengkap || uName) + '</b>')
         : ('🏡 Sanctuary Alam Bebas (<b style="color:#16a34a;">' + ownedIds.length + ' Pet Tinggal Bersama</b>)');
 
+    let laciStikerHtml = (window.bukaLaciStikerHabitat && isVisitMode && typeof window.bangunHTMLLaciStikerHabitat === "function")
+        ? window.bangunHTMLLaciStikerHabitat(lb.namaLengkap || uName)
+        : '';
+
+    let papanStikerHtml = (typeof window.bangunHTMLPapanStikerHabitat === "function")
+        ? window.bangunHTMLPapanStikerHabitat(petData, isVisitMode)
+        : '';
+
     let tombolAksiUser = isVisitMode
-        ? '<div class="mypet-action-btns-grid" style="grid-template-columns: 1fr 1fr;">' +
+        ? '<div class="mypet-action-btns-grid visit-mode-3col">' +
             '<button type="button" class="mypet-act-btn btn-elus" onclick="window.aksiElusPetAktif()">🤚 Sapa & Elus</button>' +
-            '<button type="button" class="mypet-act-btn btn-makan" onclick="window.toggleLaciMakanHabitat()">🎁 Give Treat (Beri Makan)</button>' +
+            '<button type="button" class="mypet-act-btn btn-makan" onclick="window.toggleLaciMakanHabitat()">🎁 Beri Makan</button>' +
+            '<button type="button" class="mypet-act-btn btn-stiker" onclick="window.toggleLaciStikerHabitat()">💌 Kirim Stiker</button>' +
           '</div>'
         : '<div class="mypet-action-btns-grid">' +
             '<button type="button" class="mypet-act-btn btn-elus" onclick="window.aksiElusPetAktif()">🤚 Elus</button>' +
@@ -1818,7 +1837,7 @@ window.renderTabHabitatMyPet = function() {
             '<div id="mypet-interaction-toast" class="mypet-interaction-toast" style="display:none;"></div>' +
         '</div>' +
 
-        laciMakanHtml + laciMainanHtml +
+        laciMakanHtml + laciMainanHtml + laciStikerHtml +
 
         '<div class="mypet-detail-card">' +
             '<div id="mypet-detail-preview-box" class="mypet-detail-avatar-box" style="position:relative;" onclick="window.interaksiKlikPetDiHabitat(\'' + activeId + '\')">' +
@@ -1850,7 +1869,8 @@ window.renderTabHabitatMyPet = function() {
                 '</div>' +
                 tombolAksiUser +
             '</div>' +
-        '</div>';
+        '</div>' +
+        papanStikerHtml;
 };
 
 // 2. FUNGSI INTERAKSI PET (KLIK, ELUS + COOLDOWN, MAKAN, BERMAIN, GANTI NAMA)
@@ -1946,12 +1966,22 @@ window.toggleLaciMainanHabitat = function(forceState) {
     if (typeof forceState === "boolean") window.bukaLaciMainanHabitat = forceState;
     else window.bukaLaciMainanHabitat = !window.bukaLaciMainanHabitat;
     window.bukaLaciMakanHabitat = false;
+    window.bukaLaciStikerHabitat = false;
     window.renderTabHabitatMyPet();
 };
 
 window.toggleLaciMakanHabitat = function(forceState) {
     if (typeof forceState === "boolean") window.bukaLaciMakanHabitat = forceState;
     else window.bukaLaciMakanHabitat = !window.bukaLaciMakanHabitat;
+    window.bukaLaciMainanHabitat = false;
+    window.bukaLaciStikerHabitat = false;
+    window.renderTabHabitatMyPet();
+};
+
+window.toggleLaciStikerHabitat = function(forceState) {
+    if (typeof forceState === "boolean") window.bukaLaciStikerHabitat = forceState;
+    else window.bukaLaciStikerHabitat = !window.bukaLaciStikerHabitat;
+    window.bukaLaciMakanHabitat = false;
     window.bukaLaciMainanHabitat = false;
     window.renderTabHabitatMyPet();
 };
@@ -2035,6 +2065,10 @@ window.berikanMakananKePet = function(foodId) {
     pet.mood = Math.min(100, (Number(pet.mood) || 0) + tambahMood);
     pet.bondXp = (Number(pet.bondXp) || 0) + tambahBond;
     pet.lastUpdate = Date.now();
+
+    if (typeof window.catatProgresMisiHarian === "function") {
+        window.catatProgresMisiHarian("feed_pet", 1, !window.modeKunjunganPet);
+    }
 
     if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
         window.simpanLeaderboardSiswaKeDB(targetUser, targetLb);
@@ -2876,4 +2910,193 @@ window.lepasSemuaKostumPetAktif = function() {
         window.simpanLeaderboardSiswaKeDB(uName, lb);
     }
     window.renderTabWardrobeMyPet();
+};
+
+// =========================================================================
+// 7. MESIN STIKER PENYEMANGAT KUNJUNGAN HABITAT (ANTI-SPAM & 0 EXTRA READS)
+// =========================================================================
+window.ambilDaftarStikerHabitat = function(petData) {
+    if (!petData || !petData.guestStickers) return [];
+    let arr = Array.isArray(petData.guestStickers)
+        ? petData.guestStickers
+        : Object.values(petData.guestStickers || {});
+    return arr.filter(Boolean);
+};
+
+window.bangunHTMLLaciStikerHabitat = function(namaPemilik) {
+    let itemsHtml = "";
+    (window.KATALOG_STIKER_PENYEMANGAT || []).forEach(function(stk) {
+        itemsHtml +=
+            '<button type="button" class="mypet-sticker-pick-btn" style="background:' + stk.bg + '; border-color:' + stk.warna + ';" onclick="window.kirimStikerPenyemangatPet(\'' + stk.id + '\')">' +
+                '<span class="mypet-sticker-pick-icon">' + stk.ikon + '</span>' +
+                '<span class="mypet-sticker-pick-text" style="color:' + stk.warna + ';">' + stk.teks + '</span>' +
+            '</button>';
+    });
+
+    return (
+        '<div class="mypet-feed-drawer mypet-sticker-drawer">' +
+            '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; gap:8px;">' +
+                '<strong style="font-size:13px; color:#0b3954;">💌 Kirim Stiker Penyemangat untuk ' + (namaPemilik || 'Teman') + ' (+5 Mood Pet):</strong>' +
+                '<button type="button" onclick="window.toggleLaciStikerHabitat(false)" style="background:none; border:none; cursor:pointer; font-weight:bold; color:#64748b;">✕ Tutup</button>' +
+            '</div>' +
+            '<div class="mypet-sticker-grid">' + itemsHtml + '</div>' +
+        '</div>'
+    );
+};
+
+window.bangunHTMLPapanStikerHabitat = function(petData, isVisitMode) {
+    let daftar = window.ambilDaftarStikerHabitat(petData);
+
+    if (daftar.length === 0) {
+        return (
+            '<div class="mypet-guestbook-card">' +
+                '<div class="mypet-guestbook-head">' +
+                    '<span>💌 Papan Stiker Penyemangat (0)</span>' +
+                    (isVisitMode ? '<span style="font-size:11px; color:#0284c7; font-weight:700;">Jadilah yang pertama mengirim stiker!</span>' : '') +
+                '</div>' +
+                '<div style="text-align:center; padding:14px 8px; font-size:12px; color:#64748b;">' +
+                    (isVisitMode
+                        ? 'Belum ada stiker penyemangat di habitat ini. Ketuk tombol <b>💌 Kirim Stiker</b> di atas untuk memberi semangat!'
+                        : 'Belum ada stiker penyemangat dari teman. Kunjungi habitat teman lewat <b>🏆 Leaderboard ➔ 🏡 Visit</b> dan saling kirim stiker!') +
+                '</div>' +
+            '</div>'
+        );
+    }
+
+    let listHtml = "";
+    daftar.forEach(function(item, idx) {
+        let cfg = (window.KATALOG_STIKER_PENYEMANGAT || []).find(function(x) { return x.id === item.stickerId; }) || { warna: "#0b3954", bg: "#f8fafc" };
+        let badgeGuru = item.isGuru
+            ? ' <span style="background:#fef08a; color:#92400e; padding:1px 6px; border-radius:8px; font-size:9.5px; font-weight:800; border:1px solid #f59e0b;">👨‍🏫 Guru</span>'
+            : '';
+        let btnHapus = !isVisitMode
+            ? '<button type="button" class="mypet-guestbook-del" onclick="window.hapusStikerHabitat(' + idx + ')" title="Hapus stiker ini">✕</button>'
+            : '';
+
+        listHtml +=
+            '<div class="mypet-guestbook-item" style="background:' + cfg.bg + '; border-left:4px solid ' + cfg.warna + ';">' +
+                '<span class="mypet-guestbook-icon">' + (item.ikon || '💌') + '</span>' +
+                '<div style="flex:1; min-width:0;">' +
+                    '<div class="mypet-guestbook-msg" style="color:' + cfg.warna + ';">' + (item.teks || 'Semangat!') + '</div>' +
+                    '<div class="mypet-guestbook-meta">Dari <b>' + (item.pengirimNama || 'Teman') + '</b>' + badgeGuru + ' • ' + (item.waktu || '') + '</div>' +
+                '</div>' +
+                btnHapus +
+            '</div>';
+    });
+
+    return (
+        '<div class="mypet-guestbook-card">' +
+            '<div class="mypet-guestbook-head">' +
+                '<span>💌 Papan Stiker Penyemangat (' + daftar.length + ')</span>' +
+                '<span style="font-size:10.5px; color:#64748b; font-weight:600;">Maks. 12 stiker terbaru</span>' +
+            '</div>' +
+            '<div class="mypet-guestbook-list">' + listHtml + '</div>' +
+        '</div>'
+    );
+};
+
+window.kirimStikerPenyemangatPet = function(stickerId) {
+    let targetUser = window.modeKunjunganPet;
+    if (!targetUser) return;
+
+    let stat = sessionStorage.getItem("statusLogin");
+    let myRawUser = sessionStorage.getItem("username") || "";
+    let myKey = window.normalisasiKeySiswaPet ? window.normalisasiKeySiswaPet(myRawUser) : myRawUser.trim().toLowerCase();
+    let targetKey = window.normalisasiKeySiswaPet ? window.normalisasiKeySiswaPet(targetUser) : targetUser.trim().toLowerCase();
+
+    if ((stat !== "siswa" && stat !== "admin") || !myKey) {
+        return alert("🔒 Silakan login terlebih dahulu untuk mengirim stiker penyemangat!");
+    }
+
+    let targetLb = window.leaderboardSiswaData ? (window.leaderboardSiswaData[targetUser] || window.leaderboardSiswaData[targetKey]) : null;
+    if (!targetLb || !targetLb.myPetData) return;
+
+    let stk = (window.KATALOG_STIKER_PENYEMANGAT || []).find(function(x) { return x.id === stickerId; });
+    if (!stk) return;
+
+    let now = new Date();
+    let hariIni = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0") + "-" + String(now.getDate()).padStart(2, "0");
+    let waktuStr = String(now.getDate()).padStart(2, "0") + "/" + String(now.getMonth() + 1).padStart(2, "0") + " " +
+                   String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0");
+
+    let daftarSekarang = window.ambilDaftarStikerHabitat(targetLb.myPetData);
+    let lsKey = "stiker_pet_" + (window.guruAktif || "mahardika") + "_" + myKey + "_" + targetKey;
+
+    let sudahKirimHariIni = (localStorage.getItem(lsKey) === hariIni) || daftarSekarang.some(function(it) {
+        return it && it.pengirimKey === myKey && it.tanggalKey === hariIni;
+    });
+
+    if (sudahKirimHariIni && stat !== "admin") {
+        window.bukaLaciStikerHabitat = false;
+        window.renderTabHabitatMyPet();
+        window.tampilkanToastInteraksiPet("💌 Kamu sudah mengirim stiker ke habitat ini hari ini. Kirim lagi besok ya!");
+        return;
+    }
+
+    let isGuru = (stat === "admin");
+    let namaPengirim = myRawUser;
+    if (isGuru) {
+        namaPengirim = myRawUser.charAt(0).toUpperCase() + myRawUser.slice(1);
+    } else {
+        let myLb = window.leaderboardSiswaData ? (window.leaderboardSiswaData[myKey] || window.leaderboardSiswaData[myRawUser]) : null;
+        if (myLb) {
+            namaPengirim = (myLb.namaPanggilan || myLb.namaLengkap || myRawUser).trim();
+        }
+    }
+
+    let stikerBaru = {
+        id: "gs_" + Date.now(),
+        stickerId: stk.id,
+        ikon: stk.ikon,
+        teks: stk.teks,
+        pengirimKey: myKey,
+        pengirimNama: namaPengirim,
+        isGuru: isGuru,
+        tanggalKey: hariIni,
+        waktu: waktuStr
+    };
+
+    daftarSekarang.unshift(stikerBaru);
+    targetLb.myPetData.guestStickers = daftarSekarang.slice(0, 12);
+
+    // Tambah +5 Mood & +5 Bond pada pet aktif milik teman
+    let activeId = targetLb.myPetData.activePetId || Object.keys(targetLb.myPetData.ownedPets || {})[0];
+    if (activeId && targetLb.myPetData.ownedPets && targetLb.myPetData.ownedPets[activeId]) {
+        let petTeman = targetLb.myPetData.ownedPets[activeId];
+        petTeman.mood = Math.min(100, (Number(petTeman.mood) || 80) + 5);
+        petTeman.bondXp = (Number(petTeman.bondXp) || 0) + 5;
+    }
+
+    try { localStorage.setItem(lsKey, hariIni); } catch (e) {}
+
+    if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
+        window.simpanLeaderboardSiswaKeDB(targetKey, targetLb);
+    }
+
+    window.bukaLaciStikerHabitat = false;
+    window.renderTabHabitatMyPet();
+
+    window.triggerAnimasiPetSementara("#mypet-habitat-stage", "happy", 2200);
+    window.triggerAnimasiPetSementara("#mypet-detail-preview-box", "happy", 2200);
+    window.mainkanEfekVisualInteraksiPet(stk.ikon, "💌");
+    window.tampilkanToastInteraksiPet(stk.ikon + ' Stiker <b>"' + stk.teks + '"</b> terkirim! Mood pet teman +5!');
+};
+
+window.hapusStikerHabitat = function(idx) {
+    if (window.modeKunjunganPet) return;
+    let uName = sessionStorage.getItem("username");
+    let cleanKey = window.normalisasiKeySiswaPet ? window.normalisasiKeySiswaPet(uName) : uName.trim().toLowerCase();
+    let lb = window.pastikanStrukturDualXPDanPet(cleanKey);
+    if (!lb || !lb.myPetData) return;
+
+    let daftar = window.ambilDaftarStikerHabitat(lb.myPetData);
+    if (idx < 0 || idx >= daftar.length) return;
+
+    daftar.splice(idx, 1);
+    lb.myPetData.guestStickers = daftar;
+
+    if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
+        window.simpanLeaderboardSiswaKeDB(cleanKey, lb);
+    }
+    window.renderTabHabitatMyPet();
 };

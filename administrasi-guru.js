@@ -42,8 +42,10 @@ window.bukaTabAdmin = function(tabId, btnElement) {
     document.querySelectorAll('.tab-admin-btn').forEach(function(btn) {
         if (btn.id !== 'btn-kelola-akun') {
             btn.style.background = '#ffffff';
-            btn.style.color = (btn.innerText.indexOf('Remedial') !== -1) ? '#c0392b' : '#333';
-            btn.style.border = (btn.innerText.indexOf('Remedial') !== -1) ? '1px solid #f5b7b1' : '1px solid #ccc';
+            let isRemed = btn.innerText.indexOf('Remedial') !== -1;
+            let isArsip = btn.innerText.indexOf('Backup') !== -1;
+            btn.style.color = isRemed ? '#c0392b' : (isArsip ? '#16a085' : '#333');
+            btn.style.border = isRemed ? '1px solid #f5b7b1' : (isArsip ? '1px solid #a3e4d7' : '1px solid #ccc');
             btn.style.boxShadow = 'none';
         }
     });
@@ -62,6 +64,8 @@ window.bukaTabAdmin = function(tabId, btnElement) {
         window.renderDaftarNotifAdmin();
     } else if (tabId === 'tab-kelola-akun' && typeof window.renderDaftarAkunGuru === "function") {
         window.renderDaftarAkunGuru();
+    } else if (tabId === 'tab-backup-arsip' && typeof window.renderTabBackupArsipAdmin === "function") {
+        window.renderTabBackupArsipAdmin();
     }
 };
 
@@ -1814,3 +1818,485 @@ document.addEventListener("DOMContentLoaded", function() {
         obsAdm.observe(modalAdm, { attributes: true, attributeFilter: ['style'] });
     }
 });
+
+// =========================================================================
+// 6. MODUL BACKUP JSON, RESTORE CADANGAN, & ARSIP TUTUP SEMESTER
+// =========================================================================
+window.NODE_BACKUP_SEMESTER = [
+    "admin_data",
+    "admin_rekap_nilai",
+    "admin_ledger_meta",
+    "admin_absensi",
+    "admin_agenda",
+    "admin_afektif_siswa",
+    "admin_notifikasi",
+    "admin_live_monitor",
+    "admin_jadwal_kalender",
+    "admin_catatan_guru",
+    "admin_catatan_kelas"
+];
+
+window.NODE_BACKUP_PENUH = window.NODE_BACKUP_SEMESTER.concat([
+    "admin_bank_ujian",
+    "admin_bank_latihan",
+    "akun_siswa",
+    "leaderboard_siswa",
+    "pages_struktur",
+    "theme_settings",
+    "popup_pengumuman",
+    "materi_koleksi"
+]);
+
+window.OPSI_BERSIHKAN_SEMESTER = [
+    {
+        id: "rekap_nilai",
+        nodes: ["admin_rekap_nilai", "admin_ledger_meta"],
+        judul: "Rekap Nilai Ujian & Kolom Ledger",
+        ket: "Menghapus seluruh hasil ujian semester lama & kolom evaluasi Ledger agar kuota download turun drastis.",
+        checkedDefault: true
+    },
+    {
+        id: "absensi",
+        nodes: ["admin_absensi"],
+        judul: "Data Absensi Pertemuan & Catatan Harian",
+        ket: "Mereset tabel kehadiran pertemuan semester lalu (daftar nama kelas & siswa tetap utuh).",
+        checkedDefault: true
+    },
+    {
+        id: "agenda",
+        nodes: ["admin_agenda"],
+        judul: "Jurnal & Agenda Mengajar",
+        ket: "Mengosongkan catatan jurnal pertemuan kelas semester sebelumnya.",
+        checkedDefault: true
+    },
+    {
+        id: "afektif",
+        nodes: ["admin_afektif_siswa"],
+        judul: "Rekaman Check-in Afektif Siswa",
+        ket: "Membersihkan riwayat cerita refleksi harian siswa dari semester lalu.",
+        checkedDefault: true
+    },
+    {
+        id: "monitor_notif",
+        nodes: ["admin_live_monitor", "admin_notifikasi"],
+        judul: "Riwayat Live Monitor & Notifikasi Lama",
+        ket: "Membersihkan sisa pantauan ujian lama dan pengumuman lonceng yang sudah lewat.",
+        checkedDefault: true
+    }
+];
+
+window.formatUkuranMemoriArsip = function(dataObj) {
+    try {
+        let str = JSON.stringify(dataObj || {});
+        let bytes = str.length * 2;
+        if (bytes < 1024) return bytes + " B";
+        let kb = bytes / 1024;
+        if (kb < 1024) return kb.toFixed(1) + " KB";
+        return (kb / 1024).toFixed(2) + " MB";
+    } catch (e) {
+        return "0 KB";
+    }
+};
+
+window.sinkronkanMemoriLokalDariNodeArsip = function(nodeName, val) {
+    if (nodeName === "admin_data") window.adminData = val || {};
+    else if (nodeName === "admin_rekap_nilai") window.adminRekapNilaiData = val || {};
+    else if (nodeName === "admin_ledger_meta") window.adminLedgerMetaData = val || {};
+    else if (nodeName === "admin_absensi") window.adminAbsensiData = val || {};
+    else if (nodeName === "admin_agenda") window.adminAgendaData = val || {};
+    else if (nodeName === "admin_afektif_siswa") window.adminAfektifData = Array.isArray(val) ? val : Object.values(val || {});
+    else if (nodeName === "admin_notifikasi") window.adminNotifikasiData = Array.isArray(val) ? val : Object.values(val || {});
+    else if (nodeName === "admin_live_monitor") window.adminLiveMonitorData = val || {};
+    else if (nodeName === "admin_bank_ujian") window.adminBankUjianData = val || {};
+    else if (nodeName === "admin_bank_latihan") window.adminBankLatihanData = val || {};
+    else if (nodeName === "akun_siswa") window.akunSiswaData = val || {};
+    else if (nodeName === "leaderboard_siswa") window.leaderboardSiswaData = val || {};
+    else if (nodeName === "admin_jadwal_kalender") window.adminJadwalKalenderData = val || { excelHtml: "", events: {} };
+    else if (nodeName === "admin_catatan_guru") window.adminCatatanGuruData = Array.isArray(val) ? val : Object.values(val || {});
+    else if (nodeName === "admin_catatan_kelas") window.adminCatatanKelasData = val || {};
+    else if (nodeName === "pages_struktur" && Array.isArray(val)) window.pagesData = val;
+};
+
+window.segarkanSemuaTabelSetelahArsip = function() {
+    if (typeof window.renderAdminData === "function") window.renderAdminData();
+    if (typeof window.renderAbsensiAdmin === "function") window.renderAbsensiAdmin();
+    if (typeof window.renderAgendaAdmin === "function") window.renderAgendaAdmin();
+    if (typeof window.renderLedgerSiswa === "function") window.renderLedgerSiswa();
+    if (typeof window.renderRemedialTabAdmin === "function") window.renderRemedialTabAdmin();
+    if (typeof window.renderDaftarNotifAdmin === "function") window.renderDaftarNotifAdmin();
+    if (typeof window.renderRekapNilai === "function") window.renderRekapNilai();
+    if (typeof window.renderTabBackupArsipAdmin === "function") window.renderTabBackupArsipAdmin();
+};
+
+window.renderTabBackupArsipAdmin = function() {
+    let container = document.getElementById("tab-backup-arsip");
+    if (!container) return;
+
+    let guruAktif = (window.guruAktif || sessionStorage.getItem("username") || "mahardika").toLowerCase();
+    let lastBackupInfo = localStorage.getItem("last_backup_mahardika_" + guruAktif) || "Belum pernah backup di perangkat ini";
+
+    // Hitung ringkasan beban data saat ini
+    let jmlKelas = Object.keys(window.adminData || {}).length;
+    let jmlSiswa = 0;
+    Object.values(window.adminData || {}).forEach(function(arr) { jmlSiswa += (arr || []).length; });
+
+    let jmlEntriNilai = 0;
+    Object.values(window.adminRekapNilaiData || {}).forEach(function(klsObj) {
+        Object.values(klsObj || {}).forEach(function(pktObj) {
+            jmlEntriNilai += Object.keys(pktObj || {}).length;
+        });
+    });
+
+    let jmlAgenda = 0;
+    Object.values(window.adminAgendaData || {}).forEach(function(arr) { jmlAgenda += (arr || []).length; });
+
+    let jmlAfektif = Array.isArray(window.adminAfektifData) ? window.adminAfektifData.length : 0;
+    let jmlBankUjian = Object.keys(window.adminBankUjianData || {}).length;
+
+    let statsCards =
+        '<div class="arsip-stat-grid">' +
+            '<div class="arsip-stat-box">' +
+                '<div class="arsip-stat-label">📊 Rekap Nilai Ujian</div>' +
+                '<div class="arsip-stat-val">' + jmlEntriNilai + ' Entri</div>' +
+                '<div class="arsip-stat-size">~ ' + window.formatUkuranMemoriArsip(window.adminRekapNilaiData) + '</div>' +
+            '</div>' +
+            '<div class="arsip-stat-box">' +
+                '<div class="arsip-stat-label">📋 Absensi & Agenda</div>' +
+                '<div class="arsip-stat-val">' + jmlKelas + ' Kls / ' + jmlAgenda + ' Agd</div>' +
+                '<div class="arsip-stat-size">~ ' + window.formatUkuranMemoriArsip({ a: window.adminAbsensiData, b: window.adminAgendaData }) + '</div>' +
+            '</div>' +
+            '<div class="arsip-stat-box">' +
+                '<div class="arsip-stat-label">💚 Check-in Afektif</div>' +
+                '<div class="arsip-stat-val">' + jmlAfektif + ' Catatan</div>' +
+                '<div class="arsip-stat-size">~ ' + window.formatUkuranMemoriArsip(window.adminAfektifData) + '</div>' +
+            '</div>' +
+            '<div class="arsip-stat-box">' +
+                '<div class="arsip-stat-label">📦 Bank Ujian & Siswa</div>' +
+                '<div class="arsip-stat-val">' + jmlBankUjian + ' Paket / ' + jmlSiswa + ' Siswa</div>' +
+                '<div class="arsip-stat-size">~ ' + window.formatUkuranMemoriArsip(window.adminBankUjianData) + '</div>' +
+            '</div>' +
+        '</div>';
+
+    let cekListHtml = "";
+    window.OPSI_BERSIHKAN_SEMESTER.forEach(function(item) {
+        cekListHtml +=
+            '<label class="arsip-check-row">' +
+                '<input type="checkbox" class="chk-arsip-wipe" value="' + item.id + '" ' + (item.checkedDefault ? 'checked' : '') + '>' +
+                '<div>' +
+                    '<div class="arsip-check-title">' + item.judul + '</div>' +
+                    '<div class="arsip-check-desc">' + item.ket + '</div>' +
+                '</div>' +
+            '</label>';
+    });
+
+    let defaultLabelSem = "Semester_" + new Date().getFullYear();
+
+    container.innerHTML =
+        '<div class="arsip-header-strip">' +
+            '<div>' +
+                '<h4 style="margin:0; color:#0b3954; font-size:15px;">💾 Pusat Backup, Restore, & Arsip Semester</h4>' +
+                '<div style="font-size:11.5px; color:#64748b; margin-top:2px;">Cadangkan seluruh data semester ke file JSON sebelum membersihkan database agar kuota Firebase tetap ringan.</div>' +
+            '</div>' +
+            '<div class="arsip-last-badge">🕒 Backup Terakhir: <b>' + lastBackupInfo + '</b></div>' +
+        '</div>' +
+
+        statsCards +
+
+        '<div class="arsip-main-grid">' +
+            '<!-- KARTU 1: EXPORT BACKUP JSON -->' +
+            '<div class="arsip-card">' +
+                '<h5 class="arsip-card-title" style="color:#0b3954;">📥 1. Unduh Cadangan Data (Backup .JSON)</h5>' +
+                '<p class="arsip-card-desc">Beri nama label semester (misal: <b>Ganjil_2026_2027</b>) agar file arsip mudah ditemukan kembali di komputer atau Google Drive Anda.</p>' +
+                '<label style="font-size:11.5px; font-weight:700; color:#334155; display:block; margin-bottom:4px;">Label Nama Arsip Semester:</label>' +
+                '<input type="text" id="input-label-arsip-semester" class="input-box" value="' + defaultLabelSem + '" placeholder="Contoh: Ganjil_2026_2027" style="margin-bottom:12px; font-weight:700;">' +
+                '<div id="status-progres-backup" class="arsip-progress-box" style="display:none;"></div>' +
+                '<div style="display:flex; flex-direction:column; gap:8px;">' +
+                    '<button type="button" id="btn-backup-semester-ringan" class="btn-action" style="background:#16a085; padding:10px; font-size:12.5px;" onclick="window.eksekusiBackupSemesterJSON(false)">📦 Backup Data Semester (Nilai, Absensi, Agenda, Afektif)</button>' +
+                    '<button type="button" id="btn-backup-penuh-sistem" class="btn-action" style="background:#0b3954; padding:10px; font-size:12.5px;" onclick="window.eksekusiBackupSemesterJSON(true)">🗄️ Backup Penuh Seluruh Ruang Guru (+ Bank Soal & Materi)</button>' +
+                '</div>' +
+            '</div>' +
+
+            '<!-- KARTU 2: RESTORE / PULIHKAN CADANGAN -->' +
+            '<div class="arsip-card">' +
+                '<h5 class="arsip-card-title" style="color:#2980b9;">♻️ 2. Pulihkan Data dari File Backup (Restore)</h5>' +
+                '<p class="arsip-card-desc">Pilih file <b>.json</b> hasil backup sebelumnya untuk mengembalikan data nilai, absensi, agenda, bank soal, atau struktur kelas ke server Firebase.</p>' +
+                '<div class="arsip-restore-drop">' +
+                    '<div style="font-size:32px; margin-bottom:6px;">📂</div>' +
+                    '<div style="font-size:12px; color:#475569; margin-bottom:10px;">Format didukung: File arsip <b>.json</b> resmi dari Sistem Belajar Mahardika.</div>' +
+                    '<input type="file" id="input-file-restore-json" accept=".json,application/json" style="display:none;" onchange="window.prosesRestoreBackupJSON(this)">' +
+                    '<button type="button" id="btn-pilih-file-restore" class="btn-action" style="background:#2980b9; width:auto; padding:9px 18px; font-size:12px; border-radius:20px;" onclick="document.getElementById(\'input-file-restore-json\').click()">📤 Pilih File Backup (.JSON)</button>' +
+                '</div>' +
+                '<div id="status-progres-restore" class="arsip-progress-box" style="display:none; margin-top:10px;"></div>' +
+            '</div>' +
+        '</div>' +
+
+        '<!-- KARTU 3: TUTUP & BERSIHKAN SEMESTER LAMA -->' +
+        '<div class="arsip-card arsip-danger-card">' +
+            '<div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap; margin-bottom:10px;">' +
+                '<div>' +
+                    '<h5 class="arsip-card-title" style="color:#c0392b; margin-bottom:4px;">🧹 3. Tutup Semester & Bersihkan Data Lama (Hemat Kuota Firebase)</h5>' +
+                    '<p class="arsip-card-desc" style="margin:0;">Pilih data transaksi semester lalu yang ingin dikosongkan. <b>Bank Soal, Materi Pelajaran, Daftar Kelas, Akun Siswa, XP Leaderboard, & My Pet 100% AMAN dan tidak akan dihapus.</b></p>' +
+                '</div>' +
+            '</div>' +
+            '<div class="arsip-check-list">' + cekListHtml + '</div>' +
+            '<div id="status-progres-wipe" class="arsip-progress-box" style="display:none; margin-bottom:10px;"></div>' +
+            '<div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-top:12px; padding-top:12px; border-top:1px dashed #f5b7b1;">' +
+                '<span style="font-size:11.5px; color:#991b1b; font-weight:700;">🛡️ Sistem otomatis mengunduh file backup pengaman sebelum membersihkan data.</span>' +
+                '<button type="button" id="btn-eksekusi-tutup-semester" class="btn-action" style="background:#c0392b; width:auto; padding:10px 18px; font-size:12px; border-radius:8px;" onclick="window.eksekusiBersihkanSemesterLama()">🧹 Backup Otomatis & Bersihkan Data Terpilih</button>' +
+            '</div>' +
+        '</div>';
+};
+
+window.unduhObjekSebagaiFileJSON = function(objData, namaFile) {
+    let jsonStr = JSON.stringify(objData, null, 2);
+    let blob = new Blob([jsonStr], { type: "application/json;charset=utf-8;" });
+    let url = URL.createObjectURL(blob);
+    let a = document.createElement("a");
+    a.href = url;
+    a.download = namaFile;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function() { URL.revokeObjectURL(url); }, 2000);
+    return Math.max(1, Math.round(blob.size / 1024));
+};
+
+window.eksekusiBackupSemesterJSON = async function(modePenuh, silentOnSuccess) {
+    if (typeof window.tarikDataBackupGuruRest !== "function") {
+        alert("⚠️ Mesin backup REST Firebase belum termuat. Silakan muat ulang halaman.");
+        return false;
+    }
+
+    let guruAktif = (window.guruAktif || sessionStorage.getItem("username") || "mahardika").toLowerCase();
+    let inpLabel = document.getElementById("input-label-arsip-semester");
+    let rawLabel = (inpLabel && inpLabel.value.trim()) ? inpLabel.value.trim() : ("Semester_" + new Date().getFullYear());
+    let safeLabel = rawLabel.replace(/[^a-zA-Z0-9_-]/g, "_");
+
+    let statusEl = document.getElementById("status-progres-backup");
+    let btn1 = document.getElementById("btn-backup-semester-ringan");
+    let btn2 = document.getElementById("btn-backup-penuh-sistem");
+
+    if (btn1) btn1.disabled = true;
+    if (btn2) btn2.disabled = true;
+    if (statusEl) {
+        statusEl.style.display = "block";
+        statusEl.innerText = "⏳ Menyiapkan koneksi backup...";
+    }
+
+    try {
+        let daftarNode = modePenuh ? window.NODE_BACKUP_PENUH : window.NODE_BACKUP_SEMESTER;
+        let dataTerambil = await window.tarikDataBackupGuruRest(daftarNode, function(curr, total, namaNode) {
+            if (statusEl) {
+                statusEl.innerText = "⏳ Mengunduh data (" + curr + "/" + total + "): " + namaNode + "...";
+            }
+        });
+
+        let now = new Date();
+        let tglFile = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0") + "-" + String(now.getDate()).padStart(2, "0");
+        let waktuIndo = String(now.getDate()).padStart(2, "0") + "/" + String(now.getMonth() + 1).padStart(2, "0") + "/" + now.getFullYear() + " " +
+                        String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0");
+
+        let paketBackup = {
+            meta: {
+                app: "Mahardika",
+                version: "1.0",
+                mode: modePenuh ? "FULL_BACKUP" : "SEMESTER_ARCHIVE",
+                guru: guruAktif,
+                labelSemester: rawLabel,
+                exportedAt: now.toISOString(),
+                exportedLocal: waktuIndo
+            },
+            data: dataTerambil
+        };
+
+        let prefix = modePenuh ? "Backup_PENUH_Mahardika_" : "Arsip_Semester_Mahardika_";
+        let namaFile = prefix + guruAktif + "_" + safeLabel + "_" + tglFile + ".json";
+        let sizeKB = window.unduhObjekSebagaiFileJSON(paketBackup, namaFile);
+
+        localStorage.setItem("last_backup_mahardika_" + guruAktif, waktuIndo + " (" + sizeKB + " KB)");
+
+        if (statusEl) {
+            statusEl.innerText = "✅ File arsip selesai diunduh: " + namaFile + " (" + sizeKB + " KB)";
+        }
+        if (!silentOnSuccess) {
+            alert("✅ Backup berhasil diunduh!\n\nNama File: " + namaFile + "\nUkuran: " + sizeKB + " KB\n\nSimpan file JSON ini di folder arsip laptop atau Google Drive Anda.");
+            window.renderTabBackupArsipAdmin();
+        }
+        return true;
+    } catch (err) {
+        console.error("Backup error:", err);
+        if (statusEl) statusEl.innerText = "❌ Gagal membuat backup: " + (err ? err.message : "Koneksi terputus");
+        alert("❌ Gagal membuat backup: " + (err ? err.message : "Periksa koneksi internet Anda."));
+        return false;
+    } finally {
+        if (btn1) btn1.disabled = false;
+        if (btn2) btn2.disabled = false;
+    }
+};
+
+window.prosesRestoreBackupJSON = async function(inputElem) {
+    let file = inputElem.files && inputElem.files[0];
+    inputElem.value = "";
+    if (!file) return;
+
+    if (typeof window.tulisAtauHapusNodeAdminRest !== "function") {
+        return alert("⚠️ Mesin restore Firebase belum termuat. Silakan muat ulang halaman.");
+    }
+
+    let statusEl = document.getElementById("status-progres-restore");
+    let parsed = null;
+
+    try {
+        let teks = await file.text();
+        parsed = JSON.parse(teks);
+    } catch (e) {
+        return alert("❌ File tidak valid! Pastikan Anda memilih file .JSON hasil backup Sistem Belajar Mahardika.");
+    }
+
+    if (!parsed || !parsed.meta || parsed.meta.app !== "Mahardika" || !parsed.data || typeof parsed.data !== "object") {
+        return alert("❌ Format JSON tidak dikenali sebagai file cadangan Sistem Belajar Mahardika.");
+    }
+
+    let daftarNodeValid = Object.keys(parsed.data).filter(function(k) {
+        return window.NODE_BACKUP_PENUH.indexOf(k) !== -1 && parsed.data[k] !== undefined;
+    });
+
+    if (daftarNodeValid.length === 0) {
+        return alert("⚠️ File backup ini tidak mengandung data yang dapat dipulihkan.");
+    }
+
+    let pesanKonfirm =
+        "Pulihkan data dari file cadangan berikut?\n\n" +
+        "• Label Arsip: " + (parsed.meta.labelSemester || "-") + "\n" +
+        "• Tanggal Backup: " + (parsed.meta.exportedLocal || parsed.meta.exportedAt || "-") + "\n" +
+        "• Mode: " + (parsed.meta.mode || "-") + "\n" +
+        "• Jumlah Modul Data: " + daftarNodeValid.length + " kategori (" + daftarNodeValid.join(", ") + ")\n\n" +
+        "Data saat ini pada kategori tersebut akan ditimpa sesuai isi file backup.";
+
+    let jalankanRestore = async function() {
+        let btn = document.getElementById("btn-pilih-file-restore");
+        if (btn) btn.disabled = true;
+        if (statusEl) {
+            statusEl.style.display = "block";
+            statusEl.innerText = "⏳ Memulai pemulihan data...";
+        }
+
+        let sukses = 0;
+        let gagal = 0;
+
+        for (let i = 0; i < daftarNodeValid.length; i++) {
+            let nodeName = daftarNodeValid[i];
+            if (statusEl) {
+                statusEl.innerText = "⏳ Memulihkan (" + (i + 1) + "/" + daftarNodeValid.length + "): " + nodeName + "...";
+            }
+            try {
+                let val = parsed.data[nodeName];
+                await window.tulisAtauHapusNodeAdminRest(nodeName, val);
+                window.sinkronkanMemoriLokalDariNodeArsip(nodeName, val);
+                sukses++;
+            } catch (errNode) {
+                console.error("Gagal restore node " + nodeName + ":", errNode);
+                gagal++;
+            }
+        }
+
+        if (btn) btn.disabled = false;
+        window.segarkanSemuaTabelSetelahArsip();
+
+        if (statusEl) {
+            statusEl.innerText = "✅ Pemulihan selesai (" + sukses + " berhasil" + (gagal > 0 ? ", " + gagal + " gagal" : "") + ").";
+        }
+        alert("✅ Pemulihan data selesai!\n\nBerhasil dipulihkan: " + sukses + " kategori data" + (gagal > 0 ? "\nGagal: " + gagal : "") + ".");
+    };
+
+    if (typeof window.tampilkanCustomDialog === "function") {
+        window.tampilkanCustomDialog("confirm", pesanKonfirm, null, function(isYes) {
+            if (isYes) jalankanRestore();
+        });
+    } else if (confirm(pesanKonfirm)) {
+        jalankanRestore();
+    }
+};
+
+window.eksekusiBersihkanSemesterLama = function() {
+    let checkedIds = Array.from(document.querySelectorAll(".chk-arsip-wipe:checked")).map(function(el) {
+        return el.value;
+    });
+
+    if (checkedIds.length === 0) {
+        return alert("⚠️ Centang minimal 1 kategori data semester lama yang ingin dibersihkan.");
+    }
+
+    let nodesTarget = [];
+    let labelTarget = [];
+    window.OPSI_BERSIHKAN_SEMESTER.forEach(function(item) {
+        if (checkedIds.indexOf(item.id) !== -1) {
+            labelTarget.push("• " + item.judul);
+            item.nodes.forEach(function(n) {
+                if (nodesTarget.indexOf(n) === -1) nodesTarget.push(n);
+            });
+        }
+    });
+
+    let pesanPrompt =
+        "⚠️ KONFIRMASI TUTUP SEMESTER\n\n" +
+        "Data yang akan dibersihkan dari Firebase:\n" + labelTarget.join("\n") + "\n\n" +
+        "(Bank Soal, Materi, Daftar Kelas, Akun Siswa, XP, & My Pet TETAP AMAN).\n" +
+        "Sistem akan otomatis mengunduh file Backup Pengaman terlebih dahulu.\n\n" +
+        "Ketik kata ARSIP di bawah ini untuk melanjutkan:";
+
+    let lanjutSetelahKetik = async function(jawaban) {
+        if (jawaban === null) return;
+        if (String(jawaban).trim().toUpperCase() !== "ARSIP") {
+            return alert("❌ Konfirmasi dibatalkan. Anda harus mengetik kata ARSIP persis untuk membersihkan data semester.");
+        }
+
+        let btnWipe = document.getElementById("btn-eksekusi-tutup-semester");
+        let statusWipe = document.getElementById("status-progres-wipe");
+        if (btnWipe) btnWipe.disabled = true;
+        if (statusWipe) {
+            statusWipe.style.display = "block";
+            statusWipe.innerText = "⏳ Langkah 1/2: Mengunduh Backup Pengaman otomatis...";
+        }
+
+        // Langkah 1: Wajib backup pengaman terlebih dahulu
+        let backupOk = await window.eksekusiBackupSemesterJSON(false, true);
+        if (!backupOk) {
+            if (btnWipe) btnWipe.disabled = false;
+            if (statusWipe) statusWipe.innerText = "❌ Pembersihan dibatalkan karena backup pengaman gagal diunduh.";
+            return;
+        }
+
+        // Langkah 2: Kosongkan node semester terpilih di Firebase & memori lokal
+        let terhapus = 0;
+        for (let i = 0; i < nodesTarget.length; i++) {
+            let nName = nodesTarget[i];
+            if (statusWipe) {
+                statusWipe.innerText = "⏳ Langkah 2/2: Membersihkan (" + (i + 1) + "/" + nodesTarget.length + "): " + nName + "...";
+            }
+            try {
+                await window.tulisAtauHapusNodeAdminRest(nName, null);
+                window.sinkronkanMemoriLokalDariNodeArsip(nName, null);
+                terhapus++;
+            } catch (errWipe) {
+                console.error("Gagal membersihkan node " + nName + ":", errWipe);
+            }
+        }
+
+        if (btnWipe) btnWipe.disabled = false;
+        window.segarkanSemuaTabelSetelahArsip();
+
+        alert(
+            "✅ TUTUP SEMESTER SELESAI!\n\n" +
+            "• File Backup Pengaman (.JSON) sudah tersimpan di perangkat Anda.\n" +
+            "• " + terhapus + " kategori data semester lama telah dibersihkan dari Firebase.\n\n" +
+            "Database kini jauh lebih ringan dan siap untuk semester baru!"
+        );
+    };
+
+    if (typeof window.tampilkanCustomDialog === "function") {
+        window.tampilkanCustomDialog("prompt", pesanPrompt, "", lanjutSetelahKetik);
+    } else {
+        lanjutSetelahKetik(prompt(pesanPrompt));
+    }
+};

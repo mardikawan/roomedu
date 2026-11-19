@@ -1820,72 +1820,40 @@ window.masterTambahXPSiswa = function(jumlahPoin, sumber, rincianSoalArr) {
 
     if (poin <= 0) return;
 
-    let lb = window.sinkronkanObjekDualXPDanCoin(cleanKey);
-    if (!lb) return;
-
-    // Tambah serentak ke XP Leaderboard DAN Saldo Coin Pet/Shop
-    lb.xpTotal = (Number(lb.xpTotal) || 0) + poin;
-    lb.xp = lb.xpTotal;
-    lb.coin = (Number(lb.coin) || 0) + poin;
-    lb.xpTersedia = lb.coin;
-
-    if (Array.isArray(rincianSoalArr)) {
-        rincianSoalArr.forEach(function(item) {
-            if (!item || !item.sudahBenar) return;
-            let t = String(item.type || "PG").toUpperCase();
-            if (t === "MC" || t === "PG") lb.statSoal.PG = (Number(lb.statSoal.PG) || 0) + 1;
-            else if (t === "PGK") lb.statSoal.PGK = (Number(lb.statSoal.PGK) || 0) + 1;
-            else if (t === "IS" || t === "SHORT_ANSWER" || t === "ISIAN") lb.statSoal.IS = (Number(lb.statSoal.IS) || 0) + 1;
-            else if (t === "ESSAY" || t === "ESAI") lb.statSoal.Essay = (Number(lb.statSoal.Essay) || 0) + 1;
-        });
-    }
-
-    window.masterTambahXPSiswa = function(jumlahPoin, sumber, rincianSoalArr) {
-    let stat = sessionStorage.getItem("statusLogin");
-    let rawU = sessionStorage.getItem("username") || "";
-    let cleanKey = window.normalisasiUsernameSiswa(rawU);
-
-    if (stat !== "siswa" || !cleanKey || cleanKey === "sbd" || cleanKey === "tamu" || cleanKey === "mahardika") return;
-
-    let poin = Math.max(0, Number(jumlahPoin) || 0);
-
-    if (sumber === "latihan" && Array.isArray(rincianSoalArr) && rincianSoalArr.length > 0) {
-        let hitungSoal = 0;
-        rincianSoalArr.forEach(function(item) {
-            if (item && item.sudahBenar) {
-                hitungSoal += (typeof window.dapatkanPoinXPPerSoal === "function") ? window.dapatkanPoinXPPerSoal(item.type) : 10;
-            }
-        });
-        if (hitungSoal > 0) poin = hitungSoal;
-    }
-
-    if (poin <= 0) return;
-
-    // Izinkan membuat objek sementara meskipun leaderboardLoaded masih false agar XP latihan tidak pernah hangus
     let lb = window.sinkronkanObjekDualXPDanCoin(cleanKey, true);
     if (!lb) return;
 
-    // Catat akumulasi penambahan lokal jika server belum selesai dimuat
     if (!window.leaderboardLoaded || lb._createdBeforeLoad) {
         lb._pendingXPDelta = (Number(lb._pendingXPDelta) || 0) + poin;
         lb._pendingCoinDelta = (Number(lb._pendingCoinDelta) || 0) + poin;
     }
 
-    // Tambah serentak ke XP Leaderboard DAN Saldo Coin Pet/Shop
     lb.xpTotal = (Number(lb.xpTotal) || 0) + poin;
     lb.xp = lb.xpTotal;
     lb.coin = (Number(lb.coin) || 0) + poin;
     lb.xpTersedia = lb.coin;
 
+    let jmlSoalBenarBaru = 0;
     if (Array.isArray(rincianSoalArr)) {
         rincianSoalArr.forEach(function(item) {
             if (!item || !item.sudahBenar) return;
+            jmlSoalBenarBaru++;
             let t = String(item.type || "PG").toUpperCase();
             if (t === "MC" || t === "PG") lb.statSoal.PG = (Number(lb.statSoal.PG) || 0) + 1;
             else if (t === "PGK") lb.statSoal.PGK = (Number(lb.statSoal.PGK) || 0) + 1;
             else if (t === "IS" || t === "SHORT_ANSWER" || t === "ISIAN") lb.statSoal.IS = (Number(lb.statSoal.IS) || 0) + 1;
             else if (t === "ESSAY" || t === "ESAI") lb.statSoal.Essay = (Number(lb.statSoal.Essay) || 0) + 1;
         });
+    }
+
+    // Otomatis catat progres Misi Harian menumpang pada satu kali simpan DB yang sama
+    if (typeof window.catatProgresMisiHarian === "function") {
+        if (sumber === "checkin_harian") {
+            window.catatProgresMisiHarian("checkin", 1, true);
+        }
+        if (jmlSoalBenarBaru > 0 && String(sumber || "").indexOf("misi_harian") === -1) {
+            window.catatProgresMisiHarian("soal", jmlSoalBenarBaru, true);
+        }
     }
 
     if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
@@ -1897,7 +1865,9 @@ window.masterTambahXPSiswa = function(jumlahPoin, sumber, rincianSoalArr) {
     if (typeof window.perbaruiTampilanSaldoXPPet === "function") {
         window.perbaruiTampilanSaldoXPPet();
     }
-};
+    if (typeof window.perbaruiBadgeTombolMisiHarian === "function") {
+        window.perbaruiBadgeTombolMisiHarian();
+    }
 };
 
 window.tambahXPSiswa = window.masterTambahXPSiswa;
@@ -2449,3 +2419,390 @@ window.hitungDanUpdateBadgeNotifikasi = function() {
 setInterval(function() {
     window.perbaruiSinarTombolNotifikasi();
 }, 3000);
+
+// =========================================================================
+// 9. MODUL MISI HARIAN & LOGIN STREAK SISWA (0 EXTRA FIREBASE READS)
+// =========================================================================
+window.KONFIG_MISI_HARIAN = [
+    {
+        id: "checkin",
+        ikon: "😊",
+        judul: "Check-in Perasaan Hari Ini",
+        deskripsi: "Ceritakan kabarmu lewat tombol Check-in di header.",
+        target: 1,
+        hadiah: 30,
+        aksiTeks: "Check-in",
+        aksiFn: "window.tutupModal('modal-misi-harian'); window.bukaModalCheckinSiswa();"
+    },
+    {
+        id: "soal",
+        ikon: "🧠",
+        judul: "Jawab Benar 10 Soal",
+        deskripsi: "Kerjakan Latihan Mandiri, Kuis Materi, atau Ujian.",
+        target: 10,
+        hadiah: 80,
+        aksiTeks: "Latihan",
+        aksiFn: "window.tutupModal('modal-misi-harian'); window.bukaModal('modal-enter-latihan');"
+    },
+    {
+        id: "feed_pet",
+        ikon: "🍖",
+        judul: "Beri Makan Pet 1x",
+        deskripsi: "Rawat peliharaanmu di My Pet Sanctuary.",
+        target: 1,
+        hadiah: 40,
+        aksiTeks: "My Pet",
+        aksiFn: "window.tutupModal('modal-misi-harian'); window.bukaModalMyPet();"
+    }
+];
+
+window.dapatkanTanggalLokalYYYYMMDD = function(offsetHari) {
+    let d = new Date();
+    if (offsetHari) d.setDate(d.getDate() + offsetHari);
+    let yyyy = d.getFullYear();
+    let mm = String(d.getMonth() + 1).padStart(2, "0");
+    let dd = String(d.getDate()).padStart(2, "0");
+    return yyyy + "-" + mm + "-" + dd;
+};
+
+window.ambilAtauInisialisasiMisiSiswa = function(simpanJikaBerubah) {
+    let stat = sessionStorage.getItem("statusLogin");
+    let rawU = sessionStorage.getItem("username") || "";
+    let cleanKey = window.normalisasiUsernameSiswa ? window.normalisasiUsernameSiswa(rawU) : rawU.trim().toLowerCase();
+
+    let hariIni = window.dapatkanTanggalLokalYYYYMMDD(0);
+    let kemarin = window.dapatkanTanggalLokalYYYYMMDD(-1);
+
+    // Pratinjau aman jika dibuka oleh Admin
+    if (stat === "admin") {
+        return {
+            isPreviewAdmin: true,
+            tanggal: hariIni,
+            streak: 7,
+            bestStreak: 14,
+            lastStreakDate: hariIni,
+            progres: { checkin: 1, soal: 6, feed_pet: 0 },
+            claimed: { checkin: false, soal: false, feed_pet: false, all: false }
+        };
+    }
+
+    if (stat !== "siswa" || !cleanKey || cleanKey === "sbd" || cleanKey === "tamu") return null;
+
+    let lb = (typeof window.sinkronkanObjekDualXPDanCoin === "function")
+        ? window.sinkronkanObjekDualXPDanCoin(cleanKey, false)
+        : (window.leaderboardSiswaData ? window.leaderboardSiswaData[cleanKey] : null);
+    if (!lb) return null;
+
+    let adaPerubahan = false;
+    let streakNaikBaru = false;
+
+    if (!lb.misiHarian || typeof lb.misiHarian !== "object") {
+        lb.misiHarian = {
+            tanggal: hariIni,
+            streak: 0,
+            bestStreak: 0,
+            lastStreakDate: "",
+            progres: { checkin: 0, soal: 0, feed_pet: 0 },
+            claimed: { checkin: false, soal: false, feed_pet: false, all: false }
+        };
+        adaPerubahan = true;
+    }
+
+    let m = lb.misiHarian;
+    if (!m.progres) m.progres = { checkin: 0, soal: 0, feed_pet: 0 };
+    if (!m.claimed) m.claimed = { checkin: false, soal: false, feed_pet: false, all: false };
+
+    // 1. Reset misi otomatis setiap berganti hari baru
+    if (m.tanggal !== hariIni) {
+        m.tanggal = hariIni;
+        m.progres = { checkin: 0, soal: 0, feed_pet: 0 };
+        m.claimed = { checkin: false, soal: false, feed_pet: false, all: false };
+        adaPerubahan = true;
+    }
+
+    // 2. Hitung Login Streak Beruntun
+    if (m.lastStreakDate !== hariIni) {
+        if (m.lastStreakDate === kemarin) {
+            m.streak = (Number(m.streak) || 0) + 1;
+        } else {
+            m.streak = 1;
+        }
+        m.lastStreakDate = hariIni;
+        m.bestStreak = Math.max(Number(m.bestStreak) || 0, m.streak);
+        adaPerubahan = true;
+        streakNaikBaru = true;
+    }
+
+    // 3. Sinkronkan otomatis jika hari ini siswa sudah sempat Check-in
+    if (typeof window.apakahSudahCheckinHariIni === "function" && window.apakahSudahCheckinHariIni() && (Number(m.progres.checkin) || 0) < 1) {
+        m.progres.checkin = 1;
+        adaPerubahan = true;
+    }
+
+    if (adaPerubahan && simpanJikaBerubah && typeof window.simpanLeaderboardSiswaKeDB === "function") {
+        window.simpanLeaderboardSiswaKeDB(cleanKey, lb);
+    }
+
+    if (streakNaikBaru && !window._streakToastShownToday && typeof window.tampilkanBadgeHadiahKuis === "function") {
+        window._streakToastShownToday = true;
+        setTimeout(function() {
+            window.tampilkanBadgeHadiahKuis(null, "🔥 Login Streak Hari ke-" + m.streak + "! Cek Misi Harianmu!");
+        }, 1400);
+    }
+
+    return m;
+};
+
+window.catatProgresMisiHarian = function(idMisi, tambahJumlah, skipSave) {
+    let m = window.ambilAtauInisialisasiMisiSiswa(false);
+    if (!m || m.isPreviewAdmin) return;
+
+    let cfg = window.KONFIG_MISI_HARIAN.find(function(x) { return x.id === idMisi; });
+    if (!cfg) return;
+
+    let lama = Number(m.progres[idMisi]) || 0;
+    let baru = Math.min(cfg.target, lama + (Number(tambahJumlah) || 1));
+    if (baru === lama) return;
+
+    m.progres[idMisi] = baru;
+
+    if (!skipSave) {
+        let rawU = sessionStorage.getItem("username") || "";
+        let cleanKey = window.normalisasiUsernameSiswa ? window.normalisasiUsernameSiswa(rawU) : rawU.trim().toLowerCase();
+        let lb = window.leaderboardSiswaData ? window.leaderboardSiswaData[cleanKey] : null;
+        if (lb && typeof window.simpanLeaderboardSiswaKeDB === "function") {
+            window.simpanLeaderboardSiswaKeDB(cleanKey, lb);
+        }
+    }
+
+    window.perbaruiBadgeTombolMisiHarian();
+    if (lama < cfg.target && baru >= cfg.target && typeof window.tampilkanBadgeHadiahKuis === "function") {
+        window.tampilkanBadgeHadiahKuis(null, "🎯 Misi '" + cfg.judul + "' selesai! Klaim +" + cfg.hadiah + " XP & Coin di menu Misi!");
+    }
+
+    let modal = document.getElementById("modal-misi-harian");
+    if (modal && modal.style.display === "flex") {
+        window.renderIsiModalMisiHarian();
+    }
+};
+
+window.hitungJumlahHadiahMisiSiapKlaim = function(m) {
+    if (!m) return 0;
+    let siap = 0;
+    let selesaiSemua = true;
+
+    window.KONFIG_MISI_HARIAN.forEach(function(cfg) {
+        let cur = Math.min(cfg.target, Number(m.progres[cfg.id]) || 0);
+        let done = cur >= cfg.target;
+        if (!done) selesaiSemua = false;
+        if (done && !m.claimed[cfg.id]) siap++;
+    });
+
+    if (selesaiSemua && !m.claimed.all) siap++;
+    return siap;
+};
+
+window.perbaruiBadgeTombolMisiHarian = function() {
+    let lbl = document.getElementById("header-misi-label");
+    let badge = document.getElementById("badge-header-misi");
+    if (!lbl || !badge) return;
+
+    let m = window.ambilAtauInisialisasiMisiSiswa(false);
+    if (!m) {
+        lbl.innerText = "Misi";
+        badge.style.display = "none";
+        return;
+    }
+
+    let streakVal = Number(m.streak) || 1;
+    lbl.innerText = streakVal + " Hari";
+
+    let jmlSiap = window.hitungJumlahHadiahMisiSiapKlaim(m);
+    if (jmlSiap > 0) {
+        badge.innerText = String(jmlSiap);
+        badge.style.display = "inline-block";
+    } else {
+        badge.style.display = "none";
+    }
+};
+
+window.pastikanModalMisiHarianAda = function() {
+    let modal = document.getElementById("modal-misi-harian");
+    if (modal) return modal;
+
+    modal = document.createElement("div");
+    modal.id = "modal-misi-harian";
+    modal.className = "modal-overlay";
+    modal.onclick = function(e) {
+        if (e.target === modal) window.tutupModal("modal-misi-harian");
+    };
+
+    modal.innerHTML =
+        '<div class="modal-box" style="width:520px; max-height:88dvh;">' +
+            '<div class="modal-header" style="background:linear-gradient(135deg, #0b3954, #c2410c); color:#ffffff;">' +
+                '<div>' +
+                    '<h3 style="margin:0;">🔥 Misi Harian & Login Streak</h3>' +
+                    '<div style="font-size:11px; color:#fef08a; margin-top:2px;">Bangun kebiasaan belajar setiap hari & kumpulkan bonus XP + Coin!</div>' +
+                '</div>' +
+                '<button type="button" class="close-btn" style="color:#ffffff;" onclick="window.tutupModal(\'modal-misi-harian\')">✕</button>' +
+            '</div>' +
+            '<div class="modal-body" id="misi-harian-modal-body" style="background:#f8fafc; padding:16px;"></div>' +
+        '</div>';
+
+    document.body.appendChild(modal);
+    return modal;
+};
+
+window.bukaModalMisiHarian = function() {
+    let stat = sessionStorage.getItem("statusLogin");
+    if (stat !== "siswa" && stat !== "admin") {
+        alert("🔒 Silakan LOGIN menggunakan akun Siswa terlebih dahulu untuk menjalankan Misi Harian & mencatat Login Streak!");
+        if (typeof window.bukaModalLoginSistem === "function") window.bukaModalLoginSistem();
+        return;
+    }
+
+    window.pastikanModalMisiHarianAda();
+    window.ambilAtauInisialisasiMisiSiswa(true);
+    window.renderIsiModalMisiHarian();
+    window.bukaModal("modal-misi-harian");
+};
+
+window.renderIsiModalMisiHarian = function() {
+    let body = document.getElementById("misi-harian-modal-body");
+    if (!body) return;
+
+    let m = window.ambilAtauInisialisasiMisiSiswa(false);
+    if (!m) {
+        body.innerHTML = '<div style="text-align:center; padding:30px; color:#64748b; font-weight:700;">⏳ Menyinkronkan data profil siswa... Coba buka lagi dalam 2 detik.</div>';
+        return;
+    }
+
+    let streak = Number(m.streak) || 1;
+    let best = Math.max(streak, Number(m.bestStreak) || 1);
+    let gelarStreak = streak >= 30 ? "👑 Legenda Konsisten" : (streak >= 14 ? "🏆 Pejuang Tangguh" : (streak >= 7 ? "⚡ Semangat Membara" : (streak >= 3 ? "🔥 Mulai Terbiasa" : "🌱 Langkah Pertama")));
+
+    // 7 lingkaran hari minggu ini (visual progres 7 hari beruntun)
+    let siklus7 = ((streak - 1) % 7) + 1;
+    let dotsHtml = "";
+    for (let i = 1; i <= 7; i++) {
+        let aktif = i <= siklus7;
+        dotsHtml +=
+            '<div class="misi-streak-day ' + (aktif ? 'done' : '') + '">' +
+                '<span>' + (aktif ? '🔥' : i) + '</span>' +
+                '<small>H-' + i + '</small>' +
+            '</div>';
+    }
+
+    let jmlSelesai = 0;
+    let daftarMisiHtml = "";
+
+    window.KONFIG_MISI_HARIAN.forEach(function(cfg) {
+        let cur = Math.min(cfg.target, Number(m.progres[cfg.id]) || 0);
+        let pct = Math.round((cur / cfg.target) * 100);
+        let selesai = cur >= cfg.target;
+        let sudahKlaim = Boolean(m.claimed[cfg.id]);
+        if (selesai) jmlSelesai++;
+
+        let tombolHtml = "";
+        if (sudahKlaim) {
+            tombolHtml = '<button type="button" class="misi-btn-claimed" disabled>✓ Diklaim</button>';
+        } else if (selesai) {
+            tombolHtml = '<button type="button" class="misi-btn-claim" onclick="window.klaimHadiahMisiHarian(\'' + cfg.id + '\')">🎁 Klaim +' + cfg.hadiah + '</button>';
+        } else {
+            tombolHtml = '<button type="button" class="misi-btn-go" onclick="' + cfg.aksiFn + '">' + cfg.aksiTeks + ' ➔</button>';
+        }
+
+        daftarMisiHtml +=
+            '<div class="misi-item-card ' + (selesai && !sudahKlaim ? 'ready-claim' : '') + '">' +
+                '<div class="misi-item-icon">' + cfg.ikon + '</div>' +
+                '<div class="misi-item-main">' +
+                    '<div class="misi-item-title">' + cfg.judul + '</div>' +
+                    '<div class="misi-item-desc">' + cfg.deskripsi + '</div>' +
+                    '<div class="misi-progress-row">' +
+                        '<div class="misi-progress-track"><div class="misi-progress-fill" style="width:' + pct + '%;"></div></div>' +
+                        '<span class="misi-progress-num">' + cur + '/' + cfg.target + '</span>' +
+                    '</div>' +
+                    '<div class="misi-reward-tag">Hadiah: <b>+' + cfg.hadiah + ' XP & +' + cfg.hadiah + ' Coin</b></div>' +
+                '</div>' +
+                '<div class="misi-item-action">' + tombolHtml + '</div>' +
+            '</div>';
+    });
+
+    let semuaSelesai = (jmlSelesai >= window.KONFIG_MISI_HARIAN.length);
+    let sudahKlaimAll = Boolean(m.claimed.all);
+    let bonusAllBtn = sudahKlaimAll
+        ? '<button type="button" class="misi-btn-claimed" style="width:100%; padding:10px;" disabled>✅ Bonus Sapu Bersih Hari Ini Sudah Diklaim!</button>'
+        : (semuaSelesai
+            ? '<button type="button" class="misi-btn-claim-grand" onclick="window.klaimHadiahMisiHarian(\'all\')">🎁 Klaim Bonus Sapu Bersih (+100 XP & +100 Coin)</button>'
+            : '<div style="font-size:11.5px; color:#64748b; font-weight:700; text-align:center;">Selesaikan <b>' + jmlSelesai + '/3</b> misi hari ini untuk membuka <b>Bonus +100 XP & +100 Coin</b>!</div>');
+
+    let infoPreview = m.isPreviewAdmin
+        ? '<div style="background:#fef3c7; border:1px solid #f59e0b; color:#92400e; padding:8px 12px; border-radius:8px; font-size:11px; font-weight:700; margin-bottom:12px;">👁️ Mode Pratinjau Admin (Klaim hadiah hanya berlaku pada akun Siswa).</div>'
+        : '';
+
+    body.innerHTML =
+        infoPreview +
+        '<div class="misi-streak-hero">' +
+            '<div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">' +
+                '<div>' +
+                    '<div style="font-size:11px; font-weight:800; color:#fed7aa; text-transform:uppercase; letter-spacing:0.6px;">Login Streak Aktif</div>' +
+                    '<div style="font-size:28px; font-weight:900; color:#ffffff; line-height:1.15;">🔥 ' + streak + ' Hari Beruntun</div>' +
+                    '<div style="font-size:11.5px; color:#fef08a; font-weight:700; margin-top:2px;">' + gelarStreak + ' • Rekor Terbaik: ' + best + ' Hari</div>' +
+                '</div>' +
+                '<div class="misi-date-chip">📅 ' + m.tanggal + '</div>' +
+            '</div>' +
+            '<div class="misi-streak-days-row">' + dotsHtml + '</div>' +
+        '</div>' +
+        '<div style="display:flex; flex-direction:column; gap:10px; margin-bottom:14px;">' + daftarMisiHtml + '</div>' +
+        '<div class="misi-grand-bonus-box">' + bonusAllBtn + '</div>';
+};
+
+window.klaimHadiahMisiHarian = function(idMisi) {
+    let m = window.ambilAtauInisialisasiMisiSiswa(false);
+    if (!m) return;
+    if (m.isPreviewAdmin) {
+        return alert("ℹ️ Mode Pratinjau Admin: Klaim hadiah hanya berfungsi untuk akun Siswa.");
+    }
+
+    let hadiahPoin = 0;
+    let labelHadiah = "";
+
+    if (idMisi === "all") {
+        let semuaSelesai = window.KONFIG_MISI_HARIAN.every(function(cfg) {
+            return (Number(m.progres[cfg.id]) || 0) >= cfg.target;
+        });
+        if (!semuaSelesai || m.claimed.all) return;
+        m.claimed.all = true;
+        hadiahPoin = 100;
+        labelHadiah = "Bonus Sapu Bersih Harian";
+    } else {
+        let cfg = window.KONFIG_MISI_HARIAN.find(function(x) { return x.id === idMisi; });
+        if (!cfg) return;
+        if ((Number(m.progres[idMisi]) || 0) < cfg.target || m.claimed[idMisi]) return;
+        m.claimed[idMisi] = true;
+        hadiahPoin = cfg.hadiah;
+        labelHadiah = cfg.judul;
+    }
+
+    if (typeof window.tambahXPSiswa === "function") {
+        window.tambahXPSiswa(hadiahPoin, "misi_harian_" + idMisi);
+    }
+
+    window.renderIsiModalMisiHarian();
+    window.perbaruiBadgeTombolMisiHarian();
+    if (typeof window.tampilkanBadgeHadiahKuis === "function") {
+        window.tampilkanBadgeHadiahKuis(null, "🎉 " + labelHadiah + ": +" + hadiahPoin + " XP & +" + hadiahPoin + " Coin!");
+    }
+};
+
+// Otomatis cek Login Streak begitu data profil siswa selesai dimuat dari server
+window._streakInitTimer = setInterval(function() {
+    if (sessionStorage.getItem("statusLogin") === "siswa" && window.leaderboardLoaded) {
+        clearInterval(window._streakInitTimer);
+        window.ambilAtauInisialisasiMisiSiswa(true);
+        window.perbaruiBadgeTombolMisiHarian();
+    } else if (sessionStorage.getItem("statusLogin") === "admin") {
+        clearInterval(window._streakInitTimer);
+        window.perbaruiBadgeTombolMisiHarian();
+    }
+}, 1200);

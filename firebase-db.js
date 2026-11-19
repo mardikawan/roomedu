@@ -43,6 +43,43 @@ window.uploadMediaKeFirebaseStorage = function(file, onProgress, onSuccess, onEr
     );
 };
 
+// ==========================================
+// UPLOAD AVATAR PROFIL SISWA (JPG/PNG/GIF) KE CLOUDINARY (0% BEBAN FIREBASE)
+// ==========================================
+window.uploadFotoProfilKeStorage = async function(fileBlob, usernameKey, onSuccess, onError) {
+    let cleanUser = String(usernameKey || sessionStorage.getItem("username") || "siswa")
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9_-]/g, "_");
+    let mimeType = (fileBlob && fileBlob.type && fileBlob.type.indexOf('image/') === 0)
+        ? fileBlob.type
+        : 'image/jpeg';
+    let ext = mimeType.indexOf('gif') !== -1 ? 'gif' : (mimeType.indexOf('png') !== -1 ? 'png' : 'jpg');
+
+    let cloudName = "rtkfvwvg";
+    let uploadPreset = "studykawan_video";
+    let urlCloudinary = "https://api.cloudinary.com/v1_1/" + cloudName + "/image/upload";
+
+    let formData = new FormData();
+    formData.append("file", fileBlob, cleanUser + "_avatar." + ext);
+    formData.append("upload_preset", uploadPreset);
+
+    try {
+        let response = await fetch(urlCloudinary, {
+            method: "POST",
+            body: formData
+        });
+        let data = await response.json();
+        if (response.ok && data && data.secure_url) {
+            if (onSuccess) onSuccess(data.secure_url);
+        } else {
+            throw new Error((data && data.error && data.error.message) ? data.error.message : "Upload Cloudinary ditolak.");
+        }
+    } catch (err) {
+        if (onError) onError(err);
+    }
+};
+
 // Mesin Bayangan untuk membuat akun Guru tanpa me-logout Admin Utama
 const secondaryApp = initializeApp(firebaseConfig, "SecondaryApp");
 const secondaryAuth = getAuth(secondaryApp);
@@ -647,33 +684,45 @@ if (!sessionStorage.getItem('popup_welcome_seen') || sessionStorage.getItem("sta
     }, null, { ttlMs: 900000 });
 }
 
-// 2. Tarik Struktur Halaman & Render Navbar via REST API (Cache 10 Menit untuk Siswa)
-window.bacaDataRestFirebase(basePath + '/pages_struktur', function(val) {
-    if (val) {
-        window.pagesData = Array.isArray(val) ? val : Object.values(val);
+// 2. Tarik Struktur Halaman & Render Navbar via REST API (Dengan Cadangan Offline Lokal)
+let pagesOfflineKey = 'offline_pages_' + guruAktif;
+function terapkanStrukturPagesKeUI(rawVal) {
+    if (rawVal) {
+        window.pagesData = Array.isArray(rawVal) ? rawVal : Object.values(rawVal);
     } else {
-        if(typeof window.inisialisasiDataPagesDefault === "function") {
+        if (typeof window.inisialisasiDataPagesDefault === "function") {
             window.inisialisasiDataPagesDefault();
         } else {
             window.pagesData = [];
         }
     }
-    
-    if(typeof window.pastikanRoomHiddenTerkunci === "function") {
+
+    if (typeof window.pastikanRoomHiddenTerkunci === "function") {
         window.pastikanRoomHiddenTerkunci();
     }
-
-    if(typeof window.updateBreadcrumb === 'function') window.updateBreadcrumb();
-    
-    if(typeof window.renderDynamicNavbar === 'function') {
-        window.renderDynamicNavbar();
-    }
+    if (typeof window.updateBreadcrumb === 'function') window.updateBreadcrumb();
+    if (typeof window.renderDynamicNavbar === 'function') window.renderDynamicNavbar();
 
     let modalPages = document.getElementById('modal-pages');
-    if(modalPages && modalPages.style.display === 'flex' && typeof window.renderModalPages === 'function') {
+    if (modalPages && modalPages.style.display === 'flex' && typeof window.renderModalPages === 'function') {
         window.renderModalPages();
     }
-}, null, { ttlMs: sessionStorage.getItem("statusLogin") === "admin" ? 0 : 600000 });
+}
+
+window.bacaDataRestFirebase(basePath + '/pages_struktur', function(val) {
+    if (val) {
+        try { localStorage.setItem(pagesOfflineKey, JSON.stringify(val)); } catch (e) {}
+    }
+    terapkanStrukturPagesKeUI(val);
+}, function() {
+    // Jika offline, muat struktur menu terakhir dari memori lokal perangkat
+    try {
+        let localPages = localStorage.getItem(pagesOfflineKey);
+        if (localPages) {
+            terapkanStrukturPagesKeUI(JSON.parse(localPages));
+        }
+    } catch (e) {}
+}, { ttlMs: sessionStorage.getItem("statusLogin") === "admin" ? 0 : 600000 });
 
 window.simpanPagesKeDB = function() {
     if (sessionStorage.getItem("statusLogin") !== "admin") return;
@@ -726,10 +775,10 @@ window.simpanPopupKeDB = function(htmlContent) {
     });
 };
 
-// 3. Mesin Pemuat Konten Halaman (Jika sudah ada di Cache Siswa < 15 menit, 0 Byte Download dari Server!)
+// 3. Mesin Pemuat Konten Halaman (Prioritas Cache Sesi -> IndexedDB Offline -> REST Firebase)
 window.isLoadingRoom = false;
 
-window.muatKontenHalaman = function(slugBab, forceServerFetch) {
+window.muatKontenHalaman = async function(slugBab, forceServerFetch) {
     let targetRoom = slugBab || window.babAktif || "home";
     window.babAktif = targetRoom;
     window.isLoadingRoom = true;
@@ -740,49 +789,85 @@ window.muatKontenHalaman = function(slugBab, forceServerFetch) {
     }
 
     let st = document.getElementById('save-status-bar');
-    if(st) st.innerHTML = "<span style='color:#f39c12;'>⚡ Loading...</span>";
-    
-    let container = document.getElementById('blocks-container');
-    if(container) container.setAttribute('data-active-room', targetRoom);
+    if (st) st.innerHTML = "<span style='color:#f39c12;'>⚡ Loading...</span>";
 
-    let cacheKey = 'cache_room_' + (window.guruAktif || 'mahardika') + '_' + targetRoom;
+    let container = document.getElementById('blocks-container');
+    if (container) container.setAttribute('data-active-room', targetRoom);
+
+    let aktifGuru = window.guruAktif || 'mahardika';
+    let cacheKey = 'cache_room_' + aktifGuru + '_' + targetRoom;
     let cacheTimeKey = cacheKey + '_time';
     let cachedData = sessionStorage.getItem(cacheKey);
     let cachedTime = parseInt(sessionStorage.getItem(cacheTimeKey) || "0", 10);
     let isAdmin = (sessionStorage.getItem("statusLogin") === "admin");
 
-    // 1. TAMPILKAN INSTAN DARI CACHE
-    if (cachedData) {
-        try {
-            let parsed = JSON.parse(cachedData);
-            window.contentBlocksData = parsed.blocksObj || [];
-            window.floatingBoxesData = parsed.floatingBoxesObj || [];
-            window.homeLeftBlocksData = parsed.leftBlocksObj || [];
-            window.homeRightBlocksData = parsed.rightBlocksObj || [];
-            
-            if(typeof window.renderBlocks === 'function') window.renderBlocks(); 
-            if(typeof window.renderFloatingBoxes === 'function') window.renderFloatingBoxes();
-            if(typeof window.updateBreadcrumb === 'function') window.updateBreadcrumb();
-            
-            window.isLoadingRoom = false;
-            if(st) st.innerHTML = "<span style='color:#2ecc71;'>⚡ Ready</span>";
+    function renderDataKeLayar(dataObj) {
+        window.contentBlocksData = JSON.parse(JSON.stringify(dataObj.blocksObj || []));
+        window.floatingBoxesData = JSON.parse(JSON.stringify(dataObj.floatingBoxesObj || []));
+        window.homeLeftBlocksData = JSON.parse(JSON.stringify(dataObj.leftBlocksObj || []));
+        window.homeRightBlocksData = JSON.parse(JSON.stringify(dataObj.rightBlocksObj || []));
 
-            // HEMAT DOWNLOAD MASIF: Jika bukan Admin dan cache bab ini belum 15 menit, STOP! Jangan unduh ulang dari Firebase!
-            if (!isAdmin && !forceServerFetch && (Date.now() - cachedTime < 900000)) {
+        window.contentBlocksData.forEach(function(b) {
+            if (!b.padTop) b.padTop = "40px";
+            if (!b.padBot) b.padBot = "40px";
+            if (!b.drawing) b.drawing = "";
+            if (!b.type) b.type = "text";
+            if (!b.pattern) b.pattern = "";
+        });
+
+        if (typeof window.renderBlocks === 'function') window.renderBlocks();
+        if (typeof window.renderFloatingBoxes === 'function') window.renderFloatingBoxes();
+        if (typeof window.updateBreadcrumb === 'function') window.updateBreadcrumb();
+        if (typeof window.perbaruiBarOfflineBab === 'function') window.perbaruiBarOfflineBab();
+    }
+
+    // 1. CEK CACHE SESI INSTAN
+    let sudahRenderLokal = false;
+    if (cachedData && !forceServerFetch) {
+        try {
+            renderDataKeLayar(JSON.parse(cachedData));
+            sudahRenderLokal = true;
+            window.isLoadingRoom = false;
+            if (st) st.innerHTML = "<span style='color:#2ecc71;'>⚡ Ready</span>";
+
+            if (!isAdmin && (Date.now() - cachedTime < 900000)) {
                 return;
             }
-        } catch(e) {}
-    } else {
-        if(container) container.innerHTML = '';
+        } catch (e) {}
     }
-    
-    // 2. SINKRONISASI DARI SERVER HANYA SAAT CACHE KOSONG ATAU MODE ADMIN
+
+    // 2. CEK PENYIMPANAN OFFLINE PERMANEN (INDEXED-DB) — 0 BYTE DOWNLOAD!
+    let offlineRecord = null;
+    if (typeof window.muatBabOfflineIdb === "function") {
+        offlineRecord = await window.muatBabOfflineIdb(aktifGuru, targetRoom);
+        if (window.babAktif !== targetRoom) return;
+
+        if (offlineRecord && offlineRecord.data && !forceServerFetch) {
+            renderDataKeLayar(offlineRecord.data);
+            sudahRenderLokal = true;
+            window.isLoadingRoom = false;
+            if (st) st.innerHTML = "<span style='color:#2ecc71;'>📴 Mode Offline Ready</span>";
+
+            // Untuk siswa: langsung pakai salinan offline (bisa klik tombol Update jika ingin tarik versi terbaru)
+            if (!isAdmin) {
+                return;
+            }
+        }
+    }
+
+    if (!sudahRenderLokal && container) {
+        container.innerHTML = (typeof window.buatHTMLSkeleton === 'function')
+            ? window.buatHTMLSkeleton('materi', 2)
+            : '';
+    }
+
+    // 3. SINKRONISASI DARI SERVER FIREBASE
     let timeoutFirebase = setTimeout(function() {
         window.isLoadingRoom = false;
         if (st) st.innerHTML = "<span style='color:#e74c3c;'>⚠️ Koneksi Lambat</span>";
     }, 8000);
 
-    window.bacaDataRestFirebase(basePath + '/materi_koleksi/' + targetRoom, function(rawVal) {
+    window.bacaDataRestFirebase(basePath + '/materi_koleksi/' + targetRoom, async function(rawVal) {
         clearTimeout(timeoutFirebase);
         if (window.babAktif !== targetRoom) {
             window.isLoadingRoom = false;
@@ -790,44 +875,63 @@ window.muatKontenHalaman = function(slugBab, forceServerFetch) {
         }
 
         let dataDariServer = (rawVal && rawVal.blocksObj) ? rawVal : null;
-        
+
         if (dataDariServer) {
-            window.contentBlocksData = JSON.parse(JSON.stringify(dataDariServer.blocksObj)); 
-            window.floatingBoxesData = JSON.parse(JSON.stringify(dataDariServer.floatingBoxesObj || [])); 
-            window.homeLeftBlocksData = JSON.parse(JSON.stringify(dataDariServer.leftBlocksObj || []));
-            window.homeRightBlocksData = JSON.parse(JSON.stringify(dataDariServer.rightBlocksObj || []));
-            
             try {
                 sessionStorage.setItem(cacheKey, JSON.stringify(dataDariServer));
                 sessionStorage.setItem(cacheTimeKey, String(Date.now()));
             } catch (e) {}
-        } else {
-            if (!cachedData) {
-                window.contentBlocksData = [{type:'text', html:"<p>Ketik materi...</p>", bg:"#ffffff", pattern:"", color:"#333333", width:"M", padTop:"40px", padBot:"40px", drawing:""}]; 
-                window.floatingBoxesData = []; 
-                window.homeLeftBlocksData = [];
-                window.homeRightBlocksData = [];
+            renderDataKeLayar(dataDariServer);
+
+            // Jika sedang menekan tombol "Update" pada bab yang tersimpan offline, perbarui juga salinan IndexedDB
+            if (window._autoUpdateOfflineAfterFetch === targetRoom && typeof window.simpanBabOfflineIdb === "function") {
+                window._autoUpdateOfflineAfterFetch = null;
+                await window.simpanBabOfflineIdb(aktifGuru, targetRoom, dataDariServer);
+                let btnSync = document.getElementById("btn-sync-bab-online");
+                if (btnSync) { btnSync.disabled = false; btnSync.innerText = "🔄 Update"; }
+                if (typeof window.perbaruiBarOfflineBab === "function") window.perbaruiBarOfflineBab();
+                alert("✅ Salinan offline bab ini berhasil diperbarui ke versi terbaru dari server!");
             }
+        } else if (!sudahRenderLokal) {
+            renderDataKeLayar({
+                blocksObj: [{ type: 'text', html: "<p>Ketik materi...</p>", bg: "#ffffff", pattern: "", color: "#333333", width: "M", padTop: "40px", padBot: "40px", drawing: "" }],
+                floatingBoxesObj: [],
+                leftBlocksObj: [],
+                rightBlocksObj: []
+            });
         }
-        
-        window.contentBlocksData.forEach(function(b) {
-            if(!b.padTop) b.padTop = "40px"; if(!b.padBot) b.padBot = "40px"; 
-            if(!b.drawing) b.drawing = ""; if(!b.type) b.type = "text"; if(!b.pattern) b.pattern = "";
-        }); 
 
         window.isLoadingRoom = false;
-        
-        if(typeof window.renderBlocks === 'function') window.renderBlocks(); 
-        if(typeof window.renderFloatingBoxes === 'function') window.renderFloatingBoxes();
-        if(typeof window.updateBreadcrumb === 'function') window.updateBreadcrumb();
-        
-        if(st) st.innerHTML = "<span style='color:#2ecc71;'>✓ Cloud Sync: OK</span>";
-        setTimeout(function() { if(st && st.innerHTML.indexOf('Sync: OK') !== -1) st.innerHTML = "Cloud Sync: Ready"; }, 1500);
+        if (st) st.innerHTML = "<span style='color:#2ecc71;'>✓ Cloud Sync: OK</span>";
+        setTimeout(function() { if (st && st.innerHTML.indexOf('Sync: OK') !== -1) st.innerHTML = "Cloud Sync: Ready"; }, 1500);
     }, function() {
         clearTimeout(timeoutFirebase);
         window.isLoadingRoom = false;
-        if (!cachedData && st) st.innerHTML = "<span style='color:#e74c3c;'>❌ Gagal Memuat</span>";
-    });
+
+        let btnSync = document.getElementById("btn-sync-bab-online");
+        if (btnSync) { btnSync.disabled = false; btnSync.innerText = "🔄 Update"; }
+        window._autoUpdateOfflineAfterFetch = null;
+
+        if (!sudahRenderLokal) {
+            if (offlineRecord && offlineRecord.data) {
+                renderDataKeLayar(offlineRecord.data);
+                if (st) st.innerHTML = "<span style='color:#f39c12;'>📴 Dibuka dari Offline</span>";
+            } else if (container) {
+                container.innerHTML =
+                    '<div class="offline-empty-state">' +
+                        '<div style="font-size:46px; margin-bottom:8px;">📴</div>' +
+                        '<h3 style="margin:0 0 6px 0; color:#0b3954;">Koneksi Internet Terputus</h3>' +
+                        '<p style="margin:0 0 16px 0; font-size:13px; color:#64748b; line-height:1.5;">Bab ini belum disimpan untuk mode baca offline. Anda tetap bisa membuka bab lain yang sudah tersimpan di perangkat ini.</p>' +
+                        '<div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">' +
+                            '<button type="button" class="btn-action" style="background:#0b3954; width:auto; padding:9px 18px; border-radius:20px;" onclick="window.bukaModalPustakaOffline()">📚 Buka Pustaka Offline</button>' +
+                            '<button type="button" class="btn-action" style="background:#16a085; width:auto; padding:9px 18px; border-radius:20px;" onclick="window.muatKontenHalaman(window.babAktif, true)">🔄 Coba Lagi</button>' +
+                        '</div>' +
+                    '</div>';
+                if (typeof window.perbaruiBarOfflineBab === 'function') window.perbaruiBarOfflineBab();
+            }
+            if (st) st.innerHTML = "<span style='color:#e74c3c;'>📴 Mode Offline</span>";
+        }
+    }, { forceRefresh: Boolean(forceServerFetch) });
 };
 
 // Panggil fungsi saat web pertama kali dibuka
@@ -1773,6 +1877,58 @@ window.simpanDataAfektifKeDB = function() {
                 window.selesaiOperasiTulisDB(2000);
                 console.error("Gagal menyimpan data afektif:", err);
             });
+        });
+    });
+};
+
+// =========================================================================
+// MESIN BACKUP, RESTORE, & ARSIP SEMESTER VIA REST API (0 KONEKSI WEBSOCKET)
+// =========================================================================
+window.tarikDataBackupGuruRest = async function(daftarNode, onProgress) {
+    if (sessionStorage.getItem("statusLogin") !== "admin") {
+        throw new Error("Akses ditolak: Hanya Admin/Guru yang dapat mengekspor backup.");
+    }
+    let nodes = Array.isArray(daftarNode) ? daftarNode : [];
+    let hasil = {};
+
+    for (let i = 0; i < nodes.length; i++) {
+        let nodeName = nodes[i];
+        if (onProgress) onProgress(i + 1, nodes.length, nodeName);
+
+        let val = await new Promise(function(resolve) {
+            window.bacaDataRestFirebase(basePath + '/' + nodeName, function(data) {
+                resolve(data);
+            }, function() {
+                resolve(null);
+            }, { forceRefresh: true, ttlMs: 0 });
+        });
+        hasil[nodeName] = val;
+    }
+    return hasil;
+};
+
+window.tulisAtauHapusNodeAdminRest = function(nodeName, payloadOrNull) {
+    return new Promise(function(resolve, reject) {
+        if (sessionStorage.getItem("statusLogin") !== "admin") {
+            reject(new Error("Akses ditolak: Hanya Admin/Guru yang dapat mengubah data arsip."));
+            return;
+        }
+        let cleanNode = String(nodeName || "").replace(/^\/+|\/+$/g, "");
+        if (!cleanNode) {
+            reject(new Error("Nama node tidak valid."));
+            return;
+        }
+        let fullPath = basePath + '/' + cleanNode;
+        window.tulisDataRestFirebase(fullPath, payloadOrNull, "PUT", function() {
+            if (typeof window.hapusCachePathDB === "function") {
+                window.hapusCachePathDB(fullPath);
+            }
+            if (typeof window.showSaveToast === "function") {
+                window.showSaveToast();
+            }
+            resolve(true);
+        }, function(err) {
+            reject(err || new Error("Gagal memperbarui node " + cleanNode));
         });
     });
 };

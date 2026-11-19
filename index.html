@@ -1140,9 +1140,15 @@
                     😊 <span>Check-in +100 Coin</span>
                 </button>
             </div>
-            <button id="btn-header-leaderboard" class="header-pill-btn leaderboard-pill" onclick="window.bukaModalLeaderboard()" title="Papan Peringkat Sains">
-                🏆 <span>Leaderboard</span>
-            </button>
+            <div class="header-pill-row" style="display:flex; gap:6px; align-items:center;">
+                <button id="btn-header-leaderboard" class="header-pill-btn leaderboard-pill" onclick="window.bukaModalLeaderboard()" title="Papan Peringkat Sains">
+                    🏆 <span>Leaderboard</span>
+                </button>
+                <button id="btn-header-misi" class="header-pill-btn misi-pill" onclick="window.bukaModalMisiHarian()" title="Misi Harian & Login Streak">
+                    🔥 <span id="header-misi-label">Misi</span>
+                    <b id="badge-header-misi" class="header-notif-badge" style="display:none;">0</b>
+                </button>
+            </div>
             <div class="header-pill-row" style="display:flex; gap:6px; align-items:center;">
                 <button id="btn-header-nilai-saya" class="header-pill-btn" style="background:rgba(39, 174, 96, 0.28); border-color:#2ecc71; color:#ffffff; font-weight:800;" onclick="window.bukaModalNilaiSaya()" title="Lihat Hasil & Detail Ujian Saya">
                     📊 <span>Nilai Saya</span>
@@ -1248,6 +1254,7 @@
                     <button class="btn-action tab-admin-btn" style="background:#ffffff; color:#333; border:1px solid #ccc; width:auto; padding:8px 15px; font-size:12px; box-shadow:none;" onclick="bukaTabAdmin('tab-ledger', this)">📊 Ledger Akademik</button>
                     <button class="btn-action tab-admin-btn" style="background:#ffffff; color:#c0392b; border:1px solid #f5b7b1; width:auto; padding:8px 15px; font-size:12px; box-shadow:none; font-weight:bold;" onclick="bukaTabAdmin('tab-remedial-admin', this)">🔥 Remedial <span id="badge-remedial-admin" style="background:#e74c3c; color:white; padding:2px 6px; border-radius:10px; font-size:10px;">0</span></button>
                     <button class="btn-action tab-admin-btn" style="background:#ffffff; color:#333; border:1px solid #ccc; width:auto; padding:8px 15px; font-size:12px; box-shadow:none;" onclick="bukaTabAdmin('tab-notifikasi-admin', this)">📢 Notifikasi Siswa</button>
+                    <button class="btn-action tab-admin-btn" style="background:#ffffff; color:#16a085; border:1px solid #a3e4d7; width:auto; padding:8px 15px; font-size:12px; box-shadow:none; font-weight:bold;" onclick="bukaTabAdmin('tab-backup-arsip', this)">💾 Backup & Arsip</button>
                     <div style="flex:1;"></div>
                     <!-- Tombol Input Data Pindah ke Kanan -->
                     <button class="btn-action tab-admin-btn" style="background:#3498db; color:white; width:auto; padding:8px 15px; font-size:12px; border:none;" onclick="bukaTabAdmin('tab-input-data', this)">👥 Input Data Siswa & Kelas</button>
@@ -1484,6 +1491,9 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- TAB 6: BACKUP, RESTORE, & ARSIP SEMESTER -->
+                    <div id="tab-backup-arsip" class="admin-tab-content" style="display:none;"></div>
 
                 </div>
             </div>
