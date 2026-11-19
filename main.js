@@ -2485,9 +2485,16 @@ window.apakahAdaModalOverlayTerbuka = function() {
 
 window.sinkronkanKunciScrollModal = function() {
     let adaModalTerbuka = window.apakahAdaModalOverlayTerbuka();
+    let ujianRoom = document.getElementById('ujian-strict-room');
+    let tempRoom = document.getElementById('temporary-quiz-room');
+    let isRoomOpen = Boolean(
+        (ujianRoom && window.getComputedStyle(ujianRoom).display !== 'none') ||
+        (tempRoom && window.getComputedStyle(tempRoom).display !== 'none')
+    );
+
     let scrollTargets = [
-        document.getElementById('ujian-strict-room'),
-        document.getElementById('temporary-quiz-room'),
+        ujianRoom,
+        tempRoom,
         document.getElementById('main-editor-wrapper')
     ].filter(Boolean);
 
@@ -2497,12 +2504,23 @@ window.sinkronkanKunciScrollModal = function() {
 
         if (!window._savedScrollContainersOverflow) {
             window._savedScrollContainersOverflow = {
+                scrollY: window.scrollY || window.pageYOffset || 0,
+                lockedBodyFixed: !isRoomOpen && !window.isStrictUjianActive,
                 bodyOverflow: document.body.style.overflow,
                 htmlOverflow: document.documentElement.style.overflow,
                 containers: scrollTargets.map(function(el) {
                     return { el: el, overflow: el.style.overflow };
                 })
             };
+
+            // Kunci fisik posisi body di halaman normal agar iOS Safari tidak mungkin menarik background
+            if (window._savedScrollContainersOverflow.lockedBodyFixed) {
+                document.body.style.position = 'fixed';
+                document.body.style.top = '-' + window._savedScrollContainersOverflow.scrollY + 'px';
+                document.body.style.left = '0';
+                document.body.style.right = '0';
+                document.body.style.width = '100%';
+            }
         }
 
         document.documentElement.style.overflow = 'hidden';
@@ -2519,13 +2537,27 @@ window.sinkronkanKunciScrollModal = function() {
         if (window._savedScrollContainersOverflow) {
             let saved = window._savedScrollContainersOverflow;
             window._savedScrollContainersOverflow = null;
+
             document.documentElement.style.overflow = saved.htmlOverflow || '';
             document.body.style.overflow = window.isStrictUjianActive ? 'auto' : (saved.bodyOverflow || '');
+
+            if (saved.lockedBodyFixed) {
+                document.body.style.position = '';
+                document.body.style.top = '';
+                document.body.style.left = '';
+                document.body.style.right = '';
+                document.body.style.width = '';
+            }
+
             (saved.containers || []).forEach(function(item) {
                 if (item && item.el) {
                     item.el.style.overflow = item.overflow || '';
                 }
             });
+
+            if (saved.lockedBodyFixed && saved.scrollY > 0) {
+                window.scrollTo(0, saved.scrollY);
+            }
         } else if (!window.isStrictUjianActive) {
             document.documentElement.style.overflow = '';
             document.body.style.overflow = '';
@@ -2582,36 +2614,102 @@ document.addEventListener('wheel', function(e) {
     }
 }, { passive: false, capture: true });
 
-// Blokir scroll latar belakang di HP/Tablet (touchmove) saat ada modal terbuka
-window._lastTouchYModalLock = 0;
+// Blokir scroll latar belakang di HP/Tablet (touchmove) saat ada modal terbuka,
+// sambil membebaskan penuh scroll horizontal (kiri-kanan) & vertikal di seluruh elemen dalam modal
+window._modalTouchState = {
+    startX: 0,
+    startY: 0,
+    lastX: 0,
+    lastY: 0,
+    axis: null
+};
+
+window.cariKontainerScrollableDalamModal = function(startEl, modalRoot, arah, delta) {
+    let el = startEl;
+    while (el && el !== document.body && el !== document.documentElement) {
+        if (el.nodeType === 1) {
+            let st = window.getComputedStyle(el);
+            if (arah === 'x') {
+                let bisaScrollX = (st.overflowX === 'auto' || st.overflowX === 'scroll') && (el.scrollWidth > el.clientWidth + 1);
+                if (bisaScrollX) return el;
+            } else {
+                let bisaScrollY = (st.overflowY === 'auto' || st.overflowY === 'scroll') && (el.scrollHeight > el.clientHeight + 1);
+                if (bisaScrollY) {
+                    let mentokAtas = el.scrollTop <= 0 && delta > 0;
+                    let mentokBawah = (el.scrollTop + el.clientHeight >= el.scrollHeight - 1) && delta < 0;
+                    if (!mentokAtas && !mentokBawah) return el;
+                }
+            }
+        }
+        if (el === modalRoot) break;
+        el = el.parentElement;
+    }
+    return null;
+};
+
 document.addEventListener('touchstart', function(e) {
     if (e.touches && e.touches.length === 1) {
-        window._lastTouchYModalLock = e.touches[0].clientY;
+        let t = e.touches[0];
+        window._modalTouchState = {
+            startX: t.clientX,
+            startY: t.clientY,
+            lastX: t.clientX,
+            lastY: t.clientY,
+            axis: null
+        };
     }
 }, { passive: true, capture: true });
 
 document.addEventListener('touchmove', function(e) {
     if (!window.apakahAdaModalOverlayTerbuka()) return;
-    let inScrollableModalBody = e.target && e.target.closest
-        ? e.target.closest('.modal-body, .mypet-body-container, #koreksi-grid-container, .cg-body, .popup-content-box')
-        : null;
+    if (!e.touches || e.touches.length !== 1) return;
 
-    if (!inScrollableModalBody) {
+    let target = e.target;
+    let modalRoot = (target && target.closest) ? target.closest('.modal-box, .popup-welcome-box, .floating-cg') : null;
+
+    // Sentuhan di area gelap backdrop luar modal: blokir penuh
+    if (!modalRoot) {
         e.preventDefault();
         return;
     }
 
-    // Jika sudah mentok di batas atas atau bawah isi modal, tahan agar tidak menarik latar belakang
-    if (e.touches && e.touches.length === 1) {
-        let curY = e.touches[0].clientY;
-        let deltaY = curY - window._lastTouchYModalLock;
-        window._lastTouchYModalLock = curY;
+    // Bebaskan kontrol form (slider, dropdown, ketikan)
+    let tag = target.tagName ? target.tagName.toUpperCase() : '';
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
+        return;
+    }
 
-        let atTop = inScrollableModalBody.scrollTop <= 0 && deltaY > 0;
-        let atBottom = (inScrollableModalBody.scrollTop + inScrollableModalBody.clientHeight >= inScrollableModalBody.scrollHeight - 1) && deltaY < 0;
-        if (atTop || atBottom) {
-            e.preventDefault();
+    let t = e.touches[0];
+    let st = window._modalTouchState;
+    let totalDx = t.clientX - st.startX;
+    let totalDy = t.clientY - st.startY;
+    let stepDy = t.clientY - st.lastY;
+    st.lastX = t.clientX;
+    st.lastY = t.clientY;
+
+    // Tunggu pergerakan minimal 5px agar getaran awal jari tidak membatalkan native scroll di iOS Safari
+    if (!st.axis) {
+        if (Math.abs(totalDx) < 5 && Math.abs(totalDy) < 5) {
+            return;
         }
+        st.axis = (Math.abs(totalDx) > Math.abs(totalDy)) ? 'x' : 'y';
+    }
+
+    // Gestur horizontal (kiri-kanan): izinkan penuh jika berada di dalam tabel/tab yang bisa digeser
+    if (st.axis === 'x') {
+        let scrollXEl = window.cariKontainerScrollableDalamModal(target, modalRoot, 'x', totalDx);
+        if (scrollXEl) {
+            return;
+        }
+        e.preventDefault();
+        return;
+    }
+
+    // Gestur vertikal (atas-bawah): izinkan hanya jika masih bisa di-scroll di dalam modal
+    let deltaY = stepDy !== 0 ? stepDy : totalDy;
+    let scrollYEl = window.cariKontainerScrollableDalamModal(target, modalRoot, 'y', deltaY);
+    if (!scrollYEl) {
+        e.preventDefault();
     }
 }, { passive: false, capture: true });
 
@@ -4375,22 +4473,52 @@ document.addEventListener('paste', function(e) {
         }
     }
 
-    // 3. CEK PASTE TEKS BIASA (MATCH FORMATTING WORD & AUTO-PAGINATION A4)
+    // 3. CEK PASTE TEKS BIASA (RAPAT TANPA ENTER TAMBAHAN DI CONTENT BLOCK)
     if (pastedText && pastedText.trim() !== '') {
         e.preventDefault();
-        let targetBlok = e.target.closest ? e.target.closest('.content-block.a4-portrait-block') : null;
-        if (targetBlok && pastedText.indexOf('\n') !== -1) {
-            let lines = pastedText.replace(/\r\n/g, '\n').split('\n');
+        let targetEditable = e.target.closest
+            ? e.target.closest('.content-block, .fb-content, #popup-content-box, #cg-editor-area, #ck-editor-area')
+            : null;
+
+        let cleanText = pastedText
+            .replace(/\r\n/g, '\n')
+            .replace(/\r/g, '\n')
+            .replace(/^[ \t]+$/gm, '')
+            .replace(/^\n+|\n+$/g, '');
+
+        // Hilangkan enter ganda bawaan salinan dari Word / Google Docs / Web / AI
+        if (cleanText.indexOf('\n\n') !== -1) {
+            let adaBarisTunggal = /[^\n]\n[^\n]/.test(cleanText);
+            if (!adaBarisTunggal) {
+                cleanText = cleanText.replace(/\n{2,}/g, '\n');
+            } else {
+                cleanText = cleanText
+                    .replace(/\n{2,}(?=[ \t]*(?:[-•*–—]|\d+[\.\)]|[a-zA-Z][\.\)])[ \t]+)/g, '\n')
+                    .replace(/\n{3,}/g, '\n\n');
+            }
+        }
+
+        if (targetEditable && cleanText.indexOf('\n') !== -1) {
+            let lines = cleanText.split('\n');
             let htmlLines = lines.map(function(line) {
                 let safe = line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                return '<p>' + (safe.trim() ? safe : '<br>') + '</p>';
+                return '<div>' + (safe.trim() ? safe : '<br>') + '</div>';
             }).join('');
+
             document.execCommand('insertHTML', false, htmlLines);
-            setTimeout(function() {
-                if (typeof window.rapikanHalamanA4Word === 'function') window.rapikanHalamanA4Word(targetBlok, false);
-            }, 30);
+
+            // Bersihkan tag kosong sisa pecahan bawaan browser saat paste
+            targetEditable.querySelectorAll('p:empty, div:empty').forEach(function(el) {
+                el.remove();
+            });
+
+            if (targetEditable.classList.contains('a4-portrait-block')) {
+                setTimeout(function() {
+                    if (typeof window.rapikanHalamanA4Word === 'function') window.rapikanHalamanA4Word(targetEditable, false);
+                }, 30);
+            }
         } else {
-            document.execCommand('insertText', false, pastedText);
+            document.execCommand('insertText', false, cleanText);
         }
         triggerInput();
     }

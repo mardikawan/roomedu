@@ -116,7 +116,7 @@ html.ios-fullscreen-lock, body.ios-fullscreen-lock {
 #tooltip-istilah { display:none; position:fixed; background:#fff; border-left:4px solid #f39c12; box-shadow:0 8px 25px rgba(0,0,0,0.22); padding:10px 14px; border-radius:6px; font-size:13px; z-index:99999; max-width:280px; font-family:'Quicksand', sans-serif; user-select: text; pointer-events: auto; }
 
 .custom-site-btn { display: inline-block; background-color: #0b3954; color: #ffffff !important; padding: 12px 32px; border-radius: 30px; font-weight: 700; text-decoration: none !important; font-family: 'Montserrat', sans-serif; font-size: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); transition: all 0.3s ease; margin: 10px 5px; text-align: center; border: none; cursor: pointer; }
-.content-block h1, .fb-content h1 { font-size: 32px; font-weight: bold; margin-bottom: 15px; } .content-block h2, .fb-content h2 { font-size: 24px; font-weight: bold; margin-bottom: 12px; } .content-block h3, .fb-content h3 { font-size: 18px; font-weight: bold; margin-bottom: 10px; } .content-block p, .fb-content p { margin: 0 0 10px 0; } .content-block blockquote, .fb-content blockquote { border-left: 4px solid #3498db; margin: 15px 0; padding: 10px 20px; background: rgba(0,0,0,0.03); font-style: italic; border-radius: 0 8px 8px 0; }
+.content-block h1, .fb-content h1 { font-size: 32px; font-weight: bold; margin-bottom: 15px; } .content-block h2, .fb-content h2 { font-size: 24px; font-weight: bold; margin-bottom: 12px; } .content-block h3, .fb-content h3 { font-size: 18px; font-weight: bold; margin-bottom: 10px; } .content-block p, .fb-content p { margin: 0; } .content-block blockquote, .fb-content blockquote { border-left: 4px solid #3498db; margin: 15px 0; padding: 10px 20px; background: rgba(0,0,0,0.03); font-style: italic; border-radius: 0 8px 8px 0; }
 .content-block[data-width="S"], .content-block[data-width="M"], .content-block[data-width="L"], .content-block[data-width="XL"] { max-width: 794px; padding-left: 30px; padding-right: 30px; }
 .mode-edit-aktif .content-block, .force-edit-mode .content-block { border: 1px dashed #a2d2ff; border-radius: 6px; }
 .mode-edit-aktif .content-block:focus, .force-edit-mode .content-block:focus { outline: 2px solid #3498db; background-color: rgba(255,255,255,0.96); border-style: solid; }
@@ -3445,12 +3445,11 @@ body.modal-open-lock .mypet-floating-btn {
 }
 
 /* =========================================================================
-   KUNCI TOTAL SCROLL LATAR BELAKANG SAAT MODAL TERBUKA (HP & LAPTOP)
+   KUNCI SCROLL BACKGROUND & KELANCARAN SCROLL HORIZONTAL DI SEMUA MODAL
    ========================================================================= */
 html.modal-open-lock,
 body.modal-open-lock {
     overflow: hidden !important;
-    height: 100dvh !important;
     overscroll-behavior: none !important;
 }
 
@@ -3461,19 +3460,45 @@ body.modal-open-lock #main-editor-wrapper {
     overscroll-behavior: none !important;
 }
 
+/* Jangan pakai touch-action: none di overlay agar scroll horizontal di iOS Safari tidak terpotong */
 .modal-overlay {
     overscroll-behavior: contain !important;
-    touch-action: none;
-}
-
-.modal-box,
-.modal-box * {
-    touch-action: auto;
 }
 
 .modal-body {
     overscroll-behavior: contain !important;
     -webkit-overflow-scrolling: touch !important;
+}
+
+/* Pastikan seluruh kontainer tabel & bar tab horizontal (di dalam maupun luar modal) selalu mulus digeser */
+.modal-box [style*="overflow-x:auto"],
+.modal-box [style*="overflow-x: auto"],
+.modal-box [style*="overflow:auto"],
+.modal-box [style*="overflow: auto"],
+.mypet-tabs-bar,
+.cg-sheet-bar,
+#shop-tier-tabs,
+#box-baris-nilai-saya,
+#area-detail-nilai-saya > div,
+.responsive-table-scroll-box,
+.table-control-wrap,
+.navbar ul#dynamic-navbar,
+.admin-menu-bar,
+.toolbar-wrapper,
+#pen-tools {
+    max-width: 100% !important;
+    min-width: 0 !important;
+    -webkit-overflow-scrolling: touch !important;
+    touch-action: pan-x pan-y !important;
+    overscroll-behavior-x: contain !important;
+    box-sizing: border-box !important;
+}
+
+/* Cegah kotak tabel Nilai Saya tergencet saat rincian soal dibuka di bawahnya */
+#box-baris-nilai-saya,
+#area-detail-nilai-saya > div {
+    flex-shrink: 0 !important;
+    width: 100% !important;
 }
 
 /* =========================================================================
