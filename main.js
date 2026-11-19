@@ -1214,7 +1214,7 @@ window.formatTeks = function(command, value = null) {
         document.execCommand("formatBlock", false, tagVal);
     } else { 
         document.execCommand(command, false, value); 
-        // Otomatis hapus tanda "-", "•", "*", atau angka "1." di awal baris saat memakai Bullets / Numbering
+        // Otomatis hapus tanda manual ("-", "1.", "1).", "(1)", "A.", "a.", dll.) & sinkronkan level list 5 tingkat
         if (command === "insertUnorderedList" || command === "insertOrderedList") {
             let selList = window.getSelection();
             if (selList && selList.rangeCount > 0) {
@@ -1233,9 +1233,12 @@ window.formatTeks = function(command, value = null) {
                             tn = walker.nextNode();
                         }
                         if (tn) {
-                            tn.nodeValue = tn.nodeValue.replace(/^[\s\u200B-\u200D\uFEFF]*(?:[-•*–—▪▫◦●○]|\d+[\.\)])[\s\u00A0]+/, "");
+                            tn.nodeValue = tn.nodeValue.replace(/^[\s\u200B-\u200D\uFEFF]*(?:[-•*–—▪▫◦●○▸◆]|\((?:\d+|[a-zA-Z])\)|(?:\d+|[a-zA-Z])\)\.?|(?:\d+|[a-zA-Z])\.)[\s\u00A0]+/, "");
                         }
                     });
+                    if (typeof window.sinkronkanTingkatList === "function") {
+                        window.sinkronkanTingkatList(editableHost);
+                    }
                 }
             }
         }
@@ -1858,8 +1861,45 @@ window.cekBatasTinggiA4Input = function(e, el) {
 
 window.toggleCollapseBlock = function(idx) {
     if (!window.contentBlocksData[idx]) return;
-    window.contentBlocksData[idx].isCollapsed = !window.contentBlocksData[idx].isCollapsed;
-    window.renderBlocks();
+    let wrapper = document.querySelector('#blocks-container > .block-wrapper[data-index="' + idx + '"]');
+    let topBefore = wrapper ? wrapper.getBoundingClientRect().top : null;
+
+    let nextCollapsed = !window.contentBlocksData[idx].isCollapsed;
+    window.contentBlocksData[idx].isCollapsed = nextCollapsed;
+
+    if (wrapper) {
+        let area = wrapper.querySelector(':scope > div > .block-collapsible-area');
+        let btn = wrapper.querySelector('.block-collapse-bar > button');
+        if (area) area.style.display = nextCollapsed ? 'none' : 'block';
+        if (btn) btn.innerText = nextCollapsed ? '▶' : '▼';
+
+        // Jaga posisi blok agar layar tidak pernah melompat saat dibuka/ditutup
+        if (topBefore !== null) {
+            let topAfter = wrapper.getBoundingClientRect().top;
+            let selisih = topAfter - topBefore;
+            if (Math.abs(selisih) > 1) {
+                window.scrollBy(0, selisih);
+            }
+        }
+
+        // Jika baru dibuka, segarkan ukuran kanvas coretan & rumus MathJax di blok ini saja
+        if (!nextCollapsed) {
+            setTimeout(function() {
+                if (typeof window.inisialisasiSemuaCanvas === 'function') window.inisialisasiSemuaCanvas();
+                if (window.MathJax && typeof window.MathJax.typesetPromise === 'function') {
+                    let belumRender = Array.from(wrapper.querySelectorAll('.latex-inline, .math-latex-block')).filter(function(node) {
+                        return !node.querySelector('mjx-container');
+                    });
+                    if (belumRender.length > 0) {
+                        window.MathJax.typesetPromise(belumRender).catch(function() {});
+                    }
+                }
+            }, 60);
+        }
+    } else {
+        window.renderBlocks();
+    }
+
     if (typeof window.simpanKeDB === 'function') window.simpanKeDB();
 };
 
@@ -1876,12 +1916,19 @@ window.updateBlockTitle = function(idx, newTitle) {
 window.lastFocusedBlockIndex = -1;
 window._pendingInsertAfterIdx = null;
 
-// Rekam otomatis blok mana yang terakhir disentuh/diklik guru
+// Rekam blok terakhir yang disentuh + Otomatis pindahkan Sidebar Settings jika sedang terbuka
 document.addEventListener('pointerdown', function(e) {
     let bw = e.target && e.target.closest ? e.target.closest('#blocks-container > .block-wrapper') : null;
     if (bw) {
         let idx = parseInt(bw.getAttribute('data-index'), 10);
-        if (!isNaN(idx)) window.lastFocusedBlockIndex = idx;
+        if (!isNaN(idx)) {
+            window.lastFocusedBlockIndex = idx;
+            let sidebar = document.getElementById('sidebar-block');
+            let isDeleteOrMoveBtn = e.target.closest && e.target.closest('.block-controls button[onclick*="hapusBlok"], .block-controls button[onclick*="geserBlok"]');
+            if (sidebar && sidebar.classList.contains('open') && !isDeleteOrMoveBtn && window.activeBlockIndex !== idx) {
+                window.bukaSidebarBlock(idx);
+            }
+        }
     }
 }, true);
 
@@ -1899,7 +1946,7 @@ window.ambilIndexBlokAktif = function() {
 window.tambahBlokDiBawah = function(idx) {
     let newBlock = {
         type: 'text', html: "<p>Ketik materi...</p>", bg: "#ffffff", pattern: "",
-        color: "#333333", width: "M", padTop: "40px", padBot: "40px", drawing: "",
+        color: "#333333", width: "M", padTop: "0px", padBot: "0px", drawing: "",
         floatImages: [], isCollapsed: false, blockTitle: "Materi Baru", twoColumns: false
     };
     let pos = (typeof idx === 'number' && idx >= 0 && idx < window.contentBlocksData.length) ? (idx + 1) : window.contentBlocksData.length;
@@ -1947,8 +1994,8 @@ window.renderBlocks = function() {
         let bgCol = blok.bg || '#ffffff';
         let patClass = blok.pattern || '';
         let txtCol = blok.color || '#333333';
-        let padTop = blok.padTop || '25px';
-        let padBot = blok.padBot || '25px';
+        let padTop = (blok.padTop !== undefined && blok.padTop !== null && blok.padTop !== '') ? blok.padTop : '0px';
+        let padBot = (blok.padBot !== undefined && blok.padBot !== null && blok.padBot !== '') ? blok.padBot : '0px';
 
         // Logika Toggle (Collapse) Baris Judul
         let isCollapsed = Boolean(blok.isCollapsed);
@@ -1967,6 +2014,13 @@ window.renderBlocks = function() {
         '</div>';
 
         let displayStyle = isCollapsed ? 'none' : 'block';
+        let bgPhotoUrl = (blok.bgImage && typeof blok.bgImage === 'string') ? blok.bgImage.trim() : '';
+        let bgPhotoOpPct = (typeof blok.bgImageOpacity === 'number' && !isNaN(blok.bgImageOpacity)) ? blok.bgImageOpacity : 25;
+        let hasBgPhotoCls = bgPhotoUrl ? ' has-bg-photo' : '';
+        let safeBgPhotoUrl = bgPhotoUrl.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        let bgPhotoLayerHtml = bgPhotoUrl
+            ? '<div class="block-bg-photo-layer" style="background-image:url(\'' + safeBgPhotoUrl + '\'); opacity:' + (bgPhotoOpPct / 100) + ';"></div>'
+            : '';
 
         // 1. TIPE BLOK SLIDE PDF
         if (blok.type === 'pdf_slides') {
@@ -2121,7 +2175,8 @@ window.renderBlocks = function() {
                 '<div class="a4-paper-wrapper dynamic-block-shell" data-width="' + widthMode + '" style="background-color:' + bgCol + '; border:1px solid #cbd5e1; border-radius:10px; box-shadow:0 4px 16px rgba(15, 23, 42, 0.08); overflow:visible;">' +
                     '<div class="block-controls"><button onclick="geserBlok(' + index + ', -1)">⬆️</button><button onclick="geserBlok(' + index + ', 1)">⬇️</button><button onclick="bukaSidebarBlock(' + index + ')">⚙️ Setting</button><button onclick="hapusBlok(' + index + ')">🗑️ Delete</button></div>' +
                     collapseBarHtml +
-                    '<div class="block-collapsible-area" style="display:' + displayStyle + '; width:100%; position:relative;">' +
+                    '<div class="block-collapsible-area' + hasBgPhotoCls + '" style="display:' + displayStyle + '; width:100%; position:relative;">' +
+                        bgPhotoLayerHtml +
                         '<div class="draw-float-layer" data-index="' + index + '">' + floatImgsQuiz + '</div>' +
                         '<canvas class="drawing-layer" data-index="' + index + '"></canvas>' +
                         '<div class="content-block dynamic-content-block ' + patClass + '" data-index="' + index + '" data-width="' + widthMode + '" style="background-color:transparent; border:none!important; box-shadow:none!important; min-height:0!important; padding:0!important;">' +
@@ -2169,7 +2224,8 @@ window.renderBlocks = function() {
                         '<button onclick="hapusBlok(' + index + ')">🗑️ Delete</button>' +
                     '</div>' +
                     collapseBarHtml +
-                    '<div class="block-collapsible-area" style="display:' + displayStyle + '; width:100%; position:relative;">' +
+                    '<div class="block-collapsible-area' + hasBgPhotoCls + '" style="display:' + displayStyle + '; width:100%; position:relative;">' +
+                        bgPhotoLayerHtml +
                         '<div class="draw-float-layer" data-index="' + index + '">' + floatImgsText + '</div>' +
                         '<canvas class="drawing-layer" data-index="' + index + '"></canvas>' +
                         '<div class="content-block a4-portrait-block dynamic-content-block ' + patClass + twoColClass + '" ' + (isEdit ? 'contenteditable="true"' : '') + ' data-index="' + index + '" data-block-type="text" data-width="' + widthMode + '" style="background-color:transparent; color:' + txtCol + '; border:none!important; box-shadow:none!important;" oninput="window.cekBatasTinggiA4Input(event, this)">' +
@@ -2368,7 +2424,7 @@ window.perbaruiIndeksSemuaBlokDOM = function() {
 window.tambahBlokBaruAkhir = function() { 
     let newBlock = {
         type: 'text', html: "<p>Ketik materi...</p>", bg: "#ffffff", pattern: "", 
-        color: "#333333", width: "M", padTop: "40px", padBot: "40px", drawing: "", 
+        color: "#333333", width: "M", padTop: "0px", padBot: "0px", drawing: "", 
         floatImages: [], isCollapsed: false, blockTitle: "Materi Baru"
     };
     window.contentBlocksData.push(newBlock);
@@ -2381,7 +2437,7 @@ window.tambahBlokBaruAkhir = function() {
 window.tambahBlokBaruTengah = function() {
     let newBlock = { 
         type: "text", html: "<p>Ketik materi...</p>", bg: "#ffffff", pattern: "", 
-        color: "#333333", width: "M", padTop: "40px", padBot: "40px", drawing: "", 
+        color: "#333333", width: "M", padTop: "0px", padBot: "0px", drawing: "", 
         floatImages: [], isCollapsed: false, blockTitle: "Materi Baru"
     };
     
@@ -2391,7 +2447,7 @@ window.tambahBlokBaruTengah = function() {
         window.contentBlocksData.push(newBlock);
     }
     
-    document.getElementById("sidebar-block").classList.remove("open");
+    window.tutupSidebarBlock();
     window.renderBlocks();
     window.perbaruiIndeksSemuaBlokDOM();
     if (window.simpanKeDB) window.simpanKeDB();
@@ -2404,6 +2460,7 @@ window.hapusBlok = function(i) {
     window.tampilkanCustomDialog("confirm", "Hapus blok materi ini?", null, function(isYes) {
         if (!isYes) return;
         window.contentBlocksData.splice(i, 1);
+        if (window.activeBlockIndex === i) window.tutupSidebarBlock();
         let wrappers = document.querySelectorAll('#blocks-container > .block-wrapper');
         if (wrappers[i]) wrappers[i].remove();
         window.perbaruiIndeksSemuaBlokDOM();
@@ -2432,16 +2489,48 @@ window.geserBlok = function(i, dir) {
     }
 };
 
+window.tutupSidebarBlock = function() {
+    let sb = document.getElementById('sidebar-block');
+    if (sb) sb.classList.remove('open');
+    document.querySelectorAll('#blocks-container > .block-wrapper.sidebar-target-block').forEach(function(el) {
+        el.classList.remove('sidebar-target-block');
+    });
+};
+
 window.bukaSidebarBlock = function(i) {
     window.activeBlockIndex = i;
     let b = window.contentBlocksData[i];
     if (!b) return;
+
+    let topNum = parseInt(b.padTop, 10);
+    if (isNaN(topNum)) topNum = 0;
+    let botNum = parseInt(b.padBot, 10);
+    if (isNaN(botNum)) botNum = 0;
+
     let inTop = document.querySelector('input[oninput*="padTop"]');
     let inBot = document.querySelector('input[oninput*="padBot"]');
-    if (inTop) inTop.value = parseInt(b.padTop) || 25;
-    if (document.getElementById('val-padtop')) document.getElementById('val-padtop').innerText = b.padTop || '25px';
-    if (inBot) inBot.value = parseInt(b.padBot) || 25;
-    if (document.getElementById('val-padbot')) document.getElementById('val-padbot').innerText = b.padBot || '25px';
+    if (inTop) inTop.value = topNum;
+    if (document.getElementById('val-padtop')) document.getElementById('val-padtop').innerText = topNum + 'px';
+    if (inBot) inBot.value = botNum;
+    if (document.getElementById('val-padbot')) document.getElementById('val-padbot').innerText = botNum + 'px';
+
+    let lblAktif = document.getElementById('sidebar-active-block-label');
+    if (lblAktif) {
+        let namaBlok = b.blockTitle || b.quizTitle || (b.type === 'quiz' ? 'Uji Pemahaman' : 'Materi');
+        lblAktif.innerText = 'Blok #' + (i + 1) + ' • ' + namaBlok;
+    }
+
+    // Tandai blok yang sedang diatur oleh Sidebar Settings
+    document.querySelectorAll('#blocks-container > .block-wrapper.sidebar-target-block').forEach(function(el) {
+        el.classList.remove('sidebar-target-block');
+    });
+    let targetWrap = document.querySelector('#blocks-container > .block-wrapper[data-index="' + i + '"]');
+    if (targetWrap) targetWrap.classList.add('sidebar-target-block');
+
+    if (typeof window.sinkronkanUIBgFotoSidebar === 'function') {
+        window.sinkronkanUIBgFotoSidebar(b);
+    }
+
     document.getElementById('sidebar-block').classList.add('open');
 };
 
@@ -2455,7 +2544,14 @@ window.ubahStyleBlok = function(t, v) {
     let wrap = document.querySelector('.block-wrapper[data-index="' + idx + '"]');
 
     if (d) {
-        if (t === 'bg') d.style.backgroundColor = v;
+        if (t === 'bg') {
+            if (shell) {
+                shell.style.backgroundColor = v;
+                d.style.backgroundColor = 'transparent';
+            } else {
+                d.style.backgroundColor = v;
+            }
+        }
         if (t === 'color') d.style.color = v;
         if (t === 'width') {
             d.setAttribute('data-width', v);
@@ -4228,8 +4324,8 @@ window.sisipkanBlokKuis = function() {
         pattern: "",
         color: "#333333",
         width: "M",
-        padTop: "40px",
-        padBot: "40px",
+        padTop: "0px",
+        padBot: "0px",
         drawing: ""
     });
     window.lastFocusedBlockIndex = targetPos;
@@ -4554,18 +4650,6 @@ window.hapusSoalSistem = function(qIdx, mode, blockIdx) {
             if (window.simpanKeDB) window.simpanKeDB();
         }
     }
-};
-
-window.tambahBlokBaruTengah = function() {
-    let newBlock = { type: "text", html: "<p>Ketik materi...</p>", bg: "#ffffff", pattern: "", color: "#333333", width: "M", padTop: "40px", padBot: "40px", drawing: "" };
-    if (activeBlockIndex > -1 && activeBlockIndex < window.contentBlocksData.length) {
-        window.contentBlocksData.splice(activeBlockIndex + 1, 0, newBlock);
-    } else {
-        window.contentBlocksData.push(newBlock);
-    }
-    document.getElementById("sidebar-block").classList.remove("open");
-    window.renderBlocks();
-    if (window.simpanKeDB) window.simpanKeDB();
 };
 
 window.simpanTema = function() {
@@ -8378,3 +8462,470 @@ document.addEventListener('keydown', function(e) {
         }
     }
 }, true);
+/* =========================================================================
+   TAHAP 2: LIST 5 TINGKAT (BULLETS & NUMBERING 1./A./a.), TAB WORD, & SHORTCUT
+   ========================================================================= */
+window.sinkronkanTingkatList = function(rootScope) {
+    let scope = rootScope || document.getElementById('main-editor-wrapper') || document;
+    if (!scope || !scope.querySelectorAll) return;
+
+    scope.querySelectorAll('ul, ol').forEach(function(listEl) {
+        if (!listEl.closest('.content-block, .fb-content, #popup-content-box, #cg-editor-area, #ck-editor-area')) return;
+
+        let tag = listEl.tagName.toUpperCase();
+        let depth = 1;
+        let curr = listEl.parentElement;
+        let rootOl = (tag === 'OL') ? listEl : null;
+
+        while (curr && !curr.matches('.content-block, .fb-content, #popup-content-box, #cg-editor-area, #ck-editor-area')) {
+            if (curr.tagName && curr.tagName.toUpperCase() === tag) {
+                depth++;
+                if (tag === 'OL') rootOl = curr;
+            }
+            curr = curr.parentElement;
+        }
+
+        let clampedLevel = String(Math.min(5, depth));
+        if (listEl.getAttribute('data-list-level') !== clampedLevel) {
+            listEl.setAttribute('data-list-level', clampedLevel);
+        }
+
+        if (tag === 'OL') {
+            let rootStyle = (rootOl && rootOl.getAttribute('data-ol-style'))
+                || listEl.getAttribute('data-ol-style')
+                || 'decimal';
+            if (listEl.getAttribute('data-ol-style') !== rootStyle) {
+                listEl.setAttribute('data-ol-style', rootStyle);
+            }
+        }
+    });
+};
+
+window.terapkanNumberedList = function(tipeStyle) {
+    let targetStyle = tipeStyle || 'decimal';
+    if (typeof pastikanFokusEditor === 'function') pastikanFokusEditor();
+
+    let sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+
+    let rng = sel.getRangeAt(0);
+    let anchorEl = rng.startContainer.nodeType === 3 ? rng.startContainer.parentElement : rng.startContainer;
+    let editableHost = (anchorEl && anchorEl.closest)
+        ? anchorEl.closest('.content-block, .fb-content, #popup-content-box, #cg-editor-area, #ck-editor-area')
+        : window.lastActiveEditable;
+    if (!editableHost) return;
+
+    if (typeof window.siapkanSnapshotSebelumAksi === 'function') {
+        window.siapkanSnapshotSebelumAksi(editableHost);
+    }
+
+    // Jika kursor sudah berada di dalam <ol> dengan gaya berbeda (misal dari 1. klik A—), cukup ubah gayanya
+    let existingOl = (anchorEl && anchorEl.closest) ? anchorEl.closest('ol') : null;
+    if (existingOl && editableHost.contains(existingOl)) {
+        let rootOl = existingOl;
+        let p = existingOl.parentElement;
+        while (p && editableHost.contains(p)) {
+            if (p.tagName && p.tagName.toUpperCase() === 'OL') rootOl = p;
+            p = p.parentElement;
+        }
+        let curStyle = rootOl.getAttribute('data-ol-style') || 'decimal';
+        if (curStyle !== targetStyle) {
+            rootOl.setAttribute('data-ol-style', targetStyle);
+            window.sinkronkanTingkatList(editableHost);
+            if (typeof triggerInput === 'function') triggerInput();
+            return;
+        }
+    }
+
+    // Buat atau matikan ordered list memakai formatTeks (otomatis membersihkan prefix manual)
+    window.formatTeks('insertOrderedList');
+
+    // Terapkan gaya (decimal / upper-alpha / lower-alpha) pada <ol> yang baru terbentuk
+    let selAfter = window.getSelection();
+    if (selAfter && selAfter.rangeCount > 0) {
+        let aAfter = selAfter.anchorNode && selAfter.anchorNode.nodeType === 3
+            ? selAfter.anchorNode.parentElement
+            : selAfter.anchorNode;
+        let newOl = (aAfter && aAfter.closest) ? aAfter.closest('ol') : null;
+        if (newOl && editableHost.contains(newOl)) {
+            let rootOl = newOl;
+            let p = newOl.parentElement;
+            while (p && editableHost.contains(p)) {
+                if (p.tagName && p.tagName.toUpperCase() === 'OL') rootOl = p;
+                p = p.parentElement;
+            }
+            rootOl.setAttribute('data-ol-style', targetStyle);
+        }
+    }
+
+    window.sinkronkanTingkatList(editableHost);
+    if (typeof triggerInput === 'function') triggerInput();
+};
+
+window.geserTingkatListToolbar = function(arah) {
+    if (typeof pastikanFokusEditor === 'function') pastikanFokusEditor();
+    let sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+
+    let node = sel.anchorNode;
+    let el = node && node.nodeType === 3 ? node.parentElement : node;
+    let editableHost = (el && el.closest)
+        ? el.closest('.content-block, .fb-content, #popup-content-box, #cg-editor-area, #ck-editor-area')
+        : window.lastActiveEditable;
+    if (!editableHost) return;
+
+    if (typeof window.siapkanSnapshotSebelumAksi === 'function') {
+        window.siapkanSnapshotSebelumAksi(editableHost);
+    }
+
+    let li = (el && el.closest) ? el.closest('li') : null;
+    if (li && editableHost.contains(li)) {
+        window.sinkronkanTingkatList(editableHost);
+        let parentList = li.parentElement;
+        let curLvl = parseInt((parentList && parentList.getAttribute('data-list-level')) || '1', 10) || 1;
+        if (arah > 0 && curLvl >= 5) return; // Batas maksimal 5 tingkat
+        document.execCommand(arah > 0 ? 'indent' : 'outdent', false, null);
+        window.sinkronkanTingkatList(editableHost);
+        if (typeof triggerInput === 'function') triggerInput();
+    } else {
+        window.formatTeks(arah > 0 ? 'indent' : 'outdent');
+    }
+};
+
+// Listener Keyboard: Tab (List 5 Tingkat / Tab Spasi Word) & Shortcut Alignment + Besarkan Font
+document.addEventListener('keydown', function(e) {
+    if (window.isDrawingMode) return;
+    let isEdit = document.body.classList.contains('mode-edit-aktif') || document.documentElement.classList.contains('force-edit-mode');
+    if (!isEdit) return;
+
+    let active = document.activeElement;
+    if (!active) return;
+    let activeTag = active.tagName ? active.tagName.toUpperCase() : '';
+    if (activeTag === 'INPUT' || activeTag === 'TEXTAREA') return;
+
+    let editableHost = active.closest
+        ? active.closest('.content-block, .fb-content, #popup-content-box, #cg-editor-area, #ck-editor-area')
+        : null;
+    if (!editableHost) return;
+
+    // 1. TOMBOL TAB & SHIFT+TAB
+    if (e.key === 'Tab') {
+        let sel = window.getSelection();
+        if (!sel || sel.rangeCount === 0) return;
+
+        let node = sel.anchorNode;
+        let el = node && node.nodeType === 3 ? node.parentElement : node;
+        let li = (el && el.closest) ? el.closest('li') : null;
+        let cell = (el && el.closest) ? el.closest('td, th') : null;
+
+        // A. Di dalam Bullets / Numbering (<li>): Naik/turun tingkat hingga 5 level
+        if (li && editableHost.contains(li)) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (typeof window.siapkanSnapshotSebelumAksi === 'function') {
+                window.siapkanSnapshotSebelumAksi(editableHost);
+            }
+            window.sinkronkanTingkatList(editableHost);
+            let parentList = li.parentElement;
+            let curLvl = parseInt((parentList && parentList.getAttribute('data-list-level')) || '1', 10) || 1;
+
+            if (!e.shiftKey) {
+                if (curLvl < 5) {
+                    document.execCommand('indent', false, null);
+                }
+            } else {
+                document.execCommand('outdent', false, null);
+            }
+
+            window.sinkronkanTingkatList(editableHost);
+            if (typeof triggerInput === 'function') triggerInput();
+            return;
+        }
+
+        // B. Di dalam sel tabel biasa (bukan list): biarkan handler Tab tabel yang memindahkan sel
+        if (cell && editableHost.contains(cell)) {
+            return;
+        }
+
+        // C. Di teks biasa: Tab berfungsi sebagai spasi panjang (tabulasi ala Microsoft Word)
+        e.preventDefault();
+        e.stopPropagation();
+        if (typeof window.siapkanSnapshotSebelumAksi === 'function') {
+            window.siapkanSnapshotSebelumAksi(editableHost);
+        }
+
+        if (!e.shiftKey) {
+            document.execCommand('insertText', false, '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0');
+        } else {
+            // Shift+Tab di teks biasa: hapus tabulasi spasi di belakang kursor jika ada
+            let rng = sel.getRangeAt(0);
+            if (rng.collapsed && rng.startContainer.nodeType === 3 && rng.startOffset > 0) {
+                let tn = rng.startContainer;
+                let before = tn.nodeValue.slice(0, rng.startOffset);
+                let matchSp = before.match(/[\u00A0 ]{1,8}$/);
+                if (matchSp) {
+                    let delRng = document.createRange();
+                    delRng.setStart(tn, rng.startOffset - matchSp[0].length);
+                    delRng.setEnd(tn, rng.startOffset);
+                    sel.removeAllRanges();
+                    sel.addRange(delRng);
+                    document.execCommand('delete', false, null);
+                }
+            }
+        }
+        if (typeof triggerInput === 'function') triggerInput();
+        return;
+    }
+
+    // 2. SHORTCUT KEYBOARD MICROSOFT WORD (CMD/CTRL + L, E, R, J & CMD/CTRL + SHIFT + > / <)
+    let mod = (e.metaKey || e.ctrlKey) && !e.altKey;
+    if (!mod) return;
+
+    let keyLow = (e.key || '').toLowerCase();
+
+    if (!e.shiftKey && (keyLow === 'l' || keyLow === 'e' || keyLow === 'r' || keyLow === 'j')) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (typeof window.siapkanSnapshotSebelumAksi === 'function') {
+            window.siapkanSnapshotSebelumAksi(editableHost);
+        }
+        if (keyLow === 'l') window.formatTeks('justifyLeft');
+        else if (keyLow === 'e') window.formatTeks('justifyCenter');
+        else if (keyLow === 'r') window.formatTeks('justifyRight');
+        else if (keyLow === 'j') window.formatTeks('justifyFull');
+        return;
+    }
+
+    if (e.shiftKey && (e.key === '>' || e.code === 'Period')) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (typeof window.siapkanSnapshotSebelumAksi === 'function') {
+            window.siapkanSnapshotSebelumAksi(editableHost);
+        }
+        if (typeof window.ubahFontStep === 'function') window.ubahFontStep(1);
+        return;
+    }
+
+    if (e.shiftKey && (e.key === '<' || e.code === 'Comma')) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (typeof window.siapkanSnapshotSebelumAksi === 'function') {
+            window.siapkanSnapshotSebelumAksi(editableHost);
+        }
+        if (typeof window.ubahFontStep === 'function') window.ubahFontStep(-1);
+        return;
+    }
+}, true);
+
+// Sinkronkan tingkat list otomatis saat halaman dimuat & saat konten bab baru dirender
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(function() { window.sinkronkanTingkatList(); }, 450);
+    let cont = document.getElementById('blocks-container');
+    if (cont) {
+        let obsListSync = new MutationObserver(function() {
+            window.sinkronkanTingkatList(cont);
+        });
+        obsListSync.observe(cont, { childList: true });
+    }
+});
+/* =========================================================================
+   TAHAP 3: BACKGROUND FOTO CONTENT BLOCK (CLOUDINARY) + SLIDER OPASITAS
+   ========================================================================= */
+window._bgOpacitySaveTimer = null;
+
+window.sinkronkanUIBgFotoSidebar = function(blokObj) {
+    let ctrlBox = document.getElementById('sidebar-bg-photo-controls');
+    let btnHapus = document.getElementById('btn-hapus-bg-photo');
+    let thumb = document.getElementById('sidebar-bg-photo-thumb');
+    let slider = document.getElementById('slider-bg-photo-opacity');
+    let valLbl = document.getElementById('val-bg-opacity');
+    let statusEl = document.getElementById('status-upload-bg-photo');
+    if (statusEl) statusEl.style.display = 'none';
+
+    let url = (blokObj && typeof blokObj.bgImage === 'string') ? blokObj.bgImage.trim() : '';
+    let op = (blokObj && typeof blokObj.bgImageOpacity === 'number' && !isNaN(blokObj.bgImageOpacity)) ? blokObj.bgImageOpacity : 25;
+
+    if (url) {
+        if (ctrlBox) ctrlBox.style.display = 'block';
+        if (btnHapus) btnHapus.style.display = 'inline-flex';
+        if (thumb) thumb.src = url;
+        if (slider) slider.value = String(op);
+        if (valLbl) valLbl.innerText = op + '%';
+    } else {
+        if (ctrlBox) ctrlBox.style.display = 'none';
+        if (btnHapus) btnHapus.style.display = 'none';
+        if (thumb) thumb.src = '';
+        if (slider) slider.value = '25';
+        if (valLbl) valLbl.innerText = '25%';
+    }
+};
+
+window.terapkanBgFotoKeBlokDOM = function(idx) {
+    let b = window.contentBlocksData && window.contentBlocksData[idx];
+    if (!b) return;
+    let wrapper = document.querySelector('#blocks-container > .block-wrapper[data-index="' + idx + '"]');
+    if (!wrapper) return;
+
+    let area = wrapper.querySelector(':scope > div > .block-collapsible-area');
+    if (!area) return;
+
+    let layer = area.querySelector(':scope > .block-bg-photo-layer');
+    let url = (typeof b.bgImage === 'string') ? b.bgImage.trim() : '';
+    let op = (typeof b.bgImageOpacity === 'number' && !isNaN(b.bgImageOpacity)) ? b.bgImageOpacity : 25;
+
+    if (url) {
+        if (!layer) {
+            layer = document.createElement('div');
+            layer.className = 'block-bg-photo-layer';
+            area.insertBefore(layer, area.firstChild);
+        }
+        layer.style.backgroundImage = 'url("' + url.replace(/"/g, '\\"') + '")';
+        layer.style.opacity = String(op / 100);
+        layer.style.display = 'block';
+        area.classList.add('has-bg-photo');
+    } else {
+        if (layer) layer.remove();
+        area.classList.remove('has-bg-photo');
+    }
+};
+
+window.kompresFotoUntukBgCloudinary = function(file) {
+    return new Promise(function(resolve) {
+        let isGif = (file.type === 'image/gif') || (file.name && /\.gif$/i.test(file.name));
+        if (isGif) {
+            resolve(file);
+            return;
+        }
+        let reader = new FileReader();
+        reader.onload = function(e) {
+            let img = new Image();
+            img.onload = function() {
+                let MAX_DIM = 1280;
+                let w = img.width;
+                let h = img.height;
+                if (w > MAX_DIM || h > MAX_DIM) {
+                    if (w > h) { h = Math.round(h * (MAX_DIM / w)); w = MAX_DIM; }
+                    else { w = Math.round(w * (MAX_DIM / h)); h = MAX_DIM; }
+                }
+                let canvas = document.createElement('canvas');
+                canvas.width = Math.max(1, w);
+                canvas.height = Math.max(1, h);
+                let ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                if (canvas.toBlob) {
+                    canvas.toBlob(function(blob) {
+                        resolve(blob || file);
+                    }, 'image/jpeg', 0.78);
+                } else {
+                    resolve(file);
+                }
+            };
+            img.onerror = function() { resolve(file); };
+            img.src = e.target.result;
+        };
+        reader.onerror = function() { resolve(file); };
+        reader.readAsDataURL(file);
+    });
+};
+
+window.uploadBgFotoBlokCloudinary = async function(inputElem) {
+    let file = inputElem && inputElem.files ? inputElem.files[0] : null;
+    if (inputElem) inputElem.value = '';
+    if (!file) return;
+
+    let idx = (typeof window.activeBlockIndex === 'number' && window.activeBlockIndex > -1) ? window.activeBlockIndex : -1;
+    if (idx === -1 || !window.contentBlocksData || !window.contentBlocksData[idx]) {
+        return alert('⚠️ Pilih salah satu Content Block terlebih dahulu.');
+    }
+
+    let btnUp = document.getElementById('btn-upload-bg-photo');
+    let statusEl = document.getElementById('status-upload-bg-photo');
+    if (btnUp) {
+        btnUp.disabled = true;
+        btnUp.innerText = '⏳ Mengunggah...';
+    }
+    if (statusEl) {
+        statusEl.style.display = 'block';
+        statusEl.style.color = '#d97706';
+        statusEl.innerText = '⏳ Mengompres & mengirim foto ke Cloudinary...';
+    }
+
+    try {
+        let blobSiap = await window.kompresFotoUntukBgCloudinary(file);
+        let ext = (blobSiap.type && blobSiap.type.indexOf('gif') !== -1) ? 'gif' : 'jpg';
+        let cloudName = 'rtkfvwvg';
+        let uploadPreset = 'studykawan_video';
+        let urlCloudinary = 'https://api.cloudinary.com/v1_1/' + cloudName + '/image/upload';
+
+        let formData = new FormData();
+        formData.append('file', blobSiap, 'bg_blok_' + Date.now() + '.' + ext);
+        formData.append('upload_preset', uploadPreset);
+
+        let response = await fetch(urlCloudinary, { method: 'POST', body: formData });
+        let data = await response.json();
+
+        if (!response.ok || !data || !data.secure_url) {
+            throw new Error((data && data.error && data.error.message) ? data.error.message : 'Upload Cloudinary ditolak.');
+        }
+
+        let blok = window.contentBlocksData[idx];
+        blok.bgImage = data.secure_url;
+        if (typeof blok.bgImageOpacity !== 'number' || isNaN(blok.bgImageOpacity)) {
+            blok.bgImageOpacity = 25;
+        }
+
+        window.terapkanBgFotoKeBlokDOM(idx);
+        window.sinkronkanUIBgFotoSidebar(blok);
+        if (typeof window.simpanKeDB === 'function') window.simpanKeDB();
+
+        if (statusEl) {
+            statusEl.style.display = 'block';
+            statusEl.style.color = '#16a34a';
+            statusEl.innerText = '✅ Foto latar tersimpan di Cloudinary!';
+        }
+    } catch (err) {
+        console.error('Upload BG Cloudinary error:', err);
+        if (statusEl) {
+            statusEl.style.display = 'block';
+            statusEl.style.color = '#dc2626';
+            statusEl.innerText = '❌ Gagal upload: ' + (err ? err.message : 'Periksa koneksi internet');
+        }
+    } finally {
+        if (btnUp) {
+            btnUp.disabled = false;
+            btnUp.innerText = '🖼️ Upload Foto';
+        }
+    }
+};
+
+window.ubahOpasitasBgFotoBlok = function(val) {
+    let idx = (typeof window.activeBlockIndex === 'number' && window.activeBlockIndex > -1) ? window.activeBlockIndex : -1;
+    if (idx === -1 || !window.contentBlocksData || !window.contentBlocksData[idx]) return;
+
+    let pct = Math.max(0, Math.min(100, parseInt(val, 10) || 0));
+    window.contentBlocksData[idx].bgImageOpacity = pct;
+
+    let valLbl = document.getElementById('val-bg-opacity');
+    if (valLbl) valLbl.innerText = pct + '%';
+
+    window.terapkanBgFotoKeBlokDOM(idx);
+
+    // Tunda simpan ke Firebase 350ms agar geser slider tetap mulus & hemat kuota
+    clearTimeout(window._bgOpacitySaveTimer);
+    window._bgOpacitySaveTimer = setTimeout(function() {
+        if (typeof window.simpanKeDB === 'function') window.simpanKeDB();
+    }, 350);
+};
+
+window.hapusBgFotoBlok = function() {
+    let idx = (typeof window.activeBlockIndex === 'number' && window.activeBlockIndex > -1) ? window.activeBlockIndex : -1;
+    if (idx === -1 || !window.contentBlocksData || !window.contentBlocksData[idx]) return;
+
+    window.contentBlocksData[idx].bgImage = '';
+    window.terapkanBgFotoKeBlokDOM(idx);
+    window.sinkronkanUIBgFotoSidebar(window.contentBlocksData[idx]);
+    if (typeof window.simpanKeDB === 'function') window.simpanKeDB();
+};

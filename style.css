@@ -2809,8 +2809,8 @@ body.dark-mode-active #ujian-strict-room {
 }
 
 .block-wrapper {
-    content-visibility: auto;
-    contain-intrinsic-size: 320px;
+    content-visibility: visible !important;
+    overflow-anchor: none;
 }
 
 /* Matikan filter drop-shadow berat pada kartu yang tidak sedang tampil di layar utama */
@@ -4737,4 +4737,295 @@ body.dark-mode-active .arsip-stat-label {
     display: inline-block !important;
     margin: 2px 3px !important;
     text-align: left !important;
+}
+
+/* =========================================================================
+   TAHAP 1: SIDEBAR SETTINGS PINTAR, HIGHLIGHT BLOK AKTIF, & ANTI-TUMPANG TINDIH
+   ========================================================================= */
+.sidebar-settings {
+    z-index: 8600 !important;
+}
+
+.block-wrapper.sidebar-target-block > .dynamic-block-shell,
+.block-wrapper.sidebar-target-block > .pdf-landscape-block {
+    outline: 2.5px solid #2980b9 !important;
+    outline-offset: 2px;
+    box-shadow: 0 0 0 5px rgba(41, 128, 185, 0.14) !important;
+}
+/* =========================================================================
+   TAHAP 2: BULLETS 5 TINGKAT & NUMBERING BERTINGKAT (1./A./a. -> ). -> ( ))
+   ========================================================================= */
+.content-block ul,
+.content-block ol,
+.fb-content ul,
+.fb-content ol,
+#popup-content-box ul,
+#popup-content-box ol,
+#cg-editor-area ul,
+#cg-editor-area ol,
+#ck-editor-area ul,
+#ck-editor-area ol {
+    list-style: none !important;
+    padding-left: 24px !important;
+    margin: 2px 0 !important;
+}
+
+.content-block ol,
+.fb-content ol,
+#popup-content-box ol,
+#cg-editor-area ol,
+#ck-editor-area ol {
+    padding-left: 34px !important;
+}
+
+.content-block li,
+.fb-content li,
+#popup-content-box li,
+#cg-editor-area li,
+#ck-editor-area li {
+    position: relative;
+    list-style: none !important;
+}
+
+.content-block ul > li::before,
+.fb-content ul > li::before,
+#popup-content-box ul > li::before,
+#cg-editor-area ul > li::before,
+#ck-editor-area ul > li::before,
+.content-block ol > li::before,
+.fb-content ol > li::before,
+#popup-content-box ol > li::before,
+#cg-editor-area ol > li::before,
+#ck-editor-area ol > li::before {
+    position: absolute;
+    right: calc(100% + 7px);
+    top: 0;
+    white-space: nowrap;
+    text-align: right;
+    user-select: none;
+    pointer-events: none;
+}
+
+/* --- A. BULLETS 5 TINGKAT (● -> ▪ -> ▸ -> ◦ -> ◆) --- */
+.content-block ul > li::before,
+.fb-content ul > li::before,
+#popup-content-box ul > li::before,
+#cg-editor-area ul > li::before,
+#ck-editor-area ul > li::before {
+    content: "●";
+    font-size: 0.72em;
+    line-height: 1.9;
+}
+
+.content-block ul[data-list-level="2"] > li::before,
+.content-block ul ul > li::before,
+.fb-content ul[data-list-level="2"] > li::before,
+#popup-content-box ul[data-list-level="2"] > li::before,
+#cg-editor-area ul[data-list-level="2"] > li::before,
+#ck-editor-area ul[data-list-level="2"] > li::before {
+    content: "▪";
+    font-size: 0.85em;
+    line-height: 1.65;
+}
+
+.content-block ul[data-list-level="3"] > li::before,
+.content-block ul ul ul > li::before,
+.fb-content ul[data-list-level="3"] > li::before,
+#popup-content-box ul[data-list-level="3"] > li::before,
+#cg-editor-area ul[data-list-level="3"] > li::before,
+#ck-editor-area ul[data-list-level="3"] > li::before {
+    content: "▸";
+    font-size: 0.95em;
+    line-height: 1.5;
+}
+
+.content-block ul[data-list-level="4"] > li::before,
+.content-block ul ul ul ul > li::before,
+.fb-content ul[data-list-level="4"] > li::before,
+#popup-content-box ul[data-list-level="4"] > li::before,
+#cg-editor-area ul[data-list-level="4"] > li::before,
+#ck-editor-area ul[data-list-level="4"] > li::before {
+    content: "◦";
+    font-size: 1em;
+    line-height: 1.45;
+}
+
+.content-block ul[data-list-level="5"] > li::before,
+.content-block ul ul ul ul ul > li::before,
+.fb-content ul[data-list-level="5"] > li::before,
+#popup-content-box ul[data-list-level="5"] > li::before,
+#cg-editor-area ul[data-list-level="5"] > li::before,
+#ck-editor-area ul[data-list-level="5"] > li::before {
+    content: "◆";
+    font-size: 0.72em;
+    line-height: 1.9;
+}
+
+/* --- B. COUNTER TERPISAH PER LEVEL AGAR NOMOR TIDAK PERNAH RESET DI SUB-LIST --- */
+ol:not([data-list-level]),
+ol[data-list-level="1"] { counter-reset: mhd-ol-1; }
+ol[data-list-level="2"] { counter-reset: mhd-ol-2; }
+ol[data-list-level="3"] { counter-reset: mhd-ol-3; }
+ol[data-list-level="4"] { counter-reset: mhd-ol-4; }
+ol[data-list-level="5"] { counter-reset: mhd-ol-5; }
+
+ol:not([data-list-level]) > li,
+ol[data-list-level="1"] > li { counter-increment: mhd-ol-1; }
+ol[data-list-level="2"] > li { counter-increment: mhd-ol-2; }
+ol[data-list-level="3"] > li { counter-increment: mhd-ol-3; }
+ol[data-list-level="4"] > li { counter-increment: mhd-ol-4; }
+ol[data-list-level="5"] > li { counter-increment: mhd-ol-5; }
+
+/* 1. NUMBERING ANGKA (1. -> 1). -> (1) -> a). -> (a)) */
+.content-block ol:not([data-list-level]) > li::before,
+.content-block ol[data-list-level="1"] > li::before,
+.fb-content ol[data-list-level="1"] > li::before,
+#popup-content-box ol[data-list-level="1"] > li::before,
+#cg-editor-area ol[data-list-level="1"] > li::before,
+#ck-editor-area ol[data-list-level="1"] > li::before {
+    content: counter(mhd-ol-1, decimal) ".";
+}
+
+.content-block ol[data-list-level="2"] > li::before,
+.fb-content ol[data-list-level="2"] > li::before,
+#popup-content-box ol[data-list-level="2"] > li::before,
+#cg-editor-area ol[data-list-level="2"] > li::before,
+#ck-editor-area ol[data-list-level="2"] > li::before {
+    content: counter(mhd-ol-2, decimal) ").";
+}
+
+.content-block ol[data-list-level="3"] > li::before,
+.fb-content ol[data-list-level="3"] > li::before,
+#popup-content-box ol[data-list-level="3"] > li::before,
+#cg-editor-area ol[data-list-level="3"] > li::before,
+#ck-editor-area ol[data-list-level="3"] > li::before {
+    content: "(" counter(mhd-ol-3, decimal) ")";
+}
+
+.content-block ol[data-list-level="4"] > li::before,
+.fb-content ol[data-list-level="4"] > li::before,
+#popup-content-box ol[data-list-level="4"] > li::before,
+#cg-editor-area ol[data-list-level="4"] > li::before,
+#ck-editor-area ol[data-list-level="4"] > li::before {
+    content: counter(mhd-ol-4, lower-alpha) ").";
+}
+
+.content-block ol[data-list-level="5"] > li::before,
+.fb-content ol[data-list-level="5"] > li::before,
+#popup-content-box ol[data-list-level="5"] > li::before,
+#cg-editor-area ol[data-list-level="5"] > li::before,
+#ck-editor-area ol[data-list-level="5"] > li::before {
+    content: "(" counter(mhd-ol-5, lower-alpha) ")";
+}
+
+/* 2. NUMBERING HURUF BESAR (A. -> A). -> (A) -> a). -> (a)) */
+.content-block ol[data-ol-style="upper-alpha"][data-list-level="1"] > li::before,
+.fb-content ol[data-ol-style="upper-alpha"][data-list-level="1"] > li::before,
+#popup-content-box ol[data-ol-style="upper-alpha"][data-list-level="1"] > li::before,
+#cg-editor-area ol[data-ol-style="upper-alpha"][data-list-level="1"] > li::before,
+#ck-editor-area ol[data-ol-style="upper-alpha"][data-list-level="1"] > li::before {
+    content: counter(mhd-ol-1, upper-alpha) ".";
+}
+
+.content-block ol[data-ol-style="upper-alpha"][data-list-level="2"] > li::before,
+.fb-content ol[data-ol-style="upper-alpha"][data-list-level="2"] > li::before,
+#popup-content-box ol[data-ol-style="upper-alpha"][data-list-level="2"] > li::before,
+#cg-editor-area ol[data-ol-style="upper-alpha"][data-list-level="2"] > li::before,
+#ck-editor-area ol[data-ol-style="upper-alpha"][data-list-level="2"] > li::before {
+    content: counter(mhd-ol-2, upper-alpha) ").";
+}
+
+.content-block ol[data-ol-style="upper-alpha"][data-list-level="3"] > li::before,
+.fb-content ol[data-ol-style="upper-alpha"][data-list-level="3"] > li::before,
+#popup-content-box ol[data-ol-style="upper-alpha"][data-list-level="3"] > li::before,
+#cg-editor-area ol[data-ol-style="upper-alpha"][data-list-level="3"] > li::before,
+#ck-editor-area ol[data-ol-style="upper-alpha"][data-list-level="3"] > li::before {
+    content: "(" counter(mhd-ol-3, upper-alpha) ")";
+}
+
+/* 3. NUMBERING HURUF KECIL (a. -> a). -> (a) -> i). -> (i)) */
+.content-block ol[data-ol-style="lower-alpha"][data-list-level="1"] > li::before,
+.fb-content ol[data-ol-style="lower-alpha"][data-list-level="1"] > li::before,
+#popup-content-box ol[data-ol-style="lower-alpha"][data-list-level="1"] > li::before,
+#cg-editor-area ol[data-ol-style="lower-alpha"][data-list-level="1"] > li::before,
+#ck-editor-area ol[data-ol-style="lower-alpha"][data-list-level="1"] > li::before {
+    content: counter(mhd-ol-1, lower-alpha) ".";
+}
+
+.content-block ol[data-ol-style="lower-alpha"][data-list-level="2"] > li::before,
+.fb-content ol[data-ol-style="lower-alpha"][data-list-level="2"] > li::before,
+#popup-content-box ol[data-ol-style="lower-alpha"][data-list-level="2"] > li::before,
+#cg-editor-area ol[data-ol-style="lower-alpha"][data-list-level="2"] > li::before,
+#ck-editor-area ol[data-ol-style="lower-alpha"][data-list-level="2"] > li::before {
+    content: counter(mhd-ol-2, lower-alpha) ").";
+}
+
+.content-block ol[data-ol-style="lower-alpha"][data-list-level="3"] > li::before,
+.fb-content ol[data-ol-style="lower-alpha"][data-list-level="3"] > li::before,
+#popup-content-box ol[data-ol-style="lower-alpha"][data-list-level="3"] > li::before,
+#cg-editor-area ol[data-ol-style="lower-alpha"][data-list-level="3"] > li::before,
+#ck-editor-area ol[data-ol-style="lower-alpha"][data-list-level="3"] > li::before {
+    content: "(" counter(mhd-ol-3, lower-alpha) ")";
+}
+
+.content-block ol[data-ol-style="lower-alpha"][data-list-level="4"] > li::before,
+.fb-content ol[data-ol-style="lower-alpha"][data-list-level="4"] > li::before,
+#popup-content-box ol[data-ol-style="lower-alpha"][data-list-level="4"] > li::before,
+#cg-editor-area ol[data-ol-style="lower-alpha"][data-list-level="4"] > li::before,
+#ck-editor-area ol[data-ol-style="lower-alpha"][data-list-level="4"] > li::before {
+    content: counter(mhd-ol-4, lower-roman) ").";
+}
+
+.content-block ol[data-ol-style="lower-alpha"][data-list-level="5"] > li::before,
+.fb-content ol[data-ol-style="lower-alpha"][data-list-level="5"] > li::before,
+#popup-content-box ol[data-ol-style="lower-alpha"][data-list-level="5"] > li::before,
+#cg-editor-area ol[data-ol-style="lower-alpha"][data-list-level="5"] > li::before,
+#ck-editor-area ol[data-ol-style="lower-alpha"][data-list-level="5"] > li::before {
+    content: "(" counter(mhd-ol-5, lower-roman) ")";
+}
+/* =========================================================================
+   TAHAP 3: LAPISAN BACKGROUND FOTO CONTENT BLOCK & PRATINJAU SIDEBAR
+   ========================================================================= */
+.block-bg-photo-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    pointer-events: none;
+    border-radius: 0 0 10px 10px;
+    transition: opacity 0.12s ease;
+}
+
+/* Pastikan latar blok teks tetap transparan saat memakai foto latar (Light & Dark Mode) */
+.block-collapsible-area.has-bg-photo > .content-block.a4-portrait-block,
+.block-collapsible-area.has-bg-photo > .content-block.dynamic-content-block,
+body.dark-mode-active .block-collapsible-area.has-bg-photo > .content-block.a4-portrait-block,
+body.dark-mode-active .block-collapsible-area.has-bg-photo > .content-block.dynamic-content-block {
+    background-color: transparent !important;
+}
+
+body.dark-mode-active .a4-paper-wrapper.dynamic-block-shell {
+    background-color: #1e293b !important;
+    border-color: #334155 !important;
+}
+
+.sidebar-bg-thumb-box {
+    width: 100%;
+    height: 92px;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #cbd5e1;
+    background: #f1f5f9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sidebar-bg-thumb-box img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
 }

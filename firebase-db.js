@@ -808,8 +808,8 @@ window.muatKontenHalaman = async function(slugBab, forceServerFetch) {
         window.homeRightBlocksData = JSON.parse(JSON.stringify(dataObj.rightBlocksObj || []));
 
         window.contentBlocksData.forEach(function(b) {
-            if (!b.padTop) b.padTop = "40px";
-            if (!b.padBot) b.padBot = "40px";
+            if (b.padTop === undefined || b.padTop === null || b.padTop === "") b.padTop = "0px";
+            if (b.padBot === undefined || b.padBot === null || b.padBot === "") b.padBot = "0px";
             if (!b.drawing) b.drawing = "";
             if (!b.type) b.type = "text";
             if (!b.pattern) b.pattern = "";
@@ -894,7 +894,7 @@ window.muatKontenHalaman = async function(slugBab, forceServerFetch) {
             }
         } else if (!sudahRenderLokal) {
             renderDataKeLayar({
-                blocksObj: [{ type: 'text', html: "<p>Ketik materi...</p>", bg: "#ffffff", pattern: "", color: "#333333", width: "M", padTop: "40px", padBot: "40px", drawing: "" }],
+                blocksObj: [{ type: 'text', html: "<p>Ketik materi...</p>", bg: "#ffffff", pattern: "", color: "#333333", width: "M", padTop: "0px", padBot: "0px", drawing: "" }],
                 floatingBoxesObj: [],
                 leftBlocksObj: [],
                 rightBlocksObj: []
