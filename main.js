@@ -3565,10 +3565,8 @@ window.ubahUkuranFotoIstilah = function(val) {
     if (sizeVal) sizeVal.innerText = px + "px";
 };
 
-window.prosesUploadFotoIstilah = function(input) {
-    let f = input.files && input.files[0];
-    if (!f) return;
-
+window.kompresDanSetFotoIstilah = function(fileBlob) {
+    if (!fileBlob) return;
     let reader = new FileReader();
     reader.onload = function(e) {
         let img = new Image();
@@ -3607,8 +3605,36 @@ window.prosesUploadFotoIstilah = function(input) {
         };
         img.src = e.target.result;
     };
-    reader.readAsDataURL(f);
+    reader.readAsDataURL(fileBlob);
 };
+
+window.prosesUploadFotoIstilah = function(input) {
+    let f = input.files && input.files[0];
+    if (!f) return;
+    window.kompresDanSetFotoIstilah(f);
+};
+
+// Tangkap Copy-Paste gambar (Cmd+V / Ctrl+V) saat modal Buat Istilah terbuka
+document.addEventListener("paste", function(e) {
+    let modal = document.getElementById("modal-glosarium-edit");
+    if (!modal || modal.style.display !== "flex") return;
+
+    let clip = e.clipboardData || window.clipboardData;
+    if (!clip || !clip.items) return;
+
+    for (let i = 0; i < clip.items.length; i++) {
+        let item = clip.items[i];
+        if (item && item.type && item.type.indexOf("image/") === 0) {
+            let blob = item.getAsFile();
+            if (blob) {
+                e.preventDefault();
+                e.stopPropagation();
+                window.kompresDanSetFotoIstilah(blob);
+                break;
+            }
+        }
+    }
+}, true);
 
 window.bukaModalGlosarium = function() {
     window.simpanSeleksiTeks();
