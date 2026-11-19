@@ -3366,30 +3366,53 @@ window.hoverIstilah = function(el, e) {
     if (!tip) return;
 
     let cleanWord = el.innerText.replace(/💡/g, '').trim();
-    document.getElementById('tooltip-title').innerText = cleanWord + ': ';
-    document.getElementById('tooltip-body').innerText = el.getAttribute('data-penjelasan') || '';
-    tip.style.display = 'block';
+    let penjelasan = el.getAttribute('data-penjelasan') || '';
+    let imgSrc = el.getAttribute('data-img') || '';
+    let imgWidth = parseInt(el.getAttribute('data-img-width') || '160', 10) || 160;
 
-    // Hitung posisi kata di layar
-    let rect = el.getBoundingClientRect();
-    let tipW = tip.offsetWidth || 220;
-    let tipH = tip.offsetHeight || 60;
+    document.getElementById('tooltip-title').innerText = penjelasan ? (cleanWord + ': ') : cleanWord;
+    document.getElementById('tooltip-body').innerText = penjelasan;
 
-    // Posisi Default: Kanan Atas dari kata tersebut
-    let x = rect.right + 6;
-    let y = rect.top - tipH - 6;
-
-    // Jika kata berada di ujung kanan layar, pindahkan pop-up ke Kiri Atas dari kata tersebut
-    if (x + tipW > window.innerWidth - 12) {
-        x = rect.left - tipW - 6;
+    let imgWrap = document.getElementById('tooltip-img-wrap');
+    let imgEl = document.getElementById('tooltip-img');
+    if (imgWrap && imgEl) {
+        if (imgSrc) {
+            imgEl.src = imgSrc;
+            imgEl.style.width = Math.min(imgWidth, window.innerWidth - 44) + 'px';
+            imgWrap.style.display = 'block';
+        } else {
+            imgEl.src = '';
+            imgWrap.style.display = 'none';
+        }
     }
 
-    // Jaga agar tidak keluar batas kiri atau batas atas layar
-    if (x < 10) x = 10;
-    if (y < 10) y = rect.bottom + 6;
+    tip.style.display = 'block';
 
-    tip.style.left = x + 'px';
-    tip.style.top = y + 'px';
+    let aturKoordinatTooltip = function() {
+        let rect = el.getBoundingClientRect();
+        let tipW = tip.offsetWidth || 220;
+        let tipH = tip.offsetHeight || 60;
+
+        let x = rect.right + 6;
+        let y = rect.top - tipH - 6;
+
+        if (x + tipW > window.innerWidth - 12) {
+            x = rect.left - tipW - 6;
+        }
+        if (x < 10) x = 10;
+        if (y < 10) y = rect.bottom + 6;
+        if (y + tipH > window.innerHeight - 10) {
+            y = Math.max(10, window.innerHeight - tipH - 10);
+        }
+
+        tip.style.left = x + 'px';
+        tip.style.top = y + 'px';
+    };
+
+    aturKoordinatTooltip();
+    if (imgSrc && imgEl) {
+        imgEl.onload = aturKoordinatTooltip;
+    }
 };
 
 window.leaveIstilah = function() { 
@@ -3512,27 +3535,111 @@ window.sisipkanSimbol = function(sym) {
     triggerInput(); 
 };
 
-// Modal Glosarium (Istilah Tanpa Simbol 💡)
-window.bukaModalGlosarium = function() { 
-    window.simpanSeleksiTeks(); 
-    if (!window.globalSelectedRange || window.globalSelectedRange.toString().trim() === "") {
-        return alert("Blok satu kata atau istilah di dalam materi terlebih dahulu!"); 
-    }
-    document.getElementById("glosarium-input-text").value = ""; 
-    window.bukaModal("modal-glosarium-edit"); 
+// Modal Glosarium (Mendukung Teks & Foto Mikro Terkompresi + Atur Ukuran)
+window._tempGlosariumImgData = "";
+window._tempGlosariumImgWidth = 160;
+
+window.hapusFotoIstilahModal = function() {
+    window._tempGlosariumImgData = "";
+    window._tempGlosariumImgWidth = 160;
+    let inpFile = document.getElementById("glosarium-input-img");
+    let prevBox = document.getElementById("glosarium-img-preview-box");
+    let prevImg = document.getElementById("glosarium-img-preview");
+    let sizeRange = document.getElementById("glosarium-img-size");
+    let sizeVal = document.getElementById("glosarium-img-size-val");
+    let infoKb = document.getElementById("glosarium-img-size-kb");
+    if (inpFile) inpFile.value = "";
+    if (prevBox) prevBox.style.display = "none";
+    if (prevImg) prevImg.src = "";
+    if (sizeRange) sizeRange.value = "160";
+    if (sizeVal) sizeVal.innerText = "160px";
+    if (infoKb) infoKb.innerText = "Auto-kompres mikro (~6 KB)";
 };
-window.terapkanPopUpIstilah = function() { 
-    let ket = document.getElementById("glosarium-input-text").value.trim(); 
-    if (!ket) return; 
-    window.kembalikanSeleksiTeks(); 
-    let span = document.createElement("span"); 
-    span.className = "glossary-term"; 
-    span.setAttribute("data-penjelasan", ket); 
-    span.innerText = window.globalSelectedRange.toString().replace(/💡/g, "").trim(); 
-    window.globalSelectedRange.deleteContents(); 
-    window.globalSelectedRange.insertNode(span); 
-    window.tutupModal("modal-glosarium-edit"); 
-    triggerInput(); 
+
+window.ubahUkuranFotoIstilah = function(val) {
+    let px = Math.max(80, Math.min(260, parseInt(val, 10) || 160));
+    window._tempGlosariumImgWidth = px;
+    let prevImg = document.getElementById("glosarium-img-preview");
+    let sizeVal = document.getElementById("glosarium-img-size-val");
+    if (prevImg) prevImg.style.width = px + "px";
+    if (sizeVal) sizeVal.innerText = px + "px";
+};
+
+window.prosesUploadFotoIstilah = function(input) {
+    let f = input.files && input.files[0];
+    if (!f) return;
+
+    let reader = new FileReader();
+    reader.onload = function(e) {
+        let img = new Image();
+        img.onload = function() {
+            let canvas = document.createElement("canvas");
+            let MAX_DIM = 280; // Resolusi kecil tapi cukup jelas dilihat di tooltip
+            let w = img.width;
+            let h = img.height;
+            if (w > h) {
+                if (w > MAX_DIM) { h = Math.round(h * (MAX_DIM / w)); w = MAX_DIM; }
+            } else {
+                if (h > MAX_DIM) { w = Math.round(w * (MAX_DIM / h)); h = MAX_DIM; }
+            }
+            canvas.width = Math.max(1, w);
+            canvas.height = Math.max(1, h);
+
+            let ctx = canvas.getContext("2d");
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+            // Kompresi agresif JPEG 55% agar ukuran sangat kecil (~4 - 12 KB)
+            let dataUrl = canvas.toDataURL("image/jpeg", 0.55);
+            let approxKB = Math.max(1, ((dataUrl.length * 3) / 4 / 1024)).toFixed(1);
+
+            window._tempGlosariumImgData = dataUrl;
+            let prevBox = document.getElementById("glosarium-img-preview-box");
+            let prevImg = document.getElementById("glosarium-img-preview");
+            let infoKb = document.getElementById("glosarium-img-size-kb");
+            if (prevImg) {
+                prevImg.src = dataUrl;
+                prevImg.style.width = window._tempGlosariumImgWidth + "px";
+            }
+            if (prevBox) prevBox.style.display = "block";
+            if (infoKb) infoKb.innerText = "✅ Terkompresi: " + approxKB + " KB";
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(f);
+};
+
+window.bukaModalGlosarium = function() {
+    window.simpanSeleksiTeks();
+    if (!window.globalSelectedRange || window.globalSelectedRange.toString().trim() === "") {
+        return alert("Blok satu kata atau istilah di dalam materi terlebih dahulu!");
+    }
+    document.getElementById("glosarium-input-text").value = "";
+    window.hapusFotoIstilahModal();
+    window.bukaModal("modal-glosarium-edit");
+};
+
+window.terapkanPopUpIstilah = function() {
+    let ket = document.getElementById("glosarium-input-text").value.trim();
+    let imgData = window._tempGlosariumImgData || "";
+    if (!ket && !imgData) {
+        return alert("Isi penjelasan teks atau sisipkan foto istilah terlebih dahulu!");
+    }
+    window.kembalikanSeleksiTeks();
+    let span = document.createElement("span");
+    span.className = "glossary-term";
+    span.setAttribute("data-penjelasan", ket);
+    if (imgData) {
+        span.setAttribute("data-img", imgData);
+        span.setAttribute("data-img-width", String(window._tempGlosariumImgWidth || 160));
+    }
+    span.innerText = window.globalSelectedRange.toString().replace(/💡/g, "").trim();
+    window.globalSelectedRange.deleteContents();
+    window.globalSelectedRange.insertNode(span);
+    window.hapusFotoIstilahModal();
+    window.tutupModal("modal-glosarium-edit");
+    triggerInput();
 };
 window.hapusIstilah = function() {
     pastikanFokusEditor();

@@ -113,7 +113,9 @@ html.ios-fullscreen-lock, body.ios-fullscreen-lock {
 .glossary-term { border-bottom: 2px dashed #d35400; color: inherit; font-weight: 600; cursor: pointer; background: rgba(255, 235, 59, 0.45); padding: 1px 4px; border-radius: 3px; transition: 0.2s; }
 .glossary-term:hover { background: rgba(255, 213, 79, 0.7); }
 
-#tooltip-istilah { display:none; position:fixed; background:#fff; border-left:4px solid #f39c12; box-shadow:0 8px 25px rgba(0,0,0,0.22); padding:10px 14px; border-radius:6px; font-size:13px; z-index:99999; max-width:280px; font-family:'Quicksand', sans-serif; user-select: text; pointer-events: auto; }
+#tooltip-istilah { display:none; position:fixed; background:#fff; border-left:4px solid #f39c12; box-shadow:0 8px 25px rgba(0,0,0,0.22); padding:10px 14px; border-radius:8px; font-size:13px; z-index:99999; max-width:min(300px, 88vw); font-family:'Quicksand', sans-serif; user-select: text; pointer-events: auto; box-sizing:border-box; }
+body.dark-mode-active #tooltip-istilah { background:#1e293b !important; color:#f1f5f9 !important; border-left-color:#f59e0b !important; }
+body.dark-mode-active #tooltip-istilah #tooltip-body { color:#e2e8f0 !important; }
 
 .custom-site-btn { display: inline-block; background-color: #0b3954; color: #ffffff !important; padding: 12px 32px; border-radius: 30px; font-weight: 700; text-decoration: none !important; font-family: 'Montserrat', sans-serif; font-size: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); transition: all 0.3s ease; margin: 10px 5px; text-align: center; border: none; cursor: pointer; }
 .content-block h1, .fb-content h1 { font-size: 32px; font-weight: bold; margin-bottom: 15px; } .content-block h2, .fb-content h2 { font-size: 24px; font-weight: bold; margin-bottom: 12px; } .content-block h3, .fb-content h3 { font-size: 18px; font-weight: bold; margin-bottom: 10px; } .content-block p, .fb-content p { margin: 0; } .content-block blockquote, .fb-content blockquote { border-left: 4px solid #3498db; margin: 15px 0; padding: 10px 20px; background: rgba(0,0,0,0.03); font-style: italic; border-radius: 0 8px 8px 0; }

@@ -102,6 +102,9 @@
     <div id="tooltip-istilah" onmouseenter="clearTimeout(tipTimer)" onmouseleave="window.leaveIstilah()">
         <strong id="tooltip-title"></strong>
         <span id="tooltip-body" style="color:#333;"></span>
+        <div id="tooltip-img-wrap" style="display:none; margin-top:8px; text-align:center;">
+            <img id="tooltip-img" src="" alt="Ilustrasi Istilah" style="max-width:100%; height:auto; border-radius:6px; border:1px solid #e2e8f0; display:block; margin:0 auto;">
+        </div>
     </div>
 
     <!-- AI TUTOR UI -->
@@ -949,7 +952,35 @@
         </div>
     </div>
 
-    <div id="modal-glosarium-edit" class="modal-overlay" onclick="if(event.target===this)tutupModal('modal-glosarium-edit')"><div class="modal-box" style="width:400px;"><div class="modal-header"><h3>💡 Buat Istilah</h3><button class="close-btn" onclick="tutupModal('modal-glosarium-edit')">✕</button></div><div class="modal-body"><textarea id="glosarium-input-text" class="input-box" rows="4"></textarea><button class="btn-action" style="background:#f39c12;" onclick="terapkanPopUpIstilah()">Terapkan</button></div></div></div>
+    <div id="modal-glosarium-edit" class="modal-overlay" onclick="if(event.target===this)tutupModal('modal-glosarium-edit')">
+        <div class="modal-box" style="width:420px;">
+            <div class="modal-header">
+                <h3 style="margin:0;">💡 Buat Istilah</h3>
+                <button class="close-btn" onclick="tutupModal('modal-glosarium-edit')">✕</button>
+            </div>
+            <div class="modal-body" style="display:flex; flex-direction:column; gap:10px;">
+                <textarea id="glosarium-input-text" class="input-box" rows="3" placeholder="Ketik penjelasan istilah (opsional jika sudah menyisipkan foto)..." style="margin-bottom:0;"></textarea>
+
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; background:#f8fafc; border:1px dashed #cbd5e1; padding:8px 10px; border-radius:8px;">
+                    <input type="file" id="glosarium-input-img" accept="image/*" style="display:none;" onchange="window.prosesUploadFotoIstilah(this)">
+                    <button type="button" class="btn-action" style="background:#2980b9; width:auto; padding:6px 12px; font-size:11.5px;" onclick="document.getElementById('glosarium-input-img').click()">📷 Sisipkan Foto</button>
+                    <span id="glosarium-img-size-kb" style="font-size:11px; color:#64748b; font-weight:700;">Auto-kompres mikro (~6 KB)</span>
+                </div>
+
+                <div id="glosarium-img-preview-box" style="display:none; background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:10px; text-align:center;">
+                    <img id="glosarium-img-preview" src="" alt="Preview Foto Istilah" style="width:160px; max-width:100%; height:auto; border-radius:6px; border:1px solid #cbd5e1; margin:0 auto 10px auto; display:block;">
+                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+                        <span style="font-size:11px; font-weight:700; color:#475569; white-space:nowrap;">Ukuran:</span>
+                        <input type="range" id="glosarium-img-size" min="80" max="260" value="160" style="flex:1; accent-color:#f39c12;" oninput="window.ubahUkuranFotoIstilah(this.value)">
+                        <span id="glosarium-img-size-val" style="font-size:11px; font-weight:800; color:#d35400; min-width:38px;">160px</span>
+                    </div>
+                    <button type="button" style="background:#fee2e2; color:#c0392b; border:none; border-radius:6px; padding:4px 10px; font-size:11px; font-weight:700; cursor:pointer;" onclick="window.hapusFotoIstilahModal()">🗑️ Hapus Foto</button>
+                </div>
+
+                <button class="btn-action" style="background:#f39c12;" onclick="terapkanPopUpIstilah()">Terapkan</button>
+            </div>
+        </div>
+    </div>
     <div id="modal-button-edit" class="modal-overlay" onclick="if(event.target===this)tutupModal('modal-button-edit')"><div class="modal-box" style="width:400px;"><div class="modal-header"><h3>🔘 Tombol</h3><button class="close-btn" onclick="tutupModal('modal-button-edit')">✕</button></div><div class="modal-body"><input type="text" id="btn-text-input" class="input-box" placeholder="Teks"><select id="btn-internal-select" class="input-box"></select><input type="text" id="btn-external-input" class="input-box" placeholder="Link Eksternal"><button class="btn-action" style="background:#0b3954;" onclick="terapkanCustomButton()">Sisipkan</button></div></div></div>
     <div id="modal-ai-quiz" class="modal-overlay" onclick="if(event.target===this)tutupModal('modal-ai-quiz')">
         <div class="modal-box" style="width:500px;">
