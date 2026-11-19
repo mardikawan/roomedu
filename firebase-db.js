@@ -923,7 +923,7 @@ window.muatKontenHalaman = async function(slugBab, forceServerFetch) {
                         '<h3 style="margin:0 0 6px 0; color:#0b3954;">Koneksi Internet Terputus</h3>' +
                         '<p style="margin:0 0 16px 0; font-size:13px; color:#64748b; line-height:1.5;">Bab ini belum disimpan untuk mode baca offline. Anda tetap bisa membuka bab lain yang sudah tersimpan di perangkat ini.</p>' +
                         '<div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">' +
-                            '<button type="button" class="btn-action" style="background:#0b3954; width:auto; padding:9px 18px; border-radius:20px;" onclick="window.bukaModalPustakaOffline()">📚 Buka Pustaka Offline</button>' +
+                            '<button type="button" class="btn-action" style="background:#0b3954; width:auto; padding:9px 18px; border-radius:20px;" onclick="window.navigasiHalaman(null, \'home\')">🏠 Kembali ke HOME</button>' +
                             '<button type="button" class="btn-action" style="background:#16a085; width:auto; padding:9px 18px; border-radius:20px;" onclick="window.muatKontenHalaman(window.babAktif, true)">🔄 Coba Lagi</button>' +
                         '</div>' +
                     '</div>';

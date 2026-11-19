@@ -3454,20 +3454,17 @@ window.ambilJudulBabDariSlug = function(slug) {
         let found = window.pagesData.find(function(p) { return p && p.slug === target; });
         if (found && found.title) return found.title;
     }
-    return target === "home" ? "Beranda (HOME)" : target.replace(/-/g, " ").toUpperCase();
+    return target === "home" ? "HOME" : target.replace(/-/g, " ").toUpperCase();
 };
 
 window.simpanBabOfflineIdb = async function(guru, slug, dataObj) {
     let db = await window.initLocalDB();
-    let payloadStr = JSON.stringify(dataObj || {});
-    let sizeKB = Math.max(1, Math.round((payloadStr.length * 2) / 1024));
     let record = {
         id: window.buatKeyOfflineBab(guru, slug),
         guru: (guru || window.guruAktif || "mahardika").toLowerCase(),
         slug: slug || "home",
         title: window.ambilJudulBabDariSlug(slug),
         savedAt: Date.now(),
-        sizeKB: sizeKB,
         data: dataObj
     };
     return new Promise(function(resolve, reject) {
@@ -3493,35 +3490,34 @@ window.muatBabOfflineIdb = async function(guru, slug) {
     }
 };
 
-window.hapusBabOfflineIdb = async function(guru, slug) {
-    let db = await window.initLocalDB();
-    let key = window.buatKeyOfflineBab(guru, slug);
-    return new Promise(function(resolve, reject) {
-        let tx = db.transaction("offlineRooms", "readwrite");
-        tx.objectStore("offlineRooms").delete(key);
-        tx.oncomplete = function() { resolve(true); };
-        tx.onerror = function(err) { reject(err); };
-    });
-};
-
-window.ambilSemuaBabOfflineIdb = async function(guru) {
-    try {
-        let db = await window.initLocalDB();
-        let targetGuru = (guru || window.guruAktif || "mahardika").toLowerCase();
-        return await new Promise(function(resolve) {
-            let tx = db.transaction("offlineRooms", "readonly");
-            let req = tx.objectStore("offlineRooms").getAll();
-            req.onsuccess = function(e) {
-                let all = e.target.result || [];
-                let filtered = all.filter(function(item) { return item && item.guru === targetGuru; });
-                filtered.sort(function(a, b) { return (b.savedAt || 0) - (a.savedAt || 0); });
-                resolve(filtered);
-            };
-            req.onerror = function() { resolve([]); };
-        });
-    } catch (e) {
-        return [];
+// Ambil semua daftar bab publik yang aktif (mengabaikan room Hidden & sub-room tersembunyi)
+window.ambilDaftarSlugBabPublikUntukOffline = function() {
+    let slugs = ["home"];
+    if (!Array.isArray(window.pagesData) || window.pagesData.length === 0) {
+        return slugs;
     }
+
+    let hiddenLevelCutoff = null;
+    window.pagesData.forEach(function(p) {
+        if (!p || !p.slug) return;
+        let lvl = typeof p.level === "number" ? p.level : (parseInt(p.level, 10) || 0);
+
+        if (hiddenLevelCutoff !== null) {
+            if (lvl > hiddenLevelCutoff) return;
+            hiddenLevelCutoff = null;
+        }
+
+        if (p.hidden || p.isLockedHidden) {
+            hiddenLevelCutoff = lvl;
+            return;
+        }
+
+        if (slugs.indexOf(p.slug) === -1) {
+            slugs.push(p.slug);
+        }
+    });
+
+    return slugs;
 };
 
 window.pastikanBarOfflineBabAda = function() {
@@ -3534,228 +3530,191 @@ window.pastikanBarOfflineBabAda = function() {
         bar.id = "offline-bab-bar";
         bar.className = "offline-bab-bar";
         bar.innerHTML =
-            '<div class="offline-bab-status" id="offline-bab-status-text">' +
-                '<span class="offline-dot-online"></span> <span>Siap dibaca</span>' +
-            '</div>' +
-            '<div class="offline-bab-actions">' +
-                '<button type="button" id="btn-simpan-bab-offline" class="offline-pill-btn primary" onclick="window.toggleSimpanBabOffline()">📥 Simpan Offline</button>' +
-                '<button type="button" id="btn-sync-bab-online" class="offline-pill-btn secondary" style="display:none;" onclick="window.perbaruiBabOfflineDariServer()" title="Tarik versi terbaru dari server">🔄 Update</button>' +
-                '<button type="button" id="btn-pustaka-offline" class="offline-pill-btn library" onclick="window.bukaModalPustakaOffline()">📚 Offline (<span id="count-bab-offline">0</span>)</button>' +
-            '</div>';
+            '<button type="button" id="btn-simpan-bab-offline" class="offline-pill-btn primary" onclick="window.bukaModalSimpanOffline()">📥 Simpan Offline</button>' +
+            '<button type="button" id="btn-sync-bab-online" class="offline-pill-btn secondary" onclick="window.mulaiUpdateDataOffline()">🔄 Update</button>';
         editorWrap.insertBefore(bar, editorWrap.firstChild);
     }
     return bar;
 };
 
-window.perbaruiBarOfflineBab = async function() {
+// Tampilkan bar minimalis HANYA di halaman HOME
+window.perbaruiBarOfflineBab = function() {
     let bar = window.pastikanBarOfflineBabAda();
     if (!bar) return;
 
-    let guru = window.guruAktif || "mahardika";
-    let slug = window.babAktif || "home";
-    let savedRecord = await window.muatBabOfflineIdb(guru, slug);
-    let semuaTersimpan = await window.ambilSemuaBabOfflineIdb(guru);
-
-    let countEl = document.getElementById("count-bab-offline");
-    if (countEl) countEl.innerText = String(semuaTersimpan.length);
-
-    let btnSimpan = document.getElementById("btn-simpan-bab-offline");
-    let btnSync = document.getElementById("btn-sync-bab-online");
-    let statusEl = document.getElementById("offline-bab-status-text");
-    let isOnline = navigator.onLine !== false;
-
-    if (savedRecord) {
-        let d = new Date(savedRecord.savedAt || Date.now());
-        let tglStr = String(d.getDate()).padStart(2, "0") + "/" + String(d.getMonth() + 1).padStart(2, "0") + " " +
-                     String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
-
-        if (statusEl) {
-            statusEl.innerHTML = isOnline
-                ? '<span class="offline-dot-saved"></span> <span>Tersimpan Offline (' + tglStr + ')</span>'
-                : '<span class="offline-dot-offline"></span> <span>Mode Offline Aktif (' + tglStr + ')</span>';
-        }
-        if (btnSimpan) {
-            btnSimpan.className = "offline-pill-btn saved";
-            btnSimpan.innerHTML = "✅ Tersimpan (Hapus)";
-            btnSimpan.setAttribute("data-saved", "1");
-        }
-        if (btnSync) {
-            btnSync.style.display = isOnline ? "inline-flex" : "none";
-        }
-    } else {
-        if (statusEl) {
-            statusEl.innerHTML = isOnline
-                ? '<span class="offline-dot-online"></span> <span>Mode Online</span>'
-                : '<span class="offline-dot-offline"></span> <span>Sedang Offline</span>';
-        }
-        if (btnSimpan) {
-            btnSimpan.className = "offline-pill-btn primary";
-            btnSimpan.innerHTML = "📥 Simpan Offline";
-            btnSimpan.setAttribute("data-saved", "0");
-        }
-        if (btnSync) {
-            btnSync.style.display = "none";
-        }
-    }
+    let slugAktif = String(window.babAktif || "home").toLowerCase();
+    bar.style.display = (slugAktif === "home") ? "flex" : "none";
 };
 
-window.toggleSimpanBabOffline = async function() {
-    let guru = window.guruAktif || "mahardika";
-    let slug = window.babAktif || "home";
-    let btn = document.getElementById("btn-simpan-bab-offline");
-    let sudahSimpan = btn && btn.getAttribute("data-saved") === "1";
-
-    if (sudahSimpan) {
-        window.tampilkanCustomDialog("confirm", 'Hapus materi "' + window.ambilJudulBabDariSlug(slug) + '" dari penyimpanan offline perangkat ini?', null, async function(isYes) {
-            if (!isYes) return;
-            await window.hapusBabOfflineIdb(guru, slug);
-            window.perbaruiBarOfflineBab();
-        });
-        return;
-    }
-
-    if (!window.contentBlocksData || window.contentBlocksData.length === 0) {
-        return alert("⚠️ Materi bab ini masih kosong atau sedang dimuat. Tunggu sebentar lalu coba lagi.");
-    }
-
-    if (btn) {
-        btn.disabled = true;
-        btn.innerText = "⏳ Menyimpan...";
-    }
-
-    try {
-        let payload = {
-            blocksObj: JSON.parse(JSON.stringify(window.contentBlocksData || [])),
-            floatingBoxesObj: JSON.parse(JSON.stringify(window.floatingBoxesData || [])),
-            leftBlocksObj: JSON.parse(JSON.stringify(window.homeLeftBlocksData || [])),
-            rightBlocksObj: JSON.parse(JSON.stringify(window.homeRightBlocksData || []))
-        };
-        let saved = await window.simpanBabOfflineIdb(guru, slug, payload);
-        if (btn) btn.disabled = false;
-        await window.perbaruiBarOfflineBab();
-        alert('✅ Materi "' + saved.title + '" berhasil disimpan offline (' + saved.sizeKB + ' KB).\n\nSekarang bab ini tetap dapat dibuka kapan saja meskipun tanpa internet!');
-    } catch (err) {
-        if (btn) btn.disabled = false;
-        await window.perbaruiBarOfflineBab();
-        alert("❌ Gagal menyimpan materi offline: " + (err ? err.message : "Memori perangkat penuh."));
-    }
-};
-
-window.perbaruiBabOfflineDariServer = function() {
-    if (navigator.onLine === false) {
-        return alert("📴 Perangkat sedang offline. Sambungkan internet untuk mengambil pembaruan materi terbaru.");
-    }
-    let slug = window.babAktif || "home";
-    let btnSync = document.getElementById("btn-sync-bab-online");
-    if (btnSync) {
-        btnSync.disabled = true;
-        btnSync.innerText = "⏳ Memperbarui...";
-    }
-    window._autoUpdateOfflineAfterFetch = slug;
-    if (typeof window.muatKontenHalaman === "function") {
-        window.muatKontenHalaman(slug, true);
-    }
-};
-
-window.pastikanModalPustakaOfflineAda = function() {
-    let modal = document.getElementById("modal-pustaka-offline");
+window.pastikanModalOfflineMinimalisAda = function() {
+    let modal = document.getElementById("modal-offline-minimalis");
     if (modal) return modal;
 
     modal = document.createElement("div");
-    modal.id = "modal-pustaka-offline";
+    modal.id = "modal-offline-minimalis";
     modal.className = "modal-overlay";
     modal.onclick = function(e) {
-        if (e.target === modal) window.tutupModal("modal-pustaka-offline");
+        if (e.target === modal && !window._sedangProsesOffline) {
+            window.tutupModal("modal-offline-minimalis");
+        }
     };
     modal.innerHTML =
-        '<div class="modal-box" style="width:520px; max-height:85dvh;">' +
-            '<div class="modal-header" style="background:#0b3954; color:#ffffff;">' +
-                '<div>' +
-                    '<h3 style="margin:0;">📚 Pustaka Baca Offline</h3>' +
-                    '<div style="font-size:11px; color:#bae6fd; margin-top:2px;">Materi tersimpan di perangkat ini (0 Byte kuota internet)</div>' +
-                '</div>' +
-                '<button type="button" class="close-btn" style="color:#ffffff;" onclick="window.tutupModal(\'modal-pustaka-offline\')">✕</button>' +
+        '<div class="modal-box" style="width:420px; max-width:94vw;">' +
+            '<div class="modal-header" style="background:#0b3954; color:#ffffff; padding:13px 16px;">' +
+                '<h3 id="judul-modal-offline-min" style="margin:0; font-size:15px;">📥 Simpan Offline</h3>' +
+                '<button type="button" id="btn-close-modal-offline-min" class="close-btn" style="color:#ffffff;" onclick="if(!window._sedangProsesOffline) window.tutupModal(\'modal-offline-minimalis\')">✕</button>' +
             '</div>' +
-            '<div class="modal-body" style="background:#f8fafc; padding:14px;">' +
-                '<div id="list-pustaka-offline-container" style="display:flex; flex-direction:column; gap:10px;"></div>' +
-            '</div>' +
+            '<div class="modal-body" id="body-modal-offline-min" style="padding:16px; background:#f8fafc;"></div>' +
         '</div>';
     document.body.appendChild(modal);
     return modal;
 };
 
-window.bukaModalPustakaOffline = async function() {
-    window.pastikanModalPustakaOfflineAda();
-    let listEl = document.getElementById("list-pustaka-offline-container");
-    let guru = window.guruAktif || "mahardika";
-    let daftar = await window.ambilSemuaBabOfflineIdb(guru);
+// Tombol 1: Munculkan modal penjelasan manfaat mode offline + tombol Simpan Offline
+window.bukaModalSimpanOffline = function() {
+    window.pastikanModalOfflineMinimalisAda();
+    let judul = document.getElementById("judul-modal-offline-min");
+    let body = document.getElementById("body-modal-offline-min");
+    let btnClose = document.getElementById("btn-close-modal-offline-min");
+    if (btnClose) btnClose.style.display = "inline-flex";
+    if (judul) judul.innerText = "📥 Mode Baca Offline";
 
-    if (!daftar || daftar.length === 0) {
-        listEl.innerHTML =
-            '<div style="text-align:center; padding:32px 16px; color:#64748b; background:#ffffff; border:1px dashed #cbd5e1; border-radius:10px;">' +
-                '<div style="font-size:36px; margin-bottom:8px;">📭</div>' +
-                '<div style="font-weight:800; color:#1e293b; margin-bottom:4px;">Belum Ada Bab Tersimpan Offline</div>' +
-                '<div style="font-size:12px;">Buka bab materi yang ingin dipelajari, lalu tekan tombol <b>📥 Simpan Offline</b> di atas materi.</div>' +
+    if (body) {
+        body.innerHTML =
+            '<div style="display:flex; flex-direction:column; gap:10px;">' +
+                '<p style="margin:0; font-size:12.5px; color:#334155; line-height:1.5;">Simpan seluruh materi pelajaran ke perangkatmu agar belajar jadi lebih nyaman:</p>' +
+                '<div class="offline-benefit-list">' +
+                    '<div class="offline-benefit-item"><span>⚡</span><div><b>Buka Materi Instan</b><small>Pindah antar bab tanpa menunggu loading ulang.</small></div></div>' +
+                    '<div class="offline-benefit-item"><span>📶</span><div><b>Tetap Bisa Belajar Tanpa Sinyal</b><small>Materi tetap terbuka lancar meski internet lemah atau mati.</small></div></div>' +
+                    '<div class="offline-benefit-item"><span>💾</span><div><b>Hemat Kuota Internet</b><small>Cukup unduh sekali, bisa dibaca berulang kali kapan saja.</small></div></div>' +
+                '</div>' +
+                '<button type="button" class="btn-action" style="background:#0b3954; padding:11px; border-radius:10px; font-size:13px; margin-top:4px;" onclick="window.jalankanProsesUnduhOffline(false)">📥 Simpan Offline Sekarang</button>' +
             '</div>';
-    } else {
-        let totalKB = daftar.reduce(function(acc, item) { return acc + (Number(item.sizeKB) || 0); }, 0);
-        let totalStr = totalKB >= 1024 ? ((totalKB / 1024).toFixed(2) + " MB") : (totalKB + " KB");
+    }
+    window.bukaModal("modal-offline-minimalis");
+};
 
-        let html =
-            '<div style="display:flex; justify-content:space-between; align-items:center; background:#e0f2fe; border:1px solid #7dd3fc; color:#0369a1; padding:8px 12px; border-radius:8px; font-size:11.5px; font-weight:700;">' +
-                '<span>📦 Total: ' + daftar.length + ' Bab Tersimpan</span>' +
-                '<span>💾 Ukuran: ' + totalStr + '</span>' +
+// Tombol 2: Langsung tampilkan loading sedang memperbarui data
+window.mulaiUpdateDataOffline = function() {
+    window.jalankanProsesUnduhOffline(true);
+};
+
+// Mesin Pengunduh / Pembaru Semua Materi Bab ke IndexedDB
+window.jalankanProsesUnduhOffline = async function(isUpdateMode) {
+    if (navigator.onLine === false) {
+        return alert("📴 Perangkat sedang offline. Sambungkan internet terlebih dahulu untuk " + (isUpdateMode ? "memperbarui" : "mengunduh") + " data.");
+    }
+    if (window._sedangProsesOffline) return;
+
+    window.pastikanModalOfflineMinimalisAda();
+    window._sedangProsesOffline = true;
+
+    let judul = document.getElementById("judul-modal-offline-min");
+    let body = document.getElementById("body-modal-offline-min");
+    let btnClose = document.getElementById("btn-close-modal-offline-min");
+    if (btnClose) btnClose.style.display = "none";
+    if (judul) judul.innerText = isUpdateMode ? "🔄 Memperbarui Data" : "📥 Mengunduh Materi";
+
+    let teksLoading = isUpdateMode ? "Sedang memperbarui data..." : "Sedang mengunduh materi offline...";
+    if (body) {
+        body.innerHTML =
+            '<div style="text-align:center; padding:16px 8px;">' +
+                '<div class="offline-spinner-ring"></div>' +
+                '<div id="offline-load-status" style="font-weight:800; font-size:14px; color:#0b3954; margin-bottom:6px;">' + teksLoading + '</div>' +
+                '<div id="offline-load-sub" style="font-size:11.5px; color:#64748b; margin-bottom:12px;">Menyiapkan daftar materi...</div>' +
+                '<div class="offline-prog-track"><div id="offline-prog-fill" class="offline-prog-fill" style="width:6%;"></div></div>' +
             '</div>';
+    }
+    window.bukaModal("modal-offline-minimalis");
 
-        daftar.forEach(function(item) {
-            let d = new Date(item.savedAt || Date.now());
-            let waktu = String(d.getDate()).padStart(2, "0") + "/" + String(d.getMonth() + 1).padStart(2, "0") + "/" + d.getFullYear() + " " +
-                        String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
-            let safeSlug = String(item.slug || "").replace(/'/g, "\\'");
-            let isCurrent = (item.slug === (window.babAktif || "home"));
+    let guru = (window.guruAktif || "mahardika").toLowerCase();
+    let basePath = "data_guru/" + guru;
 
-            html +=
-                '<div class="offline-library-card">' +
-                    '<div style="flex:1; min-width:0; cursor:pointer;" onclick="window.bukaBabDariPustakaOffline(\'' + safeSlug + '\')">' +
-                        '<div style="font-weight:800; font-size:13.5px; color:#0b3954; word-break:break-word;">' +
-                            '📖 ' + (item.title || item.slug) +
-                            (isCurrent ? ' <span style="background:#dcfce7; color:#15803d; font-size:10px; padding:1px 6px; border-radius:8px; margin-left:4px;">Sedang Dibuka</span>' : '') +
-                        '</div>' +
-                        '<div style="font-size:11px; color:#64748b; margin-top:3px;">Disimpan: ' + waktu + ' • ' + (item.sizeKB || 1) + ' KB</div>' +
+    try {
+        // 1. Segarkan struktur halaman terbaru saat mode Update
+        if (typeof window.bacaDataRestFirebase === "function") {
+            await new Promise(function(resolve) {
+                window.bacaDataRestFirebase(basePath + "/pages_struktur", function(val) {
+                    if (val) {
+                        window.pagesData = Array.isArray(val) ? val : Object.values(val);
+                        try { localStorage.setItem("offline_pages_" + guru, JSON.stringify(val)); } catch (e) {}
+                        if (typeof window.renderDynamicNavbar === "function") window.renderDynamicNavbar();
+                    }
+                    resolve();
+                }, function() { resolve(); }, { forceRefresh: isUpdateMode, ttlMs: isUpdateMode ? 0 : 600000 });
+            });
+        }
+
+        // 2. Unduh seluruh bab publik satu per satu dengan progres yang jelas
+        let daftarSlug = window.ambilDaftarSlugBabPublikUntukOffline();
+        let total = daftarSlug.length;
+        let berhasil = 0;
+
+        for (let i = 0; i < total; i++) {
+            let slug = daftarSlug[i];
+            let pct = Math.max(8, Math.round(((i + 1) / total) * 100));
+            let subEl = document.getElementById("offline-load-sub");
+            let fillEl = document.getElementById("offline-prog-fill");
+            if (subEl) subEl.innerText = (isUpdateMode ? "Memperbarui " : "Mengunduh ") + "(" + (i + 1) + "/" + total + "): " + window.ambilJudulBabDariSlug(slug);
+            if (fillEl) fillEl.style.width = pct + "%";
+
+            let dataBab = await new Promise(function(resolve) {
+                if (typeof window.bacaDataRestFirebase !== "function") return resolve(null);
+                window.bacaDataRestFirebase(basePath + "/materi_koleksi/" + slug, function(val) {
+                    resolve(val);
+                }, function() {
+                    resolve(null);
+                }, { forceRefresh: isUpdateMode, ttlMs: isUpdateMode ? 0 : 900000 });
+            });
+
+            if (dataBab && dataBab.blocksObj) {
+                await window.simpanBabOfflineIdb(guru, slug, dataBab);
+                try {
+                    let cKey = "cache_room_" + guru + "_" + slug;
+                    sessionStorage.setItem(cKey, JSON.stringify(dataBab));
+                    sessionStorage.setItem(cKey + "_time", String(Date.now()));
+                } catch (e) {}
+                berhasil++;
+            }
+        }
+
+        // Segarkan tampilan HOME bila sedang berada di HOME
+        if (isUpdateMode && window.babAktif === "home" && typeof window.muatKontenHalaman === "function") {
+            window.muatKontenHalaman("home", false);
+        }
+
+        window._sedangProsesOffline = false;
+        if (btnClose) btnClose.style.display = "inline-flex";
+        if (body) {
+            body.innerHTML =
+                '<div style="text-align:center; padding:12px 6px;">' +
+                    '<div style="font-size:42px; margin-bottom:8px;">✅</div>' +
+                    '<div style="font-weight:800; font-size:15px; color:#15803d; margin-bottom:6px;">' +
+                        (isUpdateMode ? "Data Berhasil Diperbarui!" : "Materi Tersimpan Offline!") +
                     '</div>' +
-                    '<div style="display:flex; gap:6px; flex-shrink:0;">' +
-                        '<button type="button" class="btn-action" style="background:#0b3954; width:auto; padding:6px 12px; font-size:11px; border-radius:16px;" onclick="window.bukaBabDariPustakaOffline(\'' + safeSlug + '\')">Buka</button>' +
-                        '<button type="button" style="background:#fee2e2; color:#dc2626; border:1px solid #fecaca; border-radius:8px; padding:6px 9px; font-size:12px; cursor:pointer; font-weight:bold;" onclick="window.hapusBabDariPustakaOffline(\'' + safeSlug + '\')" title="Hapus dari Offline">🗑️</button>' +
+                    '<div style="font-size:12px; color:#475569; margin-bottom:16px; line-height:1.45;">' +
+                        '<b>' + berhasil + ' halaman materi</b> siap dibuka cepat kapan saja, termasuk saat sinyal lemah.' +
                     '</div>' +
+                    '<button type="button" class="btn-action" style="background:#16a085; padding:10px; border-radius:10px; font-size:13px;" onclick="window.tutupModal(\'modal-offline-minimalis\')">Selesai</button>' +
                 '</div>';
-        });
-
-        listEl.innerHTML = html;
+        }
+    } catch (err) {
+        window._sedangProsesOffline = false;
+        if (btnClose) btnClose.style.display = "inline-flex";
+        if (body) {
+            body.innerHTML =
+                '<div style="text-align:center; padding:12px 6px;">' +
+                    '<div style="font-size:38px; margin-bottom:8px;">⚠️</div>' +
+                    '<div style="font-weight:800; font-size:14px; color:#c0392b; margin-bottom:6px;">Proses Terhenti</div>' +
+                    '<div style="font-size:12px; color:#64748b; margin-bottom:14px;">Periksa koneksi internet Anda lalu coba lagi.</div>' +
+                    '<button type="button" class="btn-action" style="background:#0b3954; padding:9px; border-radius:10px;" onclick="window.tutupModal(\'modal-offline-minimalis\')">Tutup</button>' +
+                '</div>';
+        }
     }
-
-    window.bukaModal("modal-pustaka-offline");
 };
 
-window.bukaBabDariPustakaOffline = function(slug) {
-    window.tutupModal("modal-pustaka-offline");
-    if (typeof window.navigasiHalaman === "function") {
-        window.navigasiHalaman(null, slug);
-    } else if (typeof window.muatKontenHalaman === "function") {
-        window.muatKontenHalaman(slug, false);
-    }
-};
-
-window.hapusBabDariPustakaOffline = async function(slug) {
-    let guru = window.guruAktif || "mahardika";
-    await window.hapusBabOfflineIdb(guru, slug);
-    await window.perbaruiBarOfflineBab();
-    window.bukaModalPustakaOffline();
-};
-
-window.addEventListener("online", function() { window.perbaruiBarOfflineBab(); });
-window.addEventListener("offline", function() { window.perbaruiBarOfflineBab(); });
 document.addEventListener("DOMContentLoaded", function() {
-    setTimeout(window.perbaruiBarOfflineBab, 500);
+    setTimeout(window.perbaruiBarOfflineBab, 400);
 });
 
 window.simpanFileLokalIdb = async function(id, fileBlob) {

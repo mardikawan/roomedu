@@ -3613,72 +3613,39 @@ body.strict-mode-active #pwa-update-banner {
 }
 
 /* =========================================================================
-   MODE BACA OFFLINE PER BAB (BAR KONTROL, PUSTAKA OFFLINE, & DARK MODE)
+   MODE BACA OFFLINE MINIMALIS (KHUSUS DI HOME — 2 TOMBOL RAMPING)
    ========================================================================= */
 .offline-bab-bar {
-    width: 100%;
-    max-width: 820px;
-    margin: 0 auto 12px auto;
-    padding: 8px 14px;
-    background: #ffffff;
+    width: fit-content;
+    margin: 0 auto 8px auto;
+    padding: 4px 6px;
+    background: rgba(255, 255, 255, 0.9);
     border: 1px solid #cbd5e1;
-    border-radius: 12px;
-    display: flex;
+    border-radius: 24px;
+    display: none;
     align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    flex-wrap: wrap;
-    box-sizing: border-box;
-    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
-    font-family: 'Poppins', sans-serif;
-}
-
-.offline-bab-status {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    font-size: 11.5px;
-    font-weight: 700;
-    color: #334155;
-}
-
-.offline-dot-online,
-.offline-dot-saved,
-.offline-dot-offline {
-    width: 9px;
-    height: 9px;
-    border-radius: 50%;
-    display: inline-block;
-    flex-shrink: 0;
-}
-
-.offline-dot-online  { background: #3b82f6; box-shadow: 0 0 6px rgba(59, 130, 246, 0.6); }
-.offline-dot-saved   { background: #22c55e; box-shadow: 0 0 6px rgba(34, 197, 94, 0.6); }
-.offline-dot-offline { background: #f59e0b; box-shadow: 0 0 6px rgba(245, 158, 11, 0.6); }
-
-.offline-bab-actions {
-    display: flex;
-    align-items: center;
+    justify-content: center;
     gap: 6px;
-    flex-wrap: wrap;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
+    font-family: 'Poppins', sans-serif;
 }
 
 .offline-pill-btn {
     border: none;
-    border-radius: 20px;
-    padding: 6px 12px;
+    border-radius: 18px;
+    padding: 5px 11px;
     font-family: 'Poppins', sans-serif;
     font-size: 11px;
     font-weight: 700;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
-    gap: 5px;
+    gap: 4px;
     transition: transform 0.15s, opacity 0.15s;
     white-space: nowrap;
 }
 
-.offline-pill-btn:hover:not(:disabled) {
+.offline-pill-btn:hover {
     transform: translateY(-1px);
     opacity: 0.92;
 }
@@ -3688,35 +3655,73 @@ body.strict-mode-active #pwa-update-banner {
     color: #ffffff;
 }
 
-.offline-pill-btn.saved {
-    background: #dcfce7;
-    color: #15803d;
-    border: 1px solid #86efac;
-}
-
 .offline-pill-btn.secondary {
-    background: #eaf2f8;
+    background: #e0f2fe;
     color: #0369a1;
-    border: 1px solid #bae6fd;
 }
 
-.offline-pill-btn.library {
-    background: #fef9e7;
-    color: #b45309;
-    border: 1px solid #fde047;
-}
-
-.offline-library-card {
-    background: #ffffff;
-    border: 1px solid #cbd5e1;
-    border-left: 4px solid #0b3954;
-    border-radius: 10px;
-    padding: 12px 14px;
+.offline-benefit-list {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.offline-benefit-item {
+    display: flex;
+    align-items: flex-start;
     gap: 10px;
-    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 9px 11px;
+}
+
+.offline-benefit-item > span {
+    font-size: 18px;
+    line-height: 1.1;
+    flex-shrink: 0;
+}
+
+.offline-benefit-item b {
+    display: block;
+    font-size: 12px;
+    color: #0f172a;
+}
+
+.offline-benefit-item small {
+    display: block;
+    font-size: 11px;
+    color: #64748b;
+    line-height: 1.35;
+}
+
+@keyframes offlineSpinAnim {
+    to { transform: rotate(360deg); }
+}
+
+.offline-spinner-ring {
+    width: 38px;
+    height: 38px;
+    border: 4px solid #cbd5e1;
+    border-top-color: #0b3954;
+    border-radius: 50%;
+    margin: 0 auto 12px auto;
+    animation: offlineSpinAnim 0.85s linear infinite;
+}
+
+.offline-prog-track {
+    width: 100%;
+    height: 8px;
+    background: #e2e8f0;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.offline-prog-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #0b3954, #16a085);
+    border-radius: 8px;
+    transition: width 0.25s ease;
 }
 
 .offline-empty-state {
@@ -3737,34 +3742,42 @@ body.drawing-mode-active #offline-bab-bar {
     display: none !important;
 }
 
-body.dark-mode-active .offline-bab-bar,
-body.dark-mode-active .offline-library-card,
+/* Dark Mode */
+body.dark-mode-active .offline-bab-bar {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode-active .offline-pill-btn.secondary {
+    background: #0f172a !important;
+    color: #7dd3fc !important;
+}
+
+body.dark-mode-active #body-modal-offline-min {
+    background: #0f172a !important;
+    color: #e2e8f0 !important;
+}
+
+body.dark-mode-active .offline-benefit-item,
 body.dark-mode-active .offline-empty-state {
     background: #1e293b !important;
     border-color: #334155 !important;
-    color: #f1f5f9 !important;
 }
 
-body.dark-mode-active .offline-bab-status,
-body.dark-mode-active .offline-library-card div,
+body.dark-mode-active .offline-benefit-item b,
+body.dark-mode-active #offline-load-status,
 body.dark-mode-active .offline-empty-state h3 {
-    color: #f1f5f9 !important;
+    color: #f8fafc !important;
 }
 
-@media (max-width: 768px) {
-    .offline-bab-bar {
-        width: calc(100% - 20px);
-        margin: 0 auto 8px auto;
-        padding: 8px 10px;
-        gap: 6px;
-    }
-    .offline-bab-status {
-        font-size: 11px;
-    }
-    .offline-pill-btn {
-        padding: 5px 10px;
-        font-size: 10.5px;
-    }
+body.dark-mode-active .offline-benefit-item small,
+body.dark-mode-active #body-modal-offline-min p {
+    color: #cbd5e1 !important;
+}
+
+body.dark-mode-active .offline-spinner-ring {
+    border-color: #334155;
+    border-top-color: #38bdf8;
 }
 
 @media print {
