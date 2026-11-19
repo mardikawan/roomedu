@@ -414,6 +414,17 @@ window.addEventListener('popstate', function(e) {
 });
 
 // 5. Render Toolbar Utama (Navbar) dengan Sub-Room hingga 10 Tingkat
+window._navTreeRootNodes = [];
+window._navNodeBySlug = {};
+
+window.ambilAnakVisibleNav = function(node) {
+    if (!node || !Array.isArray(node.children)) return [];
+    let isEdit = document.body.classList.contains('mode-edit-aktif') || document.documentElement.classList.contains('force-edit-mode');
+    return node.children.filter(function(child) {
+        return isEdit || !child.effectiveHidden;
+    });
+};
+
 window.renderDynamicNavbar = function() {
     window.pastikanRoomHiddenTerkunci();
 
@@ -425,21 +436,20 @@ window.renderDynamicNavbar = function() {
     let hasDynamicHome = window.pagesData.some(function(p) { return p.slug === "home"; });
     if (staticHomeLink && staticHomeLink.parentElement) {
         staticHomeLink.parentElement.style.display = hasDynamicHome ? "none" : "";
-        // Pasang pencegah refresh ke tombol HOME statis
-        staticHomeLink.onclick = function(e) { window.navigasiHalaman(e, 'home'); };
+        staticHomeLink.onclick = function(e) { window.klikMenuNavbar(e, 'home', staticHomeLink); };
     }
-    
-    // Pasang pencegah refresh ke Latihan dan Ujian jika mereka berupa link
+
     navUl.querySelectorAll(':scope > li > a').forEach(function(a) {
         let href = a.getAttribute('href');
-        if(href && href.indexOf('index.html?bab=') === 0 && href !== 'index.html?bab=home') {
+        if (href && href.indexOf('index.html?bab=') === 0 && href !== 'index.html?bab=home') {
             let slug = href.split('=')[1];
-            a.onclick = function(ev) { window.navigasiHalaman(ev, slug); };
+            a.onclick = function(ev) { window.klikMenuNavbar(ev, slug, a); };
         }
     });
 
     let rootNodes = [];
     let stack = [];
+    let nodeMap = {};
 
     window.pagesData.forEach(function(page, idx) {
         let node = {
@@ -447,6 +457,7 @@ window.renderDynamicNavbar = function() {
             isLockedHidden: Boolean(page.isLockedHidden), index: idx, children: [],
             effectiveHidden: Boolean(page.hidden) || Boolean(page.isLockedHidden)
         };
+        nodeMap[node.slug] = node;
 
         while (stack.length > 0 && stack[stack.length - 1].level >= node.level) { stack.pop(); }
 
@@ -460,10 +471,14 @@ window.renderDynamicNavbar = function() {
         stack.push(node);
     });
 
+    window._navTreeRootNodes = rootNodes;
+    window._navNodeBySlug = nodeMap;
+
     function cetakMenuHTML(nodes, isSubMenu) {
         let html = "";
         nodes.forEach(function(node) {
-            let hasChildren = node.children && node.children.length > 0;
+            let visibleChildren = window.ambilAnakVisibleNav(node);
+            let hasChildren = visibleChildren.length > 0;
             let liClasses = [];
             if (node.effectiveHidden) liClasses.push("hidden-nav-item");
             if (hasChildren) liClasses.push("has-sub");
@@ -478,10 +493,10 @@ window.renderDynamicNavbar = function() {
             else if (node.isLockedHidden && labelTitle.indexOf("🔒") === -1) labelTitle = "🔒 " + labelTitle;
 
             let arrowHTML = hasChildren ? (isSubMenu ? ' <span class="sub-arrow-ind" style="font-size:11px; margin-left:8px;">▸</span>' : ' <span class="sub-arrow-ind" style="font-size:10px; margin-left:4px;">▾</span>') : "";
+            let safeSlug = String(node.slug || "").replace(/'/g, "\\'");
 
-            html += '<li class="' + liClasses.join(" ") + '" data-level="' + node.level + '">';
-            // Integrasi Mesin SPA di Navbar
-            html += '<a href="index.html?bab=' + encodeURIComponent(node.slug) + '" class="' + aClasses.join(" ") + '" onclick="window.navigasiHalaman(event, \'' + node.slug + '\')">';
+            html += '<li class="' + liClasses.join(" ") + '" data-level="' + node.level + '" data-slug="' + safeSlug + '">';
+            html += '<a href="index.html?bab=' + encodeURIComponent(node.slug) + '" class="' + aClasses.join(" ") + '" onclick="window.klikMenuNavbar(event, \'' + safeSlug + '\', this)">';
             html += '<span>' + labelTitle + '</span>' + arrowHTML;
             html += '</a>';
 
@@ -498,80 +513,237 @@ window.renderDynamicNavbar = function() {
     container.innerHTML = cetakMenuHTML(rootNodes, false);
 };
 
-// 6. Logika Buka-Tutup Sub-Menu 10 Tingkat (Hover Desktop & Klik Sentuh)
+// 6. Logika Buka-Tutup Sub-Menu 10 Tingkat (Hover Desktop & Portal Dropdown HP 1x/2x Tekan)
 let navCloseTimer = null;
+window._mobileOpenTopSlug = null;
+window._mobileExpandedSubSlugs = new Set();
 
 window.closeDropdowns = function() {
     document.querySelectorAll("#dynamic-navbar ul.sub-menu-nav.open-sub").forEach(function(ul) {
         ul.classList.remove("open-sub", "flyout-left", "align-right-edge");
-        // Hapus jejak posisi fixed saat ditutup
         ul.style.position = ''; ul.style.top = ''; ul.style.left = ''; ul.style.right = '';
     });
+
+    window._mobileOpenTopSlug = null;
+    window._mobileExpandedSubSlugs = new Set();
+
+    document.querySelectorAll('#dynamic-navbar a.mobile-nav-opened').forEach(function(el) {
+        el.classList.remove('mobile-nav-opened');
+    });
+
+    let portal = document.getElementById('mobile-nav-dropdown-portal');
+    let backdrop = document.getElementById('mobile-nav-dropdown-backdrop');
+    if (portal) portal.style.display = 'none';
+    if (backdrop) backdrop.style.display = 'none';
+};
+
+window.pastikanPortalDropdownMobileAda = function() {
+    let backdrop = document.getElementById('mobile-nav-dropdown-backdrop');
+    if (!backdrop) {
+        backdrop = document.createElement('div');
+        backdrop.id = 'mobile-nav-dropdown-backdrop';
+        backdrop.className = 'mobile-nav-dropdown-backdrop';
+        backdrop.onclick = function() { window.closeDropdowns(); };
+        document.body.appendChild(backdrop);
+    }
+
+    let portal = document.getElementById('mobile-nav-dropdown-portal');
+    if (!portal) {
+        portal = document.createElement('div');
+        portal.id = 'mobile-nav-dropdown-portal';
+        portal.className = 'mobile-nav-dropdown-portal';
+        document.body.appendChild(portal);
+    }
+    return { portal: portal, backdrop: backdrop };
+};
+
+window.bangunHTMLDaftarMobileSub = function(nodes, depth) {
+    let html = '';
+    let isEdit = document.body.classList.contains('mode-edit-aktif') || document.documentElement.classList.contains('force-edit-mode');
+
+    nodes.forEach(function(node) {
+        if (!isEdit && node.effectiveHidden) return;
+
+        let visibleChildren = window.ambilAnakVisibleNav(node);
+        let hasSub = visibleChildren.length > 0;
+        let isExpanded = hasSub && window._mobileExpandedSubSlugs.has(node.slug);
+        let isActiveRoom = (node.slug === (window.babAktif || babAktif));
+        let safeSlug = String(node.slug || "").replace(/'/g, "\\'");
+
+        let padLeft = 16 + (depth * 16);
+        let itemClasses = 'mobile-dd-item';
+        if (isExpanded) itemClasses += ' is-expanded';
+        if (isActiveRoom) itemClasses += ' is-active-room';
+        if (depth > 0) itemClasses += ' is-nested';
+
+        let arrowHtml = hasSub
+            ? '<span class="mobile-dd-arrow">' + (isExpanded ? '▾' : '▸') + '</span>'
+            : '';
+
+        let hintHtml = isExpanded
+            ? '<span class="mobile-dd-tap-hint">Tap lagi ➔ Masuk</span>'
+            : '';
+
+        html +=
+            '<button type="button" class="' + itemClasses + '" style="padding-left:' + padLeft + 'px;" onclick="window.klikSubMenuMobile(event, \'' + safeSlug + '\')">' +
+                '<span class="mobile-dd-label">' + node.title + '</span>' +
+                '<span class="mobile-dd-right">' + hintHtml + arrowHtml + '</span>' +
+            '</button>';
+
+        if (hasSub && isExpanded) {
+            html += '<div class="mobile-dd-children">' + window.bangunHTMLDaftarMobileSub(visibleChildren, depth + 1) + '</div>';
+        }
+    });
+
+    return html;
+};
+
+window.renderPortalDropdownMobile = function(topSlug, triggerAnchorEl) {
+    let topNode = window._navNodeBySlug ? window._navNodeBySlug[topSlug] : null;
+    if (!topNode) return;
+
+    let visibleChildren = window.ambilAnakVisibleNav(topNode);
+    if (visibleChildren.length === 0) return;
+
+    let els = window.pastikanPortalDropdownMobileAda();
+    let oldScrollEl = els.portal.querySelector('.mobile-dd-scroll');
+    let prevScrollTop = oldScrollEl ? oldScrollEl.scrollTop : 0;
+
+    let navEl = document.getElementById('main-nav');
+    let navRect = navEl ? navEl.getBoundingClientRect() : { bottom: 96 };
+    let topPos = Math.max(40, Math.round(navRect.bottom));
+
+    els.backdrop.style.top = topPos + 'px';
+    els.backdrop.style.display = 'block';
+
+    let safeTopSlug = String(topNode.slug || "").replace(/'/g, "\\'");
+    let headerHTML =
+        '<div class="mobile-dd-header" onclick="window.navigasiHalaman(event, \'' + safeTopSlug + '\')">' +
+            '<span>📂 ' + topNode.title + '</span>' +
+            '<span class="mobile-dd-enter-pill">Masuk Room ➔</span>' +
+        '</div>';
+
+    let listHTML = '<div class="mobile-dd-scroll">' + window.bangunHTMLDaftarMobileSub(visibleChildren, 0) + '</div>';
+
+    els.portal.innerHTML = headerHTML + listHTML;
+    els.portal.style.top = topPos + 'px';
+    els.portal.style.maxHeight = 'calc(100dvh - ' + (topPos + 54) + 'px)';
+    els.portal.style.display = 'flex';
+
+    let newScrollEl = els.portal.querySelector('.mobile-dd-scroll');
+    if (newScrollEl && prevScrollTop > 0) {
+        newScrollEl.scrollTop = prevScrollTop;
+    }
+
+    document.querySelectorAll('#dynamic-navbar a.mobile-nav-opened').forEach(function(el) {
+        el.classList.remove('mobile-nav-opened');
+    });
+    if (triggerAnchorEl) {
+        triggerAnchorEl.classList.add('mobile-nav-opened');
+    } else {
+        let aFound = document.querySelector('#dynamic-navbar li[data-slug="' + safeTopSlug + '"] > a');
+        if (aFound) aFound.classList.add('mobile-nav-opened');
+    }
+};
+
+// Klik Menu Utama Navbar (HP: 1x Buka Dropdown, 2x Masuk Room | Tanpa Anak: 1x Langsung Masuk)
+window.klikMenuNavbar = function(e, slug, anchorEl) {
+    if (e) e.preventDefault();
+
+    let isMobile = window.innerWidth <= 768;
+    let node = window._navNodeBySlug ? window._navNodeBySlug[slug] : null;
+
+    if (!isMobile || !node) {
+        window.navigasiHalaman(e, slug);
+        return;
+    }
+
+    let visibleChildren = window.ambilAnakVisibleNav(node);
+
+    if (visibleChildren.length === 0) {
+        window.closeDropdowns();
+        window.navigasiHalaman(e, slug);
+        return;
+    }
+
+    if (window._mobileOpenTopSlug === slug) {
+        window.closeDropdowns();
+        window.navigasiHalaman(e, slug);
+        return;
+    }
+
+    if (e) e.stopPropagation();
+    window._mobileOpenTopSlug = slug;
+    window._mobileExpandedSubSlugs = new Set();
+    window.renderPortalDropdownMobile(slug, anchorEl);
+};
+
+// Klik Sub-Room di Dalam Dropdown HP (Tanpa Sub-Sub: 1x Masuk | Punya Sub-Sub: 1x Buka, 2x Masuk)
+window.klikSubMenuMobile = function(e, slug) {
+    if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+
+    let node = window._navNodeBySlug ? window._navNodeBySlug[slug] : null;
+    if (!node) {
+        window.closeDropdowns();
+        window.navigasiHalaman(e, slug);
+        return;
+    }
+
+    let visibleChildren = window.ambilAnakVisibleNav(node);
+
+    if (visibleChildren.length === 0) {
+        window.closeDropdowns();
+        window.navigasiHalaman(e, slug);
+        return;
+    }
+
+    if (window._mobileExpandedSubSlugs.has(slug)) {
+        window.closeDropdowns();
+        window.navigasiHalaman(e, slug);
+        return;
+    }
+
+    window._mobileExpandedSubSlugs.add(slug);
+    window.renderPortalDropdownMobile(window._mobileOpenTopSlug, null);
 };
 
 function aturPosisiSubMenu(ulElement) {
-    if (!ulElement) return;
+    if (!ulElement || window.innerWidth <= 768) return;
     ulElement.classList.add("open-sub");
     let parentLi = ulElement.parentElement;
     let rect = parentLi.getBoundingClientRect();
-    let isMobile = window.innerWidth <= 768;
     let isTopLevelDropdown = parentLi && parentLi.parentElement && (parentLi.parentElement.id === "dynamic-pages-container" || parentLi.parentElement.id === "dynamic-navbar");
 
     if (isTopLevelDropdown) {
         ulElement.style.position = 'fixed';
-        ulElement.style.zIndex = '4500';
-        ulElement.style.top = Math.max(40, rect.bottom) + 'px';
-        ulElement.style.maxHeight = '72dvh';
-        ulElement.style.overflowY = 'auto';
+        ulElement.style.zIndex = '4800';
+        ulElement.style.top = rect.bottom + 'px';
+        ulElement.style.left = rect.left + 'px';
+        ulElement.style.right = 'auto';
 
-        if (isMobile) {
-            let safeLeft = Math.max(8, Math.min(rect.left, window.innerWidth - 230));
-            ulElement.style.left = safeLeft + 'px';
-            ulElement.style.right = 'auto';
-            ulElement.style.width = '220px';
-        } else {
-            ulElement.style.left = rect.left + 'px';
-            ulElement.style.right = 'auto';
-            if (rect.left + 220 > window.innerWidth) {
-                ulElement.style.left = 'auto';
-                ulElement.style.right = '10px';
-            }
+        if (rect.left + 220 > window.innerWidth) {
+            ulElement.style.left = 'auto';
+            ulElement.style.right = '10px';
         }
     } else {
-        if (isMobile) {
-            // Di HP: buka sub-menu tingkat lanjut ke bawah (akordeon) agar tidak terpotong ke samping layar
-            ulElement.classList.remove("flyout-left");
-            ulElement.style.position = 'static';
-            ulElement.style.top = 'auto';
-            ulElement.style.left = 'auto';
-            ulElement.style.right = 'auto';
-            ulElement.style.width = '100%';
-            ulElement.style.minWidth = '0';
-            ulElement.style.boxShadow = 'none';
-            ulElement.style.margin = '0';
-            ulElement.style.paddingLeft = '14px';
-            ulElement.style.background = 'rgba(0, 0, 0, 0.22)';
-            ulElement.style.borderLeft = '2px solid #f1c40f';
-        } else {
-            ulElement.style.position = '';
-            ulElement.style.top = '';
-            ulElement.style.left = '';
-            ulElement.style.right = '';
-            ulElement.style.width = '';
-            ulElement.style.paddingLeft = '';
-            ulElement.style.background = '';
+        ulElement.style.position = '';
+        ulElement.style.top = '';
+        ulElement.style.left = '';
+        ulElement.style.right = '';
 
-            if (rect.right + 220 > window.innerWidth) {
-                ulElement.classList.add("flyout-left");
-            } else {
-                ulElement.classList.remove("flyout-left");
-            }
+        if (rect.right + 220 > window.innerWidth) {
+            ulElement.classList.add("flyout-left");
+        } else {
+            ulElement.classList.remove("flyout-left");
         }
     }
 }
 
 function bukaJalurSubMenu(liElement) {
-    if (!liElement) return;
+    if (!liElement || window.innerWidth <= 768) return;
     let activeUls = new Set();
     let curr = liElement;
     while (curr && curr.id !== "dynamic-navbar") {
@@ -589,8 +761,7 @@ function bukaJalurSubMenu(liElement) {
             ul.style.position = ''; ul.style.top = ''; ul.style.left = ''; ul.style.right = '';
         }
     });
-    
-    // Pastikan seluruh jalur silsilah yang aktif diatur posisinya ulang secara berurutan
+
     activeUls.forEach(function(ul) {
         aturPosisiSubMenu(ul);
     });
@@ -599,23 +770,33 @@ function bukaJalurSubMenu(liElement) {
 document.addEventListener("mouseover", function(e) {
     if (window.innerWidth > 768) {
         let li = e.target.closest("#dynamic-navbar li");
-        if (li) { clearTimeout(navCloseTimer); bukaJalurSubMenu(li); } 
+        if (li) { clearTimeout(navCloseTimer); bukaJalurSubMenu(li); }
         else if (!e.target.closest("#dynamic-navbar")) { clearTimeout(navCloseTimer); navCloseTimer = setTimeout(window.closeDropdowns, 220); }
     }
 });
 
 document.addEventListener("click", function(e) {
-    if (window.innerWidth <= 768) {
-        let a = e.target.closest("#dynamic-navbar a");
-        if (a) {
-            let li = a.parentElement;
-            let directSubUl = li ? li.querySelector(":scope > ul.sub-menu-nav") : null;
-            if (directSubUl && !directSubUl.classList.contains("open-sub")) {
-                e.preventDefault(); bukaJalurSubMenu(li); return;
-            }
-        } else if (!e.target.closest("#dynamic-navbar")) { window.closeDropdowns(); }
+    if (window.innerWidth <= 768 && window._mobileOpenTopSlug) {
+        if (!e.target.closest("#dynamic-navbar") && !e.target.closest("#mobile-nav-dropdown-portal")) {
+            window.closeDropdowns();
+        }
     }
 });
+
+window.addEventListener("scroll", function() {
+    if (window.innerWidth <= 768 && window._mobileOpenTopSlug) {
+        let navEl = document.getElementById('main-nav');
+        let portal = document.getElementById('mobile-nav-dropdown-portal');
+        let backdrop = document.getElementById('mobile-nav-dropdown-backdrop');
+        if (navEl && portal && portal.style.display === 'flex') {
+            let navRect = navEl.getBoundingClientRect();
+            let topPos = Math.max(0, Math.round(navRect.bottom));
+            portal.style.top = topPos + 'px';
+            portal.style.maxHeight = 'calc(100dvh - ' + (topPos + 54) + 'px)';
+            if (backdrop) backdrop.style.top = topPos + 'px';
+        }
+    }
+}, { passive: true });
 
 // 7. Render & Operasi di Dalam Modal "⚙️ Pages"
 let dragSourcePageIndex = null;

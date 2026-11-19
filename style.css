@@ -3300,3 +3300,146 @@ body.modal-open-lock .mypet-floating-btn {
         gap: 8px !important;
     }
 }
+
+/* =========================================================================
+   PORTAL DROPDOWN MENU HP (SELALU DI ATAS CONTENT BLOCK & 1x/2x TEKAN)
+   ========================================================================= */
+.mobile-nav-dropdown-backdrop {
+    display: none;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(2px);
+    z-index: 4790;
+}
+
+.mobile-nav-dropdown-portal {
+    display: none;
+    position: fixed;
+    left: 8px;
+    right: 8px;
+    z-index: 4800;
+    flex-direction: column;
+    background: #0b3954;
+    border: 1.5px solid rgba(241, 196, 15, 0.45);
+    border-radius: 12px;
+    box-shadow: 0 14px 36px rgba(0, 0, 0, 0.45);
+    overflow: hidden;
+    font-family: 'Montserrat', sans-serif;
+}
+
+.mobile-dd-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 14px;
+    background: #07273a;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+    color: #f1c40f;
+    font-size: 12.5px;
+    font-weight: 800;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.mobile-dd-enter-pill {
+    background: rgba(241, 196, 15, 0.18);
+    border: 1px solid rgba(241, 196, 15, 0.55);
+    color: #f1c40f;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 3px 9px;
+    border-radius: 14px;
+    white-space: nowrap;
+}
+
+.mobile-dd-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+}
+
+.mobile-dd-item {
+    width: 100%;
+    min-height: 44px;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    color: #ffffff;
+    padding: 11px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    text-align: left;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 12.5px;
+    font-weight: 600;
+    line-height: 1.35;
+    cursor: pointer;
+    box-sizing: border-box;
+}
+
+.mobile-dd-item:active {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.mobile-dd-item.is-active-room {
+    color: #f1c40f;
+}
+
+.mobile-dd-item.is-expanded {
+    background: rgba(241, 196, 15, 0.14);
+    color: #f1c40f;
+}
+
+.mobile-dd-label {
+    flex: 1;
+    word-break: break-word;
+}
+
+.mobile-dd-right {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.mobile-dd-arrow {
+    font-size: 14px;
+    color: #f1c40f;
+    font-weight: 800;
+}
+
+.mobile-dd-tap-hint {
+    font-size: 9.5px;
+    font-weight: 700;
+    color: #0b3954;
+    background: #f1c40f;
+    padding: 2px 7px;
+    border-radius: 10px;
+    white-space: nowrap;
+}
+
+.mobile-dd-children {
+    background: rgba(0, 0, 0, 0.24);
+    border-left: 3px solid #f1c40f;
+}
+
+#dynamic-navbar a.mobile-nav-opened {
+    color: #f1c40f !important;
+    border-bottom: 2px solid #f1c40f !important;
+    background: rgba(241, 196, 15, 0.16) !important;
+}
+
+@media (max-width: 768px) {
+    /* Sembunyikan dropdown lama di dalam navbar pada HP agar tidak dobel/terpotong */
+    #dynamic-navbar ul.sub-menu-nav {
+        display: none !important;
+    }
+}
