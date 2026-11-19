@@ -1209,6 +1209,31 @@ window.formatTeks = function(command, value = null) {
         document.execCommand("formatBlock", false, tagVal);
     } else { 
         document.execCommand(command, false, value); 
+        // Otomatis hapus tanda "-", "•", "*", atau angka "1." di awal baris saat memakai Bullets / Numbering
+        if (command === "insertUnorderedList" || command === "insertOrderedList") {
+            let selList = window.getSelection();
+            if (selList && selList.rangeCount > 0) {
+                let rList = selList.getRangeAt(0);
+                let anc = rList.commonAncestorContainer;
+                let rootEl = (anc.nodeType === 3 ? anc.parentElement : anc);
+                let editableHost = (rootEl && rootEl.closest) ? rootEl.closest(".content-block, .fb-content, #popup-content-box, #cg-editor-area, #ck-editor-area") : null;
+                if (editableHost) {
+                    let listItems = Array.from(editableHost.querySelectorAll("li")).filter(function(li) {
+                        return rList.intersectsNode(li);
+                    });
+                    listItems.forEach(function(li) {
+                        let walker = document.createTreeWalker(li, NodeFilter.SHOW_TEXT, null, false);
+                        let tn = walker.nextNode();
+                        while (tn && !tn.nodeValue.replace(/[\s\u200B-\u200D\uFEFF]/g, "")) {
+                            tn = walker.nextNode();
+                        }
+                        if (tn) {
+                            tn.nodeValue = tn.nodeValue.replace(/^[\s\u200B-\u200D\uFEFF]*(?:[-•*–—▪▫◦●○]|\d+[\.\)])[\s\u00A0]+/, "");
+                        }
+                    });
+                }
+            }
+        }
     }
 
     // Perbarui rekaman seleksi setelah format diterapkan
@@ -1843,7 +1868,71 @@ window.updateBlockTitle = function(idx, newTitle) {
     if (typeof window.simpanKeDB === 'function') window.simpanKeDB();
 };
 
+window.lastFocusedBlockIndex = -1;
+window._pendingInsertAfterIdx = null;
+
+// Rekam otomatis blok mana yang terakhir disentuh/diklik guru
+document.addEventListener('pointerdown', function(e) {
+    let bw = e.target && e.target.closest ? e.target.closest('#blocks-container > .block-wrapper') : null;
+    if (bw) {
+        let idx = parseInt(bw.getAttribute('data-index'), 10);
+        if (!isNaN(idx)) window.lastFocusedBlockIndex = idx;
+    }
+}, true);
+
+window.ambilIndexBlokAktif = function() {
+    if (window.lastActiveEditable && window.lastActiveEditable.classList && window.lastActiveEditable.classList.contains('content-block')) {
+        let idx = parseInt(window.lastActiveEditable.getAttribute('data-index'), 10);
+        if (!isNaN(idx) && idx >= 0 && idx < window.contentBlocksData.length) return idx;
+    }
+    if (typeof window.lastFocusedBlockIndex === 'number' && window.lastFocusedBlockIndex >= 0 && window.lastFocusedBlockIndex < window.contentBlocksData.length) {
+        return window.lastFocusedBlockIndex;
+    }
+    return window.contentBlocksData.length - 1;
+};
+
+window.tambahBlokDiBawah = function(idx) {
+    let newBlock = {
+        type: 'text', html: "<p>Ketik materi...</p>", bg: "#ffffff", pattern: "",
+        color: "#333333", width: "M", padTop: "40px", padBot: "40px", drawing: "",
+        floatImages: [], isCollapsed: false, blockTitle: "Materi Baru", twoColumns: false
+    };
+    let pos = (typeof idx === 'number' && idx >= 0 && idx < window.contentBlocksData.length) ? (idx + 1) : window.contentBlocksData.length;
+    window.contentBlocksData.splice(pos, 0, newBlock);
+    window.lastFocusedBlockIndex = pos;
+    window.renderBlocks();
+    if (window.simpanKeDB) window.simpanKeDB();
+
+    setTimeout(function() {
+        let targetEl = document.querySelector('#blocks-container > .block-wrapper[data-index="' + pos + '"]');
+        if (targetEl) targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 80);
+};
+
+window.toggleDuaKolomBlok = function(idx) {
+    if (!window.contentBlocksData[idx]) return;
+    window.contentBlocksData[idx].twoColumns = !window.contentBlocksData[idx].twoColumns;
+    window.renderBlocks();
+    if (window.simpanKeDB) window.simpanKeDB();
+};
+
 window.renderBlocks = function() {
+    // Jika Media (PDF Slide) atau Modul Interaktif baru ditambahkan ke akhir array, pindahkan tepat ke bawah blok aktif
+    if (typeof window._pendingInsertAfterIdx === 'number' && window._pendingInsertAfterIdx >= 0 && window.contentBlocksData.length > 1) {
+        let lastIdx = window.contentBlocksData.length - 1;
+        let lastBlok = window.contentBlocksData[lastIdx];
+        if (lastBlok && (lastBlok.type === 'pdf_slides' || lastBlok.type === 'modul_interaktif') && !lastBlok._posisiTersusun) {
+            lastBlok._posisiTersusun = true;
+            let targetPos = Math.min(window._pendingInsertAfterIdx + 1, lastIdx);
+            if (targetPos < lastIdx) {
+                window.contentBlocksData.pop();
+                window.contentBlocksData.splice(targetPos, 0, lastBlok);
+                window.lastFocusedBlockIndex = targetPos;
+            }
+            window._pendingInsertAfterIdx = null;
+        }
+    }
+
     let html = '';
     let isEdit = document.body.classList.contains('mode-edit-aktif') || document.documentElement.classList.contains('force-edit-mode');
 
@@ -2062,17 +2151,27 @@ window.renderBlocks = function() {
         // 4. TIPE BLOK TEKS & TABEL DINAMIS
         else {
             let floatImgsText = window.renderFloatImagesHTML(index, -1, blok.floatImages || []);
+            let twoColClass = blok.twoColumns ? ' two-columns-block' : '';
+            let btnTwoColLabel = blok.twoColumns ? '📄 1 Kolom' : '◫ 2 Kolom';
+
             html += '<div class="block-wrapper" data-index="' + index + '" style="padding-top:' + padTop + ';padding-bottom:' + padBot + ';">' +
-                '<div class="a4-paper-wrapper dynamic-block-shell" data-width="' + widthMode + '" style="background-color:' + bgCol + '; border:1px solid #cbd5e1; border-radius:10px; box-shadow:0 4px 16px rgba(15, 23, 42, 0.08); overflow:visible;">' +     
-                    '<div class="block-controls"><button onclick="geserBlok(' + index + ', -1)">⬆️</button><button onclick="geserBlok(' + index + ', 1)">⬇️</button><button onclick="bukaSidebarBlock(' + index + ')">⚙️ Setting</button><button onclick="hapusBlok(' + index + ')">🗑️ Delete</button></div>' +
+                '<div class="a4-paper-wrapper dynamic-block-shell" data-width="' + widthMode + '" style="background-color:' + bgCol + '; border:1px solid #cbd5e1; border-radius:10px; box-shadow:0 4px 16px rgba(15, 23, 42, 0.08); overflow:visible;">' +
+                    '<div class="block-controls">' +
+                        '<button onclick="geserBlok(' + index + ', -1)">⬆️</button>' +
+                        '<button onclick="geserBlok(' + index + ', 1)">⬇️</button>' +
+                        '<button onclick="bukaSidebarBlock(' + index + ')">⚙️ Setting</button>' +
+                        '<button onclick="window.toggleDuaKolomBlok(' + index + ')" title="Bagi 2 Kolom Tengah / Kembali 1 Kolom">' + btnTwoColLabel + '</button>' +
+                        '<button onclick="hapusBlok(' + index + ')">🗑️ Delete</button>' +
+                    '</div>' +
                     collapseBarHtml +
                     '<div class="block-collapsible-area" style="display:' + displayStyle + '; width:100%; position:relative;">' +
                         '<div class="draw-float-layer" data-index="' + index + '">' + floatImgsText + '</div>' +
                         '<canvas class="drawing-layer" data-index="' + index + '"></canvas>' +
-                        '<div class="content-block a4-portrait-block dynamic-content-block ' + patClass + '" ' + (isEdit ? 'contenteditable="true"' : '') + ' data-index="' + index + '" data-block-type="text" data-width="' + widthMode + '" style="background-color:transparent; color:' + txtCol + '; border:none!important; box-shadow:none!important;" oninput="window.cekBatasTinggiA4Input(event, this)">' +
+                        '<div class="content-block a4-portrait-block dynamic-content-block ' + patClass + twoColClass + '" ' + (isEdit ? 'contenteditable="true"' : '') + ' data-index="' + index + '" data-block-type="text" data-width="' + widthMode + '" style="background-color:transparent; color:' + txtCol + '; border:none!important; box-shadow:none!important;" oninput="window.cekBatasTinggiA4Input(event, this)">' +
                             blok.html +
                         '</div>' +
                     '</div>' +
+                    '<button type="button" class="btn-add-block-below" onclick="window.tambahBlokDiBawah(' + index + ')" title="Tambah Content Block Baru di Bawah Blok Ini">+</button>' +
                 '</div>' +
             '</div>';
         }
@@ -3866,8 +3965,9 @@ document.addEventListener("DOMContentLoaded", function() {
     if (cont) obsLocalMedia.observe(cont, { childList: true, subtree: true });
 });
 
-// Modal Multimedia (Video Pintar & PDF Slide)
+// Modal Multimedia (Video Pintar & PDF Slide — Sisip Tepat di Bawah Blok Aktif)
 window.bukaModalMultimedia = function() {
+    window._pendingInsertAfterIdx = window.ambilIndexBlokAktif();
     window.simpanSeleksiTeks();
     let inputLink = document.getElementById("input-link-media");
     if (inputLink) inputLink.value = "";
@@ -3982,7 +4082,8 @@ window.uploadVideoLangsung = async function(inputElem) {
 window.targetQuizBlockIndex = -1;
 
 window.sisipkanBlokKuis = function() {
-    window.contentBlocksData.push({
+    let targetPos = window.ambilIndexBlokAktif() + 1;
+    window.contentBlocksData.splice(targetPos, 0, {
         type: "quiz",
         questions: [],
         bg: "#ffffff",
@@ -3993,10 +4094,21 @@ window.sisipkanBlokKuis = function() {
         padBot: "40px",
         drawing: ""
     });
+    window.lastFocusedBlockIndex = targetPos;
     window.renderBlocks();
     if (window.simpanKeDB) window.simpanKeDB();
-    window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+    setTimeout(function() {
+        let el = document.querySelector('#blocks-container > .block-wrapper[data-index="' + targetPos + '"]');
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 80);
 };
+
+// Rekam blok aktif otomatis saat tombol Modul Interaktif di toolbar diklik
+document.addEventListener("click", function(e) {
+    if (e.target && e.target.closest && e.target.closest('button[onclick*="sisipkanModulInteraktif"]')) {
+        window._pendingInsertAfterIdx = window.ambilIndexBlokAktif();
+    }
+}, true);
 
 window.bukaAIQuizModal = function(blockIdx) {
     window.targetQuizBlockIndex = blockIdx;
