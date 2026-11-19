@@ -5197,35 +5197,61 @@ window.renderMathJax = function() {
 
 window.terapkanLatex = function() {
     window.simpanSeleksiTeks();
-    let text = window.globalSelectedRange ? window.globalSelectedRange.toString().trim() : "";
-    if (!text) return alert("Blok teks atau rumus matematika terlebih dahulu!");
-
-    // Konversi Cerdas: Jika tidak ada kode LaTeX (backslash '\'), ubah pecahan biasa jadi pecahan LaTeX
-    if (text.indexOf('\\') === -1) {
-        // Mengubah pola "a/b" atau "2/3" menjadi "\frac{2}{3}"
-        text = text.replace(/([0-9a-zA-Z]+)\/([0-9a-zA-Z]+)/g, "\\frac{$1}{$2}");
+    if (!window.globalSelectedRange || window.globalSelectedRange.collapsed) {
+        return alert("Blok teks atau rumus matematika terlebih dahulu!");
     }
-
-    let rawTextEscaped = text.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    
-    // Bungkus dengan div rata tengah dan tambahkan fungsi batal (double click)
-    let latexHTML = '<div class="math-latex-block" contenteditable="false" data-raw="' + rawTextEscaped + '" ondblclick="window.batalLatex(this, event)" style="text-align:center; margin: 15px 0; cursor:pointer;" title="Klik ganda untuk membatalkan format rumus">$$ ' + text + ' $$</div><p><br></p>';
-
-    window.kembalikanSeleksiTeks();
-    document.execCommand("insertHTML", false, latexHTML);
-    window.renderMathJax();
-    triggerInput();
+    window.sisipkanLatexInlineKeSeleksi();
 };
 
 window.batalLatex = function(el, event) {
-    event.stopPropagation();
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
     if (!document.body.classList.contains('mode-edit-aktif') && !document.documentElement.classList.contains('force-edit-mode')) return;
-    
-    let rawText = el.getAttribute('data-raw') || "";
-    let textNode = document.createTextNode(rawText);
-    el.parentNode.replaceChild(textNode, el);
-    triggerInput();
+    if (!el || !el.parentNode) return;
+
+    let editableHost = el.closest ? el.closest('.content-block, .fb-content, #popup-content-box, #cg-editor-area, #ck-editor-area') : null;
+    let rawText = el.getAttribute('data-raw') || el.getAttribute('data-latex-src') || el.textContent || '';
+    rawText = rawText.trim();
+    if (rawText.indexOf('\\(') === 0 && rawText.lastIndexOf('\\)') === rawText.length - 2) {
+        rawText = rawText.slice(2, -2).trim();
+    }
+
+    if (editableHost) editableHost.focus();
+
+    // Pakai execCommand agar pembatalan rumus juga tercatat di riwayat Cmd+Z / Undo
+    let berhasilUndoable = false;
+    try {
+        let sel = window.getSelection();
+        let r = document.createRange();
+        r.selectNode(el);
+        sel.removeAllRanges();
+        sel.addRange(r);
+        document.execCommand('insertText', false, rawText);
+        berhasilUndoable = !el.isConnected;
+    } catch (err) {}
+
+    if (!berhasilUndoable && el.parentNode) {
+        let textNode = document.createTextNode(rawText);
+        el.parentNode.replaceChild(textNode, el);
+    }
+
+    if (editableHost) {
+        editableHost.dispatchEvent(new Event('input', { bubbles: true }));
+    } else if (typeof triggerInput === 'function') {
+        triggerInput();
+    }
 };
+
+// Tangkap klik 2x pada rumus LaTeX sebelum menyentuh #main-editor-wrapper (cegah bentrok restoreMathJax)
+document.addEventListener('dblclick', function(e) {
+    if (!document.body.classList.contains('mode-edit-aktif') && !document.documentElement.classList.contains('force-edit-mode')) return;
+    let latexEl = (e.target && e.target.closest) ? e.target.closest('.latex-inline, .math-latex-block') : null;
+    if (latexEl) {
+        window.batalLatex(latexEl, e);
+    }
+}, true);
 
 window.restoreMathJax = function() {
     if (typeof MathJax !== 'undefined' && MathJax.startup && MathJax.startup.document) {
@@ -7291,3 +7317,383 @@ window.buatHTMLSkeleton = function(tipe, jumlah) {
 
     return '<div class="sk-materi-card"><div class="sk-materi-body"><div class="sk-box sk-line" style="width:80%;"></div><div class="sk-box sk-line" style="width:60%;"></div></div></div>';
 };
+/* =========================================================================
+   MESIN LATEX MULTI-BARIS & UNDO NATIVE (CMD+Z AMAN, ANTI-ERROR %, PER LURUS)
+   ========================================================================= */
+window.konversiPecahanKeFrac = function(input) {
+    let str = String(input || '');
+
+    function ambilKiri(s, idx) {
+        while (idx >= 0 && s[idx] === ' ') idx--;
+        if (idx < 0) return null;
+
+        let end = idx;
+        if (s[idx] === ')') {
+            let depth = 0;
+            let i = idx;
+            while (i >= 0) {
+                if (s[i] === ')') depth++;
+                else if (s[i] === '(') {
+                    depth--;
+                    if (depth === 0) break;
+                }
+                i--;
+            }
+            if (depth === 0 && i >= 0) {
+                return { start: i, content: s.slice(i + 1, end).trim() };
+            }
+            return null;
+        }
+
+        let i = idx;
+        while (i >= 0) {
+            let ch = s[i];
+            if (ch === '}') {
+                let d = 0;
+                while (i >= 0) {
+                    if (s[i] === '}') d++;
+                    else if (s[i] === '{') {
+                        d--;
+                        if (d === 0) break;
+                    }
+                    i--;
+                }
+                i--;
+                continue;
+            }
+            if (ch === ',' && i > 0 && /[0-9]/.test(s[i - 1]) && i < end && /[0-9]/.test(s[i + 1])) {
+                i--;
+                continue;
+            }
+            if (/[a-zA-Z0-9._^%\\]/.test(ch)) {
+                i--;
+                continue;
+            }
+            break;
+        }
+        let start = i + 1;
+        if (start > end) return null;
+        return { start: start, content: s.slice(start, end + 1).trim() };
+    }
+
+    function ambilKanan(s, idx) {
+        let len = s.length;
+        while (idx < len && s[idx] === ' ') idx++;
+        if (idx >= len) return null;
+
+        if (s[idx] === '(') {
+            let depth = 0;
+            let i = idx;
+            while (i < len) {
+                if (s[i] === '(') depth++;
+                else if (s[i] === ')') {
+                    depth--;
+                    if (depth === 0) break;
+                }
+                i++;
+            }
+            if (depth === 0 && i < len) {
+                return { end: i + 1, content: s.slice(idx + 1, i).trim() };
+            }
+            return null;
+        }
+
+        let i = idx;
+        while (i < len) {
+            let ch = s[i];
+            if (ch === '{') {
+                let d = 0;
+                while (i < len) {
+                    if (s[i] === '{') d++;
+                    else if (s[i] === '}') {
+                        d--;
+                        if (d === 0) break;
+                    }
+                    i++;
+                }
+                i++;
+                continue;
+            }
+            if (ch === ',' && i > idx && /[0-9]/.test(s[i - 1]) && i + 1 < len && /[0-9]/.test(s[i + 1])) {
+                i++;
+                continue;
+            }
+            if (ch === '\\') {
+                if (i + 1 < len && s[i + 1] === '%') {
+                    i += 2;
+                    continue;
+                }
+                if (i > idx) break;
+                i++;
+                while (i < len && /[a-zA-Z]/.test(s[i])) i++;
+                continue;
+            }
+            if (/[a-zA-Z0-9._^%]/.test(ch)) {
+                i++;
+                continue;
+            }
+            break;
+        }
+        if (i <= idx) return null;
+        return { end: i, content: s.slice(idx, i).trim() };
+    }
+
+    let guard = 0;
+    let searchFrom = 0;
+    while (guard < 30) {
+        let slashIdx = str.indexOf('/', searchFrom);
+        if (slashIdx === -1) break;
+
+        if ((slashIdx > 0 && str[slashIdx - 1] === '\\') || str[slashIdx + 1] === '/' || (slashIdx > 0 && str[slashIdx - 1] === '/')) {
+            searchFrom = slashIdx + 1;
+            continue;
+        }
+
+        let kiri = ambilKiri(str, slashIdx - 1);
+        let kanan = ambilKanan(str, slashIdx + 1);
+
+        if (!kiri || !kanan || !kiri.content || !kanan.content) {
+            searchFrom = slashIdx + 1;
+            continue;
+        }
+
+        let fracStr = '\\frac{' + kiri.content + '}{' + kanan.content + '}';
+        str = str.slice(0, kiri.start) + fracStr + str.slice(kanan.end);
+        searchFrom = kiri.start + fracStr.length;
+        guard++;
+    }
+
+    return str;
+};
+
+window.siapkanTeksLatexRapi = function(rawText) {
+    let dlr = String.fromCharCode(36);
+    let teks = String(rawText || '')
+        .replace(/\r\n/g, ' ')
+        .replace(/[\r\n]+/g, ' ')
+        .trim();
+
+    if (teks.indexOf(dlr + dlr) === 0 && teks.lastIndexOf(dlr + dlr) === teks.length - 2 && teks.length > 4) {
+        teks = teks.slice(2, -2).trim();
+    } else if (teks.indexOf(dlr) === 0 && teks.lastIndexOf(dlr) === teks.length - 1 && teks.length > 2) {
+        teks = teks.slice(1, -1).trim();
+    } else if (teks.indexOf('\\[') === 0 && teks.lastIndexOf('\\]') === teks.length - 2 && teks.length > 4) {
+        teks = teks.slice(2, -2).trim();
+    } else if (teks.indexOf('\\(') === 0 && teks.lastIndexOf('\\)') === teks.length - 2 && teks.length > 4) {
+        teks = teks.slice(2, -2).trim();
+    }
+
+    // 1. Amankan tanda % menjadi \% agar tidak dianggap komentar
+    while (/(^|[^\\])%/.test(teks)) {
+        teks = teks.replace(/(^|[^\\])%/g, function(match, prev) {
+            return prev + '\\%';
+        });
+    }
+
+    // 2. Ubah pembagian "/" menjadi pecahan per lurus (\frac{...}{...})
+    teks = window.konversiPecahanKeFrac(teks);
+
+    // 3. Buat tanda kurung di sekitar pecahan otomatis tinggi proporsional
+    teks = teks.replace(/\(\s*(\\frac\{[^{}]*\}\{[^{}]*\})\s*\)/g, function(match, frac) {
+        return '\\left(' + frac + '\\right)';
+    });
+
+    // 4. Rapikan koma desimal Indonesia (misal 0,1 -> 0{,}1) & simbol kali/bagi
+    teks = teks.replace(/(\d),(\d)/g, function(match, d1, d2) {
+        return d1 + '{,}' + d2;
+    });
+    teks = teks.replace(/×/g, ' \\times ').replace(/÷/g, ' \\div ');
+
+    // 5. Pakai \displaystyle agar ukuran pecahan per lurus tetap jelas
+    if (teks && teks.indexOf('\\displaystyle') === -1 && teks.indexOf('\\frac{') !== -1) {
+        teks = '\\displaystyle ' + teks;
+    }
+
+    return teks;
+};
+
+window.ekstrakBarisDariRange = function(range) {
+    let frag = range.cloneContents();
+    let out = '';
+
+    function jalanNode(node) {
+        if (node.nodeType === 3) {
+            out += node.nodeValue || '';
+            return;
+        }
+        if (node.nodeType !== 1) return;
+
+        let tag = node.tagName.toUpperCase();
+        if (tag === 'BR') {
+            out += '\n';
+            return;
+        }
+        if (node.classList && (node.classList.contains('latex-inline') || node.classList.contains('math-latex-block'))) {
+            out += node.getAttribute('data-raw') || node.getAttribute('data-latex-src') || '';
+            return;
+        }
+
+        let isBlock = /^(DIV|P|LI|H[1-6]|BLOCKQUOTE|TR)$/.test(tag);
+        if (isBlock && out.length > 0 && out[out.length - 1] !== '\n') {
+            out += '\n';
+        }
+        for (let i = 0; i < node.childNodes.length; i++) {
+            jalanNode(node.childNodes[i]);
+        }
+        if (isBlock && out.length > 0 && out[out.length - 1] !== '\n') {
+            out += '\n';
+        }
+    }
+
+    for (let i = 0; i < frag.childNodes.length; i++) {
+        jalanNode(frag.childNodes[i]);
+    }
+
+    let lines = out.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').map(function(l) {
+        return l.replace(/[\u200B-\u200D\uFEFF]/g, '').trim();
+    });
+
+    // Buang baris kosong di paling awal atau paling akhir hasil seleksi
+    while (lines.length > 0 && lines[0] === '') lines.shift();
+    while (lines.length > 0 && lines[lines.length - 1] === '') lines.pop();
+
+    return lines;
+};
+
+window.cekPosisiBarisLatex = function(range) {
+    let commonEl = range.commonAncestorContainer.nodeType === 3
+        ? range.commonAncestorContainer.parentElement
+        : range.commonAncestorContainer;
+    let editableHost = (commonEl && commonEl.closest)
+        ? commonEl.closest('.content-block, .fb-content, #popup-content-box, #cg-editor-area, #ck-editor-area')
+        : null;
+    if (!editableHost) {
+        return { adaTeksKiri: true, adaTeksKanan: true, editableHost: null };
+    }
+
+    function cariBlokTerdekat(node) {
+        let el = node.nodeType === 3 ? node.parentElement : node;
+        let blk = (el && el.closest) ? el.closest('p, div, li, h1, h2, h3, h4, h5, h6, blockquote, td, th') : editableHost;
+        return (blk && editableHost.contains(blk)) ? blk : editableHost;
+    }
+
+    function bersihkanKosong(s) {
+        return String(s || '').replace(/&nbsp;/gi, ' ').replace(/[\s\u00A0\u200B-\u200D\uFEFF]/g, '');
+    }
+
+    let startBlock = cariBlokTerdekat(range.startContainer);
+    let leftRange = document.createRange();
+    leftRange.setStart(startBlock, 0);
+    leftRange.setEnd(range.startContainer, range.startOffset);
+    let tempLeft = document.createElement('div');
+    tempLeft.appendChild(leftRange.cloneContents());
+    let leftHtml = tempLeft.innerHTML
+        .replace(/<img\b[^>]*>/gi, 'X')
+        .replace(/<br\s*\/?>|<\/(?:p|div|li|h[1-6]|blockquote|tr|table)>/gi, '\n')
+        .replace(/<[^>]*>/g, '');
+    let leftParts = leftHtml.split('\n');
+    let adaTeksKiri = bersihkanKosong(leftParts[leftParts.length - 1]).length > 0;
+
+    let endBlock = cariBlokTerdekat(range.endContainer);
+    let rightRange = document.createRange();
+    rightRange.setStart(range.endContainer, range.endOffset);
+    rightRange.setEnd(endBlock, endBlock.childNodes.length);
+    let tempRight = document.createElement('div');
+    tempRight.appendChild(rightRange.cloneContents());
+    let rightHtml = tempRight.innerHTML
+        .replace(/<img\b[^>]*>/gi, 'X')
+        .replace(/<br\s*\/?>|<(?:p|div|li|h[1-6]|blockquote|tr|table)\b[^>]*>/gi, '\n')
+        .replace(/<[^>]*>/g, '');
+    let rightParts = rightHtml.split('\n');
+    let adaTeksKanan = bersihkanKosong(rightParts[0]).length > 0;
+
+    return {
+        adaTeksKiri: adaTeksKiri,
+        adaTeksKanan: adaTeksKanan,
+        editableHost: editableHost
+    };
+};
+
+window.sisipkanLatexInlineKeSeleksi = function(rawTextOpsional) {
+    if (typeof window.kembalikanSeleksiTeks === 'function') {
+        window.kembalikanSeleksiTeks();
+    }
+
+    let sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+    let range = sel.getRangeAt(0);
+
+    let lines = (typeof rawTextOpsional === 'string' && rawTextOpsional.trim() !== '')
+        ? rawTextOpsional.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').map(function(l) { return l.trim(); })
+        : window.ekstrakBarisDariRange(range);
+
+    if (!lines || lines.length === 0 || lines.every(function(l) { return !l; })) {
+        return alert('Blok teks atau rumus matematika terlebih dahulu!');
+    }
+
+    let posisi = window.cekPosisiBarisLatex(range);
+    let batchPrefix = 'mjx-tmp-' + Date.now() + '-' + Math.floor(Math.random() * 10000) + '-';
+    let idList = [];
+
+    function escAttr(s) {
+        return String(s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+    function escHtml(s) {
+        return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    let potonganHtml = lines.map(function(rawLine, idx) {
+        if (!rawLine) return '';
+
+        let hasil = window.siapkanTeksLatexRapi(rawLine);
+        if (!hasil) return escHtml(rawLine);
+
+        let isCenter = false;
+        if (lines.length === 1) {
+            isCenter = !posisi.adaTeksKiri && !posisi.adaTeksKanan;
+        } else if (idx === 0) {
+            isCenter = !posisi.adaTeksKiri;
+        } else if (idx === lines.length - 1) {
+            isCenter = !posisi.adaTeksKanan;
+        } else {
+            isCenter = true;
+        }
+
+        let uid = batchPrefix + idx;
+        idList.push(uid);
+        let cls = isCenter ? 'latex-inline latex-center-self' : 'latex-inline';
+        let trailingSpace = (!isCenter && lines.length === 1) ? '&nbsp;' : '';
+
+        return '<span id="' + uid + '" class="' + cls + '" contenteditable="false" data-raw="' + escAttr(rawLine) + '" data-latex-src="' + escAttr(hasil) + '" ondblclick="window.batalLatex(this, event)" title="Klik 2x untuk membatalkan format rumus">\\(' + escHtml(hasil) + '\\)</span>' + trailingSpace;
+    });
+
+    let insertHtml = potonganHtml.join('<br>');
+
+    // Gunakan execCommand('insertHTML') agar 100% tercatat di riwayat Undo (Cmd+Z) & Redo browser
+    if (posisi.editableHost) posisi.editableHost.focus();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    document.execCommand('insertHTML', false, insertHtml);
+
+    let insertedSpans = [];
+    idList.forEach(function(uid) {
+        let el = document.getElementById(uid);
+        if (el) {
+            el.removeAttribute('id');
+            insertedSpans.push(el);
+        }
+    });
+
+    if (insertedSpans.length > 0 && window.MathJax && typeof window.MathJax.typesetPromise === 'function') {
+        window.MathJax.typesetPromise(insertedSpans).catch(function(err) {
+            console.warn('MathJax render warning:', err);
+        });
+    }
+
+    if (posisi.editableHost) {
+        posisi.editableHost.dispatchEvent(new Event('input', { bubbles: true }));
+    } else if (typeof triggerInput === 'function') {
+        triggerInput();
+    }
+};
+

@@ -4595,3 +4595,38 @@ body.dark-mode-active .arsip-stat-label {
         display: none !important;
     }
 }
+/* =========================================================================
+   PERBAIKAN LATEX INLINE (ANTI-ENTER TAMBAHAN & PER LURUS RAPI)
+   ========================================================================= */
+.latex-inline {
+    display: inline-block !important;
+    vertical-align: middle !important;
+    margin: 0 2px !important;
+    padding: 0 !important;
+    line-height: 1.2 !important;
+    cursor: pointer;
+}
+
+.latex-inline.latex-center-self {
+    display: inline-block !important;
+    width: calc(100% - 2px) !important;
+    box-sizing: border-box !important;
+    text-align: center !important;
+    margin: 2px 0 !important;
+}
+
+.content-block mjx-container,
+.fb-content mjx-container,
+.latex-inline mjx-container {
+    display: inline-block !important;
+    margin: 0 2px !important;
+    padding: 0 !important;
+    vertical-align: middle !important;
+}
+
+.content-block mjx-container[display="true"],
+.fb-content mjx-container[display="true"] {
+    display: inline-block !important;
+    margin: 2px 3px !important;
+    text-align: left !important;
+}
