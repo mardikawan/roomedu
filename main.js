@@ -1156,13 +1156,18 @@ function pastikanFokusEditor() {
     }
 }
 
-function triggerInput() { 
-    let a = document.activeElement;
-    if (!a || !(a.classList.contains("content-block") || a.classList.contains("fb-content") || a.id === "cg-editor-area")) {
-        a = window.lastActiveEditable;
-    }
-    if (a && (a.classList.contains("content-block") || a.classList.contains("fb-content"))) {
-        a.dispatchEvent(new Event("input", { bubbles: true })); 
+function triggerInput() {
+    let selectorEditable = ".content-block, .fb-content, #popup-content-box, #cg-editor-area, #ck-editor-area";
+    let a = (document.activeElement && document.activeElement.closest)
+        ? document.activeElement.closest(selectorEditable)
+        : null;
+    if (!a) a = window.lastActiveEditable;
+    if (a && document.body.contains(a)) {
+        window.lastActiveEditable = a;
+        if (typeof window.catatSnapshotUndo === "function") {
+            window.catatSnapshotUndo(a, true);
+        }
+        a.dispatchEvent(new Event("input", { bubbles: true }));
     }
 }
 
@@ -4637,93 +4642,215 @@ window.uploadPopupImg = function(input) {
     input.value = '';
 };
 
-// Deteksi Paste Cerdas (Tabel Excel, Gambar, dan Match Word Formatting)
-document.addEventListener('paste', function(e) {
-    if (e.target && (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT')) return;
-    if(!document.body.classList.contains('mode-edit-aktif') && !document.documentElement.classList.contains('force-edit-mode')) return;
-    
-    let activeCell = e.target.closest('td, th');
-    let clipboardData = e.clipboardData || window.clipboardData;
-    let pastedText = clipboardData.getData('text/plain');
+// Pembantu: Ekstrak Matriks Tabel dari Clipboard (Mendukung Word, Excel, Google Docs, Web, AI, & TSV)
+window.ekstrakMatriksTabelDariClipboard = function(clipboardData) {
+    if (!clipboardData) return null;
+    let html = clipboardData.getData('text/html') || '';
+    let plain = clipboardData.getData('text/plain') || '';
 
-    // 1. CEK SMART PASTE EXCEL/TABEL
-    if (activeCell && activeCell.closest('.interactive-table')) {
-        if (pastedText && pastedText.indexOf('\t') !== -1) {
-            e.preventDefault(); 
-            
-            let rows = pastedText.trim().split('\n');
-            let startRow = activeCell.closest('tr');
-            let startTable = startRow.closest('table');
-            let startRowIndex = Array.from(startTable.rows).indexOf(startRow);
-            let startColIndex = activeCell.cellIndex;
+    // 1. Cek format HTML <table> (Hasil copy dari Web, Word, Excel, Gemini, ChatGPT, atau tabel aplikasi)
+    if (html && /<table[\s>]/i.test(html)) {
+        let holder = document.createElement('div');
+        holder.innerHTML = html;
+        let tbl = holder.querySelector('table');
+        if (tbl && tbl.rows && tbl.rows.length > 0) {
+            let rows = [];
+            let hasHeaderRow = false;
 
-            rows.forEach((rowData, rOffset) => {
-                let cols = rowData.split('\t');
-                let targetRow = startTable.rows[startRowIndex + rOffset];
-
-                if (!targetRow) {
-                    let prevRow = startTable.rows[startTable.rows.length - 1];
-                    targetRow = prevRow.cloneNode(true);
-                    Array.from(targetRow.cells).forEach(c => {
-                        let btns = c.querySelectorAll('.tbl-btn-add');
-                        c.innerHTML = "";
-                        btns.forEach(b => c.appendChild(b));
-                    });
-                    startTable.querySelector('tbody').appendChild(targetRow);
-                }
-
-                cols.forEach((cellData, cOffset) => {
-                    let targetCell = targetRow.cells[startColIndex + cOffset];
-                    
-                    if (!targetCell) {
-                        Array.from(startTable.rows).forEach(tr => {
-                            let newCell = document.createElement(tr.rowIndex === 0 && startTable.rows[0].cells[0].tagName === 'TH' ? 'th' : 'td');
-                            newCell.innerHTML = '<button type="button" class="tbl-btn-add tbl-add-col" contenteditable="false" onclick="window.tambahKolomTabel(this)" title="Tambah Kolom ke Kanan">+</button>' +
-                                                '<button type="button" class="tbl-btn-add tbl-add-row" contenteditable="false" onclick="window.tambahBarisTabel(this)" title="Tambah Baris ke Bawah">+</button>';
-                            tr.appendChild(newCell);
-                        });
-                        targetCell = targetRow.cells[startColIndex + cOffset];
+            function bersihkanHtmlSel(el) {
+                let clone = el.cloneNode(true);
+                clone.querySelectorAll('.tbl-btn-add, script, style').forEach(function(rm) { rm.remove(); });
+                // Bersihkan warna highlight/background/font asing bawaan web sambil menjaga bold, italic, sup, sub, br
+                clone.querySelectorAll('*').forEach(function(node) {
+                    if (node.style) {
+                        node.style.background = '';
+                        node.style.backgroundColor = '';
+                        node.style.color = '';
+                        node.style.fontFamily = '';
+                        node.style.fontSize = '';
+                        node.style.margin = '';
+                        node.style.padding = '';
                     }
-
-                    if (targetCell) {
-                        let btnsHtml = '';
-                        targetCell.querySelectorAll('.tbl-btn-add').forEach(b => btnsHtml += b.outerHTML);
-                        targetCell.innerHTML = cellData.trim() + btnsHtml;
-                    }
+                    node.removeAttribute('class');
+                    node.removeAttribute('bgcolor');
+                    node.removeAttribute('width');
+                    node.removeAttribute('height');
                 });
+                let res = clone.innerHTML
+                    .replace(/<p[^>]*>/gi, '')
+                    .replace(/<\/p>/gi, '<br>')
+                    .replace(/<div[^>]*>/gi, '')
+                    .replace(/<\/div>/gi, '<br>')
+                    .replace(/(<br\s*\/?>\s*)+$/gi, '')
+                    .trim();
+                return res || '<br>';
+            }
+
+            Array.from(tbl.rows).forEach(function(tr, rIdx) {
+                let cells = Array.from(tr.cells);
+                if (cells.length === 0) return;
+                if (rIdx === 0 && (tr.parentElement.tagName === 'THEAD' || cells.every(function(c) { return c.tagName === 'TH'; }))) {
+                    hasHeaderRow = true;
+                }
+                rows.push(cells.map(function(c) { return bersihkanHtmlSel(c); }));
             });
-            
-            let blokEl = startTable.closest('.content-block');
-            if (blokEl) blokEl.dispatchEvent(new Event('input', { bubbles: true }));
-            return; 
+
+            if (rows.length > 0) {
+                return { rows: rows, hasHeaderRow: hasHeaderRow || rows.length > 1 };
+            }
         }
     }
 
-    // 2. CEK PASTE GAMBAR (Logika Lama Dipertahankan)
-    let items = (e.clipboardData || e.originalEvent.clipboardData).items;
-    for (let index in items) {
-        let item = items[index];
-        if (item.kind === 'file' && item.type.indexOf('image/') !== -1) {
-            e.preventDefault(); 
+    // 2. Cek format Tab-Separated (Excel / Sheets / Copy antar tabel teks)
+    if (plain && plain.indexOf('\t') !== -1) {
+        let rawLines = plain.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').filter(function(l) {
+            return l.trim() !== '';
+        });
+        if (rawLines.length > 0) {
+            let rows = rawLines.map(function(line) {
+                return line.split('\t').map(function(c) {
+                    let safe = c.trim().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    return safe || '<br>';
+                });
+            });
+            return { rows: rows, hasHeaderRow: rows.length > 1 };
+        }
+    }
+
+    // 3. Cek format Tabel Markdown (| Kolom 1 | Kolom 2 |)
+    if (plain && /^\s*\|.+\|\s*$/m.test(plain)) {
+        let mdLines = plain.replace(/\r\n/g, '\n').split('\n').map(function(l) { return l.trim(); }).filter(function(l) {
+            return /^\|.+\|$/.test(l) && !/^\|[\s:\-\|]+\|$/.test(l);
+        });
+        if (mdLines.length >= 2) {
+            let rows = mdLines.map(function(l) {
+                return l.slice(1, -1).split('|').map(function(c) {
+                    let safe = c.trim().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    return safe || '<br>';
+                });
+            });
+            return { rows: rows, hasHeaderRow: true };
+        }
+    }
+
+    return null;
+};
+
+// Deteksi Paste Cerdas (Tabel Word/Excel/Web/AI, Gambar, dan Teks Rapat Tanpa Enter Tambahan)
+document.addEventListener('paste', function(e) {
+    if (e.target && (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT')) return;
+    if (!document.body.classList.contains('mode-edit-aktif') && !document.documentElement.classList.contains('force-edit-mode')) return;
+
+    let clipboardData = e.clipboardData || window.clipboardData;
+    if (!clipboardData) return;
+
+    let targetEditable = e.target.closest
+        ? e.target.closest('.content-block, .fb-content, #popup-content-box, #cg-editor-area, #ck-editor-area')
+        : null;
+    if (!targetEditable) return;
+
+    let activeCell = (e.target.closest ? e.target.closest('td, th') : null)
+        || (window.activeTableCells && window.activeTableCells.length > 0 && targetEditable.contains(window.activeTableCells[0]) ? window.activeTableCells[0] : null);
+
+    // 1. CEK SMART PASTE TABEL (BAIK KE DALAM TABEL MAUPUN LANGSUNG KE CONTENT BLOCK)
+    let matriksTabel = window.ekstrakMatriksTabelDariClipboard(clipboardData);
+    if (matriksTabel && matriksTabel.rows && matriksTabel.rows.length > 0) {
+        e.preventDefault();
+
+        // Kasus A: Tempel tepat ke dalam tabel yang sedang dipilih / diblok
+        if (activeCell && activeCell.closest('table')) {
+            let startTable = activeCell.closest('table');
+            let tbody = startTable.querySelector('tbody') || startTable;
+            let startRow = activeCell.closest('tr');
+            let startRowIndex = Array.from(startTable.rows).indexOf(startRow);
+            let startColIndex = activeCell.cellIndex;
+
+            matriksTabel.rows.forEach(function(cols, rOffset) {
+                let targetRow = startTable.rows[startRowIndex + rOffset];
+
+                // Tambah baris otomatis jika data tempelan lebih banyak barisnya
+                if (!targetRow) {
+                    let colCount = startTable.rows[0] ? startTable.rows[0].cells.length : cols.length;
+                    targetRow = document.createElement('tr');
+                    for (let k = 0; k < colCount; k++) {
+                        let td = document.createElement('td');
+                        td.innerHTML = '<br>';
+                        targetRow.appendChild(td);
+                    }
+                    tbody.appendChild(targetRow);
+                }
+
+                // Tambah kolom otomatis jika data tempelan lebih banyak kolomnya
+                let butuhKolom = startColIndex + cols.length;
+                if (butuhKolom > targetRow.cells.length) {
+                    let kurang = butuhKolom - targetRow.cells.length;
+                    Array.from(startTable.rows).forEach(function(tr, idxTr) {
+                        let isHead = (idxTr === 0 && tr.cells[0] && tr.cells[0].tagName === 'TH');
+                        for (let m = 0; m < kurang; m++) {
+                            let newCell = document.createElement(isHead ? 'th' : 'td');
+                            newCell.innerHTML = '<br>';
+                            tr.appendChild(newCell);
+                        }
+                    });
+                }
+
+                cols.forEach(function(cellHtml, cOffset) {
+                    let targetCell = targetRow.cells[startColIndex + cOffset];
+                    if (targetCell) {
+                        targetCell.innerHTML = cellHtml || '<br>';
+                    }
+                });
+            });
+
+            startTable.classList.add('interactive-table', 'word-table');
+            if (typeof window.bersihkanTabelTunggal === 'function') window.bersihkanTabelTunggal(startTable);
+            targetEditable.dispatchEvent(new Event('input', { bubbles: true }));
+            return;
+        }
+
+        // Kasus B: Tempel langsung di Content Block biasa -> langsung bentuk tabel rapi ala Microsoft Word!
+        let maxCols = Math.max.apply(null, matriksTabel.rows.map(function(r) { return r.length; }));
+        let tableHtml = '<table class="interactive-table word-table"><tbody>';
+        matriksTabel.rows.forEach(function(cols, rIdx) {
+            let tag = (rIdx === 0 && matriksTabel.hasHeaderRow) ? 'th' : 'td';
+            tableHtml += '<tr>';
+            for (let c = 0; c < maxCols; c++) {
+                let isi = (cols[c] !== undefined && cols[c] !== '') ? cols[c] : '<br>';
+                tableHtml += '<' + tag + '>' + isi + '</' + tag + '>';
+            }
+            tableHtml += '</tr>';
+        });
+        tableHtml += '</tbody></table><div><br></div>';
+
+        document.execCommand('insertHTML', false, tableHtml);
+        if (typeof window.bersihkanSemuaTabelDalamEditor === 'function') window.bersihkanSemuaTabelDalamEditor();
+        triggerInput();
+        return;
+    }
+
+    // 2. CEK PASTE GAMBAR
+    let items = clipboardData.items || [];
+    for (let i = 0; i < items.length; i++) {
+        let item = items[i];
+        if (item.kind === 'file' && item.type && item.type.indexOf('image/') !== -1) {
+            e.preventDefault();
             let statusBar = document.getElementById('save-status-bar');
-            if(statusBar) statusBar.innerHTML = "<span style='color:#e67e22;'>⏳ Mengkonversi Gambar...</span>";
-            
+            if (statusBar) statusBar.innerHTML = "<span style='color:#e67e22;'>⏳ Mengkonversi Gambar...</span>";
+
             let blob = item.getAsFile();
             window.kompresGambar(blob, function(dataUrl) {
                 document.execCommand('insertImage', false, dataUrl);
-                if(statusBar) statusBar.innerHTML = "<span style='color:#2ecc71;'>✓ Selesai Di-paste</span>";
-                triggerInput(); 
+                if (statusBar) statusBar.innerHTML = "<span style='color:#2ecc71;'>✓ Selesai Di-paste</span>";
+                triggerInput();
             });
-            return; 
+            return;
         }
     }
 
     // 3. CEK PASTE TEKS BIASA (RAPAT TANPA ENTER TAMBAHAN DI CONTENT BLOCK)
+    let pastedText = clipboardData.getData('text/plain');
     if (pastedText && pastedText.trim() !== '') {
         e.preventDefault();
-        let targetEditable = e.target.closest
-            ? e.target.closest('.content-block, .fb-content, #popup-content-box, #cg-editor-area, #ck-editor-area')
-            : null;
 
         let cleanText = pastedText
             .replace(/\r\n/g, '\n')
@@ -4731,7 +4858,6 @@ document.addEventListener('paste', function(e) {
             .replace(/^[ \t]+$/gm, '')
             .replace(/^\n+|\n+$/g, '');
 
-        // Hilangkan enter ganda bawaan salinan dari Word / Google Docs / Web / AI
         if (cleanText.indexOf('\n\n') !== -1) {
             let adaBarisTunggal = /[^\n]\n[^\n]/.test(cleanText);
             if (!adaBarisTunggal) {
@@ -4743,7 +4869,7 @@ document.addEventListener('paste', function(e) {
             }
         }
 
-        if (targetEditable && cleanText.indexOf('\n') !== -1) {
+        if (cleanText.indexOf('\n') !== -1) {
             let lines = cleanText.split('\n');
             let htmlLines = lines.map(function(line) {
                 let safe = line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -4751,8 +4877,6 @@ document.addEventListener('paste', function(e) {
             }).join('');
 
             document.execCommand('insertHTML', false, htmlLines);
-
-            // Bersihkan tag kosong sisa pecahan bawaan browser saat paste
             targetEditable.querySelectorAll('p:empty, div:empty').forEach(function(el) {
                 el.remove();
             });
@@ -4937,199 +5061,346 @@ window.startDragGambarFloat = function(e) {
 };
 
 /* =========================================
-   KONTROL TABEL DALAM BLOK (TABLE SETTINGS)
+   KONTROL TABEL ALA MICROSOFT WORD (KETIK LANCAR, DRAG-SELECT, COPY-PASTE, & RESIZE KOLOM)
    ========================================= */
-window.activeTableCell = null; 
+window.activeTableCell = null;
+window.activeTableCells = [];
+window._isSelectingTableCells = false;
+window._tableSelectStartCell = null;
+window._resizingTableCol = null;
 
-// Modal Tabel Interaktif Modern
+// Bersihkan tabel lama agar tidak ada tombol "+" pengganggu atau contenteditable ganda
+window.bersihkanTabelTunggal = function(tableEl) {
+    if (!tableEl || window._isRestoringUndo) return;
+    if (tableEl.hasAttribute('contenteditable')) tableEl.removeAttribute('contenteditable');
+    if (!tableEl.classList.contains('interactive-table')) tableEl.classList.add('interactive-table');
+    if (!tableEl.classList.contains('word-table')) tableEl.classList.add('word-table');
+
+    let legacyBtns = tableEl.querySelectorAll('.tbl-btn-add');
+    if (legacyBtns.length > 0) {
+        legacyBtns.forEach(function(btn) { btn.remove(); });
+    }
+
+    tableEl.querySelectorAll('td, th').forEach(function(cell) {
+        if (cell.hasAttribute('contenteditable')) cell.removeAttribute('contenteditable');
+        if (cell.style.resize) cell.style.resize = '';
+        if (cell.style.overflow) cell.style.overflow = '';
+    });
+};
+
+window.bersihkanSemuaTabelDalamEditor = function() {
+    if (window._isRestoringUndo) return;
+    document.querySelectorAll('.content-block table, .fb-content table').forEach(function(tbl) {
+        window.bersihkanTabelTunggal(tbl);
+    });
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(window.bersihkanSemuaTabelDalamEditor, 400);
+    let cont = document.getElementById('blocks-container');
+    if (cont) {
+        // Hanya pantau childList tingkat atas (saat pindah bab/render ulang), tidak mengganggu ketikan & Undo
+        let obsTbl = new MutationObserver(function() {
+            window.bersihkanSemuaTabelDalamEditor();
+        });
+        obsTbl.observe(cont, { childList: true });
+    }
+});
+
+window.posisikanToolbarTabel = function(tableOrCell) {
+    let c = document.getElementById('tbl-controls');
+    if (!c || !tableOrCell) return;
+    let tbl = tableOrCell.tagName === 'TABLE' ? tableOrCell : tableOrCell.closest('table');
+    let rect = (tbl || tableOrCell).getBoundingClientRect();
+    c.style.display = 'flex';
+    c.style.top = Math.max(8, (rect.top + window.scrollY - 38)) + 'px';
+    c.style.left = Math.max(8, (rect.left + window.scrollX)) + 'px';
+};
+
+window.bersihkanSorotanSelTabel = function() {
+    document.querySelectorAll('.tbl-cell-selected').forEach(function(el) {
+        el.classList.remove('tbl-cell-selected');
+    });
+    window.activeTableCells = [];
+};
+
+window.pilihRentangSelTabel = function(table, cellA, cellB) {
+    if (!table || !cellA || !cellB) return;
+    let r1 = Math.min(cellA.parentElement.rowIndex, cellB.parentElement.rowIndex);
+    let r2 = Math.max(cellA.parentElement.rowIndex, cellB.parentElement.rowIndex);
+    let c1 = Math.min(cellA.cellIndex, cellB.cellIndex);
+    let c2 = Math.max(cellA.cellIndex, cellB.cellIndex);
+
+    window.bersihkanSorotanSelTabel();
+    for (let r = r1; r <= r2; r++) {
+        let row = table.rows[r];
+        if (!row) continue;
+        for (let c = c1; c <= c2; c++) {
+            let cell = row.cells[c];
+            if (cell) {
+                cell.classList.add('tbl-cell-selected');
+                window.activeTableCells.push(cell);
+            }
+        }
+    }
+};
+
+window.blokSemuaSelTabel = function() {
+    let tbl = window.activeTableCell ? window.activeTableCell.closest('table') : null;
+    if (!tbl && window.activeTableCells && window.activeTableCells[0]) {
+        tbl = window.activeTableCells[0].closest('table');
+    }
+    if (!tbl || tbl.rows.length === 0) return;
+
+    window.bersihkanSorotanSelTabel();
+    Array.from(tbl.rows).forEach(function(r) {
+        Array.from(r.cells).forEach(function(c) {
+            c.classList.add('tbl-cell-selected');
+            window.activeTableCells.push(c);
+        });
+    });
+
+    // Fokuskan sel pertama agar langsung siap Copy (Cmd+C), Paste (Cmd+V), Warnai, atau Delete
+    let firstCell = tbl.rows[0].cells[0];
+    if (firstCell) {
+        window.activeTableCell = firstCell;
+        let editable = tbl.closest('.content-block, .fb-content');
+        if (editable) editable.focus();
+        try {
+            let sel = window.getSelection();
+            let rng = document.createRange();
+            rng.selectNodeContents(tbl);
+            sel.removeAllRanges();
+            sel.addRange(rng);
+        } catch (err) {}
+    }
+    window.posisikanToolbarTabel(tbl);
+};
+
 window.sisipkanTabel = function() {
     window.simpanSeleksiTeks();
     window.bukaModal('modal-tabel');
 };
 
 window.terapkanSisipanTabel = function() {
-    let cols = parseInt(document.getElementById('input-tabel-kolom').value) || 3;
-    let rows = parseInt(document.getElementById('input-tabel-baris').value) || 3;
-    
-    // Tanpa wrapper, langsung masukkan tabel dengan ukuran dinamis
-    let html = '<table class="interactive-table" contenteditable="true" style="margin: 15px 0;"><tbody>';
-    
-    for(let r = 0; r < rows; r++) {
+    let cols = Math.max(1, Math.min(12, parseInt(document.getElementById('input-tabel-kolom').value, 10) || 3));
+    let rows = Math.max(1, Math.min(30, parseInt(document.getElementById('input-tabel-baris').value, 10) || 3));
+    let uid = 'word-tbl-' + Date.now();
+
+    let html = '<table id="' + uid + '" class="interactive-table word-table"><tbody>';
+    for (let r = 0; r < rows; r++) {
         html += '<tr>';
-        for(let c = 0; c < cols; c++) {
-            let isHeader = (r === 0);
-            let tag = isHeader ? 'th' : 'td';
-            html += '<' + tag + '>' + 
-                    '<button type="button" class="tbl-btn-add tbl-add-col" contenteditable="false" onclick="window.tambahKolomTabel(this)" title="Tambah Kolom ke Kanan">+</button>' +
-                    '<button type="button" class="tbl-btn-add tbl-add-row" contenteditable="false" onclick="window.tambahBarisTabel(this)" title="Tambah Baris ke Bawah">+</button>' +
-                    '</' + tag + '>';
+        let tag = (r === 0) ? 'th' : 'td';
+        for (let c = 0; c < cols; c++) {
+            html += '<' + tag + '><br></' + tag + '>';
         }
         html += '</tr>';
     }
-    html += '</tbody></table><p><br></p>';
-    
+    html += '</tbody></table><div><br></div>';
+
     window.kembalikanSeleksiTeks();
     window.formatTeks('insertHTML', html);
     window.tutupModal('modal-tabel');
-};
 
-window.tambahKolomTabel = function(btn) {
-    let cell = btn.closest('td, th');
-    let row = cell.parentElement;
-    let table = row.parentElement.parentElement;
-    let cellIndex = Array.from(row.children).indexOf(cell);
-    
-    Array.from(table.rows).forEach(function(tr, rIdx) {
-        let isHeader = (rIdx === 0 && table.rows[0].children[0].tagName === 'TH');
-        let tag = isHeader ? 'th' : 'td';
-        let newCell = document.createElement(tag);
-        newCell.innerHTML = '<button type="button" class="tbl-btn-add tbl-add-col" contenteditable="false" onclick="window.tambahKolomTabel(this)" title="Tambah Kolom ke Kanan">+</button>' +
-                            '<button type="button" class="tbl-btn-add tbl-add-row" contenteditable="false" onclick="window.tambahBarisTabel(this)" title="Tambah Baris ke Bawah">+</button>';
-        
-        if (cellIndex + 1 < tr.children.length) {
-            tr.insertBefore(newCell, tr.children[cellIndex + 1]);
-        } else {
-            tr.appendChild(newCell);
-        }
-    });
-    
-    let blokEl = btn.closest('.content-block');
-    if (blokEl) blokEl.dispatchEvent(new Event('input', { bubbles: true }));
-};
-
-window.tambahBarisTabel = function(btn) {
-    let cell = btn.closest('td, th');
-    let row = cell.parentElement;
-    
-    let newRow = document.createElement('tr');
-    Array.from(row.children).forEach(function() {
-        let newCell = document.createElement('td');
-        newCell.innerHTML = '<button type="button" class="tbl-btn-add tbl-add-col" contenteditable="false" onclick="window.tambahKolomTabel(this)" title="Tambah Kolom ke Kanan">+</button>' +
-                            '<button type="button" class="tbl-btn-add tbl-add-row" contenteditable="false" onclick="window.tambahBarisTabel(this)" title="Tambah Baris ke Bawah">+</button>';
-        newRow.appendChild(newCell);
-    });
-    
-    if (row.nextSibling) {
-        row.parentElement.insertBefore(newRow, row.nextSibling);
-    } else {
-        row.parentElement.appendChild(newRow);
-    }
-    
-    let blokEl = btn.closest('.content-block');
-    if (blokEl) blokEl.dispatchEvent(new Event('input', { bubbles: true }));
-};
-
-// Menambahkan fungsi hapus tabel utuh
-window.hapusTabelUtuh = function() { 
-    if(window.activeTableCell) { 
-        let tb = window.activeTableCell.closest('table');
-        if (tb) {
-            let blok = tb.closest('.content-block, .fb-content');
-            if (confirm("Hapus seluruh tabel ini?")) {
-                tb.remove(); 
-                document.getElementById('tbl-controls').style.display = 'none'; 
-                if (blok) blok.dispatchEvent(new Event('input', {bubbles: true})); 
+    setTimeout(function() {
+        let newTbl = document.getElementById(uid);
+        if (newTbl) {
+            newTbl.removeAttribute('id');
+            let firstCell = newTbl.rows[0] && newTbl.rows[0].cells[0];
+            if (firstCell) {
+                window.activeTableCell = firstCell;
+                let editable = newTbl.closest('.content-block, .fb-content');
+                if (editable) editable.focus();
+                let rng = document.createRange();
+                rng.setStart(firstCell, 0);
+                rng.collapse(true);
+                let sel = window.getSelection();
+                sel.removeAllRanges();
+                sel.addRange(rng);
+                window.posisikanToolbarTabel(newTbl);
             }
         }
-    } 
+    }, 30);
 };
 
-window.activeTableCells = []; // Menyimpan sel-sel yang di-blok
-
-// Ubah kursor jadi panah hitam saat di tepi tabel (Dengan Throttle 80ms Anti-Lag)
+// Ubah kursor saat mengarah ke garis kolom kanan (untuk seret lebar kolom ala Microsoft Word)
 window._lastTableHoverCheck = 0;
 document.addEventListener('mousemove', function(e) {
+    if (window._resizingTableCol) {
+        let info = window._resizingTableCol;
+        let nextW = Math.max(45, info.startWidth + (e.clientX - info.startX));
+        Array.from(info.table.rows).forEach(function(tr) {
+            if (tr.cells[info.colIndex]) {
+                tr.cells[info.colIndex].style.width = nextW + 'px';
+            }
+        });
+        return;
+    }
+
+    if (window._isSelectingTableCells && window._tableSelectStartCell) {
+        let overCell = e.target && e.target.closest ? e.target.closest('td, th') : null;
+        if (overCell && overCell.closest('table') === window._tableSelectStartCell.closest('table') && overCell !== window._tableSelectStartCell) {
+            window.pilihRentangSelTabel(overCell.closest('table'), window._tableSelectStartCell, overCell);
+        }
+        return;
+    }
+
     let now = Date.now();
-    if (now - window._lastTableHoverCheck < 80) return;
+    if (now - window._lastTableHoverCheck < 50) return;
     window._lastTableHoverCheck = now;
 
     if (!document.body.classList.contains('mode-edit-aktif') && !document.documentElement.classList.contains('force-edit-mode')) return;
     let cell = (e.target && e.target.closest) ? e.target.closest('td, th') : null;
-    if (cell && cell.closest('.interactive-table')) {
+    if (cell && cell.closest('.content-block, .fb-content')) {
         let rect = cell.getBoundingClientRect();
-        let isTop = (cell.parentElement.rowIndex === 0) && (e.clientY - rect.top < 12);
-        let isLeft = (cell.cellIndex === 0) && (e.clientX - rect.left < 12);
-        
-        if (isTop && isLeft) cell.style.cursor = 'nwse-resize';
-        else if (isTop) cell.style.cursor = 's-resize';
-        else if (isLeft) cell.style.cursor = 'e-resize';
-        else cell.style.cursor = 'text';
+        let dekatTepiKanan = (rect.right - e.clientX) <= 6;
+        cell.style.cursor = dekatTepiKanan ? 'col-resize' : 'text';
     }
 }, { passive: true });
 
-// Aksi ketika tabel diklik (Blok & Munculkan Toolbar)
-document.addEventListener('mousedown', e => { 
-    if(window.isDrawingMode) return; 
-    
-    let cell = e.target.closest('td, th');
-    if(cell && cell.closest('.interactive-table') && (document.body.classList.contains('mode-edit-aktif') || document.documentElement.classList.contains('force-edit-mode'))) { 
-        
-        let rect = cell.getBoundingClientRect();
-        let isTop = (cell.parentElement.rowIndex === 0) && (e.clientY - rect.top < 12);
-        let isLeft = (cell.cellIndex === 0) && (e.clientX - rect.left < 12);
+document.addEventListener('mousedown', function(e) {
+    if (window.isDrawingMode) return;
+    let isEdit = document.body.classList.contains('mode-edit-aktif') || document.documentElement.classList.contains('force-edit-mode');
+    if (!isEdit) return;
+
+    let cell = (e.target && e.target.closest) ? e.target.closest('td, th') : null;
+    if (cell && cell.closest('.content-block, .fb-content')) {
         let table = cell.closest('table');
-
-        // Bersihkan blok sebelumnya
-        table.querySelectorAll('.tbl-cell-selected').forEach(c => c.classList.remove('tbl-cell-selected'));
-        window.activeTableCells = [];
+        window.bersihkanTabelTunggal(table);
         window.activeTableCell = cell;
+        window.posisikanToolbarTabel(table);
 
-        if (isTop || isLeft) {
-            e.preventDefault(); // Cegah kursor masuk ke dalam teks agar bisa mem-blok
-            
-            if (isTop && isLeft) {
-                Array.from(table.rows).forEach(r => Array.from(r.cells).forEach(c => { c.classList.add('tbl-cell-selected'); window.activeTableCells.push(c); }));
-            } else if (isTop) {
-                let cIdx = cell.cellIndex;
-                Array.from(table.rows).forEach(r => { if(r.cells[cIdx]) { r.cells[cIdx].classList.add('tbl-cell-selected'); window.activeTableCells.push(r.cells[cIdx]); } });
-            } else if (isLeft) {
-                Array.from(cell.parentElement.cells).forEach(c => { c.classList.add('tbl-cell-selected'); window.activeTableCells.push(c); });
-            }
-        } else {
-            // Jika klik biasa di dalam sel
-            window.activeTableCells.push(cell); 
+        // Cek apakah menggeser garis batas kolom kanan (Resize Kolom ala Word)
+        let rect = cell.getBoundingClientRect();
+        if ((rect.right - e.clientX) <= 6) {
+            e.preventDefault();
+            window._resizingTableCol = {
+                table: table,
+                colIndex: cell.cellIndex,
+                startX: e.clientX,
+                startWidth: cell.offsetWidth
+            };
+            return;
         }
 
-        const c = document.getElementById('tbl-controls');
-        if(c) {
-            c.style.display = 'flex'; 
-            c.style.top = (rect.top + window.scrollY - 35) + 'px'; 
-            c.style.left = (rect.left + window.scrollX) + 'px'; 
-        }
-    } else if(!e.target.closest('#tbl-controls') && !e.target.closest('.mozello-toolbar') && !e.target.closest('.tbl-btn-add')) { 
+        // Mulai pelacakan drag-select antar sel (tetap izinkan klik normal untuk langsung mengetik!)
+        window.bersihkanSorotanSelTabel();
+        window._isSelectingTableCells = true;
+        window._tableSelectStartCell = cell;
+    } else if (!e.target.closest('#tbl-controls') && !e.target.closest('.mozello-toolbar')) {
         let c = document.getElementById('tbl-controls');
-        if(c) c.style.display = 'none'; 
+        if (c) c.style.display = 'none';
         window.activeTableCell = null;
-        document.querySelectorAll('.tbl-cell-selected').forEach(c => c.classList.remove('tbl-cell-selected'));
-        window.activeTableCells = []; 
-    } 
-});
-
-// Aksi tombol Backspace/Delete saat sel diblok (Menghapus isi tanpa menghapus tabel)
-document.addEventListener('keydown', e => {
-    if ((e.key === 'Delete' || e.key === 'Backspace') && window.activeTableCells && window.activeTableCells.length > 1) {
-        e.preventDefault();
-        window.activeTableCells.forEach(c => {
-            let btns = '';
-            c.querySelectorAll('.tbl-btn-add').forEach(b => btns += b.outerHTML);
-            c.innerHTML = btns;
-        });
-        let table = window.activeTableCells[0].closest('table');
-        let blok = table ? table.closest('.content-block') : null;
-        if (blok) blok.dispatchEvent(new Event('input', { bubbles: true }));
+        window.bersihkanSorotanSelTabel();
     }
 });
 
-window.warnaiSelTabel = function(w) { 
-    if (window.activeTableCells && window.activeTableCells.length > 0) {
-        window.activeTableCells.forEach(function(c) {
-            c.style.backgroundColor = w;
+document.addEventListener('mouseup', function() {
+    if (window._resizingTableCol) {
+        let tbl = window._resizingTableCol.table;
+        window._resizingTableCol = null;
+        let blok = tbl ? tbl.closest('.content-block, .fb-content') : null;
+        if (blok) blok.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    window._isSelectingTableCells = false;
+    window._tableSelectStartCell = null;
+});
+
+// Copy rapi dalam bentuk HTML <table> + TSV saat memblok banyak sel / seluruh tabel
+document.addEventListener('copy', function(e) {
+    if (!window.activeTableCells || window.activeTableCells.length <= 1) return;
+    let tbl = window.activeTableCells[0].closest('table');
+    if (!tbl || !tbl.closest('.content-block, .fb-content')) return;
+
+    let selectedSet = new Set(window.activeTableCells);
+    let htmlOut = '<table><tbody>';
+    let plainRows = [];
+
+    Array.from(tbl.rows).forEach(function(tr) {
+        let picked = Array.from(tr.cells).filter(function(c) { return selectedSet.has(c); });
+        if (picked.length === 0) return;
+        htmlOut += '<tr>';
+        let colsPlain = [];
+        picked.forEach(function(c) {
+            let tag = c.tagName === 'TH' ? 'th' : 'td';
+            htmlOut += '<' + tag + '>' + c.innerHTML + '</' + tag + '>';
+            colsPlain.push((c.innerText || '').replace(/\r?\n/g, ' ').trim());
         });
-        triggerInput(); 
-    } else if (window.activeTableCell) { 
-        window.activeTableCell.style.backgroundColor = w; 
-        triggerInput(); 
-    } 
+        htmlOut += '</tr>';
+        plainRows.push(colsPlain.join('\t'));
+    });
+    htmlOut += '</tbody></table>';
+
+    e.preventDefault();
+    e.clipboardData.setData('text/html', htmlOut);
+    e.clipboardData.setData('text/plain', plainRows.join('\n'));
+});
+
+// Navigasi Tab / Shift+Tab antar sel ala Word + Delete isi saat memblok banyak sel
+document.addEventListener('keydown', function(e) {
+    let isEdit = document.body.classList.contains('mode-edit-aktif') || document.documentElement.classList.contains('force-edit-mode');
+    if (!isEdit) return;
+
+    // 1. Delete / Backspace saat memblok beberapa sel: kosongkan isi sel tanpa merusak tabel
+    if ((e.key === 'Delete' || e.key === 'Backspace') && window.activeTableCells && window.activeTableCells.length > 1) {
+        e.preventDefault();
+        let tbl = window.activeTableCells[0].closest('table');
+        window.activeTableCells.forEach(function(c) {
+            c.innerHTML = '<br>';
+        });
+        let blok = tbl ? tbl.closest('.content-block, .fb-content') : null;
+        if (blok) blok.dispatchEvent(new Event('input', { bubbles: true }));
+        return;
+    }
+
+    // 2. Tombol Tab / Shift+Tab di dalam sel tabel (pindah sel & otomatis tambah baris di ujung bawah)
+    if (e.key === 'Tab') {
+        let sel = window.getSelection();
+        if (!sel || sel.rangeCount === 0) return;
+        let node = sel.anchorNode;
+        let el = node && node.nodeType === 3 ? node.parentElement : node;
+        let cell = el && el.closest ? el.closest('td, th') : null;
+        if (!cell || !cell.closest('.content-block, .fb-content')) return;
+
+        e.preventDefault();
+        let tbl = cell.closest('table');
+        let allCells = Array.from(tbl.querySelectorAll('th, td'));
+        let idx = allCells.indexOf(cell);
+        let nextCell = null;
+
+        if (e.shiftKey) {
+            if (idx > 0) nextCell = allCells[idx - 1];
+        } else {
+            if (idx >= 0 && idx < allCells.length - 1) {
+                nextCell = allCells[idx + 1];
+            } else {
+                window.activeTableCell = cell;
+                window.tambahBarisTabel();
+                let updated = Array.from(tbl.querySelectorAll('th, td'));
+                nextCell = updated[idx + 1] || null;
+            }
+        }
+
+        if (nextCell) {
+            window.activeTableCell = nextCell;
+            let rng = document.createRange();
+            rng.selectNodeContents(nextCell);
+            rng.collapse(false);
+            sel.removeAllRanges();
+            sel.addRange(rng);
+            window.posisikanToolbarTabel(tbl);
+        }
+    }
+});
+
+window.warnaiSelTabel = function(w) {
+    if (window.activeTableCells && window.activeTableCells.length > 0) {
+        window.activeTableCells.forEach(function(c) { c.style.backgroundColor = w; });
+        triggerInput();
+    } else if (window.activeTableCell) {
+        window.activeTableCell.style.backgroundColor = w;
+        triggerInput();
+    }
 };
 
 window.tambahBarisTabel = function(btn) {
@@ -5139,8 +5410,7 @@ window.tambahBarisTabel = function(btn) {
     let newRow = document.createElement('tr');
     Array.from(row.children).forEach(function() {
         let newCell = document.createElement('td');
-        newCell.innerHTML = '<button type="button" class="tbl-btn-add tbl-add-col" contenteditable="false" onclick="window.tambahKolomTabel(this)" title="Tambah Kolom ke Kanan">+</button>' +
-                            '<button type="button" class="tbl-btn-add tbl-add-row" contenteditable="false" onclick="window.tambahBarisTabel(this)" title="Tambah Baris ke Bawah">+</button>';
+        newCell.innerHTML = '<br>';
         newRow.appendChild(newCell);
     });
     if (row.nextSibling) row.parentElement.insertBefore(newRow, row.nextSibling);
@@ -5157,32 +5427,57 @@ window.tambahKolomTabel = function(btn) {
     let cellIndex = Array.from(row.children).indexOf(cell);
     Array.from(table.rows).forEach(function(tr, rIdx) {
         let isHeader = (rIdx === 0 && table.rows[0].children[0] && table.rows[0].children[0].tagName === 'TH');
-        let tag = isHeader ? 'th' : 'td';
-        let newCell = document.createElement(tag);
-        newCell.innerHTML = '<button type="button" class="tbl-btn-add tbl-add-col" contenteditable="false" onclick="window.tambahKolomTabel(this)" title="Tambah Kolom ke Kanan">+</button>' +
-                            '<button type="button" class="tbl-btn-add tbl-add-row" contenteditable="false" onclick="window.tambahBarisTabel(this)" title="Tambah Baris ke Bawah">+</button>';
+        let newCell = document.createElement(isHeader ? 'th' : 'td');
+        newCell.innerHTML = '<br>';
         if (cellIndex + 1 < tr.children.length) tr.insertBefore(newCell, tr.children[cellIndex + 1]);
         else tr.appendChild(newCell);
     });
     triggerInput();
 };
 
-window.hapusBarisTabel = function() { 
-    if(window.activeTableCell) { 
-        let tr = window.activeTableCell.parentNode; 
-        tr.parentNode.removeChild(tr); 
-        document.getElementById('tbl-controls').style.display = 'none'; 
-        triggerInput(); 
-    } 
-}; 
-window.hapusKolomTabel = function() { 
-    if(window.activeTableCell) { 
-        let tb = window.activeTableCell.closest('table');
-        let cI = window.activeTableCell.cellIndex; 
-        Array.from(tb.rows).forEach(r => { if(r.cells.length > cI) r.deleteCell(cI); }); 
-        document.getElementById('tbl-controls').style.display = 'none'; 
-        triggerInput(); 
-    } 
+window.hapusBarisTabel = function() {
+    if (!window.activeTableCell) return;
+    let tr = window.activeTableCell.parentNode;
+    let tb = tr.closest('table');
+    if (tb && tb.rows.length <= 1) {
+        return window.hapusTabelUtuh();
+    }
+    tr.parentNode.removeChild(tr);
+    window.activeTableCell = null;
+    window.bersihkanSorotanSelTabel();
+    document.getElementById('tbl-controls').style.display = 'none';
+    triggerInput();
+};
+
+window.hapusKolomTabel = function() {
+    if (!window.activeTableCell) return;
+    let tb = window.activeTableCell.closest('table');
+    let cI = window.activeTableCell.cellIndex;
+    if (tb && tb.rows[0] && tb.rows[0].cells.length <= 1) {
+        return window.hapusTabelUtuh();
+    }
+    Array.from(tb.rows).forEach(function(r) { if (r.cells.length > cI) r.deleteCell(cI); });
+    window.activeTableCell = null;
+    window.bersihkanSorotanSelTabel();
+    document.getElementById('tbl-controls').style.display = 'none';
+    triggerInput();
+};
+
+window.hapusTabelUtuh = function() {
+    let refCell = window.activeTableCell || (window.activeTableCells && window.activeTableCells[0]);
+    if (!refCell) return;
+    let tb = refCell.closest('table');
+    if (!tb) return;
+    let blok = tb.closest('.content-block, .fb-content');
+    window.tampilkanCustomDialog("confirm", "Hapus seluruh tabel ini?", null, function(isYes) {
+        if (!isYes) return;
+        tb.remove();
+        window.activeTableCell = null;
+        window.bersihkanSorotanSelTabel();
+        let c = document.getElementById('tbl-controls');
+        if (c) c.style.display = 'none';
+        if (blok) blok.dispatchEvent(new Event('input', { bubbles: true }));
+    });
 };
 
 /* =========================================
@@ -7581,30 +7876,69 @@ window.cekPosisiBarisLatex = function(range) {
         return String(s || '').replace(/&nbsp;/gi, ' ').replace(/[\s\u00A0\u200B-\u200D\uFEFF]/g, '');
     }
 
+    function normalisasiSisiHtml(rawHtml, arah) {
+        return String(rawHtml || '')
+            .replace(/<mjx-container[\s\S]*?<\/mjx-container>/gi, 'X')
+            .replace(/<span[^>]*class=["'][^"']*latex-inline[^"']*["'][^>]*>[\s\S]*?<\/span>/gi, 'X')
+            .replace(/<svg[\s\S]*?<\/svg>/gi, 'X')
+            .replace(/<img\b[^>]*>/gi, 'X')
+            .replace(arah === 'kiri'
+                ? /<br\s*\/?>|<\/(?:p|div|li|h[1-6]|blockquote|tr|table)>/gi
+                : /<br\s*\/?>|<(?:p|div|li|h[1-6]|blockquote|tr|table)\b[^>]*>/gi, '\n')
+            .replace(/<[^>]*>/g, '');
+    }
+
     let startBlock = cariBlokTerdekat(range.startContainer);
+    let endBlock = cariBlokTerdekat(range.endContainer);
+
+    // 1. Cek sisi KIRI secara DOM
     let leftRange = document.createRange();
     leftRange.setStart(startBlock, 0);
     leftRange.setEnd(range.startContainer, range.startOffset);
     let tempLeft = document.createElement('div');
     tempLeft.appendChild(leftRange.cloneContents());
-    let leftHtml = tempLeft.innerHTML
-        .replace(/<img\b[^>]*>/gi, 'X')
-        .replace(/<br\s*\/?>|<\/(?:p|div|li|h[1-6]|blockquote|tr|table)>/gi, '\n')
-        .replace(/<[^>]*>/g, '');
-    let leftParts = leftHtml.split('\n');
+    let leftParts = normalisasiSisiHtml(tempLeft.innerHTML, 'kiri').split('\n');
     let adaTeksKiri = bersihkanKosong(leftParts[leftParts.length - 1]).length > 0;
 
-    let endBlock = cariBlokTerdekat(range.endContainer);
+    // 2. Cek sisi KIRI secara posisi visual layar (anti-gagal meskipun ada tag span/latex/bullet)
+    if (!adaTeksKiri) {
+        if (startBlock.tagName === 'LI') {
+            // Di dalam bullet / numbering list: di sebelah kiri ada penanda bullet/nomor
+            adaTeksKiri = true;
+        } else {
+            let rects = range.getClientRects();
+            let firstRect = null;
+            for (let i = 0; i < rects.length; i++) {
+                if (rects[i].width > 0 || rects[i].height > 0) {
+                    firstRect = rects[i];
+                    break;
+                }
+            }
+            if (firstRect) {
+                let sbRect = startBlock.getBoundingClientRect();
+                let sbStyle = window.getComputedStyle(startBlock);
+                let padL = parseFloat(sbStyle.paddingLeft) || 0;
+                let align = (sbStyle.textAlign || 'left').toLowerCase();
+                if ((align === 'left' || align === 'start' || align === 'justify') && firstRect.left > (sbRect.left + padL + 8)) {
+                    adaTeksKiri = true;
+                }
+            }
+        }
+    }
+
+    // 3. Cek sisi KANAN secara DOM
     let rightRange = document.createRange();
-    rightRange.setStart(range.endContainer, range.endOffset);
-    rightRange.setEnd(endBlock, endBlock.childNodes.length);
+    // Jika user drag melewati ujung kanan hingga awal baris berikutnya (endOffset === 0 di blok lain), cek sisi kanan blok awal
+    if (endBlock !== startBlock && range.endOffset === 0) {
+        rightRange.setStart(range.endContainer, 0);
+        rightRange.setEnd(range.endContainer, 0);
+    } else {
+        rightRange.setStart(range.endContainer, range.endOffset);
+        rightRange.setEnd(endBlock, endBlock.childNodes.length);
+    }
     let tempRight = document.createElement('div');
     tempRight.appendChild(rightRange.cloneContents());
-    let rightHtml = tempRight.innerHTML
-        .replace(/<img\b[^>]*>/gi, 'X')
-        .replace(/<br\s*\/?>|<(?:p|div|li|h[1-6]|blockquote|tr|table)\b[^>]*>/gi, '\n')
-        .replace(/<[^>]*>/g, '');
-    let rightParts = rightHtml.split('\n');
+    let rightParts = normalisasiSisiHtml(tempRight.innerHTML, 'kanan').split('\n');
     let adaTeksKanan = bersihkanKosong(rightParts[0]).length > 0;
 
     return {
@@ -7697,3 +8031,350 @@ window.sisipkanLatexInlineKeSeleksi = function(rawTextOpsional) {
     }
 };
 
+/* =========================================================================
+   MESIN UNDO / REDO UNIVERSAL EDITOR (TABEL, LATEX, FORMAT, GAMBAR, & TEKS)
+   ========================================================================= */
+window._editorHistoryStacks = window._editorHistoryStacks || {};
+window._editorUndoTimers = window._editorUndoTimers || {};
+window._isRestoringUndo = false;
+window._SELECTOR_EDITABLE_UNDO = '.content-block, .fb-content, #popup-content-box, #cg-editor-area, #ck-editor-area';
+
+window.ambilIdHistoryEditor = function(el) {
+    if (!el) return '';
+    let bab = String(window.babAktif || 'home');
+    let bahasParent = el.closest ? el.closest('[id^="bahas-box-"]') : null;
+    if (bahasParent && bahasParent.id) return bab + '__' + bahasParent.id;
+    if (el.classList && el.classList.contains('home-side-editable')) {
+        return bab + '__side_' + (el.getAttribute('data-side-pos') || 'x') + '_' + (el.getAttribute('data-side-index') || '0');
+    }
+    if (el.classList && el.classList.contains('fb-content')) {
+        return bab + '__fb_' + (el.getAttribute('data-fb-index') || '0');
+    }
+    if (el.id) return bab + '__id_' + el.id;
+    if (el.hasAttribute && el.hasAttribute('data-index')) {
+        return bab + '__block_' + el.getAttribute('data-index');
+    }
+    return bab + '__generic_editor';
+};
+
+window.rekamPosisiKursorEditor = function(rootEl) {
+    try {
+        let sel = window.getSelection();
+        if (!sel || sel.rangeCount === 0) return null;
+        let rng = sel.getRangeAt(0);
+        if (!rootEl.contains(rng.startContainer)) return null;
+
+        let path = [];
+        let node = rng.startContainer;
+        while (node && node !== rootEl) {
+            let parent = node.parentNode;
+            if (!parent) return null;
+            path.unshift(Array.prototype.indexOf.call(parent.childNodes, node));
+            node = parent;
+        }
+        return { path: path, offset: rng.startOffset };
+    } catch (e) {
+        return null;
+    }
+};
+
+window.pulihkanPosisiKursorEditor = function(rootEl, caret) {
+    if (!rootEl) return;
+    try {
+        rootEl.focus();
+        if (!caret || !Array.isArray(caret.path)) return;
+        let node = rootEl;
+        for (let i = 0; i < caret.path.length; i++) {
+            let idx = caret.path[i];
+            if (!node.childNodes || idx < 0 || idx >= node.childNodes.length) return;
+            node = node.childNodes[idx];
+        }
+        let maxOff = (node.nodeType === 3) ? node.nodeValue.length : node.childNodes.length;
+        let safeOff = Math.max(0, Math.min(caret.offset || 0, maxOff));
+        let rng = document.createRange();
+        rng.setStart(node, safeOff);
+        rng.collapse(true);
+        let sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(rng);
+        window.savedEditorRange = rng.cloneRange();
+        window.globalSelectedRange = rng.cloneRange();
+    } catch (e) {}
+};
+
+window.pastikanHistoryEditorAda = function(el) {
+    if (!el) return null;
+    let key = window.ambilIdHistoryEditor(el);
+    let state = window._editorHistoryStacks[key];
+    if (!state || !Array.isArray(state.stack) || state.stack.length === 0) {
+        state = {
+            stack: [{ html: el.innerHTML, caret: window.rekamPosisiKursorEditor(el) }],
+            pointer: 0
+        };
+        window._editorHistoryStacks[key] = state;
+    }
+    return { key: key, state: state };
+};
+
+window.catatSnapshotUndo = function(el, forceImmediate) {
+    if (!el || window._isRestoringUndo) return;
+    let isEdit = document.body.classList.contains('mode-edit-aktif') || document.documentElement.classList.contains('force-edit-mode');
+    if (!isEdit) return;
+
+    let info = window.pastikanHistoryEditorAda(el);
+    if (!info) return;
+
+    let simpanSekarang = function() {
+        if (window._isRestoringUndo || !document.body.contains(el)) return;
+        let curHtml = el.innerHTML;
+        let st = info.state;
+        let topItem = st.stack[st.pointer];
+        if (topItem && topItem.html === curHtml) return;
+
+        // Buang cabang Redo lama jika mulai mengedit perubahan baru
+        if (st.pointer < st.stack.length - 1) {
+            st.stack = st.stack.slice(0, st.pointer + 1);
+        }
+
+        st.stack.push({ html: curHtml, caret: window.rekamPosisiKursorEditor(el) });
+
+        // Batasi kapasitas memori (25 langkah jika ada gambar besar, 60 langkah untuk teks/tabel)
+        let maxSteps = curHtml.length > 60000 ? 25 : 60;
+        if (st.stack.length > maxSteps) {
+            st.stack.shift();
+        }
+        st.pointer = st.stack.length - 1;
+    };
+
+    clearTimeout(window._editorUndoTimers[info.key]);
+    if (forceImmediate) {
+        simpanSekarang();
+    } else {
+        window._editorUndoTimers[info.key] = setTimeout(simpanSekarang, 420);
+    }
+};
+
+window.siapkanSnapshotSebelumAksi = function(el) {
+    let target = el || window.lastActiveEditable;
+    if (!target || !document.body.contains(target)) return;
+    window.catatSnapshotUndo(target, true);
+};
+
+window.cariTargetEditableUntukUndo = function() {
+    let active = document.activeElement;
+    if (active) {
+        let tag = active.tagName ? active.tagName.toUpperCase() : '';
+        // Biarkan input/textarea biasa (misalnya di modal) memakai Undo bawaan browser
+        if (tag === 'INPUT' || tag === 'TEXTAREA') return null;
+
+        let closestEd = active.closest ? active.closest(window._SELECTOR_EDITABLE_UNDO) : null;
+        if (closestEd && document.body.contains(closestEd)) {
+            return closestEd;
+        }
+    }
+
+    // Jika tidak ada modal input lain yang terbuka, pakai blok editor terakhir yang disentuh (penting setelah klik tombol tabel!)
+    if (typeof window.apakahAdaModalOverlayTerbuka === 'function' && window.apakahAdaModalOverlayTerbuka()) {
+        let popBox = document.getElementById('popup-content-box');
+        let popModal = document.getElementById('modal-welcome-popup');
+        if (popModal && popModal.style.display === 'flex' && popBox) return popBox;
+        return null;
+    }
+
+    if (window.lastActiveEditable && document.body.contains(window.lastActiveEditable)) {
+        return window.lastActiveEditable;
+    }
+    return null;
+};
+
+window.terapkanLangkahHistoryEditor = function(arah) {
+    if (window.isDrawingMode) return false;
+    let isEdit = document.body.classList.contains('mode-edit-aktif') || document.documentElement.classList.contains('force-edit-mode');
+    if (!isEdit) return false;
+
+    let el = window.cariTargetEditableUntukUndo();
+    if (!el) return false;
+
+    let info = window.pastikanHistoryEditorAda(el);
+    if (!info) return false;
+
+    let st = info.state;
+    clearTimeout(window._editorUndoTimers[info.key]);
+
+    // Jika baru saja mengetik (< 420ms) sebelum menekan Cmd+Z, kunci dulu ketikan terakhir agar bisa di-Redo nanti
+    if (arah < 0 && st.stack[st.pointer] && st.stack[st.pointer].html !== el.innerHTML) {
+        if (st.pointer < st.stack.length - 1) {
+            st.stack = st.stack.slice(0, st.pointer + 1);
+        }
+        st.stack.push({ html: el.innerHTML, caret: window.rekamPosisiKursorEditor(el) });
+        st.pointer = st.stack.length - 1;
+    }
+
+    let nextPtr = st.pointer + arah;
+    if (nextPtr < 0 || nextPtr >= st.stack.length) {
+        return true; // Sudah mentok awal/akhir, tetap cegah browser Undo liar
+    }
+
+    st.pointer = nextPtr;
+    let snapshot = st.stack[st.pointer];
+
+    window._isRestoringUndo = true;
+    try {
+        el.innerHTML = snapshot.html;
+        window.lastActiveEditable = el;
+
+        // Bersihkan sorotan / kontrol melayang jika elemen lamanya sudah tidak ada
+        if (typeof window.bersihkanSorotanSelTabel === 'function') window.bersihkanSorotanSelTabel();
+        if (window.activeTableCell && !document.body.contains(window.activeTableCell)) {
+            window.activeTableCell = null;
+            let tc = document.getElementById('tbl-controls');
+            if (tc) tc.style.display = 'none';
+        }
+        if (window.selectedImg && !document.body.contains(window.selectedImg)) {
+            window.selectedImg = null;
+            let ic = document.getElementById('img-controls');
+            if (ic) ic.style.display = 'none';
+        }
+
+        // Sinkronkan data model blok & pemicu Auto-Save ke Firebase
+        if (el.classList.contains('home-side-editable')) {
+            let pos = el.getAttribute('data-side-pos');
+            let sIdx = parseInt(el.getAttribute('data-side-index'), 10);
+            let arr = pos === 'left' ? window.homeLeftBlocksData : window.homeRightBlocksData;
+            if (Array.isArray(arr) && arr[sIdx]) arr[sIdx].html = el.innerHTML;
+        } else if (el.classList.contains('fb-content')) {
+            let fIdx = parseInt(el.getAttribute('data-fb-index'), 10);
+            if (window.floatingBoxesData && window.floatingBoxesData[fIdx]) {
+                window.floatingBoxesData[fIdx].html = el.innerHTML;
+            }
+        } else if (el.classList.contains('content-block') && el.hasAttribute('data-index') && !el.closest('[id^="bahas-box-"]')) {
+            let bIdx = parseInt(el.getAttribute('data-index'), 10);
+            if (window.contentBlocksData && window.contentBlocksData[bIdx]) {
+                window.contentBlocksData[bIdx].html = el.innerHTML;
+            }
+        }
+
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        window.pulihkanPosisiKursorEditor(el, snapshot.caret);
+
+        // Render ulang hanya rumus LaTeX yang belum ter-render MathJax
+        if (window.MathJax && typeof window.MathJax.typesetPromise === 'function') {
+            let belumRender = Array.from(el.querySelectorAll('.latex-inline, .math-latex-block')).filter(function(node) {
+                return !node.querySelector('mjx-container');
+            });
+            if (belumRender.length > 0) {
+                window.MathJax.typesetPromise(belumRender).catch(function() {});
+            }
+        }
+    } finally {
+        window._isRestoringUndo = false;
+    }
+
+    return true;
+};
+
+window.eksekusiUndoEditor = function() {
+    window.terapkanLangkahHistoryEditor(-1);
+};
+
+window.eksekusiRedoEditor = function() {
+    window.terapkanLangkahHistoryEditor(1);
+};
+
+// 1. Rekam kondisi awal setiap kali masuk ke Content Block / Tabel / Shape / Catatan
+document.addEventListener('focusin', function(e) {
+    let ed = (e.target && e.target.closest) ? e.target.closest(window._SELECTOR_EDITABLE_UNDO) : null;
+    if (ed) {
+        window.lastActiveEditable = ed;
+        window.pastikanHistoryEditorAda(ed);
+    }
+}, true);
+
+// 2. Kunci kondisi SEBELUM tombol toolbar, tabel, gambar, atau aksi paste mengubah DOM
+document.addEventListener('mousedown', function(e) {
+    let isEdit = document.body.classList.contains('mode-edit-aktif') || document.documentElement.classList.contains('force-edit-mode');
+    if (!isEdit) return;
+
+    let ed = (e.target && e.target.closest) ? e.target.closest(window._SELECTOR_EDITABLE_UNDO) : null;
+    if (ed) {
+        window.lastActiveEditable = ed;
+        window.pastikanHistoryEditorAda(ed);
+        // Jika mulai seret tepi kolom tabel untuk resize, kunci kondisi sebelum resize
+        let cell = e.target.closest ? e.target.closest('td, th') : null;
+        if (cell) {
+            let rect = cell.getBoundingClientRect();
+            if ((rect.right - e.clientX) <= 8) {
+                window.siapkanSnapshotSebelumAksi(ed);
+            }
+        }
+        return;
+    }
+
+    if (e.target && e.target.closest && e.target.closest('#toolbar, #tbl-controls, #img-controls')) {
+        let btnUndoRedo = e.target.closest('button[onclick*="eksekusiUndoEditor"], button[onclick*="eksekusiRedoEditor"]');
+        if (!btnUndoRedo) {
+            window.siapkanSnapshotSebelumAksi(window.lastActiveEditable);
+        }
+    }
+}, true);
+
+document.addEventListener('paste', function(e) {
+    let ed = (e.target && e.target.closest) ? e.target.closest(window._SELECTOR_EDITABLE_UNDO) : null;
+    if (ed) {
+        window.lastActiveEditable = ed;
+        window.siapkanSnapshotSebelumAksi(ed);
+    }
+}, true);
+
+// 3. Rekam otomatis setiap perubahan ketikan maupun aksi DOM (input event)
+document.addEventListener('input', function(e) {
+    if (window._isRestoringUndo) return;
+    let ed = (e.target && e.target.closest) ? e.target.closest(window._SELECTOR_EDITABLE_UNDO) : null;
+    if (!ed) return;
+
+    window.lastActiveEditable = ed;
+    let tipe = e.inputType || '';
+    let langsung = !e.isTrusted ||
+        tipe === 'insertFromPaste' ||
+        tipe === 'deleteByCut' ||
+        tipe === 'insertParagraph' ||
+        tipe === 'insertLineBreak' ||
+        tipe.indexOf('format') === 0;
+
+    window.catatSnapshotUndo(ed, langsung);
+}, true);
+
+// 4. Tangkap shortcut Cmd+Z / Ctrl+Z (Undo) dan Cmd+Shift+Z / Ctrl+Y (Redo)
+document.addEventListener('keydown', function(e) {
+    if (window.isDrawingMode) return;
+    let isEdit = document.body.classList.contains('mode-edit-aktif') || document.documentElement.classList.contains('force-edit-mode');
+    if (!isEdit) return;
+
+    let key = (e.key || '').toLowerCase();
+    let mod = (e.metaKey || e.ctrlKey) && !e.altKey;
+
+    if (mod && key === 'z' && !e.shiftKey) {
+        if (window.terapkanLangkahHistoryEditor(-1)) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        return;
+    }
+
+    if (mod && ((e.shiftKey && key === 'z') || (!e.shiftKey && key === 'y'))) {
+        if (window.terapkanLangkahHistoryEditor(1)) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        return;
+    }
+
+    // Sebelum hapus isi multi-sel tabel atau Enter baru, kunci snapshot saat ini
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (window.activeTableCells && window.activeTableCells.length > 1) {
+            let tbl = window.activeTableCells[0].closest('table');
+            let ed = tbl ? tbl.closest(window._SELECTOR_EDITABLE_UNDO) : window.lastActiveEditable;
+            if (ed) window.siapkanSnapshotSebelumAksi(ed);
+        }
+    }
+}, true);

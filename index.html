@@ -1832,7 +1832,7 @@
     <!-- TOOLBAR RESPONSIVE -->
     <div class="toolbar-wrapper">
         <div class="mozello-toolbar" id="toolbar">
-            <div class="toolbar-group"><button onclick="document.execCommand('undo')" style="font-size:14px;">↩️</button><button onclick="document.execCommand('redo')" style="font-size:14px;margin-right:2px;">↪️</button>
+            <div class="toolbar-group"><button type="button" onclick="window.eksekusiUndoEditor()" title="Undo (Cmd+Z / Ctrl+Z)" style="font-size:14px;">↩️</button><button type="button" onclick="window.eksekusiRedoEditor()" title="Redo (Cmd+Shift+Z / Ctrl+Y)" style="font-size:14px;margin-right:2px;">↪️</button>
                 <select onchange="formatTeks('fontName', this.value);this.selectedIndex=0;" style="width:82px;">
                     <option value="" disabled selected>Font</option>
                     <option value="'Quicksand', sans-serif">Quicksand</option>
@@ -1919,7 +1919,16 @@
         <div id="blocks-container" style="width:100%; display:flex; flex-direction:column; align-items:center;"></div>
         <div id="floating-boxes-container"></div>
         <div class="image-controls" id="img-controls"><button onclick="alignGambar('left')">⫷</button><button onclick="alignGambar('center')">≡</button><button onclick="alignGambar('right')">⫸</button></div>
-        <div class="table-controls" id="tbl-controls"><input type="color" onchange="warnaiSelTabel(this.value)" value="#ffffff"><div style="width:1px;height:12px;background:#ddd;margin:0 3px;"></div><button onclick="tambahBarisTabel()">+Row</button><button onclick="tambahKolomTabel()">+Col</button><button onclick="hapusBarisTabel()">-Row</button><button onclick="hapusKolomTabel()">-Col</button><button onclick="hapusTabelUtuh()" style="color:#e74c3c; padding-left:8px; border-left:1px solid #eee;">🗑️ Table</button></div>
+        <div class="table-controls" id="tbl-controls" onmousedown="if(event.target.tagName!=='INPUT')event.preventDefault()">
+            <input type="color" onchange="warnaiSelTabel(this.value)" value="#f1f5f9" title="Warna Latar Sel Terpilih">
+            <div style="width:1px;height:14px;background:#ddd;margin:0 3px;"></div>
+            <button type="button" onclick="window.blokSemuaSelTabel()" title="Blok Semua Sel Tabel (Siap Copy / Paste / Warnai)">☑️ Blok Semua</button>
+            <button type="button" onclick="tambahBarisTabel()" title="Tambah Baris di Bawah">+Row</button>
+            <button type="button" onclick="tambahKolomTabel()" title="Tambah Kolom di Kanan">+Col</button>
+            <button type="button" onclick="hapusBarisTabel()" title="Hapus Baris Aktif">-Row</button>
+            <button type="button" onclick="hapusKolomTabel()" title="Hapus Kolom Aktif">-Col</button>
+            <button type="button" onclick="hapusTabelUtuh()" style="color:#e74c3c; padding-left:8px; border-left:1px solid #eee;" title="Hapus Seluruh Tabel">🗑️ Table</button>
+        </div>
     </div>
 
     <!-- SIDEBAR SETTINGS -->
