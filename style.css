@@ -3443,3 +3443,35 @@ body.modal-open-lock .mypet-floating-btn {
         display: none !important;
     }
 }
+
+/* =========================================================================
+   KUNCI TOTAL SCROLL LATAR BELAKANG SAAT MODAL TERBUKA (HP & LAPTOP)
+   ========================================================================= */
+html.modal-open-lock,
+body.modal-open-lock {
+    overflow: hidden !important;
+    height: 100dvh !important;
+    overscroll-behavior: none !important;
+}
+
+body.modal-open-lock #ujian-strict-room,
+body.modal-open-lock #temporary-quiz-room,
+body.modal-open-lock #main-editor-wrapper {
+    overflow: hidden !important;
+    overscroll-behavior: none !important;
+}
+
+.modal-overlay {
+    overscroll-behavior: contain !important;
+    touch-action: none;
+}
+
+.modal-box,
+.modal-box * {
+    touch-action: auto;
+}
+
+.modal-body {
+    overscroll-behavior: contain !important;
+    -webkit-overflow-scrolling: touch !important;
+}

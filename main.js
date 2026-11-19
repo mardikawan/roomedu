@@ -2464,30 +2464,70 @@ window.startResizeFB = function(e, i) {
     document.addEventListener('pointerup', up);
 };
 
-/* =========================================
-   FUNGSI KONTROL MODAL & POPUP (ANTI-BENTROK IOS & ANDROID)
-   ========================================= */
+/* =========================================================================
+   FUNGSI KONTROL MODAL & PENGUNCI SCROLL BACKGROUND (HP & LAPTOP)
+   ========================================================================= */
 window.topModalZIndex = 5100;
 window._openModalStack = [];
 window._lastModalOpenTime = 0;
+window._savedScrollContainersOverflow = null;
 
-window.sinkronkanKunciScrollModal = function() {
-    let adaModalTerbuka = false;
+window.apakahAdaModalOverlayTerbuka = function() {
+    let ada = false;
     document.querySelectorAll('.modal-overlay').forEach(function(m) {
-        if (m.style.display === 'flex' || m.style.display === 'block') {
-            adaModalTerbuka = true;
+        let disp = window.getComputedStyle(m).display;
+        if (m.style.display === 'flex' || m.style.display === 'block' || disp === 'flex' || disp === 'block') {
+            ada = true;
         }
     });
+    return ada;
+};
+
+window.sinkronkanKunciScrollModal = function() {
+    let adaModalTerbuka = window.apakahAdaModalOverlayTerbuka();
+    let scrollTargets = [
+        document.getElementById('ujian-strict-room'),
+        document.getElementById('temporary-quiz-room'),
+        document.getElementById('main-editor-wrapper')
+    ].filter(Boolean);
 
     if (adaModalTerbuka) {
+        document.documentElement.classList.add('modal-open-lock');
         document.body.classList.add('modal-open-lock');
-        if (!window.isStrictUjianActive) {
-            document.body.style.overflow = 'hidden';
+
+        if (!window._savedScrollContainersOverflow) {
+            window._savedScrollContainersOverflow = {
+                bodyOverflow: document.body.style.overflow,
+                htmlOverflow: document.documentElement.style.overflow,
+                containers: scrollTargets.map(function(el) {
+                    return { el: el, overflow: el.style.overflow };
+                })
+            };
         }
+
+        document.documentElement.style.overflow = 'hidden';
+        document.body.style.overflow = 'hidden';
+
+        scrollTargets.forEach(function(el) {
+            el.style.overflow = 'hidden';
+        });
     } else {
+        document.documentElement.classList.remove('modal-open-lock');
         document.body.classList.remove('modal-open-lock');
         window._openModalStack = [];
-        if (!window.isStrictUjianActive) {
+
+        if (window._savedScrollContainersOverflow) {
+            let saved = window._savedScrollContainersOverflow;
+            window._savedScrollContainersOverflow = null;
+            document.documentElement.style.overflow = saved.htmlOverflow || '';
+            document.body.style.overflow = window.isStrictUjianActive ? 'auto' : (saved.bodyOverflow || '');
+            (saved.containers || []).forEach(function(item) {
+                if (item && item.el) {
+                    item.el.style.overflow = item.overflow || '';
+                }
+            });
+        } else if (!window.isStrictUjianActive) {
+            document.documentElement.style.overflow = '';
             document.body.style.overflow = '';
         }
     }
@@ -2532,6 +2572,85 @@ window.tutupModal = function(id) {
 window.tutupModalHasilQuiz = function() {
     window.tutupModal('modal-quiz-result');
 };
+
+// Blokir scroll latar belakang di Laptop (wheel/trackpad) saat ada modal terbuka
+document.addEventListener('wheel', function(e) {
+    if (!window.apakahAdaModalOverlayTerbuka()) return;
+    let inModalBox = e.target && e.target.closest ? e.target.closest('.modal-box, .popup-welcome-box, .floating-cg') : null;
+    if (!inModalBox) {
+        e.preventDefault();
+    }
+}, { passive: false, capture: true });
+
+// Blokir scroll latar belakang di HP/Tablet (touchmove) saat ada modal terbuka
+window._lastTouchYModalLock = 0;
+document.addEventListener('touchstart', function(e) {
+    if (e.touches && e.touches.length === 1) {
+        window._lastTouchYModalLock = e.touches[0].clientY;
+    }
+}, { passive: true, capture: true });
+
+document.addEventListener('touchmove', function(e) {
+    if (!window.apakahAdaModalOverlayTerbuka()) return;
+    let inScrollableModalBody = e.target && e.target.closest
+        ? e.target.closest('.modal-body, .mypet-body-container, #koreksi-grid-container, .cg-body, .popup-content-box')
+        : null;
+
+    if (!inScrollableModalBody) {
+        e.preventDefault();
+        return;
+    }
+
+    // Jika sudah mentok di batas atas atau bawah isi modal, tahan agar tidak menarik latar belakang
+    if (e.touches && e.touches.length === 1) {
+        let curY = e.touches[0].clientY;
+        let deltaY = curY - window._lastTouchYModalLock;
+        window._lastTouchYModalLock = curY;
+
+        let atTop = inScrollableModalBody.scrollTop <= 0 && deltaY > 0;
+        let atBottom = (inScrollableModalBody.scrollTop + inScrollableModalBody.clientHeight >= inScrollableModalBody.scrollHeight - 1) && deltaY < 0;
+        if (atTop || atBottom) {
+            e.preventDefault();
+        }
+    }
+}, { passive: false, capture: true });
+
+// Pantau perubahan display pada semua .modal-overlay (termasuk modal yang dibuat dinamis oleh JS)
+document.addEventListener('DOMContentLoaded', function() {
+    window.sinkronkanKunciScrollModal();
+    let obsAllModals = new MutationObserver(function() {
+        window.sinkronkanKunciScrollModal();
+    });
+    document.querySelectorAll('.modal-overlay').forEach(function(m) {
+        obsAllModals.observe(m, { attributes: true, attributeFilter: ['style', 'class'] });
+    });
+    let bodyObs = new MutationObserver(function(muts) {
+        muts.forEach(function(mu) {
+            if (mu.type === 'childList') {
+                mu.addedNodes.forEach(function(node) {
+                    if (node && node.nodeType === 1) {
+                        if (node.classList && node.classList.contains('modal-overlay')) {
+                            obsAllModals.observe(node, { attributes: true, attributeFilter: ['style', 'class'] });
+                            window.sinkronkanKunciScrollModal();
+                        }
+                        if (node.querySelectorAll) {
+                            node.querySelectorAll('.modal-overlay').forEach(function(subM) {
+                                obsAllModals.observe(subM, { attributes: true, attributeFilter: ['style', 'class'] });
+                                window.sinkronkanKunciScrollModal();
+                            });
+                        }
+                    }
+                });
+                mu.removedNodes.forEach(function(node) {
+                    if (node && node.nodeType === 1 && node.classList && node.classList.contains('modal-overlay')) {
+                        window.sinkronkanKunciScrollModal();
+                    }
+                });
+            }
+        });
+    });
+    bodyObs.observe(document.body, { childList: true, subtree: true });
+});
 
 // Cegah semua link <a href="#"> yang memiliki onclick agar tidak memicu lompatan halaman di iOS/Android
 document.addEventListener('click', function(e) {
