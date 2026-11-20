@@ -3599,7 +3599,16 @@ window.hoverIstilah = function(el, e) {
     }
 };
 
+window._istilahHoverDelayTimer = null;
+window._lastPointerTypeIstilah = 'mouse';
+
+document.addEventListener('pointerdown', function(e) {
+    if (e && e.pointerType) window._lastPointerTypeIstilah = e.pointerType;
+}, true);
+
 window.leaveIstilah = function() {
+    clearTimeout(window._istilahHoverDelayTimer);
+    window._istilahHoverDelayTimer = null;
     if (window._tooltipDrawActive) return;
     tipTimer = setTimeout(function() {
         if (window._tooltipDrawActive) return;
@@ -3611,18 +3620,54 @@ window.leaveIstilah = function() {
 document.addEventListener('mouseover', function(e) {
     if (window._tooltipDrawActive) return;
     let term = e.target.closest ? e.target.closest('.glossary-term') : null;
-    if (term) window.hoverIstilah(term, e);
+    if (!term) return;
+    if (e.relatedTarget && term.contains(e.relatedTarget)) return;
+
+    let tip = document.getElementById('tooltip-istilah');
+    // Jika pop-up untuk istilah ini sudah tampil, cukup batalkan timer tutupnya
+    if (tip && tip.style.display === 'block' && window._activeTooltipTermEl === term) {
+        clearTimeout(tipTimer);
+        return;
+    }
+
+    // Di laptop/mouse: kursor harus diam menyentuh istilah minimal 1,2 detik (1200 ms)
+    clearTimeout(window._istilahHoverDelayTimer);
+    window._istilahHoverDelayTimer = setTimeout(function() {
+        window._istilahHoverDelayTimer = null;
+        if (term.isConnected && term.matches && term.matches(':hover')) {
+            window.hoverIstilah(term, e);
+        }
+    }, 1200);
 });
+
 document.addEventListener('mouseout', function(e) {
-    if (window._tooltipDrawActive) return;
     let term = e.target.closest ? e.target.closest('.glossary-term') : null;
-    if (term) window.leaveIstilah();
+    if (!term) return;
+    if (e.relatedTarget && term.contains(e.relatedTarget)) return;
+
+    // Kursor pergi sebelum 1,2 detik: batalkan kemunculan pop-up
+    clearTimeout(window._istilahHoverDelayTimer);
+    window._istilahHoverDelayTimer = null;
+
+    if (!window._tooltipDrawActive) {
+        window.leaveIstilah();
+    }
 });
+
 document.addEventListener('click', function(e) {
     let term = e.target.closest ? e.target.closest('.glossary-term') : null;
     if (term) {
+        clearTimeout(window._istilahHoverDelayTimer);
+        window._istilahHoverDelayTimer = null;
+
+        // Cegah pop-up terbuka saat sedang memblok/menyeleksi kalimat
+        let selText = window.getSelection ? window.getSelection().toString().trim() : '';
+        if (selText.length > 0) return;
+
         window.hoverIstilah(term, e);
     } else if (!e.target.closest('#tooltip-istilah')) {
+        clearTimeout(window._istilahHoverDelayTimer);
+        window._istilahHoverDelayTimer = null;
         window.tutupTooltipIstilahPaksa();
     }
 });
@@ -3852,9 +3897,13 @@ window.siapkanCanvasDrawIstilah = function(mode, forceClear) {
     els.canvas.addEventListener("pointercancel", akhiriCoretan);
 };
 
+window._editingGlossarySpan = null;
+window._tempGlosariumImgIsExistingUrl = false;
+
 window.hapusFotoIstilahModal = function() {
     window._tempGlosariumImgData = "";
     window._tempGlosariumImgWidth = 350;
+    window._tempGlosariumImgIsExistingUrl = false;
     let inpFile = document.getElementById("glosarium-input-img");
     let prevBox = document.getElementById("glosarium-img-preview-box");
     let prevImg = document.getElementById("glosarium-img-preview");
@@ -3863,7 +3912,10 @@ window.hapusFotoIstilahModal = function() {
     let infoKb = document.getElementById("glosarium-img-size-kb");
     if (inpFile) inpFile.value = "";
     if (prevBox) prevBox.style.display = "none";
-    if (prevImg) prevImg.src = "";
+    if (prevImg) {
+        prevImg.removeAttribute("crossorigin");
+        prevImg.src = "";
+    }
     if (sizeRange) sizeRange.value = "350";
     if (sizeVal) sizeVal.innerText = "350px";
     if (infoKb) infoKb.innerText = "Bisa Paste (Cmd/Ctrl+V) • 200–1500px";
@@ -3903,11 +3955,11 @@ window.kompresDanSetFotoIstilah = function(fileBlob) {
             let approxKB = Math.max(1, ((dataUrl.length * 3) / 4 / 1024)).toFixed(1);
 
             window._tempGlosariumImgData = dataUrl;
+            window._tempGlosariumImgIsExistingUrl = false;
             let prevBox = document.getElementById("glosarium-img-preview-box");
             let prevImg = document.getElementById("glosarium-img-preview");
             let infoKb = document.getElementById("glosarium-img-size-kb");
 
-            // Atur ukuran awal slider otomatis sesuai lebar asli gambar (terkunci 200-1500px)
             let defaultW = Math.max(200, Math.min(1500, Math.round(w / 10) * 10));
             window._tempGlosariumImgWidth = defaultW;
             let sizeRange = document.getElementById("glosarium-img-size");
@@ -3917,6 +3969,7 @@ window.kompresDanSetFotoIstilah = function(fileBlob) {
 
             if (prevBox) prevBox.style.display = "block";
             if (prevImg) {
+                prevImg.removeAttribute("crossorigin");
                 prevImg.onload = function() {
                     window.siapkanCanvasDrawIstilah("modal", true);
                 };
@@ -3935,7 +3988,7 @@ window.prosesUploadFotoIstilah = function(input) {
     window.kompresDanSetFotoIstilah(f);
 };
 
-// Tangkap Copy-Paste gambar (Cmd+V / Ctrl+V) saat modal Buat Istilah terbuka
+// Tangkap Copy-Paste gambar (Cmd+V / Ctrl+V) saat modal Buat/Edit Istilah terbuka
 document.addEventListener("paste", function(e) {
     let modal = document.getElementById("modal-glosarium-edit");
     if (!modal || modal.style.display !== "flex") return;
@@ -3978,60 +4031,214 @@ window.gabungkanFotoDanCoretanIstilah = function() {
             ctx.drawImage(drawCanvas, 0, 0, w, h);
         }
 
-        let fallbackDataUrl = out.toDataURL("image/jpeg", 0.72);
+        let fallbackDataUrl = "";
+        try {
+            fallbackDataUrl = out.toDataURL("image/jpeg", 0.72);
+        } catch (err) {
+            return resolve({ blob: null, fallbackDataUrl: window._tempGlosariumImgData });
+        }
+
         if (out.toBlob) {
-            out.toBlob(function(blob) {
-                resolve({ blob: blob, fallbackDataUrl: fallbackDataUrl });
-            }, "image/jpeg", 0.74);
+            try {
+                out.toBlob(function(blob) {
+                    resolve({ blob: blob, fallbackDataUrl: fallbackDataUrl });
+                }, "image/jpeg", 0.74);
+            } catch (errBlob) {
+                resolve({ blob: null, fallbackDataUrl: fallbackDataUrl });
+            }
         } else {
             resolve({ blob: null, fallbackDataUrl: fallbackDataUrl });
         }
     });
 };
 
+window.bukaModalEditIstilah = function(spanEl) {
+    if (!spanEl || !spanEl.classList || !spanEl.classList.contains("glossary-term")) return;
+
+    window.tutupTooltipIstilahPaksa();
+    window._editingGlossarySpan = spanEl;
+
+    let judulEl = document.getElementById("judul-modal-glosarium");
+    let btnApply = document.getElementById("btn-terapkan-istilah");
+    let inpKata = document.getElementById("glosarium-input-kata");
+    let inpTeks = document.getElementById("glosarium-input-text");
+
+    if (judulEl) judulEl.innerText = "✏️ Edit Istilah";
+    if (btnApply) btnApply.innerText = "Simpan Perubahan";
+    if (inpKata) inpKata.value = spanEl.innerText.replace(/💡/g, "").trim();
+    if (inpTeks) inpTeks.value = spanEl.getAttribute("data-penjelasan") || "";
+
+    window.hapusFotoIstilahModal();
+
+    let existingImg = spanEl.getAttribute("data-img") || "";
+    let existingW = parseInt(spanEl.getAttribute("data-img-width") || "350", 10) || 350;
+    existingW = Math.max(200, Math.min(1500, existingW));
+
+    if (existingImg) {
+        window._tempGlosariumImgData = existingImg;
+        window._tempGlosariumImgWidth = existingW;
+        window._tempGlosariumImgIsExistingUrl = (existingImg.indexOf("http") === 0);
+
+        let prevBox = document.getElementById("glosarium-img-preview-box");
+        let prevImg = document.getElementById("glosarium-img-preview");
+        let sizeRange = document.getElementById("glosarium-img-size");
+        let sizeVal = document.getElementById("glosarium-img-size-val");
+        let infoKb = document.getElementById("glosarium-img-size-kb");
+
+        if (sizeRange) sizeRange.value = String(existingW);
+        if (sizeVal) sizeVal.innerText = existingW + "px";
+        if (prevBox) prevBox.style.display = "block";
+        if (infoKb) infoKb.innerText = "✅ Foto tersimpan (bisa dicoret/ganti)";
+
+        if (prevImg) {
+            if (existingImg.indexOf("http") === 0) {
+                prevImg.crossOrigin = "anonymous";
+                prevImg.onload = function() {
+                    window.siapkanCanvasDrawIstilah("modal", true);
+                };
+                // Parameter cors=1 mencegah cache browser non-CORS agar foto lama tetap bisa dicoret
+                prevImg.src = existingImg + (existingImg.indexOf("?") === -1 ? "?cors=1" : "&cors=1");
+            } else {
+                prevImg.removeAttribute("crossorigin");
+                prevImg.onload = function() {
+                    window.siapkanCanvasDrawIstilah("modal", true);
+                };
+                prevImg.src = existingImg;
+            }
+        }
+    }
+
+    window.bukaModal("modal-glosarium-edit");
+};
+
+window.editIstilahDariTooltip = function() {
+    if (window._activeTooltipTermEl && document.body.contains(window._activeTooltipTermEl)) {
+        window.bukaModalEditIstilah(window._activeTooltipTermEl);
+    }
+};
+
+window.cariIstilahPadaSeleksiAktif = function() {
+    let rng = window.globalSelectedRange || window.savedEditorRange;
+    if (!rng) return null;
+
+    let startEl = rng.startContainer.nodeType === 3 ? rng.startContainer.parentElement : rng.startContainer;
+    if (startEl && startEl.closest) {
+        let found = startEl.closest(".glossary-term");
+        if (found) return found;
+    }
+    let commonEl = rng.commonAncestorContainer.nodeType === 3 ? rng.commonAncestorContainer.parentElement : rng.commonAncestorContainer;
+    if (commonEl && commonEl.closest) {
+        let foundCommon = commonEl.closest(".glossary-term");
+        if (foundCommon) return foundCommon;
+    }
+    return null;
+};
+
 window.bukaModalGlosarium = function() {
     window.simpanSeleksiTeks();
-    if (!window.globalSelectedRange || window.globalSelectedRange.toString().trim() === "") {
-        return alert("Blok satu kata atau istilah di dalam materi terlebih dahulu!");
+
+    // Jika kursor atau blok berada di istilah yang sudah ada, langsung buka mode Edit Istilah
+    let existingSpan = window.cariIstilahPadaSeleksiAktif();
+    if (existingSpan) {
+        window.bukaModalEditIstilah(existingSpan);
+        return;
     }
-    document.getElementById("glosarium-input-text").value = "";
+
+    if (!window.globalSelectedRange || window.globalSelectedRange.toString().trim() === "") {
+        return alert("Blok satu kata/istilah untuk membuat baru, atau klik istilah yang sudah ada untuk mengedit!");
+    }
+
+    window._editingGlossarySpan = null;
+    let judulEl = document.getElementById("judul-modal-glosarium");
+    let btnApply = document.getElementById("btn-terapkan-istilah");
+    let inpKata = document.getElementById("glosarium-input-kata");
+    let inpTeks = document.getElementById("glosarium-input-text");
+
+    if (judulEl) judulEl.innerText = "💡 Buat Istilah";
+    if (btnApply) btnApply.innerText = "Terapkan";
+    if (inpKata) inpKata.value = window.globalSelectedRange.toString().replace(/💡/g, "").trim();
+    if (inpTeks) inpTeks.value = "";
+
     window.hapusFotoIstilahModal();
     window.bukaModal("modal-glosarium-edit");
 };
 
 window.terapkanPopUpIstilah = async function() {
+    let inpKata = document.getElementById("glosarium-input-kata");
+    let kataBaru = inpKata ? inpKata.value.replace(/💡/g, "").trim() : "";
     let ket = document.getElementById("glosarium-input-text").value.trim();
     let hasImg = Boolean(window._tempGlosariumImgData);
+
     if (!ket && !hasImg) {
         return alert("Isi penjelasan teks atau sisipkan foto istilah terlebih dahulu!");
     }
 
+    let isEditExisting = Boolean(window._editingGlossarySpan && document.body.contains(window._editingGlossarySpan));
     let finalImgUrl = "";
     let btnApply = document.getElementById("btn-terapkan-istilah");
+    let labelBtnDefault = isEditExisting ? "Simpan Perubahan" : "Terapkan";
+
     if (hasImg) {
-        if (btnApply) { btnApply.disabled = true; btnApply.innerText = "⏳ Menyimpan Foto..."; }
-        try {
-            let merged = await window.gabungkanFotoDanCoretanIstilah();
-            if (merged && merged.blob && navigator.onLine !== false) {
-                let fd = new FormData();
-                fd.append("file", merged.blob, "istilah_" + Date.now() + ".jpg");
-                fd.append("upload_preset", "studykawan_video");
-                let res = await fetch("https://api.cloudinary.com/v1_1/rtkfvwvg/image/upload", { method: "POST", body: fd });
-                let data = await res.json();
-                if (res.ok && data && data.secure_url) {
-                    finalImgUrl = data.secure_url;
-                } else {
+        let adaCoretanBaru = Boolean(window._istilahDrawState && window._istilahDrawState.modal && window._istilahDrawState.modal.hasStroke);
+        // Jika foto lama tidak diganti dan tidak dicoret ulang, langsung pakai URL Cloudinary lama
+        if (window._tempGlosariumImgIsExistingUrl && !adaCoretanBaru) {
+            finalImgUrl = window._tempGlosariumImgData;
+        } else {
+            if (btnApply) { btnApply.disabled = true; btnApply.innerText = "⏳ Menyimpan Foto..."; }
+            try {
+                let merged = await window.gabungkanFotoDanCoretanIstilah();
+                if (merged && merged.blob && navigator.onLine !== false) {
+                    let fd = new FormData();
+                    fd.append("file", merged.blob, "istilah_" + Date.now() + ".jpg");
+                    fd.append("upload_preset", "studykawan_video");
+                    let res = await fetch("https://api.cloudinary.com/v1_1/rtkfvwvg/image/upload", { method: "POST", body: fd });
+                    let data = await res.json();
+                    if (res.ok && data && data.secure_url) {
+                        finalImgUrl = data.secure_url;
+                    } else {
+                        finalImgUrl = merged.fallbackDataUrl;
+                    }
+                } else if (merged) {
                     finalImgUrl = merged.fallbackDataUrl;
                 }
-            } else if (merged) {
-                finalImgUrl = merged.fallbackDataUrl;
+            } catch (err) {
+                let mergedSafe = await window.gabungkanFotoDanCoretanIstilah();
+                finalImgUrl = mergedSafe ? mergedSafe.fallbackDataUrl : window._tempGlosariumImgData;
+            } finally {
+                if (btnApply) { btnApply.disabled = false; btnApply.innerText = labelBtnDefault; }
             }
-        } catch (err) {
-            let mergedSafe = await window.gabungkanFotoDanCoretanIstilah();
-            finalImgUrl = mergedSafe ? mergedSafe.fallbackDataUrl : window._tempGlosariumImgData;
-        } finally {
-            if (btnApply) { btnApply.disabled = false; btnApply.innerText = "Terapkan"; }
         }
+    }
+
+    let finalWidth = String(Math.max(200, Math.min(1500, window._tempGlosariumImgWidth || 350)));
+
+    if (isEditExisting) {
+        let targetSpan = window._editingGlossarySpan;
+        let editableHost = targetSpan.closest ? targetSpan.closest(".content-block, .fb-content, #popup-content-box, #cg-editor-area, #ck-editor-area") : null;
+        if (editableHost && typeof window.siapkanSnapshotSebelumAksi === "function") {
+            window.siapkanSnapshotSebelumAksi(editableHost);
+        }
+
+        if (kataBaru) targetSpan.innerText = kataBaru;
+        targetSpan.setAttribute("data-penjelasan", ket);
+        if (finalImgUrl) {
+            targetSpan.setAttribute("data-img", finalImgUrl);
+            targetSpan.setAttribute("data-img-width", finalWidth);
+        } else {
+            targetSpan.removeAttribute("data-img");
+            targetSpan.removeAttribute("data-img-width");
+        }
+
+        window._editingGlossarySpan = null;
+        window.hapusFotoIstilahModal();
+        window.tutupModal("modal-glosarium-edit");
+        if (editableHost) {
+            window.lastActiveEditable = editableHost;
+            editableHost.dispatchEvent(new Event("input", { bubbles: true }));
+        } else {
+            triggerInput();
+        }
+        return;
     }
 
     window.kembalikanSeleksiTeks();
@@ -4040,11 +4247,12 @@ window.terapkanPopUpIstilah = async function() {
     span.setAttribute("data-penjelasan", ket);
     if (finalImgUrl) {
         span.setAttribute("data-img", finalImgUrl);
-        span.setAttribute("data-img-width", String(Math.max(200, Math.min(1500, window._tempGlosariumImgWidth || 350))));
+        span.setAttribute("data-img-width", finalWidth);
     }
-    span.innerText = window.globalSelectedRange.toString().replace(/💡/g, "").trim();
+    span.innerText = kataBaru || window.globalSelectedRange.toString().replace(/💡/g, "").trim();
     window.globalSelectedRange.deleteContents();
     window.globalSelectedRange.insertNode(span);
+    window._editingGlossarySpan = null;
     window.hapusFotoIstilahModal();
     window.tutupModal("modal-glosarium-edit");
     triggerInput();

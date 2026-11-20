@@ -105,7 +105,10 @@
                 <strong id="tooltip-title"></strong>
                 <span id="tooltip-body" style="color:#333;"></span>
             </div>
-            <button type="button" id="btn-close-tooltip-istilah" class="tooltip-close-x" onclick="window.tutupTooltipIstilahPaksa()" title="Tutup">✕</button>
+            <div style="display:flex; align-items:center; gap:5px; flex-shrink:0;">
+                <button type="button" id="btn-edit-tooltip-istilah" class="tooltip-edit-btn" onclick="window.editIstilahDariTooltip()" title="Edit Istilah Ini">✏️ Edit</button>
+                <button type="button" id="btn-close-tooltip-istilah" class="tooltip-close-x" onclick="window.tutupTooltipIstilahPaksa()" title="Tutup">✕</button>
+            </div>
         </div>
         <div id="tooltip-img-wrap" style="display:none; margin-top:8px; text-align:center;">
             <div class="istilah-draw-stage" id="tooltip-draw-stage">
@@ -976,10 +979,11 @@
     <div id="modal-glosarium-edit" class="modal-overlay" onclick="if(event.target===this)tutupModal('modal-glosarium-edit')">
         <div class="modal-box" style="width:520px; max-width:95vw;">
             <div class="modal-header">
-                <h3 style="margin:0;">💡 Buat Istilah</h3>
+                <h3 id="judul-modal-glosarium" style="margin:0;">💡 Buat Istilah</h3>
                 <button class="close-btn" onclick="tutupModal('modal-glosarium-edit')">✕</button>
             </div>
             <div class="modal-body" style="display:flex; flex-direction:column; gap:10px;">
+                <input type="text" id="glosarium-input-kata" class="input-box" placeholder="Kata / teks istilah..." style="margin-bottom:0; font-weight:700;">
                 <textarea id="glosarium-input-text" class="input-box" rows="3" placeholder="Ketik penjelasan istilah (opsional jika sudah menyisipkan foto)..." style="margin-bottom:0;"></textarea>
 
                 <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; background:#f8fafc; border:1px dashed #cbd5e1; padding:8px 10px; border-radius:8px; flex-wrap:wrap;">

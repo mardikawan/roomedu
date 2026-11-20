@@ -5267,3 +5267,36 @@ body.drawing-mode-active .btn-collapse-bottom-right {
         display: none !important;
     }
 }
+/* Tombol Edit Istilah pada Pop-Up (Hanya Muncul di Mode Edit Guru) */
+.tooltip-edit-btn {
+    display: none;
+    background: #fef3c7;
+    color: #b45309;
+    border: 1px solid #fcd34d;
+    border-radius: 12px;
+    padding: 2px 8px;
+    font-size: 10.5px;
+    font-weight: 800;
+    cursor: pointer;
+    font-family: 'Poppins', sans-serif;
+    white-space: nowrap;
+}
+
+.mode-edit-aktif .tooltip-edit-btn,
+.force-edit-mode .tooltip-edit-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.tooltip-edit-btn:hover {
+    background: #f59e0b;
+    color: #ffffff;
+    border-color: #f59e0b;
+}
+
+body.dark-mode-active .tooltip-edit-btn {
+    background: #78350f !important;
+    color: #fef08a !important;
+    border-color: #d97706 !important;
+}
