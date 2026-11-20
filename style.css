@@ -113,7 +113,8 @@ html.ios-fullscreen-lock, body.ios-fullscreen-lock {
 .glossary-term { border-bottom: 2px dashed #d35400; color: inherit; font-weight: 600; cursor: pointer; background: rgba(255, 235, 59, 0.45); padding: 1px 4px; border-radius: 3px; transition: 0.2s; }
 .glossary-term:hover { background: rgba(255, 213, 79, 0.7); }
 
-#tooltip-istilah { display:none; position:fixed; background:#fff; border-left:4px solid #f39c12; box-shadow:0 8px 25px rgba(0,0,0,0.22); padding:10px 14px; border-radius:8px; font-size:13px; z-index:99999; max-width:min(300px, 88vw); font-family:'Quicksand', sans-serif; user-select: text; pointer-events: auto; box-sizing:border-box; }
+#tooltip-istilah { display:none; position:fixed; background:#fff; border-left:4px solid #f39c12; box-shadow:0 8px 25px rgba(0,0,0,0.22); padding:10px 14px; border-radius:8px; font-size:13px; z-index:99999; max-width:min(320px, 88vw); font-family:'Quicksand', sans-serif; user-select: text; pointer-events: auto; box-sizing:border-box; }
+#tooltip-istilah.has-img { max-width:min(1540px, 95vw); max-height:92vh; overflow:auto; }
 body.dark-mode-active #tooltip-istilah { background:#1e293b !important; color:#f1f5f9 !important; border-left-color:#f59e0b !important; }
 body.dark-mode-active #tooltip-istilah #tooltip-body { color:#e2e8f0 !important; }
 
@@ -5028,4 +5029,241 @@ body.dark-mode-active .a4-paper-wrapper.dynamic-block-shell {
     height: 100%;
     object-fit: cover;
     display: block;
+}
+/* =========================================================================
+   CORET GAMBAR ISTILAH (3 WARNA, 2 KETEBALAN, CLEAR) & COLLAPSE KANAN BAWAH
+   ========================================================================= */
+.tooltip-istilah-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.tooltip-close-x {
+    display: none;
+    background: #f1f5f9;
+    color: #475569;
+    border: none;
+    border-radius: 50%;
+    width: 22px;
+    height: 22px;
+    font-size: 11px;
+    font-weight: 800;
+    cursor: pointer;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+}
+
+#tooltip-istilah.has-img .tooltip-close-x,
+#tooltip-istilah.is-pinned-draw .tooltip-close-x {
+    display: inline-flex;
+}
+
+.tooltip-close-x:hover {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.istilah-draw-stage {
+    position: relative;
+    display: inline-block;
+    max-width: 100%;
+    line-height: 0;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid #cbd5e1;
+}
+
+.istilah-draw-stage img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    user-select: none;
+    pointer-events: none;
+}
+
+.istilah-draw-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    touch-action: auto;
+}
+
+.istilah-draw-stage.is-drawing .istilah-draw-canvas {
+    pointer-events: auto;
+    cursor: crosshair;
+    touch-action: none;
+}
+
+.istilah-draw-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+    padding: 5px 8px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 20px;
+    font-family: 'Poppins', sans-serif;
+}
+
+.istilah-draw-tools-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.istilah-pen-toggle {
+    background: #0b3954;
+    color: #ffffff;
+    border: none;
+    border-radius: 14px;
+    padding: 3px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: 'Poppins', sans-serif;
+}
+
+.istilah-pen-toggle.active {
+    background: #16a085;
+}
+
+.istilah-pen-col {
+    width: 19px;
+    height: 19px;
+    border-radius: 50%;
+    border: 2px solid #ffffff;
+    box-shadow: 0 0 0 1px #cbd5e1;
+    cursor: pointer;
+    padding: 0;
+    transition: transform 0.12s;
+}
+
+.istilah-pen-col.active {
+    transform: scale(1.22);
+    box-shadow: 0 0 0 2px #0f172a;
+}
+
+.istilah-pen-sz {
+    background: #ffffff;
+    color: #334155;
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
+    padding: 2px 8px;
+    font-size: 10.5px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: 'Poppins', sans-serif;
+}
+
+.istilah-pen-sz.active {
+    background: #0b3954;
+    color: #ffffff;
+    border-color: #0b3954;
+}
+
+.istilah-pen-clear {
+    background: #fee2e2;
+    color: #b91c1c;
+    border: none;
+    border-radius: 12px;
+    padding: 3px 9px;
+    font-size: 10.5px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: 'Poppins', sans-serif;
+}
+
+.istilah-pen-clear:hover {
+    background: #dc2626;
+    color: #ffffff;
+}
+
+.istilah-pen-sep {
+    width: 1px;
+    height: 14px;
+    background: #cbd5e1;
+}
+
+/* Tombol Collapse di Pojok Kanan Bawah Content Block */
+.btn-collapse-bottom-right {
+    position: absolute;
+    right: 12px;
+    bottom: 10px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1px solid #cbd5e1;
+    background: rgba(241, 245, 249, 0.92);
+    color: #334155;
+    font-size: 11px;
+    font-weight: 800;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 65;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.1);
+    transition: background 0.15s, color 0.15s, transform 0.15s;
+}
+
+.btn-collapse-bottom-right:hover {
+    background: #0b3954;
+    color: #ffffff;
+    border-color: #0b3954;
+    transform: translateY(-2px);
+}
+
+/* Beri ruang aman bawah kanan agar teks baris terakhir tidak tertutupi tombol collapse */
+.content-block.a4-portrait-block,
+.content-block.dynamic-content-block {
+    padding-bottom: 42px !important;
+}
+
+/* Dark Mode */
+body.dark-mode-active .istilah-draw-bar {
+    background: #0f172a !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode-active .istilah-pen-sz {
+    background: #1e293b !important;
+    color: #e2e8f0 !important;
+    border-color: #475569 !important;
+}
+
+body.dark-mode-active .istilah-pen-sz.active {
+    background: #38bdf8 !important;
+    color: #0f172a !important;
+    border-color: #38bdf8 !important;
+}
+
+body.dark-mode-active .btn-collapse-bottom-right {
+    background: rgba(30, 41, 59, 0.92) !important;
+    border-color: #475569 !important;
+    color: #f1f5f9 !important;
+}
+
+body.dark-mode-active .btn-collapse-bottom-right:hover {
+    background: #f1c40f !important;
+    color: #0b3954 !important;
+}
+
+body.drawing-mode-active .btn-collapse-bottom-right {
+    display: none !important;
+}
+
+@media print {
+    .btn-collapse-bottom-right,
+    .istilah-draw-bar {
+        display: none !important;
+    }
 }

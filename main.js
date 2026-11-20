@@ -1859,7 +1859,7 @@ window.cekBatasTinggiA4Input = function(e, el) {
     }, 150);
 };
 
-window.toggleCollapseBlock = function(idx) {
+window.toggleCollapseBlock = function(idx, fromBottom) {
     if (!window.contentBlocksData[idx]) return;
     let wrapper = document.querySelector('#blocks-container > .block-wrapper[data-index="' + idx + '"]');
     let topBefore = wrapper ? wrapper.getBoundingClientRect().top : null;
@@ -1873,8 +1873,10 @@ window.toggleCollapseBlock = function(idx) {
         if (area) area.style.display = nextCollapsed ? 'none' : 'block';
         if (btn) btn.innerText = nextCollapsed ? '▶' : '▼';
 
-        // Jaga posisi blok agar layar tidak pernah melompat saat dibuka/ditutup
-        if (topBefore !== null) {
+        // Jika ditutup dari tombol kanan bawah dan judul blok ada di atas layar, arahkan halus ke judul blok
+        if (fromBottom && nextCollapsed && topBefore !== null && topBefore < 60) {
+            wrapper.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } else if (topBefore !== null) {
             let topAfter = wrapper.getBoundingClientRect().top;
             let selisih = topAfter - topBefore;
             if (Math.abs(selisih) > 1) {
@@ -2021,6 +2023,7 @@ window.renderBlocks = function() {
         let bgPhotoLayerHtml = bgPhotoUrl
             ? '<div class="block-bg-photo-layer" style="background-image:url(\'' + safeBgPhotoUrl + '\'); opacity:' + (bgPhotoOpPct / 100) + ';"></div>'
             : '';
+        let bottomCollapseBtnHtml = '<button type="button" class="btn-collapse-bottom-right" onclick="window.toggleCollapseBlock(' + index + ', true)" title="Tutup / Collapse Blok Ini">▲</button>';
 
         // 1. TIPE BLOK SLIDE PDF
         if (blok.type === 'pdf_slides') {
@@ -2182,6 +2185,7 @@ window.renderBlocks = function() {
                         '<div class="content-block dynamic-content-block ' + patClass + '" data-index="' + index + '" data-width="' + widthMode + '" style="background-color:transparent; border:none!important; box-shadow:none!important; min-height:0!important; padding:0!important;">' +
                             qi +
                         '</div>' +
+                        bottomCollapseBtnHtml +
                     '</div>' +
                 '</div>' +
             '</div>';
@@ -2204,6 +2208,7 @@ window.renderBlocks = function() {
                         '<div class="content-block dynamic-content-block" data-width="' + widthMode + '" data-index="' + index + '" style="border:none !important; box-shadow:none !important; background:transparent !important; min-height:auto !important; padding:0 !important;">' +
                             htmlKartu +
                         '</div>' +
+                        bottomCollapseBtnHtml +
                     '</div>' +
                 '</div>' +
             '</div>';
@@ -2231,6 +2236,7 @@ window.renderBlocks = function() {
                         '<div class="content-block a4-portrait-block dynamic-content-block ' + patClass + twoColClass + '" ' + (isEdit ? 'contenteditable="true"' : '') + ' data-index="' + index + '" data-block-type="text" data-width="' + widthMode + '" style="background-color:transparent; color:' + txtCol + '; border:none!important; box-shadow:none!important;" oninput="window.cekBatasTinggiA4Input(event, this)">' +
                             blok.html +
                         '</div>' +
+                        bottomCollapseBtnHtml +
                     '</div>' +
                     '<button type="button" class="btn-add-block-below" onclick="window.tambahBlokDiBawah(' + index + ')" title="Tambah Content Block Baru di Bawah Blok Ini">+</button>' +
                 '</div>' +
@@ -3461,15 +3467,75 @@ document.addEventListener('DOMContentLoaded', function() {
     if (editorWrap) obsCleanGlossary.observe(editorWrap, { childList: true, subtree: true });
 });
 
+window._tooltipDrawActive = false;
+window._activeTooltipTermEl = null;
+
+window.tutupTooltipIstilahPaksa = function() {
+    clearTimeout(tipTimer);
+    window._tooltipDrawActive = false;
+    window._activeTooltipTermEl = null;
+    let tip = document.getElementById('tooltip-istilah');
+    if (tip) {
+        tip.style.display = 'none';
+        tip.classList.remove('has-img', 'is-pinned-draw');
+    }
+    let tools = document.getElementById('tooltip-draw-tools');
+    let btnTog = document.getElementById('btn-toggle-draw-tooltip');
+    let stage = document.getElementById('tooltip-draw-stage');
+    if (tools) tools.style.display = 'none';
+    if (btnTog) {
+        btnTog.classList.remove('active');
+        btnTog.innerText = '✏️ Coret';
+    }
+    if (stage) stage.classList.remove('is-drawing');
+};
+
+window.toggleDrawTooltipIstilah = function() {
+    let tools = document.getElementById('tooltip-draw-tools');
+    let btnTog = document.getElementById('btn-toggle-draw-tooltip');
+    let stage = document.getElementById('tooltip-draw-stage');
+    let tip = document.getElementById('tooltip-istilah');
+
+    window._tooltipDrawActive = !window._tooltipDrawActive;
+    if (tools) tools.style.display = window._tooltipDrawActive ? 'inline-flex' : 'none';
+    if (btnTog) {
+        btnTog.classList.toggle('active', window._tooltipDrawActive);
+        btnTog.innerText = window._tooltipDrawActive ? '✏️ Selesai' : '✏️ Coret';
+    }
+    if (stage) stage.classList.toggle('is-drawing', window._tooltipDrawActive);
+    if (tip) tip.classList.toggle('is-pinned-draw', window._tooltipDrawActive);
+
+    if (window._tooltipDrawActive && typeof window.siapkanCanvasDrawIstilah === 'function') {
+        window.siapkanCanvasDrawIstilah('tooltip', false);
+    }
+};
+
 window.hoverIstilah = function(el, e) {
+    // Jika guru sedang mencoret di pop-up istilah yang sama, jangan reset atau tutup pop-up
+    if (window._tooltipDrawActive && window._activeTooltipTermEl === el) return;
+
     clearTimeout(tipTimer);
     let tip = document.getElementById('tooltip-istilah');
     if (!tip) return;
 
+    let isDifferentTerm = (window._activeTooltipTermEl !== el);
+    window._activeTooltipTermEl = el;
+    if (isDifferentTerm) {
+        window._tooltipDrawActive = false;
+        let tools = document.getElementById('tooltip-draw-tools');
+        let btnTog = document.getElementById('btn-toggle-draw-tooltip');
+        let stage = document.getElementById('tooltip-draw-stage');
+        if (tools) tools.style.display = 'none';
+        if (btnTog) { btnTog.classList.remove('active'); btnTog.innerText = '✏️ Coret'; }
+        if (stage) stage.classList.remove('is-drawing');
+        tip.classList.remove('is-pinned-draw');
+    }
+
     let cleanWord = el.innerText.replace(/💡/g, '').trim();
     let penjelasan = el.getAttribute('data-penjelasan') || '';
     let imgSrc = el.getAttribute('data-img') || '';
-    let imgWidth = parseInt(el.getAttribute('data-img-width') || '160', 10) || 160;
+    let imgWidth = parseInt(el.getAttribute('data-img-width') || '350', 10) || 350;
+    imgWidth = Math.max(200, Math.min(1500, imgWidth));
 
     document.getElementById('tooltip-title').innerText = penjelasan ? (cleanWord + ': ') : cleanWord;
     document.getElementById('tooltip-body').innerText = penjelasan;
@@ -3478,11 +3544,18 @@ window.hoverIstilah = function(el, e) {
     let imgEl = document.getElementById('tooltip-img');
     if (imgWrap && imgEl) {
         if (imgSrc) {
-            imgEl.src = imgSrc;
-            imgEl.style.width = Math.min(imgWidth, window.innerWidth - 44) + 'px';
+            tip.classList.add('has-img');
+            let maxFitW = Math.max(200, window.innerWidth - 48);
+            imgEl.style.width = Math.min(imgWidth, maxFitW) + 'px';
             imgWrap.style.display = 'block';
+            if (imgEl.getAttribute('data-loaded-src') !== imgSrc || isDifferentTerm) {
+                imgEl.setAttribute('data-loaded-src', imgSrc);
+                imgEl.src = imgSrc;
+            }
         } else {
+            tip.classList.remove('has-img');
             imgEl.src = '';
+            imgEl.removeAttribute('data-loaded-src');
             imgWrap.style.display = 'none';
         }
     }
@@ -3491,7 +3564,7 @@ window.hoverIstilah = function(el, e) {
 
     let aturKoordinatTooltip = function() {
         let rect = el.getBoundingClientRect();
-        let tipW = tip.offsetWidth || 220;
+        let tipW = tip.offsetWidth || 240;
         let tipH = tip.offsetHeight || 60;
 
         let x = rect.right + 6;
@@ -3500,7 +3573,9 @@ window.hoverIstilah = function(el, e) {
         if (x + tipW > window.innerWidth - 12) {
             x = rect.left - tipW - 6;
         }
-        if (x < 10) x = 10;
+        if (x < 10) {
+            x = Math.max(10, Math.round((window.innerWidth - tipW) / 2));
+        }
         if (y < 10) y = rect.bottom + 6;
         if (y + tipH > window.innerHeight - 10) {
             y = Math.max(10, window.innerHeight - tipH - 10);
@@ -3512,22 +3587,34 @@ window.hoverIstilah = function(el, e) {
 
     aturKoordinatTooltip();
     if (imgSrc && imgEl) {
-        imgEl.onload = aturKoordinatTooltip;
+        imgEl.onload = function() {
+            aturKoordinatTooltip();
+            if (typeof window.siapkanCanvasDrawIstilah === 'function') {
+                window.siapkanCanvasDrawIstilah('tooltip', isDifferentTerm);
+            }
+        };
+        if (imgEl.complete && imgEl.naturalWidth > 0 && typeof window.siapkanCanvasDrawIstilah === 'function') {
+            window.siapkanCanvasDrawIstilah('tooltip', isDifferentTerm);
+        }
     }
 };
 
-window.leaveIstilah = function() { 
+window.leaveIstilah = function() {
+    if (window._tooltipDrawActive) return;
     tipTimer = setTimeout(function() {
+        if (window._tooltipDrawActive) return;
         let tip = document.getElementById('tooltip-istilah');
         if (tip) tip.style.display = 'none';
-    }, 250); 
+    }, 280);
 };
 
 document.addEventListener('mouseover', function(e) {
+    if (window._tooltipDrawActive) return;
     let term = e.target.closest ? e.target.closest('.glossary-term') : null;
     if (term) window.hoverIstilah(term, e);
 });
 document.addEventListener('mouseout', function(e) {
+    if (window._tooltipDrawActive) return;
     let term = e.target.closest ? e.target.closest('.glossary-term') : null;
     if (term) window.leaveIstilah();
 });
@@ -3536,8 +3623,7 @@ document.addEventListener('click', function(e) {
     if (term) {
         window.hoverIstilah(term, e);
     } else if (!e.target.closest('#tooltip-istilah')) {
-        let tip = document.getElementById('tooltip-istilah');
-        if (tip) tip.style.display = 'none';
+        window.tutupTooltipIstilahPaksa();
     }
 });
 
@@ -3636,13 +3722,139 @@ window.sisipkanSimbol = function(sym) {
     triggerInput(); 
 };
 
-// Modal Glosarium (Mendukung Teks & Foto Mikro Terkompresi + Atur Ukuran)
+// Modal Glosarium (Ukuran 200-1500px, Coret 3 Warna x 2 Ketebalan + Clear, & Upload Cloudinary)
 window._tempGlosariumImgData = "";
-window._tempGlosariumImgWidth = 160;
+window._tempGlosariumImgWidth = 350;
+window._istilahDrawState = {
+    modal:   { color: "#e74c3c", size: 2.5, drawing: false, hasStroke: false, lastX: 0, lastY: 0 },
+    tooltip: { color: "#e74c3c", size: 2.5, drawing: false, hasStroke: false, lastX: 0, lastY: 0 }
+};
+
+window.ambilElemenDrawIstilah = function(mode) {
+    if (mode === "tooltip") {
+        return {
+            img: document.getElementById("tooltip-img"),
+            canvas: document.getElementById("tooltip-draw-canvas"),
+            bar: document.getElementById("tooltip-draw-tools")
+        };
+    }
+    return {
+        img: document.getElementById("glosarium-img-preview"),
+        canvas: document.getElementById("glosarium-draw-canvas"),
+        bar: document.querySelector("#glosarium-img-preview-box .istilah-draw-bar")
+    };
+};
+
+window.setWarnaDrawIstilah = function(mode, hexColor, btnEl) {
+    let st = window._istilahDrawState[mode];
+    if (!st) return;
+    st.color = hexColor;
+    let els = window.ambilElemenDrawIstilah(mode);
+    if (els.bar) {
+        els.bar.querySelectorAll(".istilah-pen-col").forEach(function(b) { b.classList.remove("active"); });
+    }
+    if (btnEl) btnEl.classList.add("active");
+};
+
+window.setTebalDrawIstilah = function(mode, sizePx, btnEl) {
+    let st = window._istilahDrawState[mode];
+    if (!st) return;
+    st.size = parseFloat(sizePx) || 2.5;
+    let els = window.ambilElemenDrawIstilah(mode);
+    if (els.bar) {
+        els.bar.querySelectorAll(".istilah-pen-sz").forEach(function(b) { b.classList.remove("active"); });
+    }
+    if (btnEl) btnEl.classList.add("active");
+};
+
+window.clearDrawIstilah = function(mode) {
+    let els = window.ambilElemenDrawIstilah(mode);
+    let st = window._istilahDrawState[mode];
+    if (els.canvas) {
+        let ctx = els.canvas.getContext("2d");
+        ctx.clearRect(0, 0, els.canvas.width, els.canvas.height);
+    }
+    if (st) st.hasStroke = false;
+};
+
+window.siapkanCanvasDrawIstilah = function(mode, forceClear) {
+    let els = window.ambilElemenDrawIstilah(mode);
+    let st = window._istilahDrawState[mode];
+    if (!els.img || !els.canvas || !st) return;
+
+    let targetW = els.img.naturalWidth || els.img.clientWidth || 400;
+    let targetH = els.img.naturalHeight || els.img.clientHeight || 300;
+    if (els.canvas.width !== targetW || els.canvas.height !== targetH || forceClear) {
+        els.canvas.width = targetW;
+        els.canvas.height = targetH;
+        st.hasStroke = false;
+    }
+
+    if (els.canvas.getAttribute("data-draw-bound") === "1") return;
+    els.canvas.setAttribute("data-draw-bound", "1");
+
+    function ambilKoordinat(ev) {
+        let rect = els.canvas.getBoundingClientRect();
+        let sx = els.canvas.width / Math.max(1, rect.width);
+        let sy = els.canvas.height / Math.max(1, rect.height);
+        return {
+            x: (ev.clientX - rect.left) * sx,
+            y: (ev.clientY - rect.top) * sy,
+            scale: (sx + sy) / 2
+        };
+    }
+
+    els.canvas.addEventListener("pointerdown", function(ev) {
+        if (mode === "tooltip" && !window._tooltipDrawActive) return;
+        ev.preventDefault();
+        ev.stopPropagation();
+        let pt = ambilKoordinat(ev);
+        st.drawing = true;
+        st.lastX = pt.x;
+        st.lastY = pt.y;
+        st.hasStroke = true;
+
+        let ctx = els.canvas.getContext("2d");
+        ctx.fillStyle = st.color;
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, (st.size * pt.scale) / 2, 0, Math.PI * 2);
+        ctx.fill();
+
+        try { els.canvas.setPointerCapture(ev.pointerId); } catch (e) {}
+    });
+
+    els.canvas.addEventListener("pointermove", function(ev) {
+        if (!st.drawing) return;
+        ev.preventDefault();
+        ev.stopPropagation();
+        let pt = ambilKoordinat(ev);
+        let ctx = els.canvas.getContext("2d");
+        ctx.strokeStyle = st.color;
+        ctx.lineWidth = st.size * pt.scale;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.beginPath();
+        ctx.moveTo(st.lastX, st.lastY);
+        ctx.lineTo(pt.x, pt.y);
+        ctx.stroke();
+
+        st.lastX = pt.x;
+        st.lastY = pt.y;
+    });
+
+    function akhiriCoretan(ev) {
+        if (!st.drawing) return;
+        st.drawing = false;
+        try { els.canvas.releasePointerCapture(ev.pointerId); } catch (e) {}
+    }
+
+    els.canvas.addEventListener("pointerup", akhiriCoretan);
+    els.canvas.addEventListener("pointercancel", akhiriCoretan);
+};
 
 window.hapusFotoIstilahModal = function() {
     window._tempGlosariumImgData = "";
-    window._tempGlosariumImgWidth = 160;
+    window._tempGlosariumImgWidth = 350;
     let inpFile = document.getElementById("glosarium-input-img");
     let prevBox = document.getElementById("glosarium-img-preview-box");
     let prevImg = document.getElementById("glosarium-img-preview");
@@ -3652,17 +3864,16 @@ window.hapusFotoIstilahModal = function() {
     if (inpFile) inpFile.value = "";
     if (prevBox) prevBox.style.display = "none";
     if (prevImg) prevImg.src = "";
-    if (sizeRange) sizeRange.value = "160";
-    if (sizeVal) sizeVal.innerText = "160px";
-    if (infoKb) infoKb.innerText = "Auto-kompres mikro (~6 KB)";
+    if (sizeRange) sizeRange.value = "350";
+    if (sizeVal) sizeVal.innerText = "350px";
+    if (infoKb) infoKb.innerText = "Bisa Paste (Cmd/Ctrl+V) • 200–1500px";
+    window.clearDrawIstilah("modal");
 };
 
 window.ubahUkuranFotoIstilah = function(val) {
-    let px = Math.max(80, Math.min(260, parseInt(val, 10) || 160));
+    let px = Math.max(200, Math.min(1500, parseInt(val, 10) || 350));
     window._tempGlosariumImgWidth = px;
-    let prevImg = document.getElementById("glosarium-img-preview");
     let sizeVal = document.getElementById("glosarium-img-size-val");
-    if (prevImg) prevImg.style.width = px + "px";
     if (sizeVal) sizeVal.innerText = px + "px";
 };
 
@@ -3673,13 +3884,12 @@ window.kompresDanSetFotoIstilah = function(fileBlob) {
         let img = new Image();
         img.onload = function() {
             let canvas = document.createElement("canvas");
-            let MAX_DIM = 280; // Resolusi kecil tapi cukup jelas dilihat di tooltip
+            let MAX_DIM = 1500;
             let w = img.width;
             let h = img.height;
-            if (w > h) {
-                if (w > MAX_DIM) { h = Math.round(h * (MAX_DIM / w)); w = MAX_DIM; }
-            } else {
-                if (h > MAX_DIM) { w = Math.round(w * (MAX_DIM / h)); h = MAX_DIM; }
+            if (w > MAX_DIM || h > MAX_DIM) {
+                if (w > h) { h = Math.round(h * (MAX_DIM / w)); w = MAX_DIM; }
+                else { w = Math.round(w * (MAX_DIM / h)); h = MAX_DIM; }
             }
             canvas.width = Math.max(1, w);
             canvas.height = Math.max(1, h);
@@ -3689,20 +3899,30 @@ window.kompresDanSetFotoIstilah = function(fileBlob) {
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-            // Kompresi agresif JPEG 55% agar ukuran sangat kecil (~4 - 12 KB)
-            let dataUrl = canvas.toDataURL("image/jpeg", 0.55);
+            let dataUrl = canvas.toDataURL("image/jpeg", 0.72);
             let approxKB = Math.max(1, ((dataUrl.length * 3) / 4 / 1024)).toFixed(1);
 
             window._tempGlosariumImgData = dataUrl;
             let prevBox = document.getElementById("glosarium-img-preview-box");
             let prevImg = document.getElementById("glosarium-img-preview");
             let infoKb = document.getElementById("glosarium-img-size-kb");
-            if (prevImg) {
-                prevImg.src = dataUrl;
-                prevImg.style.width = window._tempGlosariumImgWidth + "px";
-            }
+
+            // Atur ukuran awal slider otomatis sesuai lebar asli gambar (terkunci 200-1500px)
+            let defaultW = Math.max(200, Math.min(1500, Math.round(w / 10) * 10));
+            window._tempGlosariumImgWidth = defaultW;
+            let sizeRange = document.getElementById("glosarium-img-size");
+            let sizeVal = document.getElementById("glosarium-img-size-val");
+            if (sizeRange) sizeRange.value = String(defaultW);
+            if (sizeVal) sizeVal.innerText = defaultW + "px";
+
             if (prevBox) prevBox.style.display = "block";
-            if (infoKb) infoKb.innerText = "✅ Terkompresi: " + approxKB + " KB";
+            if (prevImg) {
+                prevImg.onload = function() {
+                    window.siapkanCanvasDrawIstilah("modal", true);
+                };
+                prevImg.src = dataUrl;
+            }
+            if (infoKb) infoKb.innerText = "✅ Siap (" + w + "x" + h + " • " + approxKB + " KB)";
         };
         img.src = e.target.result;
     };
@@ -3737,6 +3957,38 @@ document.addEventListener("paste", function(e) {
     }
 }, true);
 
+window.gabungkanFotoDanCoretanIstilah = function() {
+    return new Promise(function(resolve) {
+        let imgEl = document.getElementById("glosarium-img-preview");
+        let drawCanvas = document.getElementById("glosarium-draw-canvas");
+        let st = window._istilahDrawState.modal;
+        if (!imgEl || !window._tempGlosariumImgData) return resolve(null);
+
+        let w = imgEl.naturalWidth || 400;
+        let h = imgEl.naturalHeight || 300;
+        let out = document.createElement("canvas");
+        out.width = w;
+        out.height = h;
+        let ctx = out.getContext("2d");
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(imgEl, 0, 0, w, h);
+
+        if (drawCanvas && st && st.hasStroke) {
+            ctx.drawImage(drawCanvas, 0, 0, w, h);
+        }
+
+        let fallbackDataUrl = out.toDataURL("image/jpeg", 0.72);
+        if (out.toBlob) {
+            out.toBlob(function(blob) {
+                resolve({ blob: blob, fallbackDataUrl: fallbackDataUrl });
+            }, "image/jpeg", 0.74);
+        } else {
+            resolve({ blob: null, fallbackDataUrl: fallbackDataUrl });
+        }
+    });
+};
+
 window.bukaModalGlosarium = function() {
     window.simpanSeleksiTeks();
     if (!window.globalSelectedRange || window.globalSelectedRange.toString().trim() === "") {
@@ -3747,19 +3999,48 @@ window.bukaModalGlosarium = function() {
     window.bukaModal("modal-glosarium-edit");
 };
 
-window.terapkanPopUpIstilah = function() {
+window.terapkanPopUpIstilah = async function() {
     let ket = document.getElementById("glosarium-input-text").value.trim();
-    let imgData = window._tempGlosariumImgData || "";
-    if (!ket && !imgData) {
+    let hasImg = Boolean(window._tempGlosariumImgData);
+    if (!ket && !hasImg) {
         return alert("Isi penjelasan teks atau sisipkan foto istilah terlebih dahulu!");
     }
+
+    let finalImgUrl = "";
+    let btnApply = document.getElementById("btn-terapkan-istilah");
+    if (hasImg) {
+        if (btnApply) { btnApply.disabled = true; btnApply.innerText = "⏳ Menyimpan Foto..."; }
+        try {
+            let merged = await window.gabungkanFotoDanCoretanIstilah();
+            if (merged && merged.blob && navigator.onLine !== false) {
+                let fd = new FormData();
+                fd.append("file", merged.blob, "istilah_" + Date.now() + ".jpg");
+                fd.append("upload_preset", "studykawan_video");
+                let res = await fetch("https://api.cloudinary.com/v1_1/rtkfvwvg/image/upload", { method: "POST", body: fd });
+                let data = await res.json();
+                if (res.ok && data && data.secure_url) {
+                    finalImgUrl = data.secure_url;
+                } else {
+                    finalImgUrl = merged.fallbackDataUrl;
+                }
+            } else if (merged) {
+                finalImgUrl = merged.fallbackDataUrl;
+            }
+        } catch (err) {
+            let mergedSafe = await window.gabungkanFotoDanCoretanIstilah();
+            finalImgUrl = mergedSafe ? mergedSafe.fallbackDataUrl : window._tempGlosariumImgData;
+        } finally {
+            if (btnApply) { btnApply.disabled = false; btnApply.innerText = "Terapkan"; }
+        }
+    }
+
     window.kembalikanSeleksiTeks();
     let span = document.createElement("span");
     span.className = "glossary-term";
     span.setAttribute("data-penjelasan", ket);
-    if (imgData) {
-        span.setAttribute("data-img", imgData);
-        span.setAttribute("data-img-width", String(window._tempGlosariumImgWidth || 160));
+    if (finalImgUrl) {
+        span.setAttribute("data-img", finalImgUrl);
+        span.setAttribute("data-img-width", String(Math.max(200, Math.min(1500, window._tempGlosariumImgWidth || 350))));
     }
     span.innerText = window.globalSelectedRange.toString().replace(/💡/g, "").trim();
     window.globalSelectedRange.deleteContents();
