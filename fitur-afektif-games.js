@@ -561,6 +561,10 @@ window.selesaikanCheckinHarian = function() {
         if (typeof window.tambahXPSiswa === "function") {
             window.tambahXPSiswa(100, "checkin_harian");
         }
+        if (typeof window.catatRiwayatAktivitasSiswa === "function") {
+            let labelEm = (window.checkinState.ikon || "😊") + " " + (window.checkinState.labelEmosi || "Check-in");
+            window.catatRiwayatAktivitasSiswa("checkin", "Check-in Harian (" + labelEm + ")", "Hadiah: +100 Coin & +100 XP");
+        }
     }
 
     window.tutupModal("modal-checkin-siswa");
@@ -1369,9 +1373,12 @@ window.renderIsiShopBorder = function(tierFilter, btnEl) {
 
 window.beliBorderDiShop = function(borderId) {
     let uName = sessionStorage.getItem("username");
+    let cleanKey = (typeof window.normalisasiUsernameSiswa === "function")
+        ? window.normalisasiUsernameSiswa(uName)
+        : String(uName || "").trim().toLowerCase();
     let lb = (typeof window.pastikanStrukturDualXPDanPet === "function")
-        ? window.pastikanStrukturDualXPDanPet(uName)
-        : (window.leaderboardSiswaData ? window.leaderboardSiswaData[uName] : null);
+        ? window.pastikanStrukturDualXPDanPet(cleanKey)
+        : (window.leaderboardSiswaData ? (window.leaderboardSiswaData[cleanKey] || window.leaderboardSiswaData[uName]) : null);
     if (!lb) return;
 
     let item = window.cariDataBorderById(borderId);
@@ -1387,7 +1394,7 @@ window.beliBorderDiShop = function(borderId) {
     }
 
     let saldoCoin = (typeof window.ambilCoinSiswa === "function")
-        ? window.ambilCoinSiswa(uName)
+        ? window.ambilCoinSiswa(cleanKey)
         : (Number(lb.coin !== undefined ? lb.coin : (lb.xpTersedia !== undefined ? lb.xpTersedia : lb.xp)) || 0);
 
     if (saldoCoin < item.harga) {
@@ -1399,18 +1406,39 @@ window.beliBorderDiShop = function(borderId) {
         return;
     }
 
+    // Potong Coin di memori dulu (skipSave = true) agar Coin & Border terkirim dalam 1 paket PUT yang sama
     if (typeof window.gunakanCoinSiswa === "function") {
-        if (!window.gunakanCoinSiswa(item.harga, "beli_border_" + borderId)) return;
+        if (!window.gunakanCoinSiswa(item.harga, "beli_border_" + borderId, true)) return;
     } else {
         lb.coin = Math.max(0, saldoCoin - item.harga);
         lb.xpTersedia = lb.coin;
     }
 
-    lb.ownedBorders.push(borderId);
+    // Pastikan mengambil referensi objek terbaru setelah pemotongan Coin
+    lb = (typeof window.pastikanStrukturDualXPDanPet === "function")
+        ? window.pastikanStrukturDualXPDanPet(cleanKey)
+        : lb;
+    if (!Array.isArray(lb.ownedBorders)) {
+        lb.ownedBorders = lb.ownedBorders ? Object.values(lb.ownedBorders) : [];
+    }
+    if (!lb.ownedBorders.includes(borderId)) {
+        lb.ownedBorders.push(borderId);
+    }
     lb.equippedBorder = borderId;
 
+    // 1x Simpan Atomic ke Firebase (Coin terpotong + Border dimiliki tersimpan serentak)
     if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
-        window.simpanLeaderboardSiswaKeDB(uName, lb);
+        window.simpanLeaderboardSiswaKeDB(cleanKey, lb);
+    }
+
+    // Catat bukti pembelian ke History siswa
+    if (typeof window.catatRiwayatAktivitasSiswa === "function") {
+        let sisaCoin = Number(lb.coin !== undefined ? lb.coin : lb.xpTersedia) || 0;
+        window.catatRiwayatAktivitasSiswa(
+            "border",
+            "Beli Border: " + item.nama + " (" + item.tier + ")",
+            "Harga: -" + item.harga.toLocaleString("id-ID") + " Coin | Sisa Coin: " + sisaCoin.toLocaleString("id-ID")
+        );
     }
 
     window.bukaModalProfilSiswa();
@@ -1451,6 +1479,9 @@ if (!window._baseBukaModalProfilSiswa) {
 window.bukaModalProfilSiswa = function() {
     if (window._baseBukaModalProfilSiswa) window._baseBukaModalProfilSiswa();
     window.pastikanAreaShopDiProfilAda();
+    if (typeof window.pastikanAreaHistoryDiProfilAda === "function") {
+        window.pastikanAreaHistoryDiProfilAda();
+    }
 
     let uName = sessionStorage.getItem("username");
     let lb = (typeof window.pastikanStrukturDualXPDanPet === "function")
@@ -1772,7 +1803,7 @@ window.ambilCoinSiswa = function(uName) {
     return lb ? lb.coin : 0;
 };
 
-window.gunakanCoinSiswa = function(hargaCoin, keperluan) {
+window.gunakanCoinSiswa = function(hargaCoin, keperluan, skipSave) {
     let rawU = sessionStorage.getItem("username") || "";
     let cleanKey = window.normalisasiUsernameSiswa(rawU);
     if (!cleanKey) return false;
@@ -1787,7 +1818,7 @@ window.gunakanCoinSiswa = function(hargaCoin, keperluan) {
     lb.coin = Math.max(0, lb.coin - biaya);
     lb.xpTersedia = lb.coin;
 
-    if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
+    if (!skipSave && typeof window.simpanLeaderboardSiswaKeDB === "function") {
         window.simpanLeaderboardSiswaKeDB(cleanKey, lb);
     }
     if (typeof window.perbaruiTampilanSaldoXPPet === "function") {
@@ -2806,3 +2837,231 @@ window._streakInitTimer = setInterval(function() {
         window.perbaruiBadgeTombolMisiHarian();
     }
 }, 1200);
+
+// =========================================================================
+// 10. MODUL HISTORY AKTIVITAS & TRANSAKSI SISWA (ON-DEMAND & 0 BEBAN SERVER)
+// =========================================================================
+window._cacheRiwayatSiswa = window._cacheRiwayatSiswa || {};
+window._cacheRiwayatFetchTime = window._cacheRiwayatFetchTime || {};
+
+window.formatWaktuSpesifikHistory = function(dateObj) {
+    let d = dateObj || new Date();
+    return String(d.getDate()).padStart(2, "0") + "/" +
+           String(d.getMonth() + 1).padStart(2, "0") + "/" +
+           d.getFullYear() + " " +
+           String(d.getHours()).padStart(2, "0") + ":" +
+           String(d.getMinutes()).padStart(2, "0") + ":" +
+           String(d.getSeconds()).padStart(2, "0");
+};
+
+window.catatRiwayatAktivitasSiswa = function(kategori, judul, detail) {
+    let stat = sessionStorage.getItem("statusLogin");
+    let rawU = (sessionStorage.getItem("username") || "").trim();
+    let cleanKey = (typeof window.normalisasiUsernameSiswa === "function")
+        ? window.normalisasiUsernameSiswa(rawU)
+        : rawU.toLowerCase();
+
+    // Khusus akun siswa resmi (Admin/Tamu tidak perlu mencatat history)
+    if (stat !== "siswa" || !cleanKey || cleanKey === "mahardika" || cleanKey === "sbd" || cleanKey === "tamu") {
+        return;
+    }
+
+    let nowMs = Date.now();
+    let entryId = "h_" + nowMs + "_" + Math.floor(100 + Math.random() * 900);
+    let item = {
+        k: String(kategori || "umum"),
+        j: String(judul || "Aktivitas"),
+        d: String(detail || ""),
+        w: window.formatWaktuSpesifikHistory(new Date(nowMs)),
+        t: nowMs
+    };
+
+    // Simpan ke RAM cache lokal agar langsung terlihat tanpa unduh ulang
+    if (!Array.isArray(window._cacheRiwayatSiswa[cleanKey])) {
+        window._cacheRiwayatSiswa[cleanKey] = [];
+    }
+    window._cacheRiwayatSiswa[cleanKey].unshift(item);
+
+    // Tulis 1 baris ringan via REST PUT (0 Koneksi WebSocket & 0 Read sebelum menulis)
+    let guru = (window.guruAktif || sessionStorage.getItem("guruTarget") || "mahardika").toLowerCase();
+    let pathRiwayat = "data_guru/" + guru + "/riwayat_siswa/" + cleanKey + "/" + entryId;
+    if (typeof window.tulisDataRestFirebase === "function") {
+        window.tulisDataRestFirebase(pathRiwayat, item, "PUT");
+    }
+
+    // Perbarui daftar jika drawer History sedang terbuka
+    let drawer = document.getElementById("profil-history-drawer");
+    if (drawer && drawer.style.display !== "none") {
+        window.renderDaftarHistoryProfil();
+    }
+};
+
+window.pastikanAreaHistoryDiProfilAda = function() {
+    let modalProfil = document.getElementById("modal-profil-siswa");
+    if (!modalProfil) return;
+    let body = modalProfil.querySelector(".modal-body");
+    if (!body) return;
+
+    let stat = sessionStorage.getItem("statusLogin");
+    let existing = document.getElementById("profil-history-section");
+
+    // Sembunyikan/hapus jika bukan siswa (Admin tidak perlu)
+    if (stat !== "siswa") {
+        if (existing) existing.remove();
+        return;
+    }
+    if (existing) return;
+
+    let sec = document.createElement("div");
+    sec.id = "profil-history-section";
+    sec.style.cssText = "background:white; padding:14px; border-radius:10px; border:2px solid #3498db; margin-bottom:15px; box-shadow:0 4px 12px rgba(52,152,219,0.1);";
+    sec.innerHTML =
+        '<div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">' +
+            '<div>' +
+                '<div style="font-size:14px; font-weight:800; color:#0b3954;">📜 Riwayat Aktivitas & Bukti Transaksi</div>' +
+                '<div style="font-size:11px; color:#64748b;">Catatan soal dikerjakan, check-in, beli border, & item My Pet.</div>' +
+            '</div>' +
+            '<button type="button" id="btn-toggle-history-profil" class="btn-action" style="background:linear-gradient(135deg, #0b3954, #2980b9); width:auto; padding:7px 14px; font-size:12px; border-radius:20px;" onclick="window.toggleBukaTutupHistoryProfil()">📂 Buka History</button>' +
+        '</div>' +
+        '<div id="profil-history-drawer" style="display:none; margin-top:12px; border-top:1px dashed #cbd5e1; padding-top:12px;">' +
+            '<div style="display:flex; gap:8px; align-items:center; margin-bottom:10px; flex-wrap:wrap;">' +
+                '<select id="filter-history-profil" class="input-box" style="margin:0; flex:1; min-width:180px; padding:7px 10px; font-size:12px; font-weight:700; cursor:pointer;" onchange="window.renderDaftarHistoryProfil()">' +
+                    '<option value="semua">📋 Semua Aktivitas (Keseluruhan)</option>' +
+                    '<option value="soal">📝 Soal Dikerjakan (Latihan & Ujian)</option>' +
+                    '<option value="checkin">😊 Check-in Harian</option>' +
+                    '<option value="border">🖼️ Pembelian Border Shop</option>' +
+                    '<option value="pet">🐾 Pembelian Barang My Pet</option>' +
+                '</select>' +
+                '<button type="button" class="btn-action" style="background:#64748b; width:auto; padding:7px 12px; font-size:11px; border-radius:8px;" onclick="window.muatDanRenderHistoryProfil(true)" title="Segarkan dari Server">🔄 Segarkan</button>' +
+            '</div>' +
+            '<div id="profil-history-list" style="display:flex; flex-direction:column; gap:8px; max-height:290px; overflow-y:auto; padding-right:2px;"></div>' +
+        '</div>';
+
+    let shopSection = document.getElementById("profil-shop-section");
+    if (shopSection && shopSection.nextSibling) {
+        body.insertBefore(sec, shopSection.nextSibling);
+    } else if (shopSection) {
+        body.appendChild(sec);
+    } else {
+        body.appendChild(sec);
+    }
+};
+
+window.toggleBukaTutupHistoryProfil = function() {
+    let drawer = document.getElementById("profil-history-drawer");
+    let btn = document.getElementById("btn-toggle-history-profil");
+    if (!drawer) return;
+
+    if (drawer.style.display === "none") {
+        drawer.style.display = "block";
+        if (btn) btn.innerHTML = "🔼 Tutup History";
+        window.muatDanRenderHistoryProfil(false);
+    } else {
+        drawer.style.display = "none";
+        if (btn) btn.innerHTML = "📂 Buka History";
+    }
+};
+
+window.muatDanRenderHistoryProfil = function(forceRefresh) {
+    let listEl = document.getElementById("profil-history-list");
+    let rawU = (sessionStorage.getItem("username") || "").trim();
+    let cleanKey = (typeof window.normalisasiUsernameSiswa === "function")
+        ? window.normalisasiUsernameSiswa(rawU)
+        : rawU.toLowerCase();
+    if (!cleanKey || !listEl) return;
+
+    let lastFetch = window._cacheRiwayatFetchTime[cleanKey] || 0;
+    let cacheSegar = !forceRefresh && lastFetch > 0 && (Date.now() - lastFetch < 180000);
+
+    if (cacheSegar && Array.isArray(window._cacheRiwayatSiswa[cleanKey])) {
+        window.renderDaftarHistoryProfil();
+        return;
+    }
+
+    listEl.innerHTML = '<div style="text-align:center; padding:18px; font-size:12px; color:#64748b; font-weight:700;">⏳ Memuat riwayat aktivitas...</div>';
+
+    let guru = (window.guruAktif || sessionStorage.getItem("guruTarget") || "mahardika").toLowerCase();
+    let pathRiwayat = "data_guru/" + guru + "/riwayat_siswa/" + cleanKey;
+
+    if (typeof window.bacaDataRestFirebase === "function") {
+        window.bacaDataRestFirebase(pathRiwayat, function(val) {
+            let arrServer = val ? (Array.isArray(val) ? val : Object.values(val)) : [];
+            let lokal = Array.isArray(window._cacheRiwayatSiswa[cleanKey]) ? window._cacheRiwayatSiswa[cleanKey] : [];
+
+            // Gabungkan unik berdasarkan timestamp + judul agar tidak duplikat
+            let unikMap = {};
+            arrServer.concat(lokal).forEach(function(it) {
+                if (!it || !it.j) return;
+                let kUnik = String(it.t || it.w || "") + "_" + it.j;
+                unikMap[kUnik] = it;
+            });
+
+            let hasil = Object.values(unikMap).sort(function(a, b) {
+                return (Number(b.t) || 0) - (Number(a.t) || 0);
+            });
+
+            window._cacheRiwayatSiswa[cleanKey] = hasil;
+            window._cacheRiwayatFetchTime[cleanKey] = Date.now();
+            window.renderDaftarHistoryProfil();
+        }, function() {
+            window.renderDaftarHistoryProfil();
+        }, { ttlMs: 180000, forceRefresh: Boolean(forceRefresh) });
+    } else {
+        window.renderDaftarHistoryProfil();
+    }
+};
+
+window.renderDaftarHistoryProfil = function() {
+    let listEl = document.getElementById("profil-history-list");
+    let selFilter = document.getElementById("filter-history-profil");
+    if (!listEl) return;
+
+    let rawU = (sessionStorage.getItem("username") || "").trim();
+    let cleanKey = (typeof window.normalisasiUsernameSiswa === "function")
+        ? window.normalisasiUsernameSiswa(rawU)
+        : rawU.toLowerCase();
+
+    let filterVal = selFilter ? selFilter.value : "semua";
+    let semua = Array.isArray(window._cacheRiwayatSiswa[cleanKey]) ? window._cacheRiwayatSiswa[cleanKey] : [];
+
+    let terfilter = semua.filter(function(item) {
+        if (!item) return false;
+        if (filterVal === "semua") return true;
+        return item.k === filterVal;
+    });
+
+    if (terfilter.length === 0) {
+        listEl.innerHTML = '<div style="text-align:center; padding:20px 10px; font-size:12px; color:#94a3b8; font-weight:700; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:8px;">Belum ada riwayat tercatat untuk kategori ini.</div>';
+        return;
+    }
+
+    let gayaKat = {
+        soal:    { ikon: "📝", bg: "#ebf5fb", border: "#3498db", label: "Soal", warna: "#1d4ed8" },
+        checkin: { ikon: "😊", bg: "#fef9e7", border: "#f1c40f", label: "Check-in", warna: "#b45309" },
+        border:  { ikon: "🖼️", bg: "#f5eef8", border: "#8e44ad", label: "Border", warna: "#7e22ce" },
+        pet:     { ikon: "🐾", bg: "#e8f8f5", border: "#16a085", label: "My Pet", warna: "#0f766e" }
+    };
+
+    let esc = function(s) {
+        return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    };
+
+    let html = "";
+    terfilter.slice(0, 100).forEach(function(it) {
+        let g = gayaKat[it.k] || { ikon: "📌", bg: "#f8fafc", border: "#64748b", label: "Aktivitas", warna: "#334155" };
+        html +=
+            '<div style="background:#ffffff; border:1px solid #e2e8f0; border-left:4px solid ' + g.border + '; border-radius:8px; padding:9px 11px; display:flex; align-items:flex-start; gap:10px;">' +
+                '<div style="width:32px; height:32px; border-radius:8px; background:' + g.bg + '; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0;">' + g.ikon + '</div>' +
+                '<div style="flex:1; min-width:0;">' +
+                    '<div style="display:flex; justify-content:space-between; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:2px;">' +
+                        '<span style="background:' + g.bg + '; color:' + g.warna + '; font-size:9.5px; font-weight:800; padding:1px 7px; border-radius:10px;">' + g.label + '</span>' +
+                        '<span style="font-size:10px; color:#64748b; font-weight:700;">🕒 ' + esc(it.w || "-") + '</span>' +
+                    '</div>' +
+                    '<div style="font-size:12px; font-weight:800; color:#0f172a; line-height:1.35; word-break:break-word;">' + esc(it.j) + '</div>' +
+                    (it.d ? '<div style="font-size:11px; color:#475569; margin-top:2px; line-height:1.35; word-break:break-word;">' + esc(it.d) + '</div>' : '') +
+                '</div>' +
+            '</div>';
+    });
+
+    listEl.innerHTML = html;
+};

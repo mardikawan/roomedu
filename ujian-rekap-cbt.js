@@ -1405,6 +1405,21 @@ window.kumpulkanUjianSiswa = function(isForce, isKicked) {
                 console.warn("Isolasi XP:", xpErr);
             }
 
+            try {
+                if (sessionStorage.getItem("statusLogin") === "siswa" && typeof window.catatRiwayatAktivitasSiswa === "function") {
+                    let jmlSoalUjian = pkt.soal ? pkt.soal.length : hasilDetail.length;
+                    let jmlBenarUjian = soalBenarUjian.length;
+                    let jmlMenungguUjian = hasilDetail.filter(function(h) { return h.status === "Menunggu Guru"; }).length;
+                    let jmlSalahUjian = Math.max(0, jmlSoalUjian - jmlBenarUjian - jmlMenungguUjian);
+                    let detailUjian = "Jumlah: " + jmlSoalUjian + " Soal | Benar: " + jmlBenarUjian + " | Salah: " + jmlSalahUjian +
+                        (jmlMenungguUjian > 0 ? " | Menunggu Koreksi: " + jmlMenungguUjian : "") +
+                        " | Nilai: " + nilaiAkhir;
+                    window.catatRiwayatAktivitasSiswa("soal", "Ujian: " + (pkt.paket || "Ujian Kelas"), detailUjian);
+                }
+            } catch (histErr) {
+                console.warn("Isolasi History Ujian:", histErr);
+            }
+
             window._sedangMengirimUjian = false;
             if (typeof window.hapusCadanganLokalUjian === "function") window.hapusCadanganLokalUjian();
             window.sesiUjianSiswa = null;

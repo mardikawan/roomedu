@@ -964,9 +964,9 @@
         </div>
     </div>
 
-    <div id="modal-welcome-popup" class="modal-overlay" style="z-index:6000;" onclick="if(event.target===this)tutupWelcomePopup()">
-        <div class="popup-welcome-box">
-            <button class="close-btn" style="position:absolute;top:15px;right:20px;" onclick="tutupWelcomePopup()">✕</button>
+    <div id="modal-welcome-popup" class="modal-overlay" style="z-index:6000;" onclick="if(event.target===this)window.tutupWelcomePopup()">
+        <div class="popup-welcome-box" style="padding-top:48px !important; max-height:88dvh; overflow-y:auto;">
+            <button type="button" class="close-btn" style="position:absolute; top:10px; right:12px; z-index:99 !important; width:34px; height:34px; border-radius:50%; background:#f1f5f9; color:#334155; display:flex; align-items:center; justify-content:center; pointer-events:auto;" onclick="event.stopPropagation(); window.tutupWelcomePopup();">✕</button>
             <div style="text-align:left; margin-bottom:10px; display:none;" id="popup-img-tool">
                 <button onclick="document.getElementById('popup-img-upload').click()" style="background:#3498db; color:white; border:none; padding:6px 12px; border-radius:4px; font-size:12px; cursor:pointer; font-weight:bold;">🖼️ Sisipkan Gambar</button>
                 <input type="file" id="popup-img-upload" style="display:none;" accept="image/*" onchange="window.uploadPopupImg(this)">

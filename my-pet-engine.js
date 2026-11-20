@@ -307,7 +307,7 @@ window.ambilCoinSiswa = function(uName) {
 window.ambilXPTersediaSiswa = window.ambilCoinSiswa;
 
 // Kurangi Coin saat membeli item (XP Leaderboard tetap 100% utuh!)
-window.gunakanCoinSiswa = function(hargaCoin, keterangan) {
+window.gunakanCoinSiswa = function(hargaCoin, keterangan, skipSave) {
     if (window._sedangTransaksiCoin) return false;
     window._sedangTransaksiCoin = true;
 
@@ -326,7 +326,7 @@ window.gunakanCoinSiswa = function(hargaCoin, keterangan) {
         lb.xpSpentTotal = (Number(lb.xpSpentTotal) || 0) + biaya;
         lb.xp = lb.xpTotal; // Jaga XP Leaderboard tetap utuh
 
-        if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
+        if (!skipSave && typeof window.simpanLeaderboardSiswaKeDB === "function") {
             window.simpanLeaderboardSiswaKeDB(cleanKey, lb);
         }
         window.perbaruiTampilanSaldoXPPet();
@@ -2491,28 +2491,32 @@ else if (catAktif === "themes") {
 // =========================================================================
 window.beliTemaHabitat = function(themeId) {
     let uName = sessionStorage.getItem("username");
-    let lb = window.pastikanStrukturDualXPDanPet(uName);
+    let cleanKey = window.normalisasiKeySiswaPet(uName);
+    let lb = window.pastikanStrukturDualXPDanPet(cleanKey);
     if (!lb) return;
-    let t = window.MY_PET_CATALOG.themes.find(x => x.id === themeId);
+    let t = window.MY_PET_CATALOG.themes.find(function(x) { return x.id === themeId; });
     if (!t) return;
 
     if (!Array.isArray(lb.myPetData.ownedThemes)) lb.myPetData.ownedThemes = [];
     if (lb.myPetData.ownedThemes.includes(themeId)) {
         lb.myPetData.activeTheme = themeId;
-        if (typeof window.simpanLeaderboardSiswaKeDB === "function") window.simpanLeaderboardSiswaKeDB(uName, lb);
+        if (typeof window.simpanLeaderboardSiswaKeDB === "function") window.simpanLeaderboardSiswaKeDB(cleanKey, lb);
         window.gantiTabMyPet("habitat");
         return;
     }
 
-    let saldo = window.ambilCoinSiswa(uName);
+    let saldo = window.ambilCoinSiswa(cleanKey);
     if (saldo < t.harga) return window.tampilkanCustomDialog("alert", "⚠️ Coin belum cukup untuk membeli tema \"" + t.nama + "\"!", null, null);
-    
+
     window.tampilkanCustomDialog("confirm", "Beli tema habitat \"" + t.nama + "\" seharga " + t.harga.toLocaleString("id-ID") + " Coin?", null, function(isYes) {
         if (!isYes) return;
-        if (window.gunakanCoinSiswa(t.harga, "beli_theme_" + themeId)) {
+        if (window.gunakanCoinSiswa(t.harga, "beli_theme_" + themeId, true)) {
             lb.myPetData.ownedThemes.push(themeId);
             lb.myPetData.activeTheme = themeId;
-            if (typeof window.simpanLeaderboardSiswaKeDB === "function") window.simpanLeaderboardSiswaKeDB(uName, lb);
+            if (typeof window.simpanLeaderboardSiswaKeDB === "function") window.simpanLeaderboardSiswaKeDB(cleanKey, lb);
+            if (typeof window.catatRiwayatAktivitasSiswa === "function") {
+                window.catatRiwayatAktivitasSiswa("pet", "Beli Tema Habitat: " + t.nama, "Harga: -" + t.harga.toLocaleString("id-ID") + " Coin | Sisa Coin: " + (lb.coin || 0).toLocaleString("id-ID"));
+            }
             window.renderTabShopMyPet("themes");
             window.tampilkanCustomDialog("alert", "🖼️ Berhasil membeli tema Habitat! Background telah diubah.", null, null);
         }
@@ -2521,7 +2525,8 @@ window.beliTemaHabitat = function(themeId) {
 
 window.beliPetDiShop = function(petId) {
     let uName = sessionStorage.getItem("username");
-    let lb = window.pastikanStrukturDualXPDanPet(uName);
+    let cleanKey = window.normalisasiKeySiswaPet(uName);
+    let lb = window.pastikanStrukturDualXPDanPet(cleanKey);
     if (!lb) return;
 
     let petData = lb.myPetData;
@@ -2532,7 +2537,7 @@ window.beliPetDiShop = function(petId) {
         return window.tampilkanCustomDialog("alert", "Kamu sudah memiliki " + catPet.spesies + " di habitatmu!", null, null);
     }
 
-    let saldo = window.ambilCoinSiswa(uName);
+    let saldo = window.ambilCoinSiswa(cleanKey);
     if (saldo < catPet.harga) {
         let kurang = (catPet.harga - saldo).toLocaleString("id-ID");
         return window.tampilkanCustomDialog("alert", "⚠️ Coin kamu belum cukup untuk mengadopsi " + catPet.spesies + "!\n\nHarga: " + catPet.harga.toLocaleString("id-ID") + " Coin\nCoin Kamu: " + saldo.toLocaleString("id-ID") + " Coin\n(Kurang " + kurang + " Coin lagi)", null, null);
@@ -2540,28 +2545,37 @@ window.beliPetDiShop = function(petId) {
 
     window.tampilkanCustomDialog("confirm", "Adopsi \"" + catPet.spesies + "\" (" + catPet.rarity + ") seharga " + catPet.harga.toLocaleString("id-ID") + " Coin?\n\n(XP kamu di Leaderboard tidak akan berkurang!)", null, function(isYes) {
         if (!isYes) return;
-        if (window.gunakanCoinSiswa(catPet.harga, "beli_pet_" + petId)) {
+        if (window.gunakanCoinSiswa(catPet.harga, "beli_pet_" + petId, true)) {
+            // Langsung masukkan pet ke habitat & simpan atomic agar pet tidak mungkin hilang meski prompt ditutup
+            petData.ownedPets[petId] = {
+                id: petId,
+                customName: catPet.namaDefault,
+                hunger: 85,
+                mood: 90,
+                bondXp: 0,
+                lastUpdate: Date.now(),
+                lastPetTime: 0,
+                lastPlayTime: 0,
+                outfit: { head: "", eyes: "", neck: "", body: "", costume: "" }
+            };
+            petData.activePetId = petId;
+
+            if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
+                window.simpanLeaderboardSiswaKeDB(cleanKey, lb);
+            }
+            if (typeof window.catatRiwayatAktivitasSiswa === "function") {
+                window.catatRiwayatAktivitasSiswa("pet", "Adopsi Pet: " + catPet.spesies + " (" + catPet.rarity + ")", "Harga: -" + catPet.harga.toLocaleString("id-ID") + " Coin | Sisa Coin: " + (lb.coin || 0).toLocaleString("id-ID"));
+            }
+
             window.tampilkanCustomDialog("prompt", "🎉 Selamat! Berikan nama panggilan untuk " + catPet.spesies + " barumu:", catPet.namaDefault, function(namaCustom) {
-                namaCustom = (namaCustom && namaCustom.trim()) ? namaCustom.trim().slice(0, 16) : catPet.namaDefault;
-
-                petData.ownedPets[petId] = {
-                    id: petId,
-                    customName: namaCustom,
-                    hunger: 85,
-                    mood: 90,
-                    bondXp: 0,
-                    lastUpdate: Date.now(),
-                    lastPetTime: 0,
-                    lastPlayTime: 0,
-                    outfit: { head: "", eyes: "", neck: "", body: "", costume: "" }
-                };
-                petData.activePetId = petId;
-
-                if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
-                    window.simpanLeaderboardSiswaKeDB(uName, lb);
+                if (namaCustom && namaCustom.trim()) {
+                    petData.ownedPets[petId].customName = namaCustom.trim().slice(0, 16);
+                    if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
+                        window.simpanLeaderboardSiswaKeDB(cleanKey, lb);
+                    }
                 }
                 window.gantiTabMyPet("habitat");
-                window.tampilkanToastInteraksiPet("🎉 Selamat datang di Habitat Universal, <b>" + namaCustom + "</b>!");
+                window.tampilkanToastInteraksiPet("🎉 Selamat datang di Habitat Universal, <b>" + petData.ownedPets[petId].customName + "</b>!");
             });
         }
     });
@@ -2569,7 +2583,8 @@ window.beliPetDiShop = function(petId) {
 
 window.beliMainanDiShop = function(toyId) {
     let uName = sessionStorage.getItem("username");
-    let lb = window.pastikanStrukturDualXPDanPet(uName);
+    let cleanKey = window.normalisasiKeySiswaPet(uName);
+    let lb = window.pastikanStrukturDualXPDanPet(cleanKey);
     if (!lb) return;
 
     let item = (window.MY_PET_CATALOG.toys || []).find(function(t) { return t.id === toyId; });
@@ -2582,7 +2597,7 @@ window.beliMainanDiShop = function(toyId) {
         return window.tampilkanCustomDialog("alert", "Kamu sudah memiliki mainan ini!", null, null);
     }
 
-    let saldo = window.ambilCoinSiswa(uName);
+    let saldo = window.ambilCoinSiswa(cleanKey);
     if (saldo < item.harga) {
         let kurang = (item.harga - saldo).toLocaleString("id-ID");
         return window.tampilkanCustomDialog("alert", "⚠️ Coin belum cukup untuk membeli mainan \"" + item.nama + "\"!\n\nHarga: " + item.harga.toLocaleString("id-ID") + " Coin\nCoin Kamu: " + saldo.toLocaleString("id-ID") + " Coin\n(Kurang " + kurang + " Coin lagi)", null, null);
@@ -2590,11 +2605,14 @@ window.beliMainanDiShop = function(toyId) {
 
     window.tampilkanCustomDialog("confirm", "Beli mainan permanen \"" + item.nama + "\" seharga " + item.harga.toLocaleString("id-ID") + " Coin?", null, function(isYes) {
         if (!isYes) return;
-        if (window.gunakanCoinSiswa(item.harga, "beli_toy_" + toyId)) {
+        if (window.gunakanCoinSiswa(item.harga, "beli_toy_" + toyId, true)) {
             lb.myPetData.ownedWardrobe.push(toyId);
             lb.myPetData.ownedToys.push(toyId);
             if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
-                window.simpanLeaderboardSiswaKeDB(uName, lb);
+                window.simpanLeaderboardSiswaKeDB(cleanKey, lb);
+            }
+            if (typeof window.catatRiwayatAktivitasSiswa === "function") {
+                window.catatRiwayatAktivitasSiswa("pet", "Beli Mainan Pet: " + item.nama, "Harga: -" + item.harga.toLocaleString("id-ID") + " Coin | Sisa Coin: " + (lb.coin || 0).toLocaleString("id-ID"));
             }
             window.renderTabShopMyPet("toys");
             window.tampilkanCustomDialog("alert", "🎾 Berhasil membeli \"" + item.nama + "\"! Sekarang kamu bisa menggunakannya lewat tombol Main di Habitat.", null, null);
@@ -2604,36 +2622,40 @@ window.beliMainanDiShop = function(toyId) {
 
 window.beliDekorasiHabitat = function(decId) {
     let uName = sessionStorage.getItem("username");
-    let lb = window.pastikanStrukturDualXPDanPet(uName);
+    let cleanKey = window.normalisasiKeySiswaPet(uName);
+    let lb = window.pastikanStrukturDualXPDanPet(cleanKey);
     if (!lb) return;
 
     let dec = window.MY_PET_CATALOG.decorations.find(function(d) { return d.id === decId; });
     if (!dec) return;
 
-    let saldo = window.ambilCoinSiswa(uName);
+    let saldo = window.ambilCoinSiswa(cleanKey);
     if (saldo < dec.harga) {
         return window.tampilkanCustomDialog("alert", "⚠️ Coin kamu belum cukup untuk membeli " + dec.nama + " (" + dec.harga.toLocaleString("id-ID") + " Coin)!", null, null);
     }
 
     window.tampilkanCustomDialog("confirm", "Beli dekorasi \"" + dec.nama + "\" seharga " + dec.harga.toLocaleString("id-ID") + " Coin?", null, function(isYes) {
         if (!isYes) return;
-        if (window.gunakanCoinSiswa(dec.harga, "beli_decor_" + decId)) {
+        if (window.gunakanCoinSiswa(dec.harga, "beli_decor_" + decId, true)) {
             if (!lb.myPetData.ownedDecorations.includes(decId)) {
                 lb.myPetData.ownedDecorations.push(decId);
             }
-            
+
             let left = "50%", bottom = "20%";
-            if (dec.slot.includes("Kiri")) left = "20%"; 
+            if (dec.slot.includes("Kiri")) left = "20%";
             else if (dec.slot.includes("Kanan")) left = "80%";
             if (dec.slot.includes("Belakang")) bottom = "45%";
-            
-            let isAlreadyActive = lb.myPetData.activeDecorations.some(x => (typeof x === "object" ? x.id : x) === decId);
+
+            let isAlreadyActive = lb.myPetData.activeDecorations.some(function(x) { return (typeof x === "object" ? x.id : x) === decId; });
             if (!isAlreadyActive) {
                 lb.myPetData.activeDecorations.push({ id: decId, left: left, bottom: bottom });
             }
-            
+
             if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
-                window.simpanLeaderboardSiswaKeDB(uName, lb);
+                window.simpanLeaderboardSiswaKeDB(cleanKey, lb);
+            }
+            if (typeof window.catatRiwayatAktivitasSiswa === "function") {
+                window.catatRiwayatAktivitasSiswa("pet", "Beli Dekorasi Habitat: " + dec.nama, "Harga: -" + dec.harga.toLocaleString("id-ID") + " Coin | Sisa Coin: " + (lb.coin || 0).toLocaleString("id-ID"));
             }
             window.renderTabShopMyPet("habitat");
         }
@@ -2642,51 +2664,57 @@ window.beliDekorasiHabitat = function(decId) {
 
 window.togglePasangDekorasiHabitat = function(decId) {
     let uName = sessionStorage.getItem("username");
-    let lb = window.pastikanStrukturDualXPDanPet(uName);
+    let cleanKey = window.normalisasiKeySiswaPet(uName);
+    let lb = window.pastikanStrukturDualXPDanPet(cleanKey);
     if (!lb) return;
 
     let act = lb.myPetData.activeDecorations || [];
     let idx = act.findIndex(function(x) { return (typeof x === "object" ? x.id : x) === decId; });
-    
+
     if (idx !== -1) {
         act.splice(idx, 1);
     } else {
-        let dCfg = window.MY_PET_CATALOG.decorations.find(x => x.id === decId);
+        let dCfg = window.MY_PET_CATALOG.decorations.find(function(x) { return x.id === decId; });
         let left = "50%", bottom = "20%";
         if (dCfg && dCfg.slot) {
-            if (dCfg.slot.includes("Kiri")) left = "20%"; 
+            if (dCfg.slot.includes("Kiri")) left = "20%";
             else if (dCfg.slot.includes("Kanan")) left = "80%";
             if (dCfg.slot.includes("Belakang")) bottom = "45%";
         }
         act.push({ id: decId, left: left, bottom: bottom });
     }
-    
+
     lb.myPetData.activeDecorations = act;
     if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
-        window.simpanLeaderboardSiswaKeDB(uName, lb);
+        window.simpanLeaderboardSiswaKeDB(cleanKey, lb);
     }
     window.renderTabShopMyPet("habitat");
 };
 
 window.beliMakananPetDiShop = function(foodId) {
     let uName = sessionStorage.getItem("username");
-    let lb = window.pastikanStrukturDualXPDanPet(uName);
+    let cleanKey = window.normalisasiKeySiswaPet(uName);
+    let lb = window.pastikanStrukturDualXPDanPet(cleanKey);
     if (!lb) return;
 
-    let semuaMakanan = [...window.MY_PET_CATALOG.foods, ...window.MY_PET_CATALOG.snacks];
+    let semuaMakanan = [].concat(window.MY_PET_CATALOG.foods, window.MY_PET_CATALOG.snacks);
     let item = semuaMakanan.find(function(f) { return f.id === foodId; });
     if (!item) return;
 
-    let saldo = window.ambilCoinSiswa(uName);
+    let saldo = window.ambilCoinSiswa(cleanKey);
     if (saldo < item.harga) {
         return window.tampilkanCustomDialog("alert", "⚠️ Coin kamu belum cukup untuk membeli " + item.nama + " (" + item.harga + " Coin)!", null, null);
     }
 
-    if (window.gunakanCoinSiswa(item.harga, "beli_food_" + foodId)) {
+    if (window.gunakanCoinSiswa(item.harga, "beli_food_" + foodId, true)) {
         if (!lb.myPetData.foodInventory) lb.myPetData.foodInventory = {};
         lb.myPetData.foodInventory[foodId] = (Number(lb.myPetData.foodInventory[foodId]) || 0) + 1;
         if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
-            window.simpanLeaderboardSiswaKeDB(uName, lb);
+            window.simpanLeaderboardSiswaKeDB(cleanKey, lb);
+        }
+        if (typeof window.catatRiwayatAktivitasSiswa === "function") {
+            let labelJenis = item.tipe === "snack" ? "Beli Camilan Pet: " : "Beli Makanan Pet: ";
+            window.catatRiwayatAktivitasSiswa("pet", labelJenis + item.nama, "Harga: -" + item.harga.toLocaleString("id-ID") + " Coin | Sisa Coin: " + (lb.coin || 0).toLocaleString("id-ID"));
         }
         window.renderTabShopMyPet("foods");
     }
@@ -2694,7 +2722,8 @@ window.beliMakananPetDiShop = function(foodId) {
 
 window.beliItemWardrobeDiShop = function(itemId) {
     let uName = sessionStorage.getItem("username");
-    let lb = window.pastikanStrukturDualXPDanPet(uName);
+    let cleanKey = window.normalisasiKeySiswaPet(uName);
+    let lb = window.pastikanStrukturDualXPDanPet(cleanKey);
     if (!lb) return;
 
     let item = window.MY_PET_CATALOG.wardrobe.find(function(w) { return w.id === itemId; });
@@ -2705,7 +2734,7 @@ window.beliItemWardrobeDiShop = function(itemId) {
         return;
     }
 
-    let saldo = window.ambilCoinSiswa(uName);
+    let saldo = window.ambilCoinSiswa(cleanKey);
     if (saldo < item.harga) {
         let kurang = (item.harga - saldo).toLocaleString("id-ID");
         return window.tampilkanCustomDialog("alert", "⚠️ Coin belum cukup untuk membeli \"" + item.nama + "\"!\n\nHarga: " + item.harga.toLocaleString("id-ID") + " Coin\nCoin Kamu: " + saldo.toLocaleString("id-ID") + " Coin\n(Kurang " + kurang + " Coin lagi)", null, null);
@@ -2713,13 +2742,15 @@ window.beliItemWardrobeDiShop = function(itemId) {
 
     window.tampilkanCustomDialog("confirm", "Beli \"" + item.nama + "\" seharga " + item.harga.toLocaleString("id-ID") + " Coin?\n\nItem ini akan tersimpan permanen di Wardrobe!", null, function(isYes) {
         if (!isYes) return;
-        if (window.gunakanCoinSiswa(item.harga, "beli_wardrobe_" + itemId)) {
+        if (window.gunakanCoinSiswa(item.harga, "beli_wardrobe_" + itemId, true)) {
             lb.myPetData.ownedWardrobe.push(itemId);
             if (lb.myPetData.activePetId && lb.myPetData.ownedPets[lb.myPetData.activePetId]) {
                 window.pakaiLepasItemWardrobe(itemId, true);
+            } else if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
+                window.simpanLeaderboardSiswaKeDB(cleanKey, lb);
             }
-            if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
-                window.simpanLeaderboardSiswaKeDB(uName, lb);
+            if (typeof window.catatRiwayatAktivitasSiswa === "function") {
+                window.catatRiwayatAktivitasSiswa("pet", "Beli Wardrobe Pet: " + item.nama, "Harga: -" + item.harga.toLocaleString("id-ID") + " Coin | Sisa Coin: " + (lb.coin || 0).toLocaleString("id-ID"));
             }
             window.renderTabShopMyPet("wardrobe");
             window.tampilkanCustomDialog("alert", "👗 Berhasil membeli \"" + item.nama + "\"! Item telah masuk ke Wardrobe.", null, null);

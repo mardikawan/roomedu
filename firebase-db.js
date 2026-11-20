@@ -331,7 +331,11 @@ window.tulisDataRestFirebase = async function(path, payload, method, onSuccess, 
             body: JSON.stringify(payload)
         });
         if (res.ok) {
-            try { sessionStorage.removeItem("rest_ttl_" + cleanPath); } catch (e) {}
+            if (typeof window.hapusCachePathDB === "function") {
+                window.hapusCachePathDB(cleanPath);
+            } else {
+                try { sessionStorage.removeItem("rest_ttl_" + cleanPath); } catch (e) {}
+            }
             if (onSuccess) onSuccess();
             return;
         }
@@ -1374,6 +1378,17 @@ window.simpanLeaderboardSiswaKeDB = function(usernameKey, dataObj) {
         }
 
         let merged = Object.assign({}, existingServerObj || {}, cleanIncoming);
+
+        // Proteksi Anti-Hilang: Gabungkan daftar ownedBorders lama & baru agar border tidak pernah hilang
+        let srvBorders = (existingServerObj && existingServerObj.ownedBorders)
+            ? (Array.isArray(existingServerObj.ownedBorders) ? existingServerObj.ownedBorders : Object.values(existingServerObj.ownedBorders))
+            : [];
+        let incBorders = (cleanIncoming && cleanIncoming.ownedBorders)
+            ? (Array.isArray(cleanIncoming.ownedBorders) ? cleanIncoming.ownedBorders : Object.values(cleanIncoming.ownedBorders))
+            : [];
+        if (srvBorders.length > 0 || incBorders.length > 0) {
+            merged.ownedBorders = Array.from(new Set(srvBorders.concat(incBorders).filter(Boolean)));
+        }
 
         merged.xpTotal = Math.max(srvXP, locXP);
         merged.xp = merged.xpTotal;

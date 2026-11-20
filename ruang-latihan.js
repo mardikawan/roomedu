@@ -707,6 +707,12 @@ window.tampilkanModalHasilAkhirLatihan = function() {
         let nilaiAkhir = Math.round((window.sesiLatihanSiswa.skorTotal / total) * 100);
         let jmlSalah = total - window.sesiLatihanSiswa.skorTotal;
 
+        if (sessionStorage.getItem("statusLogin") === "siswa" && typeof window.catatRiwayatAktivitasSiswa === "function") {
+            let namaPaketLat = "Latihan: " + (window.sesiLatihanSiswa.bab || "Materi") + " (" + (window.sesiLatihanSiswa.mapel || "") + " - " + (window.sesiLatihanSiswa.kesulitan || "C1") + ")";
+            let detailLat = "Jumlah: " + total + " Soal | Benar: " + window.sesiLatihanSiswa.skorTotal + " | Salah: " + jmlSalah + " | Skor: " + nilaiAkhir;
+            window.catatRiwayatAktivitasSiswa("soal", namaPaketLat, detailLat);
+        }
+
         // Jika belum diberikan per soal, berikan sekaligus di akhir
         if (sessionStorage.getItem("statusLogin") === "siswa" && !window.sesiLatihanSiswa._xpPerSoalAktif) {
             let rincianBenar = window.sesiLatihanSiswa.soal.map(function(q, i) {
