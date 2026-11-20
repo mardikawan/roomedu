@@ -1310,6 +1310,7 @@
                         <select id="admin-select-kelas" class="input-box" style="width:200px; margin:0; padding:6px; font-weight:bold;" onchange="window.pilihKelasAdmin(this.value)"></select>
                         <button class="btn-action" style="background:#e67e22; width:auto; padding:6px 12px; font-size:12px; border-radius:6px; display:flex; align-items:center; gap:6px;" onclick="window.bukaCatatanKelas()">📝 Catatan Kelas</button>
                         <button class="btn-action" style="background:#16a085; width:auto; padding:6px 12px; font-size:12px; border-radius:6px; display:flex; align-items:center; gap:6px;" onclick="window.bukaModal('modal-rekap-nilai')">📊 Rekap Nilai</button>
+                        <button type="button" class="btn-action" style="background:#8e44ad; width:auto; padding:6px 12px; font-size:12px; border-radius:6px; display:flex; align-items:center; gap:6px;" onclick="window.bukaModalJadwalGuru()" title="Buka Kalender Pengingat, Jadwal Pelajaran, & Rencana Pembelajaran">📅 Jadwal</button>
                     </div>
                     <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
                         <div style="font-size:12px; color:#7f8c8d; font-weight:bold;">
@@ -1358,7 +1359,10 @@
                     
                     <div id="tab-agenda" class="admin-tab-content" style="display:none;">
                         <div style="display:flex; justify-content:space-between; align-items:center; background:white; padding:10px 15px; border-radius:8px; border:1px solid #e1e8ed; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
-                            <h4 style="margin:0; color:#2c3e50;">📅 Jurnal & Agenda Mengajar Kelas: <span id="label-agenda-kelas" style="color:#2980b9;">Belum Dipilih</span></h4>
+                            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                                <h4 style="margin:0; color:#2c3e50;">📅 Jurnal & Agenda Mengajar Kelas: <span id="label-agenda-kelas" style="color:#2980b9;">Belum Dipilih</span></h4>
+                                <span id="status-edit-agenda-inline" style="font-size:11px; color:#64748b; font-weight:700;">💡 Klik langsung sel tabel di bawah untuk mengedit</span>
+                            </div>
                             <button class="btn-action" style="background:#16a085; width:auto; padding:6px 15px; font-size:12px;" onclick="exportExcelAgenda()">📥 Export Excel Agenda</button>
                         </div>
                         
@@ -1621,9 +1625,10 @@
             <div class="modal-header" style="background:#141414; border-bottom:1px solid #2e2e2e; padding:12px 20px;">
                 <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
                     <h3 style="margin:0; color:#ffffff; font-size:16px;">📅 Jadwal Sekolah & Kalender Pengingat</h3>
-                    <div style="display:flex; gap:6px; background:#2b2b2b; padding:3px; border-radius:8px;">
-                        <button type="button" id="btn-tab-jadwal-kalender" onclick="window.gantiTabJadwalGuru('kalender')" style="background:#e67e22; color:white; border:none; padding:6px 14px; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer;">🗓️ Kalender Pengingat</button>
-                        <button type="button" id="btn-tab-jadwal-excel" onclick="window.gantiTabJadwalGuru('excel')" style="background:transparent; color:#cbd5e1; border:none; padding:6px 14px; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer;">📊 Jadwal Sekolah (Excel)</button>
+                    <div style="display:flex; gap:6px; background:#2b2b2b; padding:3px; border-radius:8px; flex-wrap:wrap;">
+                        <button type="button" id="btn-tab-jadwal-kalender" onclick="window.gantiTabJadwalGuru('kalender')" style="background:#e67e22; color:white; border:none; padding:6px 12px; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer;">🗓️ Kalender</button>
+                        <button type="button" id="btn-tab-jadwal-excel" onclick="window.gantiTabJadwalGuru('excel')" style="background:transparent; color:#cbd5e1; border:none; padding:6px 12px; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer;">📅 Jadwal Pelajaran</button>
+                        <button type="button" id="btn-tab-jadwal-rencana" onclick="window.gantiTabJadwalGuru('rencana')" style="background:transparent; color:#cbd5e1; border:none; padding:6px 12px; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer;">📋 Rencana Pembelajaran</button>
                     </div>
                 </div>
                 <button class="close-btn" style="color:#fff;" onclick="tutupModal('modal-jadwal-guru')">✕</button>
@@ -1631,12 +1636,24 @@
             <div class="modal-body" style="padding:0; flex:1; overflow:hidden; display:flex; flex-direction:column;">
                 <!-- TAB 1: KALENDER GAYA DARK MACOS -->
                 <div id="view-jadwal-kalender" style="display:flex; flex-direction:column; flex:1; overflow:hidden; background:#1c1c1e;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; padding:14px 20px; border-bottom:1px solid #2c2c2e;">
-                        <div id="kalender-title-bulan" style="font-size:26px; font-weight:800; color:#ffffff; letter-spacing:-0.5px;">November <span style="font-weight:300; color:#a1a1aa;">2026</span></div>
-                        <div style="display:flex; align-items:center; gap:6px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 20px; border-bottom:1px solid #2c2c2e; flex-wrap:wrap; gap:10px;">
+                        <div id="kalender-title-bulan" style="font-size:24px; font-weight:800; color:#ffffff; letter-spacing:-0.5px;">November <span style="font-weight:300; color:#a1a1aa;">2026</span></div>
+                        <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                            <button type="button" class="cal-nav-btn" style="background:#7c2d12; border-color:#f97316; color:#fed7aa; font-size:11.5px; padding:5px 12px;" onclick="window.togglePanelImportLiburAcara()">📥 Input Libur / Acara</button>
                             <button type="button" class="cal-nav-btn" onclick="window.geserBulanKalenderGuru(-1)">‹</button>
                             <button type="button" class="cal-nav-btn cal-today-btn" onclick="window.resetBulanKalenderHariIni()">Today</button>
                             <button type="button" class="cal-nav-btn" onclick="window.geserBulanKalenderGuru(1)">›</button>
+                        </div>
+                    </div>
+                    <div id="panel-import-libur-acara" class="cal-import-panel" style="display:none;">
+                        <div style="font-size:12px; font-weight:700; color:#fde047; margin-bottom:6px;">📥 Masukkan Daftar Hari Libur / Acara Sekolah (1 baris = 1 agenda):</div>
+                        <textarea id="input-batch-libur-acara" rows="4" class="input-box" style="margin:0 0 8px 0; background:#141416; color:#f8fafc; border:1px solid #3f3f46; font-family:monospace; font-size:12px;" placeholder="Contoh format:&#10;10 Oktober 2026: Libur/Kemerdekaan Indonesia&#10;18 November 2026: Acara/Kathina&#10;25-26 Desember 2026: Libur/Hari Raya Natal"></textarea>
+                        <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;">
+                            <span style="font-size:11px; color:#a1a1aa;">Format <b>Libur/Nama</b> (merah) &amp; <b>Acara/Nama</b> (ungu) otomatis memengaruhi tanggal di Rencana Pembelajaran.</span>
+                            <div style="display:flex; gap:6px;">
+                                <button type="button" class="cal-nav-btn" onclick="window.togglePanelImportLiburAcara(false)">Batal</button>
+                                <button type="button" class="cal-nav-btn" style="background:#16a34a; border-color:#22c55e; color:#ffffff;" onclick="window.prosesImportBatchLiburAcara()">✅ Simpan ke Kalender</button>
+                            </div>
                         </div>
                     </div>
                     <div class="cal-weekdays-row">
@@ -1645,21 +1662,82 @@
                     <div id="kalender-grid-days" class="cal-days-grid"></div>
                 </div>
 
-                <!-- TAB 2: JADWAL SEKOLAH (PASTE / IMPORT EXCEL) -->
-                <div id="view-jadwal-excel" style="display:none; flex-direction:column; flex:1; overflow:hidden; background:#ffffff; color:#1e293b; padding:16px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:10px;">
-                        <div>
-                            <h4 style="margin:0; color:#0b3954;">📊 Tabel Jadwal Mengajar Sekolah</h4>
-                            <span style="font-size:11px; color:#64748b;">💡 Anda bisa langsung <b>Copy-Paste</b> tabel dari Microsoft Excel ke area di bawah ini, atau mengunggah file CSV/Excel.</span>
-                        </div>
-                        <div style="display:flex; gap:8px; align-items:center;">
-                            <input type="file" id="input-file-jadwal-excel" accept=".csv,.txt" style="display:none;" onchange="window.importFileJadwalCSV(this)">
-                            <button type="button" class="btn-action" style="background:#2980b9; width:auto; padding:6px 12px; font-size:12px;" onclick="document.getElementById('input-file-jadwal-excel').click()">📥 Upload CSV/Excel</button>
-                            <button type="button" class="btn-action" style="background:#8e44ad; width:auto; padding:6px 12px; font-size:12px;" onclick="window.resetTabelJadwalDefault()">🔄 Buat Tabel Baru</button>
-                            <button type="button" class="btn-action" style="background:#27ae60; width:auto; padding:6px 14px; font-size:12px;" onclick="window.simpanJadwalSekolahExcel()">💾 Simpan Jadwal</button>
+                <!-- TAB 2: JADWAL PELAJARAN FULL-FIT (FOTO / PDF / PASTE SCREENSHOT PER JENJANG) -->
+                <div id="view-jadwal-excel" class="jadwal-media-view" style="display:none; flex-direction:column; flex:1; overflow:hidden; background:#0f172a; color:#f1f5f9;">
+                    <div class="jadwal-media-topbar">
+                        <div id="jadwal-sheet-tabs" class="jadwal-sheet-tabs"></div>
+
+                        <div class="jadwal-media-actions">
+                            <input type="file" id="input-file-jadwal-media" accept="image/*,.pdf" style="display:none;" onchange="window.uploadFileJadwalMedia(this)">
+                            <button type="button" id="btn-upload-jadwal-media" class="jadwal-act-btn primary" onclick="document.getElementById('input-file-jadwal-media').click()" title="Upload Foto atau PDF Jadwal (Bisa juga Paste Cmd/Ctrl+V)">📷 Upload Foto / PDF</button>
+                            <button type="button" id="btn-hapus-jadwal-media" class="jadwal-act-btn danger" style="display:none;" onclick="window.hapusMediaJadwalAktif()" title="Hapus Gambar Jadwal di Tab Ini">🗑️</button>
+
+                            <span class="jadwal-bar-sep"></span>
+
+                            <div class="jadwal-zoom-group">
+                                <button type="button" class="jadwal-zoom-btn" onclick="window.aturZoomJadwalStep(-0.35)" title="Perkecil">−</button>
+                                <button type="button" id="lbl-zoom-jadwal" class="jadwal-zoom-fit" onclick="window.resetZoomJadwal()" title="Kembali Full Layar (Fit)">Fit</button>
+                                <button type="button" class="jadwal-zoom-btn" onclick="window.aturZoomJadwalStep(0.35)" title="Perbesar">+</button>
+                            </div>
+
+                            <button type="button" id="btn-fullscreen-jadwal" class="jadwal-act-btn neutral" onclick="window.toggleFullscreenModalJadwal()" title="Perluas Modal Jadi Layar Penuh">⛶</button>
                         </div>
                     </div>
-                    <div id="editor-jadwal-excel" contenteditable="true" oninput="window.simpanJadwalSekolahDelay()" style="flex:1; overflow:auto; border:1px solid #cbd5e1; border-radius:8px; padding:15px; background:#f8fafc; outline:none;"></div>
+
+                    <div id="jadwal-upload-status" class="jadwal-upload-status" style="display:none;"></div>
+
+                    <!-- Area Tampil Jadwal Full 1 Layar (Tanpa Scroll, Zoom On Demand) -->
+                    <div id="jadwal-viewer-stage" class="jadwal-viewer-stage">
+                        <div id="jadwal-empty-state" class="jadwal-empty-state">
+                            <div style="font-size:44px; margin-bottom:8px;">📅</div>
+                            <div id="jadwal-empty-title" style="font-size:15px; font-weight:800; color:#f8fafc; margin-bottom:6px;">Belum Ada Jadwal di Tab Ini</div>
+                            <div style="font-size:12px; color:#94a3b8; max-width:360px; line-height:1.5; margin-bottom:14px;">
+                                Unggah <b>Foto (PNG/JPG)</b>, file <b>PDF</b>, atau langsung tekan <b>Cmd+V / Ctrl+V</b> untuk menempel screenshot jadwal. Tampilan otomatis <b>Full 1 Layar</b> tanpa geser-geser.
+                            </div>
+                            <button type="button" class="jadwal-act-btn primary" style="padding:9px 18px; font-size:12.5px;" onclick="document.getElementById('input-file-jadwal-media').click()">📷 Pilih Foto / PDF Jadwal</button>
+                        </div>
+                        <img id="jadwal-viewer-img" class="jadwal-viewer-img" src="" alt="Jadwal Pelajaran" style="display:none;" draggable="false">
+                    </div>
+                </div>
+
+                <!-- TAB 3: RENCANA PEMBELAJARAN TERINTEGRASI (AGENDA + JADWAL + LIBUR/ACARA) -->
+                <div id="view-jadwal-rencana" style="display:none; flex-direction:column; flex:1; overflow:hidden; background:#f8fafc; color:#1e293b;">
+                    <div class="rencana-topbar">
+                        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                            <strong style="font-size:14px; color:#0b3954;">📋 Rencana Pembelajaran Berikutnya</strong>
+                            <label class="rencana-skip-toggle" title="Jika dicentang, tanggal bertanda Acara/... juga dilewati saat menghitung pertemuan berikutnya">
+                                <input type="checkbox" id="chk-rencana-skip-acara" checked onchange="window.ubahOpsiSkipAcaraRencana(this.checked)">
+                                <span>Lewati Hari Acara</span>
+                            </label>
+                            <span id="status-sync-rencana" style="font-size:11px; color:#16a085; font-weight:700;"></span>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                            <button type="button" class="jadwal-act-btn neutral" style="background:#0b3954;" onclick="window.toggleEditorJadwalSaya()">⚙️ Atur Jadwal Saya</button>
+                            <button type="button" class="jadwal-act-btn primary" onclick="window.sinkronkanDanRenderRencana(true)">🔄 Sinkron Agenda</button>
+                        </div>
+                    </div>
+
+                    <!-- Panel Pengaturan Pola Jadwal Mingguan per Kelas -->
+                    <div id="panel-editor-jadwal-saya" class="rencana-schedule-editor" style="display:none;"></div>
+
+                    <!-- Tabel Utama Rencana Pembelajaran Semua Kelas -->
+                    <div style="flex:1; overflow:auto; padding:12px;">
+                        <div style="overflow-x:auto; background:#ffffff; border:1px solid #cbd5e1; border-radius:10px;">
+                            <table class="excel-table rencana-table" style="width:100%; min-width:860px;">
+                                <thead>
+                                    <tr>
+                                        <th style="width:125px; background:#0b3954;">Kelas</th>
+                                        <th style="width:165px; background:#0b3954;">Jadwal Berikutnya</th>
+                                        <th style="width:72px; text-align:center; background:#0b3954;">Total JP</th>
+                                        <th style="min-width:210px; background:#0b3954;">Rencana Berikutnya (dari Agenda)</th>
+                                        <th style="min-width:200px; background:#0b3954;">Hal yang Harus Dipersiapkan</th>
+                                        <th style="min-width:170px; background:#0b3954;">Keterangan</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-rencana-pembelajaran"></tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

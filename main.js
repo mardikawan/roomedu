@@ -2673,7 +2673,22 @@ window.startResizeFB = function(e, i) {
 /* =========================================================================
    FUNGSI KONTROL MODAL & PENGUNCI SCROLL BACKGROUND (HP & LAPTOP)
    ========================================================================= */
-window.topModalZIndex = 5100;
+window.topModalZIndex = 9700;
+
+window.angkatKeLapisanTeratas = function(el) {
+    if (!el) return;
+    let maxZ = window.topModalZIndex || 9700;
+    document.querySelectorAll('.modal-overlay, .floating-cg').forEach(function(item) {
+        if (item.id === 'modal-custom-dialog') return;
+        let disp = window.getComputedStyle(item).display;
+        if (disp !== 'none') {
+            let z = parseInt(window.getComputedStyle(item).zIndex, 10);
+            if (!isNaN(z) && z < 999900 && z > maxZ) maxZ = z;
+        }
+    });
+    window.topModalZIndex = maxZ + 10;
+    el.style.zIndex = window.topModalZIndex;
+};
 window._openModalStack = [];
 window._lastModalOpenTime = 0;
 window._savedScrollContainersOverflow = null;
@@ -2777,8 +2792,7 @@ window.bukaModal = function(id) {
 
     let sudahTerbuka = (el.style.display === 'flex');
     window._lastModalOpenTime = Date.now();
-    window.topModalZIndex += 10;
-    el.style.zIndex = window.topModalZIndex;
+    window.angkatKeLapisanTeratas(el);
     el.style.display = 'flex';
 
     if (typeof window.closeDropdowns === 'function') {
@@ -6247,7 +6261,11 @@ window.adminCatatanGuruData = window.adminCatatanGuruData || [{ id: 'sheet_1', n
 window.cgActiveIndex = 0;
 
 window.bukaCatatanGuru = function() {
-    document.getElementById('modal-catatan-guru').style.display = 'flex';
+    let el = document.getElementById('modal-catatan-guru');
+    if (el) {
+        el.style.display = 'flex';
+        window.angkatKeLapisanTeratas(el);
+    }
     window.renderSheetsCG();
     window.muatKontenSheetAktifCG();
 };
@@ -6405,7 +6423,11 @@ window.bukaCatatanKelas = function() {
     }
     
     window.ckActiveIndex = 0;
-    document.getElementById('modal-catatan-kelas').style.display = 'flex';
+    let elCK = document.getElementById('modal-catatan-kelas');
+    if (elCK) {
+        elCK.style.display = 'flex';
+        window.angkatKeLapisanTeratas(elCK);
+    }
     window.renderSheetsCK();
     window.muatKontenSheetAktifCK();
 };
@@ -6511,21 +6533,31 @@ window.bukaModalJadwalGuru = function() {
 window.gantiTabJadwalGuru = function(tabName) {
     let btnKal = document.getElementById('btn-tab-jadwal-kalender');
     let btnExc = document.getElementById('btn-tab-jadwal-excel');
+    let btnRen = document.getElementById('btn-tab-jadwal-rencana');
     let viewKal = document.getElementById('view-jadwal-kalender');
     let viewExc = document.getElementById('view-jadwal-excel');
+    let viewRen = document.getElementById('view-jadwal-rencana');
+
+    let setTabBtn = function(btn, active) {
+        if (!btn) return;
+        btn.style.background = active ? '#e67e22' : 'transparent';
+        btn.style.color = active ? '#ffffff' : '#cbd5e1';
+    };
+
+    setTabBtn(btnKal, tabName === 'kalender');
+    setTabBtn(btnExc, tabName === 'excel');
+    setTabBtn(btnRen, tabName === 'rencana');
+
+    if (viewKal) viewKal.style.display = (tabName === 'kalender') ? 'flex' : 'none';
+    if (viewExc) viewExc.style.display = (tabName === 'excel') ? 'flex' : 'none';
+    if (viewRen) viewRen.style.display = (tabName === 'rencana') ? 'flex' : 'none';
 
     if (tabName === 'kalender') {
-        if (btnKal) { btnKal.style.background = '#e67e22'; btnKal.style.color = 'white'; }
-        if (btnExc) { btnExc.style.background = 'transparent'; btnExc.style.color = '#cbd5e1'; }
-        if (viewKal) viewKal.style.display = 'flex';
-        if (viewExc) viewExc.style.display = 'none';
         window.renderKalenderGuru();
-    } else {
-        if (btnExc) { btnExc.style.background = '#e67e22'; btnExc.style.color = 'white'; }
-        if (btnKal) { btnKal.style.background = 'transparent'; btnKal.style.color = '#cbd5e1'; }
-        if (viewKal) viewKal.style.display = 'none';
-        if (viewExc) viewExc.style.display = 'flex';
+    } else if (tabName === 'excel') {
         window.muatTabelJadwalExcel();
+    } else if (tabName === 'rencana') {
+        window.sinkronkanDanRenderRencana(false);
     }
 };
 
@@ -6546,6 +6578,15 @@ window.resetBulanKalenderHariIni = function() {
     window.calCurrentYear = now.getFullYear();
     window.calCurrentMonth = now.getMonth();
     window.renderKalenderGuru();
+};
+
+window.deteksiKategoriAgendaKalender = function(ev) {
+    if (!ev) return 'agenda';
+    if (ev.kategori === 'libur' || ev.kategori === 'acara') return ev.kategori;
+    let t = String(ev.title || '').trim().toLowerCase();
+    if (t.indexOf('libur/') === 0 || t.indexOf('libur:') === 0) return 'libur';
+    if (t.indexOf('acara/') === 0 || t.indexOf('acara:') === 0) return 'acara';
+    return 'agenda';
 };
 
 window.renderKalenderGuru = function() {
@@ -6569,13 +6610,11 @@ window.renderKalenderGuru = function() {
 
     let html = '';
 
-    // Hari dari bulan sebelumnya
     for (let i = firstDay - 1; i >= 0; i--) {
         let dNum = prevMonthDays - i;
-        html += `<div class="cal-day-cell other-month"><div class="cal-day-num">${dNum}</div></div>`;
+        html += '<div class="cal-day-cell other-month"><div class="cal-day-num">' + dNum + '</div></div>';
     }
 
-    // Hari di bulan aktif
     for (let d = 1; d <= daysInMonth; d++) {
         let dateKey = window.calCurrentYear + '-' + String(window.calCurrentMonth + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
         let isToday = (dateKey === todayKey) ? ' is-today' : '';
@@ -6583,27 +6622,163 @@ window.renderKalenderGuru = function() {
 
         let pillsHtml = '';
         dayEvents.forEach(function(ev, idx) {
-            let safeTitle = (ev.title || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-            pillsHtml += `<div class="cal-event-pill" onclick="event.stopPropagation(); window.hapusAgendaKalenderGuru('${dateKey}', ${idx})" title="${safeTitle} (Klik untuk menghapus)">
-                            <span style="overflow:hidden; text-overflow:ellipsis;">${ev.jam ? ev.jam + ' ' : ''}${safeTitle}</span>
-                            <span style="font-size:9px; opacity:0.8;">✕</span>
-                          </div>`;
+            let kat = window.deteksiKategoriAgendaKalender(ev);
+            let katClass = kat === 'libur' ? ' is-libur' : (kat === 'acara' ? ' is-acara' : '');
+            let prefix = kat === 'libur' ? '🔴 ' : (kat === 'acara' ? '🎭 ' : '');
+            let cleanTitle = String(ev.title || '').replace(/^(?:libur|acara)\s*[\/:]\s*/i, '').trim() || String(ev.title || '');
+            let safeTitle = cleanTitle.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            let jamStr = ev.jam ? (ev.jam + ' ') : '';
+
+            pillsHtml += '<div class="cal-event-pill' + katClass + '" onclick="event.stopPropagation(); window.hapusAgendaKalenderGuru(\'' + dateKey + '\', ' + idx + ')" title="' + prefix + safeTitle + ' (Klik untuk menghapus)">' +
+                            '<span style="overflow:hidden; text-overflow:ellipsis;">' + prefix + jamStr + safeTitle + '</span>' +
+                            '<span style="font-size:9px; opacity:0.8;">✕</span>' +
+                         '</div>';
         });
 
-        html += `<div class="cal-day-cell${isToday}" onclick="window.klikTanggalKalenderGuru('${dateKey}')">
-                    <div class="cal-day-num">${d}</div>
-                    ${pillsHtml}
-                 </div>`;
+        html += '<div class="cal-day-cell' + isToday + '" onclick="window.klikTanggalKalenderGuru(\'' + dateKey + '\')">' +
+                    '<div class="cal-day-num">' + d + '</div>' +
+                    pillsHtml +
+                '</div>';
     }
 
-    // Hari pelengkap ke bulan berikutnya agar genap 42 sel (6 baris)
     let totalCells = firstDay + daysInMonth;
     let remaining = (7 - (totalCells % 7)) % 7;
     for (let j = 1; j <= remaining; j++) {
-        html += `<div class="cal-day-cell other-month"><div class="cal-day-num">${j}</div></div>`;
+        html += '<div class="cal-day-cell other-month"><div class="cal-day-num">' + j + '</div></div>';
     }
 
     grid.innerHTML = html;
+};
+
+window.togglePanelImportLiburAcara = function(forceOpen) {
+    let p = document.getElementById('panel-import-libur-acara');
+    if (!p) return;
+    let buka = (typeof forceOpen === 'boolean') ? forceOpen : (p.style.display === 'none');
+    p.style.display = buka ? 'block' : 'none';
+    if (buka) {
+        let ta = document.getElementById('input-batch-libur-acara');
+        if (ta) setTimeout(function() { ta.focus(); }, 60);
+    }
+};
+
+window.parseBulanIndonesiaKeAngka = function(namaBulan) {
+    let s = String(namaBulan || '').trim().toLowerCase();
+    let peta = {
+        januari: 1, jan: 1,
+        februari: 2, feb: 2, pebruari: 2, peb: 2,
+        maret: 3, mar: 3,
+        april: 4, apr: 4,
+        mei: 5, may: 5,
+        juni: 6, jun: 6,
+        juli: 7, jul: 7,
+        agustus: 8, agu: 8, ags: 8, agust: 8, aug: 8,
+        september: 9, sep: 9, sept: 9,
+        oktober: 10, okt: 10, oct: 10,
+        november: 11, nov: 11, nop: 11, nopember: 11,
+        desember: 12, des: 12, dec: 12
+    };
+    return peta[s] || 0;
+};
+
+window.prosesImportBatchLiburAcara = function() {
+    let ta = document.getElementById('input-batch-libur-acara');
+    if (!ta) return;
+    let raw = ta.value.trim();
+    if (!raw) return alert('Masukkan minimal 1 baris daftar hari libur atau acara terlebih dahulu.');
+
+    if (!window.adminJadwalKalenderData) window.adminJadwalKalenderData = { excelHtml: "", events: {} };
+    if (!window.adminJadwalKalenderData.events) window.adminJadwalKalenderData.events = {};
+
+    let lines = raw.split(/\r?\n/).map(function(l) { return l.trim(); }).filter(Boolean);
+    let berhasil = 0;
+    let gagalBaris = [];
+
+    lines.forEach(function(line) {
+        let colonIdx = line.indexOf(':');
+        if (colonIdx === -1) {
+            gagalBaris.push(line);
+            return;
+        }
+        let datePart = line.slice(0, colonIdx).trim();
+        let descPart = line.slice(colonIdx + 1).trim();
+        if (!datePart || !descPart) {
+            gagalBaris.push(line);
+            return;
+        }
+
+        // Deteksi kategori Libur/... atau Acara/...
+        let kategori = 'agenda';
+        let judul = descPart;
+        let mKat = descPart.match(/^(libur|acara)\s*\/\s*(.+)/i);
+        if (mKat) {
+            kategori = mKat[1].toLowerCase();
+            judul = mKat[2].trim();
+        }
+
+        // Parse format "10 Oktober 2026" atau rentang "13-14 November 2026" atau "2026-10-10"
+        let daftarDateKey = [];
+        let mIso = datePart.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+        let mIndo = datePart.match(/^(\d{1,2})(?:\s*[-–]\s*(\d{1,2}))?\s+([a-zA-Z]+)\s+(\d{4})/);
+
+        if (mIso) {
+            let y = parseInt(mIso[1], 10);
+            let m = parseInt(mIso[2], 10);
+            let d = parseInt(mIso[3], 10);
+            daftarDateKey.push(y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0'));
+        } else if (mIndo) {
+            let dStart = parseInt(mIndo[1], 10);
+            let dEnd = mIndo[2] ? parseInt(mIndo[2], 10) : dStart;
+            let mNum = window.parseBulanIndonesiaKeAngka(mIndo[3]);
+            let yNum = parseInt(mIndo[4], 10);
+            if (!mNum || dStart < 1 || dStart > 31) {
+                gagalBaris.push(line);
+                return;
+            }
+            let minD = Math.min(dStart, dEnd);
+            let maxD = Math.min(31, Math.max(dStart, dEnd));
+            for (let d = minD; d <= maxD; d++) {
+                daftarDateKey.push(yNum + '-' + String(mNum).padStart(2, '0') + '-' + String(d).padStart(2, '0'));
+            }
+        } else {
+            gagalBaris.push(line);
+            return;
+        }
+
+        daftarDateKey.forEach(function(dk) {
+            if (!Array.isArray(window.adminJadwalKalenderData.events[dk])) {
+                window.adminJadwalKalenderData.events[dk] = window.adminJadwalKalenderData.events[dk]
+                    ? Object.values(window.adminJadwalKalenderData.events[dk])
+                    : [];
+            }
+            let arr = window.adminJadwalKalenderData.events[dk];
+            let sudahAda = arr.some(function(ev) {
+                return String(ev.title || '').toLowerCase() === judul.toLowerCase() && (ev.kategori || 'agenda') === kategori;
+            });
+            if (!sudahAda) {
+                arr.push({
+                    id: 'cal_' + Date.now() + '_' + Math.floor(Math.random() * 10000),
+                    title: judul,
+                    jam: '',
+                    kategori: kategori,
+                    dibuat: new Date().toISOString()
+                });
+                berhasil++;
+            }
+        });
+    });
+
+    if (berhasil > 0) {
+        if (typeof window.simpanJadwalKalenderKeDB === 'function') window.simpanJadwalKalenderKeDB();
+        window.renderKalenderGuru();
+        ta.value = '';
+        window.togglePanelImportLiburAcara(false);
+    }
+
+    if (gagalBaris.length > 0) {
+        alert('✅ ' + berhasil + ' tanggal tersimpan.\n⚠️ ' + gagalBaris.length + ' baris gagal dibaca (pastikan format: 10 Oktober 2026: Libur/Nama).');
+    } else {
+        alert('✅ Berhasil menyimpan ' + berhasil + ' agenda Libur/Acara ke Kalender & otomatis tersinkron ke Rencana Pembelajaran!');
+    }
 };
 
 window.klikTanggalKalenderGuru = function(dateKey) {
@@ -6651,115 +6826,546 @@ window.hapusAgendaKalenderGuru = function(dateKey, idx) {
     });
 };
 
+/* =========================================================================
+   MESIN JADWAL PELAJARAN FULL-FIT (KELAS X, KELAS XI & XII, FOTO/PDF, & ZOOM)
+   ========================================================================= */
+window._jadwalActiveSheetId = 'kelas_x';
+window._jadwalZoomState = {
+    scale: 1,
+    tx: 0,
+    ty: 0,
+    dragging: false,
+    startX: 0,
+    startY: 0,
+    baseTx: 0,
+    baseTy: 0,
+    pinching: false,
+    pinchStartDist: 0,
+    pinchStartScale: 1
+};
+
+window.pastikanStrukturJadwalMedia = function() {
+    if (!window.adminJadwalKalenderData || typeof window.adminJadwalKalenderData !== 'object') {
+        window.adminJadwalKalenderData = { excelHtml: '', events: {}, mediaSheets: [] };
+    }
+    let raw = window.adminJadwalKalenderData.mediaSheets;
+    let arr = Array.isArray(raw) ? raw : (raw && typeof raw === 'object' ? Object.values(raw) : []);
+    arr = arr.filter(function(item) { return item && item.id && item.label; });
+
+    if (arr.length === 0) {
+        arr = [
+            { id: 'kelas_x', label: '📘 Kelas X', url: '', updatedAt: 0 },
+            { id: 'kelas_xi_xii', label: '📗 Kelas XI & XII', url: '', updatedAt: 0 }
+        ];
+    }
+    window.adminJadwalKalenderData.mediaSheets = arr;
+
+    let adaAktif = arr.some(function(s) { return s.id === window._jadwalActiveSheetId; });
+    if (!adaAktif) {
+        window._jadwalActiveSheetId = arr[0].id;
+    }
+    return arr;
+};
+
+window.ambilSheetJadwalAktif = function() {
+    let arr = window.pastikanStrukturJadwalMedia();
+    return arr.find(function(s) { return s.id === window._jadwalActiveSheetId; }) || arr[0];
+};
+
 window.muatTabelJadwalExcel = function() {
-    let ed = document.getElementById('editor-jadwal-excel');
-    if (!ed) return;
-    if (window.adminJadwalKalenderData && window.adminJadwalKalenderData.excelHtml) {
-        ed.innerHTML = window.adminJadwalKalenderData.excelHtml;
+    window.pastikanStrukturJadwalMedia();
+    window.pasangEventZoomPanJadwal();
+    window.renderJadwalSekolahMedia();
+};
+
+window.renderJadwalSekolahMedia = function() {
+    let sheets = window.pastikanStrukturJadwalMedia();
+    let activeSheet = window.ambilSheetJadwalAktif();
+
+    let tabsEl = document.getElementById('jadwal-sheet-tabs');
+    if (tabsEl) {
+        let htmlTabs = '';
+        sheets.forEach(function(sh) {
+            let isAct = (sh.id === activeSheet.id);
+            let isDefault = (sh.id === 'kelas_x' || sh.id === 'kelas_xi_xii');
+            let dot = sh.url ? '<span class="jadwal-tab-dot"></span>' : '';
+            let safeId = String(sh.id).replace(/'/g, "\\'");
+            let safeLabel = String(sh.label).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            let delBtn = (!isDefault && isAct)
+                ? '<span class="jadwal-tab-del" onclick="event.stopPropagation(); window.hapusTabJadwalMedia(\'' + safeId + '\')" title="Hapus Tab Ini">✕</span>'
+                : '';
+
+            htmlTabs +=
+                '<button type="button" class="jadwal-sheet-tab' + (isAct ? ' active' : '') + '" onclick="window.pilihTabJadwalMedia(\'' + safeId + '\')">' +
+                    dot + '<span>' + safeLabel + '</span>' + delBtn +
+                '</button>';
+        });
+        htmlTabs += '<button type="button" class="jadwal-sheet-tab add-tab" onclick="window.tambahTabJadwalMedia()" title="Tambah Tab Jadwal Baru">+ Tab</button>';
+        tabsEl.innerHTML = htmlTabs;
+    }
+
+    let imgEl = document.getElementById('jadwal-viewer-img');
+    let emptyEl = document.getElementById('jadwal-empty-state');
+    let emptyTitle = document.getElementById('jadwal-empty-title');
+    let btnHapus = document.getElementById('btn-hapus-jadwal-media');
+
+    window.resetZoomJadwal();
+
+    if (activeSheet && activeSheet.url) {
+        if (imgEl) {
+            imgEl.src = activeSheet.url;
+            imgEl.style.display = 'block';
+        }
+        if (emptyEl) emptyEl.style.display = 'none';
+        if (btnHapus) btnHapus.style.display = 'inline-flex';
     } else {
-        window.resetTabelJadwalDefault(true);
+        if (imgEl) {
+            imgEl.src = '';
+            imgEl.style.display = 'none';
+        }
+        if (emptyTitle) emptyTitle.innerText = 'Belum Ada Jadwal untuk ' + (activeSheet ? activeSheet.label : 'Tab Ini');
+        if (emptyEl) emptyEl.style.display = 'flex';
+        if (btnHapus) btnHapus.style.display = 'none';
     }
 };
 
-window.resetTabelJadwalDefault = function(silent) {
-    if (!silent && !confirm("Buat tabel jadwal kosong baru? Tabel yang ada saat ini akan diganti.")) return;
-    let ed = document.getElementById('editor-jadwal-excel');
-    if (!ed) return;
-    let defaultHtml = `
-        <table class="excel-table" style="width:100%;">
-            <thead>
-                <tr>
-                    <th style="width:110px;">Jam / Waktu</th>
-                    <th>Senin</th>
-                    <th>Selasa</th>
-                    <th>Rabu</th>
-                    <th>Kamis</th>
-                    <th>Jumat</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr><td>07:30 - 09:00</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>
-                <tr><td>09:00 - 10:30</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>
-                <tr><td>10:45 - 12:15</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>
-                <tr><td>13:00 - 14:30</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>
-            </tbody>
-        </table>`;
-    ed.innerHTML = defaultHtml;
-    if (!silent) window.simpanJadwalSekolahExcel();
+window.pilihTabJadwalMedia = function(sheetId) {
+    window._jadwalActiveSheetId = sheetId;
+    window.renderJadwalSekolahMedia();
 };
 
-window.jadwalSaveTimer = null;
-window.simpanJadwalSekolahDelay = function() {
-    clearTimeout(window.jadwalSaveTimer);
-    window.jadwalSaveTimer = setTimeout(function() {
-        window.simpanJadwalSekolahExcel(true);
-    }, 900);
-};
-
-window.simpanJadwalSekolahExcel = function(silent) {
-    let ed = document.getElementById('editor-jadwal-excel');
-    if (!ed) return;
-    if (!window.adminJadwalKalenderData) window.adminJadwalKalenderData = { excelHtml: "", events: {} };
-    window.adminJadwalKalenderData.excelHtml = ed.innerHTML;
-    if (typeof window.simpanJadwalKalenderKeDB === "function") window.simpanJadwalKalenderKeDB();
-    if (!silent) alert("✅ Jadwal Sekolah berhasil disimpan!");
-};
-
-window.importFileJadwalCSV = async function(input) {
-    let file = input.files && input.files[0];
-    if (!file) return;
-    let text = await file.text();
-    let rows = text.trim().split(/\r?\n/);
-    if (rows.length === 0) return;
-
-    let html = '<table class="excel-table" style="width:100%;"><tbody>';
-    rows.forEach(function(r, rIdx) {
-        let delimiter = r.indexOf('\t') !== -1 ? '\t' : (r.indexOf(';') !== -1 ? ';' : ',');
-        let cols = r.split(delimiter);
-        html += '<tr>';
-        cols.forEach(function(c) {
-            let clean = c.replace(/^"|"$/g, '').trim();
-            if (rIdx === 0) html += '<th>' + clean + '</th>';
-            else html += '<td>' + clean + '</td>';
-        });
-        html += '</tr>';
+window.tambahTabJadwalMedia = function() {
+    window.tampilkanCustomDialog('prompt', 'Nama Tab Jadwal Baru (Contoh: Jadwal Piket / Lab):', '', function(nama) {
+        if (!nama || !nama.trim()) return;
+        let sheets = window.pastikanStrukturJadwalMedia();
+        let newId = 'jadwal_' + Date.now();
+        sheets.push({ id: newId, label: '📋 ' + nama.trim(), url: '', updatedAt: 0 });
+        window._jadwalActiveSheetId = newId;
+        window.renderJadwalSekolahMedia();
+        if (typeof window.simpanJadwalKalenderKeDB === 'function') window.simpanJadwalKalenderKeDB();
     });
-    html += '</tbody></table>';
-
-    let ed = document.getElementById('editor-jadwal-excel');
-    if (ed) ed.innerHTML = html;
-    window.simpanJadwalSekolahExcel(true);
-    input.value = "";
 };
 
-// Izinkan Copy-Paste Tabel Langsung dari Excel ke Editor Jadwal Sekolah
-document.addEventListener('paste', function(e) {
-    let ed = e.target.closest ? e.target.closest('#editor-jadwal-excel') : null;
-    if (!ed) return;
-    let clip = e.clipboardData || window.clipboardData;
-    let htmlPaste = clip.getData('text/html');
-    let textPaste = clip.getData('text/plain');
+window.hapusTabJadwalMedia = function(sheetId) {
+    let sheets = window.pastikanStrukturJadwalMedia();
+    let idx = sheets.findIndex(function(s) { return s.id === sheetId; });
+    if (idx === -1) return;
+    window.tampilkanCustomDialog('confirm', 'Hapus tab "' + sheets[idx].label + '"?', null, function(isYes) {
+        if (!isYes) return;
+        sheets.splice(idx, 1);
+        window._jadwalActiveSheetId = sheets[0] ? sheets[0].id : 'kelas_x';
+        window.renderJadwalSekolahMedia();
+        if (typeof window.simpanJadwalKalenderKeDB === 'function') window.simpanJadwalKalenderKeDB();
+    });
+};
 
-    if (htmlPaste && htmlPaste.indexOf('<table') !== -1) {
-        e.preventDefault();
-        document.execCommand('insertHTML', false, htmlPaste);
-        window.simpanJadwalSekolahDelay();
-    } else if (textPaste && textPaste.indexOf('\t') !== -1) {
-        e.preventDefault();
-        let rows = textPaste.trim().split(/\r?\n/);
-        let tbl = '<table class="excel-table" style="width:100%;"><tbody>';
-        rows.forEach(function(r, idx) {
-            tbl += '<tr>';
-            r.split('\t').forEach(function(c) {
-                tbl += (idx === 0 ? '<th>' : '<td>') + c.trim() + (idx === 0 ? '</th>' : '</td>');
-            });
-            tbl += '</tr>';
-        });
-        tbl += '</tbody></table>';
-        ed.innerHTML = tbl;
-        window.simpanJadwalSekolahDelay();
+window.hapusMediaJadwalAktif = function() {
+    let activeSheet = window.ambilSheetJadwalAktif();
+    if (!activeSheet || !activeSheet.url) return;
+    window.tampilkanCustomDialog('confirm', 'Hapus gambar jadwal di tab ' + activeSheet.label + '?', null, function(isYes) {
+        if (!isYes) return;
+        activeSheet.url = '';
+        activeSheet.updatedAt = Date.now();
+        window.renderJadwalSekolahMedia();
+        if (typeof window.simpanJadwalKalenderKeDB === 'function') window.simpanJadwalKalenderKeDB();
+    });
+};
+
+window.toggleFullscreenModalJadwal = function() {
+    let box = document.querySelector('#modal-jadwal-guru .modal-box');
+    let btn = document.getElementById('btn-fullscreen-jadwal');
+    if (!box) return;
+    let isFull = box.classList.toggle('jadwal-modal-fullscreen');
+    if (btn) btn.innerText = isFull ? '🗗' : '⛶';
+    window.resetZoomJadwal();
+};
+
+// --- KONTROL ZOOM & PAN (DEFAULT FIT FULL 1 LAYAR TANPA GESER) ---
+window.terapkanTransformJadwal = function() {
+    let imgEl = document.getElementById('jadwal-viewer-img');
+    let stage = document.getElementById('jadwal-viewer-stage');
+    let lbl = document.getElementById('lbl-zoom-jadwal');
+    let z = window._jadwalZoomState;
+
+    if (z.scale <= 1.01) {
+        z.scale = 1;
+        z.tx = 0;
+        z.ty = 0;
+    } else if (imgEl && stage) {
+        let imgW = imgEl.offsetWidth || 0;
+        let imgH = imgEl.offsetHeight || 0;
+        let maxTx = Math.max(0, ((imgW * z.scale) - stage.clientWidth) / 2 + 80);
+        let maxTy = Math.max(0, ((imgH * z.scale) - stage.clientHeight) / 2 + 80);
+        z.tx = Math.max(-maxTx, Math.min(maxTx, z.tx));
+        z.ty = Math.max(-maxTy, Math.min(maxTy, z.ty));
     }
-});
+
+    if (imgEl) {
+        imgEl.style.transform = 'translate(' + Math.round(z.tx) + 'px, ' + Math.round(z.ty) + 'px) scale(' + z.scale.toFixed(3) + ')';
+    }
+    if (stage) {
+        stage.classList.toggle('is-zoomed', z.scale > 1.01);
+    }
+    if (lbl) {
+        lbl.innerText = z.scale <= 1.01 ? 'Fit' : Math.round(z.scale * 100) + '%';
+    }
+};
+
+window.resetZoomJadwal = function() {
+    let z = window._jadwalZoomState;
+    z.scale = 1;
+    z.tx = 0;
+    z.ty = 0;
+    z.dragging = false;
+    z.pinching = false;
+    window.terapkanTransformJadwal();
+};
+
+window.aturZoomJadwalStep = function(delta) {
+    let imgEl = document.getElementById('jadwal-viewer-img');
+    if (!imgEl || imgEl.style.display === 'none') return;
+    let z = window._jadwalZoomState;
+    z.scale = Math.max(1, Math.min(6, z.scale + delta));
+    window.terapkanTransformJadwal();
+};
+
+window.pasangEventZoomPanJadwal = function() {
+    let stage = document.getElementById('jadwal-viewer-stage');
+    if (!stage || stage.getAttribute('data-zoom-bound') === '1') return;
+    stage.setAttribute('data-zoom-bound', '1');
+
+    // 1. Trackpad / Mouse Wheel:
+    //    - Cubit (Pinch) / Ctrl+Scroll (e.ctrlKey === true)  -> ZOOM IN / OUT
+    //    - 2 Jari Scroll (e.ctrlKey === false)               -> SCROLL / GESER GAMBAR
+    stage.addEventListener('wheel', function(e) {
+        let imgEl = document.getElementById('jadwal-viewer-img');
+        if (!imgEl || imgEl.style.display === 'none') return;
+        e.preventDefault();
+        e.stopPropagation();
+
+        let z = window._jadwalZoomState;
+        if (e.ctrlKey) {
+            let factor = Math.exp(-e.deltaY * 0.012);
+            let nextScale = Math.max(1, Math.min(6, z.scale * factor));
+            if (nextScale === z.scale) return;
+
+            let rect = stage.getBoundingClientRect();
+            let cx = e.clientX - (rect.left + rect.width / 2);
+            let cy = e.clientY - (rect.top + rect.height / 2);
+            let ratio = nextScale / z.scale;
+
+            z.tx = cx - (cx - z.tx) * ratio;
+            z.ty = cy - (cy - z.ty) * ratio;
+            z.scale = nextScale;
+            window.terapkanTransformJadwal();
+        } else {
+            if (z.scale > 1.01) {
+                z.tx -= e.deltaX;
+                z.ty -= e.deltaY;
+                window.terapkanTransformJadwal();
+            }
+        }
+    }, { passive: false });
+
+    // Dukungan Pinch Safari macOS
+    stage.addEventListener('gesturestart', function(e) {
+        e.preventDefault();
+        window._jadwalZoomState.pinchStartScale = window._jadwalZoomState.scale;
+    }, { passive: false });
+
+    stage.addEventListener('gesturechange', function(e) {
+        e.preventDefault();
+        let z = window._jadwalZoomState;
+        z.scale = Math.max(1, Math.min(6, (z.pinchStartScale || 1) * (e.scale || 1)));
+        window.terapkanTransformJadwal();
+    }, { passive: false });
+
+    // 2. Klik 2x: Zoom 2.2x di titik klik atau kembali ke Fit Full
+    stage.addEventListener('dblclick', function(e) {
+        let imgEl = document.getElementById('jadwal-viewer-img');
+        if (!imgEl || imgEl.style.display === 'none') return;
+        e.preventDefault();
+        let z = window._jadwalZoomState;
+        if (z.scale > 1.05) {
+            window.resetZoomJadwal();
+        } else {
+            let rect = stage.getBoundingClientRect();
+            let cx = e.clientX - (rect.left + rect.width / 2);
+            let cy = e.clientY - (rect.top + rect.height / 2);
+            z.scale = 2.4;
+            z.tx = -cx * 1.4;
+            z.ty = -cy * 1.4;
+            window.terapkanTransformJadwal();
+        }
+    });
+
+    // 3. Mouse Drag saat sedang di-zoom
+    stage.addEventListener('mousedown', function(e) {
+        let z = window._jadwalZoomState;
+        if (z.scale <= 1.01) return;
+        e.preventDefault();
+        z.dragging = true;
+        z.startX = e.clientX;
+        z.startY = e.clientY;
+        z.baseTx = z.tx;
+        z.baseTy = z.ty;
+        stage.classList.add('is-dragging');
+    });
+
+    window.addEventListener('mousemove', function(e) {
+        let z = window._jadwalZoomState;
+        if (!z.dragging) return;
+        z.tx = z.baseTx + (e.clientX - z.startX);
+        z.ty = z.baseTy + (e.clientY - z.startY);
+        window.terapkanTransformJadwal();
+    });
+
+    window.addEventListener('mouseup', function() {
+        let z = window._jadwalZoomState;
+        if (!z.dragging) return;
+        z.dragging = false;
+        stage.classList.remove('is-dragging');
+    });
+
+    // 4. Touch iPad / HP: Pinch (ubah jarak 2 jari) = Zoom, Geser 2 jari / 1 jari = Scroll
+    function jarakDuaJari(t1, t2) {
+        let dx = t1.clientX - t2.clientX;
+        let dy = t1.clientY - t2.clientY;
+        return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    stage.addEventListener('touchstart', function(e) {
+        let imgEl = document.getElementById('jadwal-viewer-img');
+        if (!imgEl || imgEl.style.display === 'none') return;
+        let z = window._jadwalZoomState;
+
+        if (e.touches.length === 2) {
+            z.pinching = true;
+            z.dragging = false;
+            z.pinchStartDist = jarakDuaJari(e.touches[0], e.touches[1]);
+            z.pinchStartScale = z.scale;
+            z.pinchMidX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+            z.pinchMidY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+        } else if (e.touches.length === 1 && z.scale > 1.01) {
+            z.dragging = true;
+            z.pinching = false;
+            z.startX = e.touches[0].clientX;
+            z.startY = e.touches[0].clientY;
+            z.baseTx = z.tx;
+            z.baseTy = z.ty;
+        }
+    }, { passive: true });
+
+    stage.addEventListener('touchmove', function(e) {
+        let z = window._jadwalZoomState;
+        if (z.pinching && e.touches.length === 2) {
+            e.preventDefault();
+            let curDist = jarakDuaJari(e.touches[0], e.touches[1]);
+            let curMidX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+            let curMidY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+
+            // Geser 2 jari bersamaan -> scroll/pan halus
+            if (z.scale > 1.01) {
+                z.tx += (curMidX - (z.pinchMidX || curMidX));
+                z.ty += (curMidY - (z.pinchMidY || curMidY));
+            }
+            z.pinchMidX = curMidX;
+            z.pinchMidY = curMidY;
+
+            // Cubit 2 jari (perubahan jarak > 8px) -> zoom in/out
+            if (z.pinchStartDist > 0 && Math.abs(curDist - z.pinchStartDist) > 8) {
+                z.scale = Math.max(1, Math.min(6, z.pinchStartScale * (curDist / z.pinchStartDist)));
+            }
+            window.terapkanTransformJadwal();
+        } else if (z.dragging && e.touches.length === 1 && z.scale > 1.01) {
+            e.preventDefault();
+            z.tx = z.baseTx + (e.touches[0].clientX - z.startX);
+            z.ty = z.baseTy + (e.touches[0].clientY - z.startY);
+            window.terapkanTransformJadwal();
+        }
+    }, { passive: false });
+
+    stage.addEventListener('touchend', function(e) {
+        let z = window._jadwalZoomState;
+        if (e.touches.length < 2) z.pinching = false;
+        if (e.touches.length === 0) z.dragging = false;
+    });
+};
+
+// --- MESIN UPLOAD FOTO / PDF / PASTE SCREENSHOT KE CLOUDINARY ---
+window.setStatusUploadJadwal = function(pesan, warnaBg) {
+    let st = document.getElementById('jadwal-upload-status');
+    if (!st) return;
+    if (!pesan) {
+        st.style.display = 'none';
+        return;
+    }
+    st.style.display = 'block';
+    st.style.background = warnaBg || '#0369a1';
+    st.innerText = pesan;
+};
+
+// KHUSUS JADWAL PELAJARAN: Upload 100% resolusi & kualitas asli tanpa pengecilan/kompresi
+window.siapkanBlobGambarJadwal = function(fileOrBlob) {
+    return Promise.resolve(fileOrBlob);
+};
+
+window.kirimBlobJadwalKeCloudinary = async function(blob, namaFile) {
+    let formData = new FormData();
+    formData.append('file', blob, namaFile || ('jadwal_hd_' + Date.now() + '.png'));
+    formData.append('upload_preset', 'studykawan_video');
+
+    let response = await fetch('https://api.cloudinary.com/v1_1/rtkfvwvg/image/upload', {
+        method: 'POST',
+        body: formData
+    });
+    let data = await response.json();
+    if (!response.ok || !data || !data.secure_url) {
+        throw new Error((data && data.error && data.error.message) ? data.error.message : 'Gagal unggah ke Cloudinary.');
+    }
+    return data.secure_url;
+};
+
+// Render PDF Jadwal pada resolusi ultra-tajam (PNG lossless, hingga 3600px)
+window.renderHalamanPdfKeBlobJadwal = async function(pdfDoc, pageNum) {
+    let page = await pdfDoc.getPage(pageNum);
+    let vp1 = page.getViewport({ scale: 1 });
+    let scale = Math.min(4.0, Math.max(2.6, 3600 / Math.max(vp1.width, vp1.height)));
+    let viewport = page.getViewport({ scale: scale });
+
+    let canvas = document.createElement('canvas');
+    canvas.width = Math.round(viewport.width);
+    canvas.height = Math.round(viewport.height);
+    let ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+
+    return await new Promise(function(resolve) {
+        canvas.toBlob(function(blob) { resolve(blob); }, 'image/png');
+    });
+};
+
+window.prosesSimpanGambarJadwalKeTab = async function(fileOrBlob, targetSheetId) {
+    let sheets = window.pastikanStrukturJadwalMedia();
+    let targetSheet = sheets.find(function(s) { return s.id === targetSheetId; }) || window.ambilSheetJadwalAktif();
+    let btnUp = document.getElementById('btn-upload-jadwal-media');
+
+    if (btnUp) btnUp.disabled = true;
+    window.setStatusUploadJadwal('⏳ Mengunggah gambar jadwal untuk ' + targetSheet.label + ' ke Cloudinary...', '#0369a1');
+
+    try {
+        let blobSiap = await window.siapkanBlobGambarJadwal(fileOrBlob);
+        let ext = (blobSiap.type && blobSiap.type.indexOf('png') !== -1) ? 'png' : 'jpg';
+        let secureUrl = await window.kirimBlobJadwalKeCloudinary(blobSiap, 'jadwal_' + targetSheet.id + '_' + Date.now() + '.' + ext);
+
+        targetSheet.url = secureUrl;
+        targetSheet.updatedAt = Date.now();
+        window.renderJadwalSekolahMedia();
+        if (typeof window.simpanJadwalKalenderKeDB === 'function') window.simpanJadwalKalenderKeDB();
+
+        window.setStatusUploadJadwal('✅ Jadwal ' + targetSheet.label + ' berhasil disimpan!', '#15803d');
+        setTimeout(function() { window.setStatusUploadJadwal(''); }, 2500);
+    } catch (err) {
+        console.error('Upload Jadwal error:', err);
+        window.setStatusUploadJadwal('❌ Gagal menyimpan jadwal: ' + (err ? err.message : 'Periksa internet'), '#b91c1c');
+    } finally {
+        if (btnUp) btnUp.disabled = false;
+    }
+};
+
+window.uploadFileJadwalMedia = async function(input) {
+    let file = input && input.files ? input.files[0] : null;
+    if (input) input.value = '';
+    if (!file) return;
+
+    let activeSheet = window.ambilSheetJadwalAktif();
+    let isPdf = (file.type === 'application/pdf') || /\.pdf$/i.test(file.name || '');
+
+    if (!isPdf) {
+        await window.prosesSimpanGambarJadwalKeTab(file, activeSheet.id);
+        return;
+    }
+
+    // Jika file adalah PDF: konversi halaman PDF ke gambar tajam lalu unggah ke Cloudinary
+    let btnUp = document.getElementById('btn-upload-jadwal-media');
+    if (btnUp) btnUp.disabled = true;
+    window.setStatusUploadJadwal('⏳ Memuat mesin PDF & merender halaman jadwal...', '#0369a1');
+
+    try {
+        if (typeof window.pastikanMesinDokumenSiap === 'function') {
+            await window.pastikanMesinDokumenSiap('pdf');
+        }
+        if (!window.pdfjsLib) {
+            throw new Error('Mesin pembaca PDF belum siap. Periksa koneksi internet.');
+        }
+
+        let arrayBuf = await file.arrayBuffer();
+        let pdfDoc = await window.pdfjsLib.getDocument({ data: arrayBuf }).promise;
+        let sheets = window.pastikanStrukturJadwalMedia();
+
+        // Jika PDF memiliki 2 halaman & ada tab Kelas X + Kelas XI & XII, tawarkan isi keduanya sekaligus
+        if (pdfDoc.numPages >= 2 && sheets.length >= 2) {
+            let bagiDua = confirm(
+                'File PDF ini memiliki ' + pdfDoc.numPages + ' halaman.\n\n' +
+                '• Klik OK untuk otomatis memasukkan Halaman 1 ke "' + sheets[0].label + '" dan Halaman 2 ke "' + sheets[1].label + '".\n' +
+                '• Klik Batal untuk hanya memasukkan Halaman 1 ke tab "' + activeSheet.label + '".'
+            );
+
+            if (bagiDua) {
+                window.setStatusUploadJadwal('⏳ Merender & mengunggah Halaman 1 (' + sheets[0].label + ')...', '#0369a1');
+                let blob1 = await window.renderHalamanPdfKeBlobJadwal(pdfDoc, 1);
+                sheets[0].url = await window.kirimBlobJadwalKeCloudinary(blob1, 'jadwal_p1_' + Date.now() + '.jpg');
+                sheets[0].updatedAt = Date.now();
+
+                window.setStatusUploadJadwal('⏳ Merender & mengunggah Halaman 2 (' + sheets[1].label + ')...', '#0369a1');
+                let blob2 = await window.renderHalamanPdfKeBlobJadwal(pdfDoc, 2);
+                sheets[1].url = await window.kirimBlobJadwalKeCloudinary(blob2, 'jadwal_p2_' + Date.now() + '.jpg');
+                sheets[1].updatedAt = Date.now();
+
+                window.renderJadwalSekolahMedia();
+                if (typeof window.simpanJadwalKalenderKeDB === 'function') window.simpanJadwalKalenderKeDB();
+                window.setStatusUploadJadwal('✅ Kedua halaman PDF berhasil disimpan ke Kelas X & Kelas XI–XII!', '#15803d');
+                setTimeout(function() { window.setStatusUploadJadwal(''); }, 3000);
+                return;
+            }
+        }
+
+        let blobSingle = await window.renderHalamanPdfKeBlobJadwal(pdfDoc, 1);
+        await window.prosesSimpanGambarJadwalKeTab(blobSingle, activeSheet.id);
+    } catch (err) {
+        console.error('Upload PDF Jadwal error:', err);
+        window.setStatusUploadJadwal('❌ Gagal memproses PDF: ' + (err ? err.message : 'Error'), '#b91c1c');
+    } finally {
+        if (btnUp) btnUp.disabled = false;
+    }
+};
+
+// Tangkap Paste Screenshot (Cmd+V / Ctrl+V) saat Tab Jadwal Pelajaran sedang terbuka
+document.addEventListener('paste', function(e) {
+    let modal = document.getElementById('modal-jadwal-guru');
+    let viewJadwal = document.getElementById('view-jadwal-excel');
+    if (!modal || modal.style.display !== 'flex') return;
+    if (!viewJadwal || viewJadwal.style.display === 'none') return;
+
+    let clip = e.clipboardData || window.clipboardData;
+    if (!clip || !clip.items) return;
+
+    for (let i = 0; i < clip.items.length; i++) {
+        let item = clip.items[i];
+        if (item && item.type && item.type.indexOf('image/') === 0) {
+            let blob = item.getAsFile();
+            if (blob) {
+                e.preventDefault();
+                e.stopPropagation();
+                let activeSheet = window.ambilSheetJadwalAktif();
+                window.prosesSimpanGambarJadwalKeTab(blob, activeSheet.id);
+                break;
+            }
+        }
+    }
+}, true);
 
 /* =====================================================================
    SISTEM GAMIFIKASI (XP & LENCANA), PROFIL INTERAKTIF, LEADERBOARD, & NOTIFIKASI (SISWA & ADMIN)
@@ -9418,3 +10024,614 @@ window.hapusBgFotoBlok = function() {
     window.sinkronkanUIBgFotoSidebar(window.contentBlocksData[idx]);
     if (typeof window.simpanKeDB === 'function') window.simpanKeDB();
 };
+/* =========================================================================
+   MESIN RENCANA PEMBELAJARAN TERINTEGRASI (AGENDA + JADWAL M1 + LIBUR/ACARA)
+   ========================================================================= */
+window._rencanaNoteSaveTimer = null;
+
+window.normalisasiNamaKelasJadwal = function(nama) {
+    return String(nama || '')
+        .toLowerCase()
+        .replace(/kelas/g, '')
+        .replace(/[^a-z0-9]/g, '');
+};
+
+window.ambilJadwalMengajarDefaultGuru = function() {
+    let guru = String(window.guruAktif || sessionStorage.getItem('username') || 'mahardika').toLowerCase();
+    if (guru === 'mahardika') {
+        // Jadwal Biologi (M1) — SMAS Bodhi Dharma Batam (1=Senin, 2=Selasa, 3=Rabu, 4=Kamis, 5=Jumat)
+        return {
+            'X Ariya':       { 1: 2, 2: 1 },
+            'X Dana':        { 4: 2, 5: 1 },
+            'X Sila':        { 1: 2, 5: 1 },
+            'X Kosalla':     { 5: 3 },
+            'XI Adhitthana': { 2: 2, 3: 2 },
+            'XI Kovida':     { 1: 3, 4: 1 },
+            'XII Chandaka':  { 2: 1, 3: 3 }
+        };
+    }
+    return {};
+};
+
+window.pastikanStrukturRencanaPembelajaran = function() {
+    if (!window.adminJadwalKalenderData || typeof window.adminJadwalKalenderData !== 'object') {
+        window.adminJadwalKalenderData = { excelHtml: '', events: {}, mediaSheets: [] };
+    }
+    if (!window.adminJadwalKalenderData.teachingSchedule || Object.keys(window.adminJadwalKalenderData.teachingSchedule).length === 0) {
+        window.adminJadwalKalenderData.teachingSchedule = window.ambilJadwalMengajarDefaultGuru();
+    }
+    if (!window.adminJadwalKalenderData.rencanaNotes || typeof window.adminJadwalKalenderData.rencanaNotes !== 'object') {
+        window.adminJadwalKalenderData.rencanaNotes = {};
+    }
+    if (typeof window.adminJadwalKalenderData.skipAcaraDiRencana !== 'boolean') {
+        window.adminJadwalKalenderData.skipAcaraDiRencana = true;
+    }
+    return window.adminJadwalKalenderData;
+};
+
+window.formatTanggalIndoSingkat = function(dateKey) {
+    if (!dateKey || dateKey.indexOf('-') === -1) return '-';
+    let p = dateKey.split('-');
+    let bln = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+    return parseInt(p[2], 10) + ' ' + (bln[parseInt(p[1], 10)] || p[1]) + ' ' + p[0];
+};
+
+window.buatDateKeyLokal = function(dt) {
+    return dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0');
+};
+
+window.ambilAgendaTerbaruUntukKelas = function(namaKelas) {
+    let sumber = window.adminAgendaData || window.agendaMengajarData || window.agendaData || {};
+    if (!sumber || typeof sumber !== 'object') return null;
+
+    let targetNorm = window.normalisasiNamaKelasJadwal(namaKelas);
+    let arrCocok = null;
+
+    if (sumber[namaKelas]) {
+        arrCocok = sumber[namaKelas];
+    } else {
+        let kunciCocok = Object.keys(sumber).find(function(k) {
+            return window.normalisasiNamaKelasJadwal(k) === targetNorm;
+        });
+        if (kunciCocok) arrCocok = sumber[kunciCocok];
+    }
+
+    if (!arrCocok) return null;
+    let list = Array.isArray(arrCocok) ? arrCocok.slice() : Object.values(arrCocok);
+    list = list.filter(Boolean);
+    if (list.length === 0) return null;
+
+    // Urutkan berdasarkan tanggal terbaru (jika tanggal sama, entri terakhir menang)
+    let best = list[0];
+    let bestDate = String(best.tanggal || best.tgl || '');
+    for (let i = 1; i < list.length; i++) {
+        let cur = list[i];
+        let curDate = String(cur.tanggal || cur.tgl || '');
+        if (curDate >= bestDate) {
+            best = cur;
+            bestDate = curDate;
+        }
+    }
+
+    return {
+        tanggal: String(best.tanggal || best.tgl || '').trim(),
+        materi: String(best.materi || '').trim(),
+        rencana: String(best.rencana || best.rencanaBerikutnya || best.rencana_berikutnya || '').trim()
+    };
+};
+
+window.hitungJadwalPertemuanBerikutnya = function(polaHariMap, tanggalAgendaTerakhir, skipAcara) {
+    const namaHari = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+    let hariAktif = {};
+    if (polaHariMap && typeof polaHariMap === 'object') {
+        Object.keys(polaHariMap).forEach(function(hKey) {
+            let jp = parseInt(polaHariMap[hKey], 10) || 0;
+            if (jp > 0) hariAktif[parseInt(hKey, 10)] = jp;
+        });
+    }
+    if (Object.keys(hariAktif).length === 0) return null;
+
+    // Jika sudah ada agenda terakhir -> cari jadwal pertama SETELAH tanggal agenda tersebut
+    // Jika belum ada agenda -> cari jadwal mulai dari HARI INI
+    let cursor = new Date();
+    cursor.setHours(12, 0, 0, 0);
+    if (tanggalAgendaTerakhir && /^\d{4}-\d{2}-\d{2}$/.test(tanggalAgendaTerakhir)) {
+        let parts = tanggalAgendaTerakhir.split('-');
+        cursor = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10), 12, 0, 0);
+        cursor.setDate(cursor.getDate() + 1);
+    }
+
+    let eventsMap = (window.adminJadwalKalenderData && window.adminJadwalKalenderData.events) ? window.adminJadwalKalenderData.events : {};
+    let dilewati = [];
+    let catatanAcaraHariItu = [];
+
+    for (let step = 0; step < 90; step++) {
+        let dow = cursor.getDay(); // 1=Senin..6=Sabtu
+        if (hariAktif[dow]) {
+            let dk = window.buatDateKeyLokal(cursor);
+            let rawEv = eventsMap[dk];
+            let evList = Array.isArray(rawEv) ? rawEv : (rawEv ? Object.values(rawEv) : []);
+
+            let liburEv = evList.find(function(ev) {
+                return window.deteksiKategoriAgendaKalender(ev) === 'libur';
+            });
+            let acaraEv = evList.find(function(ev) {
+                return window.deteksiKategoriAgendaKalender(ev) === 'acara';
+            });
+
+            if (liburEv) {
+                let tLibur = String(liburEv.title || '').replace(/^libur\s*[\/:]\s*/i, '').trim() || 'Libur';
+                dilewati.push('🔴 Libur: ' + tLibur + ' (' + window.formatTanggalIndoSingkat(dk) + ')');
+                cursor.setDate(cursor.getDate() + 1);
+                continue;
+            }
+
+            if (acaraEv && skipAcara) {
+                let tAcara = String(acaraEv.title || '').replace(/^acara\s*[\/:]\s*/i, '').trim() || 'Acara';
+                dilewati.push('🎭 Acara: ' + tAcara + ' (' + window.formatTanggalIndoSingkat(dk) + ')');
+                cursor.setDate(cursor.getDate() + 1);
+                continue;
+            }
+
+            if (acaraEv && !skipAcara) {
+                let tAcaraInfo = String(acaraEv.title || '').replace(/^acara\s*[\/:]\s*/i, '').trim() || 'Acara';
+                catatanAcaraHariItu.push('🎭 Acara: ' + tAcaraInfo);
+            }
+
+            return {
+                dateKey: dk,
+                hari: namaHari[dow],
+                tanggalTampil: window.formatTanggalIndoSingkat(dk),
+                jp: hariAktif[dow],
+                dilewati: dilewati,
+                catatanAcara: catatanAcaraHariItu
+            };
+        }
+        cursor.setDate(cursor.getDate() + 1);
+    }
+    return null;
+};
+
+window.sinkronkanDanRenderRencana = function(forceFetch) {
+    window.pastikanStrukturRencanaPembelajaran();
+    let statusEl = document.getElementById('status-sync-rencana');
+    let chkSkip = document.getElementById('chk-rencana-skip-acara');
+    if (chkSkip) chkSkip.checked = Boolean(window.adminJadwalKalenderData.skipAcaraDiRencana);
+
+    let belumAdaAgenda = !window.adminAgendaData || Object.keys(window.adminAgendaData).length === 0;
+    if ((forceFetch || belumAdaAgenda) && typeof window.bacaDataRestFirebase === 'function') {
+        let guru = String(window.guruAktif || 'mahardika').toLowerCase();
+        if (statusEl) statusEl.innerText = '⏳ Menyinkronkan Agenda...';
+
+        window.bacaDataRestFirebase('data_guru/' + guru + '/admin_agenda', function(val) {
+            if (val && typeof val === 'object') {
+                window.adminAgendaData = val;
+            }
+            if (statusEl) statusEl.innerText = '✅ Tersinkron';
+            window.renderTabelRencanaPembelajaran();
+        }, function() {
+            if (statusEl) statusEl.innerText = '';
+            window.renderTabelRencanaPembelajaran();
+        }, { forceRefresh: Boolean(forceFetch), ttlMs: forceFetch ? 0 : 120000 });
+        return;
+    }
+
+    if (statusEl) statusEl.innerText = '✅ Tersinkron';
+    window.renderTabelRencanaPembelajaran();
+};
+
+window.ubahOpsiSkipAcaraRencana = function(isChecked) {
+    window.pastikanStrukturRencanaPembelajaran();
+    window.adminJadwalKalenderData.skipAcaraDiRencana = Boolean(isChecked);
+    window.renderTabelRencanaPembelajaran();
+    if (typeof window.simpanJadwalKalenderKeDB === 'function') window.simpanJadwalKalenderKeDB();
+};
+
+window.renderTabelRencanaPembelajaran = function() {
+    let tbody = document.getElementById('tbody-rencana-pembelajaran');
+    if (!tbody) return;
+
+    let data = window.pastikanStrukturRencanaPembelajaran();
+    let schedule = data.teachingSchedule || {};
+    let notesMap = data.rencanaNotes || {};
+    let skipAcara = Boolean(data.skipAcaraDiRencana);
+
+    let kelasSet = Object.keys(schedule);
+    if (kelasSet.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="padding:24px; text-align:center; color:#64748b;">Belum ada jadwal kelas. Klik <b>⚙️ Atur Jadwal Saya</b> di atas untuk menambahkan jadwal mengajar Anda.</td></tr>';
+        return;
+    }
+
+    let todayKey = window.buatDateKeyLokal(new Date());
+    let rowsData = kelasSet.map(function(namaKelas) {
+        let agenda = window.ambilAgendaTerbaruUntukKelas(namaKelas);
+        let nextInfo = window.hitungJadwalPertemuanBerikutnya(schedule[namaKelas], agenda ? agenda.tanggal : '', skipAcara);
+        let normK = window.normalisasiNamaKelasJadwal(namaKelas);
+        let noteKey = normK + '__after_' + ((agenda && agenda.tanggal) ? agenda.tanggal : 'awal');
+        let noteObj = notesMap[noteKey] || { persiapan: '', keterangan: '' };
+
+        return {
+            namaKelas: namaKelas,
+            agenda: agenda,
+            nextInfo: nextInfo,
+            noteKey: noteKey,
+            persiapan: noteObj.persiapan || '',
+            keterangan: noteObj.keterangan || ''
+        };
+    });
+
+    // Urutkan otomatis berdasarkan tanggal pertemuan berikutnya yang paling dekat
+    rowsData.sort(function(a, b) {
+        let da = a.nextInfo ? a.nextInfo.dateKey : '9999-12-31';
+        let db = b.nextInfo ? b.nextInfo.dateKey : '9999-12-31';
+        if (da !== db) return da.localeCompare(db);
+        return a.namaKelas.localeCompare(b.namaKelas);
+    });
+
+    let esc = function(s) {
+        return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    };
+
+    let html = '';
+    rowsData.forEach(function(item) {
+        let nextHtml = '<span style="color:#94a3b8; font-style:italic;">Jadwal belum diatur</span>';
+        let jpHtml = '-';
+
+        if (item.nextInfo) {
+            let isHariIni = (item.nextInfo.dateKey === todayKey);
+            let badgeToday = isHariIni ? ' <span class="rencana-badge-today">HARI INI</span>' : '';
+            let skipHtml = '';
+            if (item.nextInfo.dilewati && item.nextInfo.dilewati.length > 0) {
+                skipHtml = '<div class="rencana-skip-note">⏭️ Lewati ' + esc(item.nextInfo.dilewati.join(', ')) + '</div>';
+            }
+            let acaraHtml = '';
+            if (item.nextInfo.catatanAcara && item.nextInfo.catatanAcara.length > 0) {
+                acaraHtml = '<div class="rencana-acara-note">' + esc(item.nextInfo.catatanAcara.join(', ')) + '</div>';
+            }
+            nextHtml =
+                '<div style="font-weight:800; color:#0b3954; font-size:13px;">' + item.nextInfo.hari + badgeToday + '</div>' +
+                '<div style="font-size:11.5px; color:#475569; font-weight:600;">' + item.nextInfo.tanggalTampil + '</div>' +
+                skipHtml + acaraHtml;
+            jpHtml = '<span class="rencana-jp-pill">' + item.nextInfo.jp + ' JP</span>';
+        }
+
+        let rencanaHtml = '<span style="color:#94a3b8; font-style:italic; font-size:12px;">Belum ada "Rencana Berikutnya" di Agenda kelas ini.</span>';
+        if (item.agenda && item.agenda.rencana) {
+            rencanaHtml =
+                '<div style="font-weight:700; color:#0f172a; font-size:12.5px; line-height:1.45;">' + esc(item.agenda.rencana) + '</div>' +
+                '<div style="font-size:10.5px; color:#64748b; margin-top:4px;">Dari agenda ' + window.formatTanggalIndoSingkat(item.agenda.tanggal) + (item.agenda.materi ? ' • ' + esc(item.agenda.materi) : '') + '</div>';
+        } else if (item.agenda && item.agenda.tanggal) {
+            rencanaHtml =
+                '<div style="color:#94a3b8; font-style:italic; font-size:11.5px;">Kolom rencana kosong pada agenda terakhir (' + window.formatTanggalIndoSingkat(item.agenda.tanggal) + ').</div>';
+        }
+
+        let safeNoteKey = item.noteKey.replace(/'/g, "\\'");
+
+        html +=
+            '<tr>' +
+                '<td style="font-weight:800; color:#0b3954; vertical-align:top;">' + esc(item.namaKelas) + '</td>' +
+                '<td style="vertical-align:top;">' + nextHtml + '</td>' +
+                '<td style="text-align:center; vertical-align:top;">' + jpHtml + '</td>' +
+                '<td style="vertical-align:top;">' + rencanaHtml + '</td>' +
+                '<td style="vertical-align:top; padding:6px;">' +
+                    '<textarea class="rencana-cell-input" rows="2" placeholder="Alat/bahan, LKPD, media..." oninput="window.simpanInputRencanaNote(\'' + safeNoteKey + '\', \'persiapan\', this.value)">' + esc(item.persiapan) + '</textarea>' +
+                '</td>' +
+                '<td style="vertical-align:top; padding:6px;">' +
+                    '<textarea class="rencana-cell-input" rows="2" placeholder="Catatan tambahan..." oninput="window.simpanInputRencanaNote(\'' + safeNoteKey + '\', \'keterangan\', this.value)">' + esc(item.keterangan) + '</textarea>' +
+                '</td>' +
+            '</tr>';
+    });
+
+    tbody.innerHTML = html;
+};
+
+window.simpanInputRencanaNote = function(noteKey, field, val) {
+    let data = window.pastikanStrukturRencanaPembelajaran();
+    if (!data.rencanaNotes[noteKey]) {
+        data.rencanaNotes[noteKey] = { persiapan: '', keterangan: '' };
+    }
+    data.rencanaNotes[noteKey][field] = val;
+
+    let st = document.getElementById('status-sync-rencana');
+    if (st) st.innerText = '✍️ Menyimpan...';
+
+    clearTimeout(window._rencanaNoteSaveTimer);
+    window._rencanaNoteSaveTimer = setTimeout(function() {
+        if (typeof window.simpanJadwalKalenderKeDB === 'function') window.simpanJadwalKalenderKeDB();
+        if (st) st.innerText = '✅ Tersimpan';
+    }, 550);
+};
+
+// --- PANEL EDITOR JADWAL MENGAJAR SAYA (UNTUK GANTI SEMESTER / TAMBAH KELAS) ---
+window.toggleEditorJadwalSaya = function() {
+    let panel = document.getElementById('panel-editor-jadwal-saya');
+    if (!panel) return;
+    let akanBuka = (panel.style.display === 'none');
+    panel.style.display = akanBuka ? 'block' : 'none';
+    if (akanBuka) window.renderEditorJadwalSaya();
+};
+
+window.renderEditorJadwalSaya = function() {
+    let panel = document.getElementById('panel-editor-jadwal-saya');
+    if (!panel) return;
+    let schedule = window.pastikanStrukturRencanaPembelajaran().teachingSchedule;
+    let daftarKelas = Object.keys(schedule);
+
+    let rowsHtml = '';
+    daftarKelas.forEach(function(kls) {
+        let map = schedule[kls] || {};
+        let safeKls = kls.replace(/'/g, "\\'");
+        let escKls = kls.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        let colsHari = '';
+        for (let h = 1; h <= 5; h++) {
+            let jp = parseInt(map[h], 10) || 0;
+            colsHari += '<td style="text-align:center; padding:4px;"><input type="number" min="0" max="10" value="' + jp + '" style="width:46px; text-align:center; padding:4px; border:1px solid #cbd5e1; border-radius:6px; font-weight:700;" onchange="window.ubahJpJadwalKelas(\'' + safeKls + '\', ' + h + ', this.value)"></td>';
+        }
+        rowsHtml +=
+            '<tr>' +
+                '<td style="font-weight:800; color:#0b3954;">' + escKls + '</td>' +
+                colsHari +
+                '<td style="text-align:center;"><button type="button" style="background:#fee2e2; color:#dc2626; border:none; border-radius:6px; padding:4px 8px; cursor:pointer; font-weight:700; font-size:11px;" onclick="window.hapusKelasJadwalSaya(\'' + safeKls + '\')">✕</button></td>' +
+            '</tr>';
+    });
+
+    panel.innerHTML =
+        '<div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:8px;">' +
+            '<div style="font-size:12px; font-weight:800; color:#0b3954;">⚙️ Pengaturan Jumlah JP per Hari (Isi 0 jika tidak mengajar hari tersebut)</div>' +
+            '<div style="display:flex; gap:6px; align-items:center;">' +
+                '<input type="text" id="input-tambah-kelas-jadwal" placeholder="Nama kelas baru..." style="padding:5px 8px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; width:145px;">' +
+                '<button type="button" class="jadwal-act-btn primary" style="padding:5px 10px; font-size:11px;" onclick="window.tambahKelasJadwalSaya()">+ Kelas</button>' +
+                '<button type="button" class="jadwal-act-btn neutral" style="padding:5px 10px; font-size:11px;" onclick="window.toggleEditorJadwalSaya()">Selesai</button>' +
+            '</div>' +
+        '</div>' +
+        '<div style="overflow-x:auto;">' +
+            '<table class="excel-table" style="width:100%; font-size:12px;">' +
+                '<thead><tr><th style="background:#334155;">Kelas</th><th style="text-align:center; background:#334155;">Senin</th><th style="text-align:center; background:#334155;">Selasa</th><th style="text-align:center; background:#334155;">Rabu</th><th style="text-align:center; background:#334155;">Kamis</th><th style="text-align:center; background:#334155;">Jumat</th><th style="width:45px; text-align:center; background:#334155;">Hapus</th></tr></thead>' +
+                '<tbody>' + rowsHtml + '</tbody>' +
+            '</table>' +
+        '</div>';
+};
+
+window.ubahJpJadwalKelas = function(namaKelas, hariNum, jpVal) {
+    let schedule = window.pastikanStrukturRencanaPembelajaran().teachingSchedule;
+    if (!schedule[namaKelas]) schedule[namaKelas] = {};
+    let jp = Math.max(0, Math.min(12, parseInt(jpVal, 10) || 0));
+    if (jp > 0) schedule[namaKelas][hariNum] = jp;
+    else delete schedule[namaKelas][hariNum];
+
+    window.renderTabelRencanaPembelajaran();
+    if (typeof window.simpanJadwalKalenderKeDB === 'function') window.simpanJadwalKalenderKeDB();
+};
+
+window.tambahKelasJadwalSaya = function() {
+    let inp = document.getElementById('input-tambah-kelas-jadwal');
+    let nama = inp ? inp.value.trim() : '';
+    if (!nama) return;
+    let schedule = window.pastikanStrukturRencanaPembelajaran().teachingSchedule;
+    if (!schedule[nama]) schedule[nama] = {};
+    if (inp) inp.value = '';
+    window.renderEditorJadwalSaya();
+    window.renderTabelRencanaPembelajaran();
+    if (typeof window.simpanJadwalKalenderKeDB === 'function') window.simpanJadwalKalenderKeDB();
+};
+
+window.hapusKelasJadwalSaya = function(namaKelas) {
+    let schedule = window.pastikanStrukturRencanaPembelajaran().teachingSchedule;
+    delete schedule[namaKelas];
+    window.renderEditorJadwalSaya();
+    window.renderTabelRencanaPembelajaran();
+    if (typeof window.simpanJadwalKalenderKeDB === 'function') window.simpanJadwalKalenderKeDB();
+};
+
+// Klik di Catatan Guru / Catatan Kelas selalu mengangkatnya ke atas jika ada beberapa catatan terbuka
+document.addEventListener('pointerdown', function(e) {
+    let cg = e.target && e.target.closest ? e.target.closest('.floating-cg') : null;
+    if (cg && typeof window.angkatKeLapisanTeratas === 'function') {
+        window.angkatKeLapisanTeratas(cg);
+    }
+}, true);
+/* =========================================================================
+   AGENDA MENGAJAR EDITABLE LANGSUNG (INLINE EDIT + AUTO-SAVE + SYNC RENCANA)
+   ========================================================================= */
+window._agendaInlineSaveTimer = null;
+window._sedangPasangEditAgenda = false;
+
+window.ambilKelasAktifAgenda = function() {
+    let sel = document.getElementById('admin-select-kelas');
+    if (sel && sel.value) return sel.value;
+    return window.kelasAktifAdmin || '';
+};
+
+window.cariStoreAgendaAdmin = function(kls) {
+    if (!kls) return null;
+    let kandidatNama = ['adminAgendaData', 'agendaMengajarData', 'agendaData', 'dataAgendaAdmin'];
+    for (let i = 0; i < kandidatNama.length; i++) {
+        let obj = window[kandidatNama[i]];
+        if (obj && typeof obj === 'object' && obj[kls]) {
+            return { store: obj, key: kandidatNama[i] };
+        }
+    }
+    let keysWin = Object.keys(window);
+    for (let j = 0; j < keysWin.length; j++) {
+        let k = keysWin[j];
+        if (/agenda/i.test(k) && typeof window[k] === 'object' && window[k] !== null && window[k][kls]) {
+            return { store: window[k], key: k };
+        }
+    }
+    return null;
+};
+
+window.simpanPerubahanAgendaKeServer = function() {
+    let kandidatFn = [
+        'simpanAgendaKeDB',
+        'simpanAdminAgendaKeDB',
+        'simpanAgendaAdminKeDB',
+        'simpanAgendaMengajarKeDB',
+        'simpanDataAgendaKeDB',
+        'simpanAdministrasiKeDB'
+    ];
+    for (let i = 0; i < kandidatFn.length; i++) {
+        if (typeof window[kandidatFn[i]] === 'function') {
+            window[kandidatFn[i]]();
+            return true;
+        }
+    }
+    let foundFn = Object.keys(window).find(function(fnName) {
+        return typeof window[fnName] === 'function' && /^simpan.*agenda/i.test(fnName);
+    });
+    if (foundFn) {
+        window[foundFn]();
+        return true;
+    }
+    return false;
+};
+
+window.simpanEditSelAgenda = function(rowIdx, field, newVal) {
+    let kls = window.ambilKelasAktifAgenda();
+    let info = window.cariStoreAgendaAdmin(kls);
+    let statusEl = document.getElementById('status-edit-agenda-inline');
+
+    if (!info || !info.store || !info.store[kls]) return;
+
+    let rawList = info.store[kls];
+    let targetObj = null;
+    if (Array.isArray(rawList)) {
+        targetObj = rawList[rowIdx];
+    } else if (typeof rawList === 'object') {
+        let keys = Object.keys(rawList);
+        targetObj = rawList[rowIdx] || rawList[keys[rowIdx]];
+    }
+    if (!targetObj || typeof targetObj !== 'object') return;
+
+    let valBersih = String(newVal || '').trim();
+    if (field === 'tanggal') {
+        if ('tgl' in targetObj && !('tanggal' in targetObj)) targetObj.tgl = valBersih;
+        else targetObj.tanggal = valBersih;
+    } else if (field === 'jp') {
+        let numJp = parseInt(valBersih, 10);
+        targetObj.jp = (!isNaN(numJp) && numJp > 0) ? numJp : 1;
+    } else if (field === 'materi') {
+        targetObj.materi = valBersih;
+    } else if (field === 'keterangan') {
+        if ('ket' in targetObj && !('keterangan' in targetObj)) targetObj.ket = valBersih;
+        else targetObj.keterangan = valBersih;
+    } else if (field === 'rencana') {
+        if ('rencanaBerikutnya' in targetObj && !('rencana' in targetObj)) targetObj.rencanaBerikutnya = valBersih;
+        else if ('rencana_berikutnya' in targetObj && !('rencana' in targetObj)) targetObj.rencana_berikutnya = valBersih;
+        else targetObj.rencana = valBersih;
+    }
+
+    if (statusEl) {
+        statusEl.style.color = '#d97706';
+        statusEl.innerText = '✍️ Menyimpan perubahan...';
+    }
+
+    clearTimeout(window._agendaInlineSaveTimer);
+    window._agendaInlineSaveTimer = setTimeout(function() {
+        let saved = window.simpanPerubahanAgendaKeServer();
+        if (typeof window.renderTabelRencanaPembelajaran === 'function') {
+            window.renderTabelRencanaPembelajaran();
+        }
+        if (statusEl) {
+            statusEl.style.color = saved ? '#16a34a' : '#0284c7';
+            statusEl.innerText = saved ? '✅ Perubahan agenda tersimpan' : '✅ Diperbarui di sesi ini';
+        }
+    }, 450);
+};
+
+window.aktifkanEditInlineTabelAgenda = function() {
+    let tbody = document.getElementById('body-agenda-mengajar');
+    if (!tbody || window._sedangPasangEditAgenda) return;
+
+    let rows = Array.from(tbody.querySelectorAll('tr'));
+    if (rows.length === 0) return;
+
+    window._sedangPasangEditAgenda = true;
+    try {
+        rows.forEach(function(tr, domIdx) {
+            if (tr.getAttribute('data-agenda-editable') === '1') return;
+            if (!tr.cells || tr.cells.length < 6) return;
+
+            // Ambil indeks data asli dari tombol hapus di kolom Aksi agar tetap akurat meski urutan dibalik
+            let dataIdx = domIdx;
+            let delBtn = tr.cells[6] ? tr.cells[6].querySelector('[onclick]') : null;
+            if (delBtn) {
+                let oc = delBtn.getAttribute('onclick') || '';
+                let m = oc.match(/\((\d+)/);
+                if (m && m[1] !== undefined) dataIdx = parseInt(m[1], 10);
+            }
+
+            // 1. Kolom Tanggal -> input date
+            let tdTgl = tr.cells[1];
+            let tglVal = (tdTgl.innerText || '').trim();
+            tdTgl.innerHTML = '';
+            let inpTgl = document.createElement('input');
+            inpTgl.type = 'date';
+            inpTgl.className = 'agenda-inline-input agenda-inline-date';
+            inpTgl.value = /^\d{4}-\d{2}-\d{2}$/.test(tglVal) ? tglVal : '';
+            inpTgl.onchange = function() {
+                window.simpanEditSelAgenda(dataIdx, 'tanggal', this.value);
+            };
+            tdTgl.appendChild(inpTgl);
+
+            // 2. Kolom JP -> input number
+            let tdJp = tr.cells[2];
+            let jpVal = parseInt((tdJp.innerText || '').trim(), 10) || 1;
+            tdJp.innerHTML = '';
+            let inpJp = document.createElement('input');
+            inpJp.type = 'number';
+            inpJp.min = '1';
+            inpJp.max = '12';
+            inpJp.className = 'agenda-inline-input agenda-inline-jp';
+            inpJp.value = String(jpVal);
+            inpJp.oninput = function() {
+                window.simpanEditSelAgenda(dataIdx, 'jp', this.value);
+            };
+            tdJp.appendChild(inpJp);
+
+            // 3. Kolom Materi, Keterangan, & Rencana Berikutnya -> contenteditable langsung
+            let petaTeks = [
+                { cell: tr.cells[3], field: 'materi', extraCls: '' },
+                { cell: tr.cells[4], field: 'keterangan', extraCls: '' },
+                { cell: tr.cells[5], field: 'rencana', extraCls: ' is-rencana-col' }
+            ];
+
+            petaTeks.forEach(function(cfg) {
+                let cell = cfg.cell;
+                let isiAwal = (cell.innerText || '').trim();
+                cell.className = (cell.className ? cell.className + ' ' : '') + 'agenda-inline-editable' + cfg.extraCls;
+                cell.setAttribute('contenteditable', 'true');
+                cell.setAttribute('spellcheck', 'false');
+                cell.setAttribute('data-placeholder', 'Klik untuk mengisi...');
+                cell.innerText = isiAwal;
+
+                cell.addEventListener('input', function() {
+                    window.simpanEditSelAgenda(dataIdx, cfg.field, cell.innerText);
+                });
+                cell.addEventListener('keydown', function(ev) {
+                    if (ev.key === 'Enter' && !ev.shiftKey) {
+                        ev.preventDefault();
+                        cell.blur();
+                    }
+                });
+            });
+
+            tr.setAttribute('data-agenda-editable', '1');
+        });
+    } finally {
+        window._sedangPasangEditAgenda = false;
+    }
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+    let tbody = document.getElementById('body-agenda-mengajar');
+    if (tbody) {
+        let obsAgenda = new MutationObserver(function() {
+            if (!window._sedangPasangEditAgenda) {
+                window.aktifkanEditInlineTabelAgenda();
+            }
+        });
+        obsAgenda.observe(tbody, { childList: true });
+        setTimeout(window.aktifkanEditInlineTabelAgenda, 500);
+    }
+});
