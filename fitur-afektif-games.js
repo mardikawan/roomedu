@@ -573,14 +573,157 @@ window.selesaikanCheckinHarian = function() {
 };
 
 // =========================================================================
-// 4. DASBOR PERKEMBANGAN SISWA (KOGNITIF & AFEKTIF SINKRON REAL-TIME)
+// 4. DASBOR PERKEMBANGAN SISWA (KOGNITIF & AFEKTIF ANTI-MACET & AUTO-SYNC)
 // =========================================================================
+window._activeTabPerkembangan = "kognitif";
+window._lastSyncPerkembanganMs = 0;
+
+window.normalisasiArrayDataFirebase = function(raw) {
+    if (!raw) return [];
+    if (Array.isArray(raw)) return raw.filter(function(item) { return item !== null && item !== undefined; });
+    if (typeof raw === "object") {
+        return Object.values(raw).filter(function(item) { return item !== null && item !== undefined; });
+    }
+    return [];
+};
+
+window.normalisasiDaftarNamaSiswaKelas = function(rawList) {
+    let arr = window.normalisasiArrayDataFirebase(rawList);
+    let hasil = [];
+    arr.forEach(function(item) {
+        let nama = (typeof item === "object" && item !== null) ? (item.nama || item.namaLengkap || "") : String(item || "");
+        nama = nama.trim();
+        if (nama) hasil.push(nama);
+    });
+    return hasil;
+};
+
 window.bukaModalPerkembanganSiswa = function() {
     window.bukaModal("modal-perkembangan-siswa");
-    window.gantiTabPerkembanganSiswa("kognitif");
+    window.pastikanTombolRefreshPerkembanganAda();
+    window.gantiTabPerkembanganSiswa(window._activeTabPerkembangan || "kognitif");
+
+    // Tarik otomatis data dari Firebase jika memori lokal masih kosong / belum lengkap
+    let perluTarik =
+        !window.adminData || Object.keys(window.adminData).length === 0 ||
+        !window.adminRekapNilaiData || Object.keys(window.adminRekapNilaiData).length === 0 ||
+        window.normalisasiArrayDataFirebase(window.adminAfektifData).length === 0 ||
+        !window._lastFullLBFetchTime ||
+        (Date.now() - window._lastSyncPerkembanganMs > 180000);
+
+    if (perluTarik) {
+        window.sinkronkanDataPerkembanganDariServer(false);
+    }
+};
+
+window.pastikanTombolRefreshPerkembanganAda = function() {
+    let btnExpKog = document.querySelector('#view-perkembangan-kognitif button[onclick*="exportExcelKognitifSiswa"]');
+    if (btnExpKog && !document.getElementById("btn-sync-kognitif-srv")) {
+        let btnSync = document.createElement("button");
+        btnSync.id = "btn-sync-kognitif-srv";
+        btnSync.type = "button";
+        btnSync.className = "btn-action";
+        btnSync.style.cssText = "background:#2980b9; width:auto; padding:8px 14px; font-size:12px; margin-right:6px;";
+        btnSync.innerText = "🔄 Segarkan Data";
+        btnSync.onclick = function() { window.sinkronkanDataPerkembanganDariServer(true); };
+        btnExpKog.parentNode.insertBefore(btnSync, btnExpKog);
+    }
+
+    let btnExpAfe = document.querySelector('#view-perkembangan-afektif button[onclick*="exportExcelAfektifSiswa"]');
+    if (btnExpAfe && !document.getElementById("btn-sync-afektif-srv")) {
+        let btnSyncA = document.createElement("button");
+        btnSyncA.id = "btn-sync-afektif-srv";
+        btnSyncA.type = "button";
+        btnSyncA.className = "btn-action";
+        btnSyncA.style.cssText = "background:#2980b9; width:auto; padding:8px 14px; font-size:12px; margin-right:6px;";
+        btnSyncA.innerText = "🔄 Segarkan Data";
+        btnSyncA.onclick = function() { window.sinkronkanDataPerkembanganDariServer(true); };
+        btnExpAfe.parentNode.insertBefore(btnSyncA, btnExpAfe);
+    }
+};
+
+window.sinkronkanDataPerkembanganDariServer = function(forceRefresh) {
+    let guru = String(window.guruAktif || sessionStorage.getItem("guruTarget") || "mahardika").trim().toLowerCase();
+    let basePath = "data_guru/" + guru;
+    let btnK = document.getElementById("btn-sync-kognitif-srv");
+    let btnA = document.getElementById("btn-sync-afektif-srv");
+
+    if (btnK) { btnK.disabled = true; btnK.innerText = "⏳ Memuat..."; }
+    if (btnA) { btnA.disabled = true; btnA.innerText = "⏳ Memuat..."; }
+
+    let tasks = [];
+    let bacaAman = function(subPath) {
+        return new Promise(function(resolve) {
+            if (typeof window.bacaDataRestFirebase !== "function") return resolve(null);
+            window.bacaDataRestFirebase(basePath + "/" + subPath, function(val) {
+                resolve(val);
+            }, function() {
+                resolve(null);
+            }, { forceRefresh: Boolean(forceRefresh), ttlMs: forceRefresh ? 0 : 120000 });
+        });
+    };
+
+    // 1. Daftar Kelas & Siswa
+    if (forceRefresh || !window.adminData || Object.keys(window.adminData).length === 0) {
+        tasks.push(bacaAman("admin_data").then(function(val) {
+            if (val && typeof val === "object") window.adminData = val;
+        }));
+    }
+
+    // 2. Rekap Nilai Ujian (cek admin_rekap dan fallback rekap_nilai)
+    if (forceRefresh || !window.adminRekapNilaiData || Object.keys(window.adminRekapNilaiData).length === 0) {
+        tasks.push(bacaAman("admin_rekap").then(function(val) {
+            if (val && typeof val === "object" && Object.keys(val).length > 0) {
+                window.adminRekapNilaiData = val;
+                return;
+            }
+            return bacaAman("rekap_nilai").then(function(val2) {
+                if (val2 && typeof val2 === "object" && Object.keys(val2).length > 0) {
+                    window.adminRekapNilaiData = val2;
+                }
+            });
+        }));
+    }
+
+    // 3. Data Check-in Afektif (cek admin_afektif dan fallback data_afektif)
+    if (forceRefresh || window.normalisasiArrayDataFirebase(window.adminAfektifData).length === 0) {
+        tasks.push(bacaAman("admin_afektif").then(function(val) {
+            let arr = window.normalisasiArrayDataFirebase(val);
+            if (arr.length > 0) {
+                window.adminAfektifData = arr;
+                return;
+            }
+            return bacaAman("data_afektif").then(function(val2) {
+                let arr2 = window.normalisasiArrayDataFirebase(val2);
+                if (arr2.length > 0) window.adminAfektifData = arr2;
+            });
+        }));
+    }
+
+    // 4. Leaderboard Penuh (untuk XP & jumlah soal latihan mandiri)
+    if (typeof window.muatLeaderboardPenuhSekali === "function" && (forceRefresh || !window._lastFullLBFetchTime)) {
+        tasks.push(new Promise(function(resolve) {
+            window.muatLeaderboardPenuhSekali(function() { resolve(); }, Boolean(forceRefresh));
+        }));
+    }
+
+    Promise.all(tasks).then(function() {
+        window._lastSyncPerkembanganMs = Date.now();
+        if (btnK) { btnK.disabled = false; btnK.innerText = "🔄 Segarkan Data"; }
+        if (btnA) { btnA.disabled = false; btnA.innerText = "🔄 Segarkan Data"; }
+
+        if (window._activeTabPerkembangan === "afektif") {
+            window.muatFilterKelasAfektif();
+            window.renderTabelAfektifAdmin();
+        } else {
+            window.muatFilterKognitifAdmin();
+            window.renderTabelKognitifAdmin();
+        }
+    });
 };
 
 window.gantiTabPerkembanganSiswa = function(tab) {
+    window._activeTabPerkembangan = tab || "kognitif";
     let btnKog = document.getElementById("btn-tab-perkembangan-kognitif");
     let btnAfe = document.getElementById("btn-tab-perkembangan-afektif");
     let viewKog = document.getElementById("view-perkembangan-kognitif");
@@ -603,18 +746,32 @@ window.gantiTabPerkembanganSiswa = function(tab) {
     }
 };
 
+// Gabungkan daftar kelas dari seluruh sumber (adminData, adminRekapNilaiData, & leaderboardSiswaData)
+window.kumpulkanSemuaKelasKognitif = function() {
+    let kelasSet = new Set();
+    Object.keys(window.adminData || {}).forEach(function(k) {
+        if (k && String(k).trim()) kelasSet.add(String(k).trim());
+    });
+    Object.keys(window.adminRekapNilaiData || {}).forEach(function(k) {
+        if (k && String(k).trim()) kelasSet.add(String(k).trim());
+    });
+    Object.values(window.leaderboardSiswaData || {}).forEach(function(item) {
+        if (item && item.kelas && typeof window.apakahKelasSMALeaderboard === "function" && window.apakahKelasSMALeaderboard(item.kelas)) {
+            kelasSet.add(String(item.kelas).trim());
+        }
+    });
+    return Array.from(kelasSet).sort();
+};
+
 // --- MESIN ANALITIK PERKEMBANGAN KOGNITIF SISWA ---
 window.muatFilterKognitifAdmin = function() {
     let selKls = document.getElementById("filter-kognitif-kelas");
     if (!selKls) return;
     let prevKls = selKls.value || "Semua";
-    let kelasSet = new Set();
-
-    Object.keys(window.adminData || {}).forEach(function(k) { kelasSet.add(k); });
-    Object.keys(window.adminRekapNilaiData || {}).forEach(function(k) { kelasSet.add(k); });
+    let semuaKelas = window.kumpulkanSemuaKelasKognitif();
 
     let htmlKls = '<option value="Semua">🏫 Semua Kelas</option>';
-    Array.from(kelasSet).sort().forEach(function(k) {
+    semuaKelas.forEach(function(k) {
         let sel = (k === prevKls) ? "selected" : "";
         htmlKls += '<option value="' + k + '" ' + sel + '>' + k + '</option>';
     });
@@ -636,16 +793,18 @@ window.perbaruiDropdownUjianKognitif = function() {
     let prevUjian = selUjian.value || "Semua";
     let ujianSet = new Set();
 
-    let daftarKelas = filterKelas === "Semua"
-        ? Object.keys(window.adminData || {}).concat(Object.keys(window.adminRekapNilaiData || {}))
-        : [filterKelas];
+    let daftarKelas = filterKelas === "Semua" ? window.kumpulkanSemuaKelasKognitif() : [filterKelas];
 
     daftarKelas.forEach(function(kls) {
-        if (typeof window.ambilKolomLedgerKelas === "function") {
-            (window.ambilKolomLedgerKelas(kls) || []).forEach(function(u) { ujianSet.add(u); });
-        }
-        let objRekap = (typeof window.ambilObjekRekapKelas === "function") ? window.ambilObjekRekapKelas(kls) : ((window.adminRekapNilaiData && window.adminRekapNilaiData[kls]) || {});
-        Object.keys(objRekap || {}).forEach(function(u) { ujianSet.add(u); });
+        try {
+            if (typeof window.ambilKolomLedgerKelas === "function") {
+                (window.ambilKolomLedgerKelas(kls) || []).forEach(function(u) { if (u) ujianSet.add(u); });
+            }
+            let objRekap = (typeof window.ambilObjekRekapKelas === "function")
+                ? (window.ambilObjekRekapKelas(kls) || {})
+                : ((window.adminRekapNilaiData && window.adminRekapNilaiData[kls]) || {});
+            Object.keys(objRekap || {}).forEach(function(u) { if (u) ujianSet.add(u); });
+        } catch (err) {}
     });
 
     let htmlUjian = '<option value="Semua">📚 Semua Evaluasi (Ledger NA)</option>';
@@ -656,14 +815,27 @@ window.perbaruiDropdownUjianKognitif = function() {
     selUjian.innerHTML = htmlUjian;
 };
 
-// Kumpulkan profil kognitif lengkap satu siswa dari seluruh sumber nilai
+// Kumpulkan profil kognitif lengkap satu siswa dari seluruh sumber nilai (aman dari null/undefined)
 window.hitungProfilKognitifSatuSiswa = function(kls, namaSiswa) {
-    let kolomUjian = (typeof window.ambilKolomLedgerKelas === "function") ? window.ambilKolomLedgerKelas(kls) : [];
-    let rekapKelas = (typeof window.ambilObjekRekapKelas === "function") ? window.ambilObjekRekapKelas(kls) : {};
-    Object.keys(rekapKelas).forEach(function(pkt) {
+    let namaBersih = String(namaSiswa || "").trim();
+    let kolomUjian = [];
+    try {
+        if (typeof window.ambilKolomLedgerKelas === "function") {
+            kolomUjian = (window.ambilKolomLedgerKelas(kls) || []).slice();
+        }
+    } catch (e) {}
+
+    let rekapKelas = {};
+    try {
+        rekapKelas = (typeof window.ambilObjekRekapKelas === "function")
+            ? (window.ambilObjekRekapKelas(kls) || {})
+            : ((window.adminRekapNilaiData && window.adminRekapNilaiData[kls]) || {});
+    } catch (e) {}
+
+    Object.keys(rekapKelas || {}).forEach(function(pkt) {
         let safePkt = (typeof window.sanitasiKeyRekapFirebase === "function") ? window.sanitasiKeyRekapFirebase(pkt).toLowerCase() : pkt.toLowerCase();
         let sudah = kolomUjian.some(function(x) {
-            let sx = (typeof window.sanitasiKeyRekapFirebase === "function") ? window.sanitasiKeyRekapFirebase(x).toLowerCase() : x.toLowerCase();
+            let sx = (typeof window.sanitasiKeyRekapFirebase === "function") ? window.sanitasiKeyRekapFirebase(x).toLowerCase() : String(x || "").toLowerCase();
             return sx === safePkt;
         });
         if (!sudah) kolomUjian.push(pkt);
@@ -682,11 +854,23 @@ window.hitungProfilKognitifSatuSiswa = function(kls, namaSiswa) {
     };
 
     kolomUjian.forEach(function(namaPaket) {
-        let objPaket = (typeof window.ambilObjekRekapPaket === "function") ? window.ambilObjekRekapPaket(kls, namaPaket) : (rekapKelas[namaPaket] || {});
-        let rec = (typeof window.ambilDataSiswaDiObjekRekap === "function") ? window.ambilDataSiswaDiObjekRekap(objPaket, namaSiswa) : objPaket[namaSiswa];
+        let objPaket = {};
+        try {
+            objPaket = (typeof window.ambilObjekRekapPaket === "function")
+                ? (window.ambilObjekRekapPaket(kls, namaPaket) || {})
+                : (rekapKelas[namaPaket] || {});
+        } catch (e) {}
 
-        if (rec && rec.nilaiAkhir !== undefined) {
-            let nilai = parseFloat(rec.nilaiAkhir);
+        let rec = null;
+        try {
+            rec = (typeof window.ambilDataSiswaDiObjekRekap === "function")
+                ? window.ambilDataSiswaDiObjekRekap(objPaket, namaBersih)
+                : objPaket[namaBersih];
+        } catch (e) {}
+
+        let rawNilai = rec ? (rec.nilaiAkhir !== undefined ? rec.nilaiAkhir : rec.nilai) : undefined;
+        if (rec && rawNilai !== undefined && rawNilai !== null && rawNilai !== "") {
+            let nilai = parseFloat(rawNilai);
             if (!isNaN(nilai)) {
                 let kat = (typeof window.deteksiKategoriKolomLedger === "function") ? window.deteksiKategoriKolomLedger(namaPaket) : "PH";
                 if (kat === "KUIS") { sumKuis += nilai; cntKuis++; }
@@ -701,7 +885,6 @@ window.hitungProfilKognitifSatuSiswa = function(kls, namaSiswa) {
                     pelanggaran: Number(rec.pelanggaran) || 0
                 });
 
-                // Ekstrak akurasi per tipe soal jika ada detail jawaban ujian
                 let detailArr = rec.detailJawaban || rec.rincianJawaban || [];
                 if (Array.isArray(detailArr)) {
                     detailArr.forEach(function(dj) {
@@ -722,15 +905,22 @@ window.hitungProfilKognitifSatuSiswa = function(kls, namaSiswa) {
         }
     });
 
-    let hasilNA = (typeof window.hitungNilaiAkhirRumusLedger === "function")
-        ? window.hitungNilaiAkhirRumusLedger(kls, namaSiswa, kolomUjian)
-        : { adaNilai: riwayatUjian.length > 0, nilaiAkhir: riwayatUjian.length > 0 ? (riwayatUjian.reduce(function(a, b) { return a + b.nilai; }, 0) / riwayatUjian.length) : 0 };
+    let hasilNA = { adaNilai: riwayatUjian.length > 0, nilaiAkhir: riwayatUjian.length > 0 ? (riwayatUjian.reduce(function(a, b) { return a + b.nilai; }, 0) / riwayatUjian.length) : 0 };
+    try {
+        if (typeof window.hitungNilaiAkhirRumusLedger === "function") {
+            let calc = window.hitungNilaiAkhirRumusLedger(kls, namaBersih, kolomUjian);
+            if (calc && typeof calc.adaNilai === "boolean") hasilNA = calc;
+        }
+    } catch (e) {}
 
-    // Cari data latihan mandiri & XP dari Leaderboard
     let lbSiswa = null;
-    let trimTarget = String(namaSiswa || "").trim().toLowerCase();
+    let trimTarget = namaBersih.toLowerCase();
+    let klsNorm = String(kls || "").trim().toLowerCase();
     Object.values(window.leaderboardSiswaData || {}).forEach(function(item) {
-        if (item && (String(item.namaLengkap || "").trim().toLowerCase() === trimTarget) && item.kelas === kls) {
+        if (!item) return;
+        let itemNama = String(item.namaLengkap || "").trim().toLowerCase();
+        let itemKls = String(item.kelas || "").trim().toLowerCase();
+        if (itemNama === trimTarget && itemKls === klsNorm) {
             lbSiswa = item;
         }
     });
@@ -739,7 +929,6 @@ window.hitungProfilKognitifSatuSiswa = function(kls, namaSiswa) {
     let totalLatihan = (Number(statLatihan.PG) || 0) + (Number(statLatihan.PGK) || 0) + (Number(statLatihan.IS) || 0) + (Number(statLatihan.Essay) || 0);
     let xpSiswa = lbSiswa ? (Number(lbSiswa.xpTotal !== undefined ? lbSiswa.xpTotal : lbSiswa.xp) || 0) : 0;
 
-    // Hitung tren kognitif (Ujian terakhir vs Ujian sebelumnya)
     let selisihTren = 0;
     let statusTren = "Stabil";
     if (riwayatUjian.length >= 2) {
@@ -751,15 +940,15 @@ window.hitungProfilKognitifSatuSiswa = function(kls, namaSiswa) {
     }
 
     return {
-        nama: namaSiswa,
-        kelas: kls,
+        nama: namaBersih,
+        kelas: String(kls || ""),
         riwayatUjian: riwayatUjian,
         jmlUjian: riwayatUjian.length,
         avgKuis: cntKuis > 0 ? (sumKuis / cntKuis) : null,
         avgPH: cntPH > 0 ? (sumPH / cntPH) : null,
         avgSAS: cntSAS > 0 ? (sumSAS / cntSAS) : null,
         adaNilai: hasilNA.adaNilai,
-        nilaiAkhir: hasilNA.nilaiAkhir,
+        nilaiAkhir: Number(hasilNA.nilaiAkhir) || 0,
         selisihTren: selisihTren,
         statusTren: statusTren,
         tipeStatUjian: tipeStatUjian,
@@ -779,44 +968,70 @@ window.renderTabelKognitifAdmin = function() {
     let filterStatus = document.getElementById("filter-kognitif-status") ? document.getElementById("filter-kognitif-status").value : "Semua";
     let kataCari = document.getElementById("filter-kognitif-cari") ? document.getElementById("filter-kognitif-cari").value.trim().toLowerCase() : "";
 
-    let semuaKelas = filterKelas === "Semua" ? Object.keys(window.adminData || {}).sort() : [filterKelas];
+    let semuaKelas = filterKelas === "Semua" ? window.kumpulkanSemuaKelasKognitif() : [filterKelas];
     let daftarProfil = [];
 
     semuaKelas.forEach(function(kls) {
-        let siswaKelas = (window.adminData && window.adminData[kls]) ? window.adminData[kls].slice().sort() : [];
-        // Tambahkan juga siswa yang ada di rekap nilai meskipun belum diinput ke daftar kelas
-        let rekapKls = (typeof window.ambilObjekRekapKelas === "function") ? window.ambilObjekRekapKelas(kls) : {};
+        let siswaKelas = (window.adminData && window.adminData[kls])
+            ? window.normalisasiDaftarNamaSiswaKelas(window.adminData[kls]).sort()
+            : [];
+
+        // Tambahkan siswa yang ada di rekap nilai meskipun belum masuk adminData
+        let rekapKls = {};
+        try {
+            rekapKls = (typeof window.ambilObjekRekapKelas === "function")
+                ? (window.ambilObjekRekapKelas(kls) || {})
+                : ((window.adminRekapNilaiData && window.adminRekapNilaiData[kls]) || {});
+        } catch (e) {}
+
         Object.values(rekapKls || {}).forEach(function(paketMap) {
-            Object.keys(paketMap || {}).forEach(function(nKey) {
+            if (!paketMap || typeof paketMap !== "object") return;
+            Object.keys(paketMap).forEach(function(nKey) {
                 let rec = paketMap[nKey];
-                let namaAsli = (rec && rec.namaAsli) ? rec.namaAsli : nKey;
-                let sudahAda = siswaKelas.some(function(s) { return s.trim().toLowerCase() === namaAsli.trim().toLowerCase(); });
+                let namaAsli = String((rec && rec.namaAsli) ? rec.namaAsli : nKey || "").trim();
+                if (!namaAsli) return;
+                let sudahAda = siswaKelas.some(function(s) { return s.toLowerCase() === namaAsli.toLowerCase(); });
                 if (!sudahAda) siswaKelas.push(namaAsli);
             });
         });
 
+        // Tambahkan siswa yang aktif di leaderboard kelas tersebut
+        let klsLow = String(kls || "").trim().toLowerCase();
+        Object.values(window.leaderboardSiswaData || {}).forEach(function(lbItem) {
+            if (!lbItem || !lbItem.namaLengkap || String(lbItem.kelas || "").trim().toLowerCase() !== klsLow) return;
+            let nLb = String(lbItem.namaLengkap).trim();
+            if (!nLb) return;
+            let sudahAda = siswaKelas.some(function(s) { return s.toLowerCase() === nLb.toLowerCase(); });
+            if (!sudahAda) siswaKelas.push(nLb);
+        });
+
+        siswaKelas.sort();
+
         siswaKelas.forEach(function(nama) {
-            let p = window.hitungProfilKognitifSatuSiswa(kls, nama);
-            let kkm = (typeof window.dapatkanKKMKelas === "function") ? window.dapatkanKKMKelas(kls) : 70;
-            p.kkm = kkm;
+            try {
+                let p = window.hitungProfilKognitifSatuSiswa(kls, nama);
+                let kkm = (typeof window.dapatkanKKMKelas === "function") ? window.dapatkanKKMKelas(kls) : 70;
+                p.kkm = kkm;
 
-            if (filterUjian !== "Semua") {
-                let ujianCocok = p.riwayatUjian.find(function(u) { return u.paket === filterUjian; });
-                p.skorTampil = ujianCocok ? ujianCocok.nilai : null;
-                p.adaSkorTampil = Boolean(ujianCocok);
-            } else {
-                p.skorTampil = p.adaNilai ? p.nilaiAkhir : null;
-                p.adaSkorTampil = p.adaNilai;
+                if (filterUjian !== "Semua") {
+                    let ujianCocok = p.riwayatUjian.find(function(u) { return u.paket === filterUjian; });
+                    p.skorTampil = ujianCocok ? ujianCocok.nilai : null;
+                    p.adaSkorTampil = Boolean(ujianCocok);
+                } else {
+                    p.skorTampil = p.adaNilai ? p.nilaiAkhir : null;
+                    p.adaSkorTampil = p.adaNilai;
+                }
+
+                p.isTuntas = p.adaSkorTampil && (p.skorTampil >= kkm);
+                daftarProfil.push(p);
+            } catch (errSiswa) {
+                console.warn("Lewati data kognitif rusak:", kls, nama, errSiswa);
             }
-
-            p.isTuntas = p.adaSkorTampil && (p.skorTampil >= kkm);
-            daftarProfil.push(p);
         });
     });
 
-    // Terapkan filter pencarian & status
     let terfilter = daftarProfil.filter(function(p) {
-        if (kataCari && p.nama.toLowerCase().indexOf(kataCari) === -1) return false;
+        if (kataCari && String(p.nama || "").toLowerCase().indexOf(kataCari) === -1) return false;
         if (filterStatus === "Tuntas" && (!p.adaSkorTampil || !p.isTuntas)) return false;
         if (filterStatus === "Remedial" && (!p.adaSkorTampil || p.isTuntas)) return false;
         if (filterStatus === "Naik" && p.statusTren !== "Naik") return false;
@@ -824,7 +1039,6 @@ window.renderTabelKognitifAdmin = function() {
         return true;
     });
 
-    // Hitung statistik agregat
     let jmlAdaNilai = 0, totalNilai = 0, jmlTuntas = 0, jmlRemedial = 0, jmlNaik = 0, jmlTurun = 0, totalSoalLatihanKelas = 0;
     terfilter.forEach(function(p) {
         totalSoalLatihanKelas += p.totalLatihan;
@@ -862,7 +1076,7 @@ window.renderTabelKognitifAdmin = function() {
     }
 
     if (terfilter.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:25px; color:#7f8c8d; font-weight:bold;">Belum ada data kognitif siswa untuk filter ini.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:25px; color:#7f8c8d; font-weight:bold;">Belum ada data kognitif siswa untuk filter ini. Tekan <b>🔄 Segarkan Data</b> jika baru masuk.</td></tr>';
         return;
     }
 
@@ -891,7 +1105,6 @@ window.renderTabelKognitifAdmin = function() {
             '<div style="font-size:11px; font-weight:700; color:#1e293b;">PG:' + (p.statLatihan.PG || 0) + ' | PGK:' + (p.statLatihan.PGK || 0) + ' | IS:' + (p.statLatihan.IS || 0) + ' | ES:' + (p.statLatihan.Essay || 0) + '</div>' +
             '<div style="font-size:10px; color:#0b3954; font-weight:800; margin-top:2px;">⚡ Total: ' + p.totalLatihan + ' Soal (' + p.xpSiswa.toLocaleString("id-ID") + ' XP)</div>';
 
-        // Rekomendasi Pedagogis Otomatis berdasarkan Skor & Tren
         let levelKog = "Belum Terukur";
         let rekomTeks = "Arahkan siswa mengikuti ujian/latihan mandiri untuk memetakan kemampuan awal.";
         let badgeLevelBg = "#f1f5f9", badgeLevelCol = "#475569";
@@ -918,8 +1131,8 @@ window.renderTabelKognitifAdmin = function() {
             }
         }
 
-        let safeKls = p.kelas.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-        let safeNama = p.nama.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+        let safeKls = String(p.kelas || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+        let safeNama = String(p.nama || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 
         html +=
             '<tr>' +
@@ -938,6 +1151,140 @@ window.renderTabelKognitifAdmin = function() {
                 '<td style="text-align:center;">' +
                     '<button type="button" class="btn-action" style="background:#0b3954; width:auto; padding:5px 10px; font-size:11px;" onclick="window.bukaDetailRiwayatKognitifSiswa(\'' + safeKls + '\', \'' + safeNama + '\')">🔍 Detail</button>' +
                 '</td>' +
+            '</tr>';
+    });
+
+    tbody.innerHTML = html;
+};
+
+window.bukaDetailRiwayatKognitifSiswa = function(kls, nama) {
+    let p = window.hitungProfilKognitifSatuSiswa(kls, nama);
+    if (!p.riwayatUjian || p.riwayatUjian.length === 0) {
+        return alert("📋 Siswa " + nama + " (" + kls + ") belum memiliki riwayat nilai ujian yang tercatat.");
+    }
+
+    let teks = "📈 RIWAYAT PERKEMBANGAN KOGNITIF SISWA\n" +
+               "Nama : " + nama + "\n" +
+               "Kelas : " + kls + "\n" +
+               "Nilai Akhir (NA Ledger) : " + p.nilaiAkhir.toFixed(1) + "\n" +
+               "----------------------------------------\n";
+
+    p.riwayatUjian.forEach(function(r, i) {
+        teks += (i + 1) + ". [" + r.kategori + "] " + r.paket + " ➔ Nilai: " + r.nilai.toFixed(1) + (r.pelanggaran > 0 ? " (⚠️ " + r.pelanggaran + "x Pelanggaran)" : "") + "\n";
+    });
+
+    teks += "----------------------------------------\n" +
+            "Akumulasi Soal Latihan Mandiri: " + p.totalLatihan + " Soal (" + p.xpSiswa.toLocaleString("id-ID") + " XP)";
+    alert(teks);
+};
+
+window.exportExcelKognitifSiswa = function() {
+    let table = document.getElementById("tabel-kognitif-excel");
+    if (!table) return;
+
+    let html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">' +
+        '<head><meta charset="utf-8"><style>table{border-collapse:collapse;font-family:Calibri,sans-serif;font-size:12px;}th,td{border:1px solid #000;padding:6px;vertical-align:top;}th{background:#0b3954;color:#fff;font-weight:bold;}</style></head>' +
+        '<body><h3>Laporan Analisis Perkembangan Kognitif Siswa</h3>' + table.outerHTML + '</body></html>';
+
+    let blob = new Blob([html], { type: "application/vnd.ms-excel" });
+    let link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "Analisis_Kognitif_Siswa.xls";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
+window.muatFilterKelasAfektif = function() {
+    let sel = document.getElementById("filter-afektif-kelas");
+    if (!sel) return;
+    let prev = sel.value || "Semua";
+    let kelasSet = new Set();
+
+    Object.keys(window.adminData || {}).forEach(function(k) { kelasSet.add(k); });
+    window.normalisasiArrayDataFirebase(window.adminAfektifData).forEach(function(item) {
+        if (item && item.kelas) kelasSet.add(item.kelas);
+    });
+
+    let html = '<option value="Semua">🏫 Semua Kelas</option>';
+    Array.from(kelasSet).sort().forEach(function(k) {
+        let selected = (k === prev) ? "selected" : "";
+        html += '<option value="' + k + '" ' + selected + '>' + k + '</option>';
+    });
+    sel.innerHTML = html;
+};
+
+window.renderTabelAfektifAdmin = function() {
+    let tbody = document.getElementById("body-tabel-afektif-excel");
+    let statBox = document.getElementById("rekap-statistik-afektif");
+    if (!tbody) return;
+
+    let filterKelas = document.getElementById("filter-afektif-kelas") ? document.getElementById("filter-afektif-kelas").value : "Semua";
+    let filterEmosi = document.getElementById("filter-afektif-emosi") ? document.getElementById("filter-afektif-emosi").value : "Semua";
+    let filterTgl = document.getElementById("filter-afektif-tanggal") ? document.getElementById("filter-afektif-tanggal").value : "";
+
+    let list = window.normalisasiArrayDataFirebase(window.adminAfektifData);
+
+    let filtered = list.filter(function(item) {
+        if (!item || typeof item !== "object") return false;
+        if (filterKelas !== "Semua" && item.kelas !== filterKelas) return false;
+        if (filterEmosi !== "Semua" && item.emosi !== filterEmosi) return false;
+        let tglSaja = String(item.tanggalKey || "").split('_')[0];
+        if (filterTgl && tglSaja !== filterTgl) return false;
+        return true;
+    });
+
+    filtered.sort(function(a, b) {
+        let ta = new Date(a.timestamp || a.tanggalKey || 0).getTime() || 0;
+        let tb = new Date(b.timestamp || b.tanggalKey || 0).getTime() || 0;
+        return tb - ta;
+    });
+
+    let count = { "Bahagia": 0, "Sedih": 0, "Marah": 0, "Biasa Saja": 0 };
+    filtered.forEach(function(item) {
+        if (count[item.emosi] !== undefined) count[item.emosi]++;
+    });
+    let total = filtered.length || 1;
+
+    if (statBox) {
+        statBox.innerHTML =
+            '<div style="flex:1; min-width:130px; background:#fef9e7; border:1px solid #f1c40f; border-radius:8px; padding:10px 12px;">' +
+                '<div style="font-size:11px; font-weight:bold; color:#d35400;">😊 Bahagia / Senang</div>' +
+                '<div style="font-size:20px; font-weight:900; color:#1e293b;">' + count["Bahagia"] + ' <span style="font-size:11px; font-weight:normal; color:#64748b;">(' + Math.round((count["Bahagia"] / total) * 100) + '%)</span></div>' +
+            '</div>' +
+            '<div style="flex:1; min-width:130px; background:#ebf5fb; border:1px solid #3498db; border-radius:8px; padding:10px 12px;">' +
+                '<div style="font-size:11px; font-weight:bold; color:#2980b9;">😢 Sedih</div>' +
+                '<div style="font-size:20px; font-weight:900; color:#1e293b;">' + count["Sedih"] + ' <span style="font-size:11px; font-weight:normal; color:#64748b;">(' + Math.round((count["Sedih"] / total) * 100) + '%)</span></div>' +
+            '</div>' +
+            '<div style="flex:1; min-width:130px; background:#fdedec; border:1px solid #e74c3c; border-radius:8px; padding:10px 12px;">' +
+                '<div style="font-size:11px; font-weight:bold; color:#c0392b;">😠 Marah</div>' +
+                '<div style="font-size:20px; font-weight:900; color:#1e293b;">' + count["Marah"] + ' <span style="font-size:11px; font-weight:normal; color:#64748b;">(' + Math.round((count["Marah"] / total) * 100) + '%)</span></div>' +
+            '</div>' +
+            '<div style="flex:1; min-width:130px; background:#f8fafc; border:1px solid #94a3b8; border-radius:8px; padding:10px 12px;">' +
+                '<div style="font-size:11px; font-weight:bold; color:#475569;">😐 Biasa Saja</div>' +
+                '<div style="font-size:20px; font-weight:900; color:#1e293b;">' + count["Biasa Saja"] + ' <span style="font-size:11px; font-weight:normal; color:#64748b;">(' + Math.round((count["Biasa Saja"] / total) * 100) + '%)</span></div>' +
+            '</div>';
+    }
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:25px; color:#7f8c8d; font-weight:bold;">Belum ada data rekaman Check-in Afektif siswa untuk filter ini. Tekan <b>🔄 Segarkan Data</b> jika baru masuk.</td></tr>';
+        return;
+    }
+
+    let html = "";
+    filtered.forEach(function(item, idx) {
+        let badgeBg = item.emosi === "Bahagia" ? "#fef9e7" : (item.emosi === "Sedih" ? "#ebf5fb" : (item.emosi === "Marah" ? "#fdedec" : "#f1f5f9"));
+        let badgeCol = item.emosi === "Bahagia" ? "#d35400" : (item.emosi === "Sedih" ? "#2980b9" : (item.emosi === "Marah" ? "#c0392b" : "#475569"));
+
+        html +=
+            '<tr>' +
+                '<td style="text-align:center; font-weight:bold; color:#7f8c8d;">' + (idx + 1) + '</td>' +
+                '<td style="white-space:nowrap; font-size:12px;">' + (item.waktu || item.tanggalKey || "-") + '</td>' +
+                '<td style="font-weight:bold; color:#2c3e50;">' + (item.nama || "-") + '</td>' +
+                '<td style="text-align:center;"><span style="background:#eaf2f8; color:#2980b9; padding:2px 8px; border-radius:4px; font-weight:bold; font-size:11px;">' + (item.kelas || "-") + '</span></td>' +
+                '<td style="text-align:center;"><span style="background:' + badgeBg + '; color:' + badgeCol + '; padding:4px 10px; border-radius:12px; font-weight:bold; font-size:12px; white-space:nowrap;">' + (item.ikon || "") + ' ' + (item.emosi || "-") + '</span></td>' +
+                '<td style="min-width:240px; line-height:1.4;">' + (item.jawaban1 || "-") + '</td>' +
+                '<td style="min-width:240px; line-height:1.4;">' + (item.jawaban2 || "-") + '</td>' +
             '</tr>';
     });
 

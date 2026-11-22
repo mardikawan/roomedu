@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mahardika-pwa-v16';
+const CACHE_NAME = 'mahardika-pwa-v17';
 
 // Daftar file inti aplikasi (menggunakan ./ agar cocok di GitHub Pages & Live Server)
 const CORE_ASSETS = [

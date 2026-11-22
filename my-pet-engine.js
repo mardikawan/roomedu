@@ -435,36 +435,49 @@ window.pastikanUIMyPetAda = function() {
         };
 
         modal.innerHTML =
-            '<div class="modal-box mypet-modal-box">' +
-                '<div class="mypet-header">' +
-                    '<div style="display:flex; align-items:center; gap:10px;">' +
-                        '<span style="font-size:24px;">🐾</span>' +
-                        '<div>' +
-                            '<h3 style="margin:0; color:#ffffff; font-size:17px; letter-spacing:0.3px;">My Pet Sanctuary</h3>' +
-                            '<div style="font-size:11px; color:#cbd5e1;">Rawat hewan kesayanganmu dengan Coin hasil belajar!</div>' +
+            '<div class="modal-box mypet-modal-box mypet-cozy-shell">' +
+                '<div class="mypet-cozy-hud">' +
+                    '<div class="mypet-hud-left">' +
+                        '<div class="mypet-wood-sign" onclick="window.gantiTabMyPet(\'habitat\')" title="Kembali ke Habitat">' +
+                            '<span class="mypet-sign-paw">🐾</span>' +
+                            '<div>' +
+                                '<div class="mypet-sign-title">My Pet</div>' +
+                                '<div class="mypet-sign-sub">Sanctuary</div>' +
+                            '</div>' +
+                        '</div>' +
+                        '<div class="mypet-hud-currencies">' +
+                            '<div class="mypet-hud-pill coin-pill" title="Saldo Coin untuk belanja Pet, Makanan, Mainan, Kostum, & Bibit Kebun">' +
+                                '<span class="hud-orb coin-orb">🪙</span>' +
+                                '<strong id="mypet-header-xp-tersedia">0 Coin</strong>' +
+                            '</div>' +
+                            '<div class="mypet-hud-pill xp-pill" title="Akumulasi XP Leaderboard (Tidak berkurang saat belanja)">' +
+                                '<span class="hud-orb xp-orb">⭐</span>' +
+                                '<strong id="mypet-header-xp-total">0 XP</strong>' +
+                            '</div>' +
                         '</div>' +
                     '</div>' +
-                    '<div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">' +
-                        '<div class="mypet-xp-pill" title="Saldo Coin untuk membeli Pet, Makanan, Mainan, Kostum, & Bingkai (Tidak mengurangi XP Leaderboard)">' +
-                            '<span style="font-size:10px; color:#fde047; font-weight:700; text-transform:uppercase;">🪙 Coin Belanja</span>' +
-                            '<strong id="mypet-header-xp-tersedia" style="font-size:15px; color:#ffffff;">0 Coin</strong>' +
-                        '</div>' +
-                        '<div class="mypet-xp-pill total-pill" title="Akumulasi XP murni untuk peringkat di Leaderboard">' +
-                            '<span style="font-size:10px; color:#93c5fd; font-weight:700; text-transform:uppercase;">🏆 XP Leaderboard</span>' +
-                            '<strong id="mypet-header-xp-total" style="font-size:13px; color:#e0f2fe;">0 XP</strong>' +
-                        '</div>' +
-                        '<button type="button" class="close-btn" style="color:#ffffff; font-size:20px; margin-left:4px;" onclick="window.tutupModalMyPet()">✕</button>' +
+
+                    '<div class="mypet-hud-right">' +
+                        '<button type="button" id="tab-btn-mypet-habitat" class="mypet-tab-btn mypet-hud-icon-btn active" onclick="window.gantiTabMyPet(\'habitat\')">' +
+                            '<span class="hud-ico">🏡</span><span class="hud-lbl">Habitat</span>' +
+                        '</button>' +
+                        '<button type="button" id="tab-btn-mypet-collection" class="mypet-tab-btn mypet-hud-icon-btn" onclick="window.gantiTabMyPet(\'collection\')">' +
+                            '<span class="hud-ico">🐾</span><span class="hud-lbl">Collection</span>' +
+                        '</button>' +
+                        '<button type="button" id="tab-btn-mypet-shop" class="mypet-tab-btn mypet-hud-icon-btn" onclick="window.gantiTabMyPet(\'shop\')">' +
+                            '<span class="hud-ico">🏪</span><span class="hud-lbl">Shop</span>' +
+                        '</button>' +
+                        '<button type="button" id="tab-btn-mypet-wardrobe" class="mypet-tab-btn mypet-hud-icon-btn" onclick="window.gantiTabMyPet(\'wardrobe\')">' +
+                            '<span class="hud-ico">👗</span><span class="hud-lbl">Wardrobe</span>' +
+                        '</button>' +
+                        '<button type="button" id="btn-switch-to-mygarden" class="mypet-hud-icon-btn garden-link-btn" onclick="window.bukaMyGardenDariPet()" title="Pindah ke My Garden">' +
+                            '<span class="hud-ico">🌱</span><span class="hud-lbl">Garden</span>' +
+                        '</button>' +
+                        '<button type="button" class="mypet-hud-close-btn" onclick="window.tutupModalMyPet()" title="Tutup">✕</button>' +
                     '</div>' +
                 '</div>' +
 
-                '<div class="mypet-tabs-bar">' +
-                    '<button type="button" id="tab-btn-mypet-habitat" class="mypet-tab-btn active" onclick="window.gantiTabMyPet(\'habitat\')">🏡 Habitat</button>' +
-                    '<button type="button" id="tab-btn-mypet-collection" class="mypet-tab-btn" onclick="window.gantiTabMyPet(\'collection\')">🐾 Pet Collection</button>' +
-                    '<button type="button" id="tab-btn-mypet-shop" class="mypet-tab-btn" onclick="window.gantiTabMyPet(\'shop\')">🛒 Shop</button>' +
-                    '<button type="button" id="tab-btn-mypet-wardrobe" class="mypet-tab-btn" onclick="window.gantiTabMyPet(\'wardrobe\')">👗 Wardrobe</button>' +
-                '</div>' +
-
-                '<div class="modal-body mypet-body-container">' +
+                '<div class="modal-body mypet-body-container mypet-cozy-body">' +
                     '<div id="mypet-view-habitat" class="mypet-tab-view"></div>' +
                     '<div id="mypet-view-collection" class="mypet-tab-view" style="display:none;"></div>' +
                     '<div id="mypet-view-shop" class="mypet-tab-view" style="display:none;"></div>' +
@@ -473,6 +486,15 @@ window.pastikanUIMyPetAda = function() {
             '</div>';
 
         document.body.appendChild(modal);
+    }
+};
+
+window.bukaMyGardenDariPet = function() {
+    if (typeof window.bukaModalMyGarden === "function") {
+        window.tutupModalMyPet();
+        window.bukaModalMyGarden();
+    } else {
+        window.tampilkanCustomDialog("alert", "🌱 Fitur My Garden akan segera aktif setelah pemasangan Tahap 2!", null, null);
     }
 };
 
@@ -1569,7 +1591,64 @@ window.mulaiDragDekorasi = function(e, idx) {
 };
 
 window.bangunSVGTemaHabitat = function(themeId) {
-    let defSvg = '<svg viewBox="0 0 1000 360" preserveAspectRatio="none" style="position:absolute; inset:0; width:100%; height:100%; z-index:0; pointer-events:none;"><defs><linearGradient id="skyWarmGrad" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#f0f9ff"/><stop offset="55%" stop-color="#fef9c3"/><stop offset="100%" stop-color="#dcfce7"/></linearGradient><linearGradient id="mountainGrad" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#86efac"/><stop offset="100%" stop-color="#15803d"/></linearGradient><linearGradient id="hillLeftGrad" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#bef264"/><stop offset="100%" stop-color="#65a30d"/></linearGradient><linearGradient id="hillRightGrad" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#a3e635"/><stop offset="100%" stop-color="#4d7c0f"/></linearGradient><linearGradient id="riverWaterGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#bae6fd"/><stop offset="45%" stop-color="#38bdf8"/><stop offset="100%" stop-color="#0284c7"/></linearGradient></defs><rect width="1000" height="360" fill="url(#skyWarmGrad)"/><circle cx="480" cy="42" r="46" fill="#fde047" opacity="0.35"/><circle cx="480" cy="42" r="32" fill="#facc15"/><g stroke="#f59e0b" stroke-width="3" stroke-linecap="round" opacity="0.75"><line x1="480" y1="82" x2="480" y2="96"/><line x1="450" y1="76" x2="442" y2="90"/><line x1="510" y1="76" x2="518" y2="90"/><line x1="428" y1="58" x2="414" y2="66"/><line x1="532" y1="58" x2="546" y2="66"/></g><path d="M260,55 Q268,45 276,55 Q284,45 292,55" fill="none" stroke="#475569" stroke-width="2.5" stroke-linecap="round"/><path d="M295,68 Q302,60 309,68 Q316,60 323,68" fill="none" stroke="#475569" stroke-width="2.2" stroke-linecap="round"/><path d="M680,48 Q687,40 694,48 Q701,40 708,48" fill="none" stroke="#475569" stroke-width="2.2" stroke-linecap="round"/><polygon points="290,195 430,28 595,28 710,195" fill="url(#mountainGrad)" opacity="0.65"/><polygon points="360,195 495,48 640,195" fill="#16a34a" opacity="0.45"/><path d="M0,145 Q220,115 440,185 L440,360 L0,360 Z" fill="url(#hillLeftGrad)"/><path d="M360,185 Q720,105 1000,135 L1000,360 L360,360 Z" fill="url(#hillRightGrad)"/><path d="M0,205 Q480,165 1000,200 L1000,360 L0,360 Z" fill="#86efac"/><path d="M0,235 Q520,195 1000,225 L1000,360 L0,360 Z" fill="#4ade80"/><path d="M395,182 Q335,235 160,260 Q95,305 155,360 L465,360 Q485,295 435,245 Q415,210 395,182 Z" fill="#fde68a"/><path d="M402,184 Q345,238 175,264 Q115,308 170,360 L448,360 Q468,295 422,246 Q408,210 402,184 Z" fill="url(#riverWaterGrad)"/><path d="M240,295 Q280,290 320,295 M210,325 Q265,318 315,325 M310,255 Q345,250 380,255" fill="none" stroke="#e0f2fe" stroke-width="3" stroke-linecap="round" opacity="0.75"/><rect x="34" y="105" width="18" height="125" rx="5" fill="#78350f"/><circle cx="45" cy="85" r="48" fill="#4d7c0f"/><circle cx="22" cy="108" r="36" fill="#65a30d"/><circle cx="68" cy="105" r="34" fill="#84cc16"/><rect x="945" y="100" width="18" height="130" rx="5" fill="#78350f"/><circle cx="952" cy="82" r="48" fill="#4d7c0f"/><circle cx="928" cy="105" r="36" fill="#84cc16"/><circle cx="975" cy="108" r="34" fill="#3f6212"/><path d="M0,360 L0,305 Q35,285 60,320 Q90,295 125,335 Q150,315 175,360 Z" fill="#15803d" opacity="0.85"/><path d="M820,360 Q850,310 885,335 Q915,290 950,320 Q975,285 1000,310 L1000,360 Z" fill="#15803d" opacity="0.85"/><circle cx="75" cy="318" r="6" fill="#f43f5e"/><circle cx="112" cy="332" r="5" fill="#facc15"/><circle cx="875" cy="328" r="6" fill="#fb923c"/><circle cx="925" cy="315" r="6" fill="#f43f5e"/></svg>';
+    // Panggung Cozy Sanctuary (Teras Kayu Hangat, Kolam/Akuarium Kiri, Rumah Pet, Karpet Paw, & Taman Cerah)
+    let defSvg = '<svg viewBox="0 0 1000 360" preserveAspectRatio="none" style="position:absolute; inset:0; width:100%; height:100%; z-index:0; pointer-events:none;">' +
+        '<defs>' +
+            '<linearGradient id="cozySkyG" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#bae6fd"/><stop offset="100%" stop-color="#fef9c3"/></linearGradient>' +
+            '<linearGradient id="cozyWoodG" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#f6cc96"/><stop offset="100%" stop-color="#df9e57"/></linearGradient>' +
+            '<linearGradient id="cozyPondG" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#bae6fd"/><stop offset="50%" stop-color="#38bdf8"/><stop offset="100%" stop-color="#0284c7"/></linearGradient>' +
+        '</defs>' +
+        '<!-- Langit & Taman Belakang -->' +
+        '<rect width="1000" height="165" fill="url(#cozySkyG)"/>' +
+        '<circle cx="145" cy="48" r="24" fill="#ffffff" opacity="0.7"/><circle cx="172" cy="46" r="28" fill="#ffffff" opacity="0.7"/><circle cx="202" cy="52" r="22" fill="#ffffff" opacity="0.7"/>' +
+        '<circle cx="775" cy="45" r="22" fill="#ffffff" opacity="0.65"/><circle cx="804" cy="42" r="28" fill="#ffffff" opacity="0.65"/><circle cx="832" cy="48" r="20" fill="#ffffff" opacity="0.65"/>' +
+        '<path d="M0,125 Q180,82 390,122 T780,108 T1000,120 L1000,190 L0,190 Z" fill="#86efac"/>' +
+        '<circle cx="65" cy="95" r="52" fill="#4ade80"/><circle cx="122" cy="112" r="40" fill="#22c55e"/>' +
+        '<circle cx="920" cy="88" r="56" fill="#4ade80"/><circle cx="855" cy="110" r="44" fill="#22c55e"/>' +
+        '<!-- Pagar Kayu Teras -->' +
+        '<g fill="#fef3c7" stroke="#c28e54" stroke-width="3">' +
+            '<rect x="0" y="128" width="1000" height="11"/><rect x="0" y="156" width="1000" height="11"/>' +
+            '<rect x="40" y="112" width="18" height="72" rx="6"/><rect x="115" y="112" width="18" height="72" rx="6"/><rect x="190" y="112" width="18" height="72" rx="6"/>' +
+            '<rect x="265" y="112" width="18" height="72" rx="6"/><rect x="340" y="112" width="18" height="72" rx="6"/><rect x="415" y="112" width="18" height="72" rx="6"/>' +
+            '<rect x="490" y="112" width="18" height="72" rx="6"/><rect x="565" y="112" width="18" height="72" rx="6"/><rect x="640" y="112" width="18" height="72" rx="6"/>' +
+            '<rect x="715" y="112" width="18" height="72" rx="6"/><rect x="790" y="112" width="18" height="72" rx="6"/><rect x="865" y="112" width="18" height="72" rx="6"/><rect x="940" y="112" width="18" height="72" rx="6"/>' +
+        '</g>' +
+        '<!-- Lantai Dek Kayu Hangat -->' +
+        '<rect x="0" y="172" width="1000" height="188" fill="url(#cozyWoodG)"/>' +
+        '<g stroke="#b87838" stroke-width="2" opacity="0.45">' +
+            '<line x1="0" y1="204" x2="1000" y2="204"/><line x1="0" y1="236" x2="1000" y2="236"/><line x1="0" y1="268" x2="1000" y2="268"/><line x1="0" y1="300" x2="1000" y2="300"/><line x1="0" y1="332" x2="1000" y2="332"/>' +
+            '<line x1="160" y1="172" x2="160" y2="204"/><line x1="420" y1="204" x2="420" y2="236"/><line x1="680" y1="172" x2="680" y2="204"/>' +
+            '<line x1="290" y1="236" x2="290" y2="268"/><line x1="590" y1="268" x2="590" y2="300"/><line x1="810" y1="236" x2="810" y2="268"/>' +
+        '</g>' +
+        '<!-- Kolam Kaca / Zona Air Kiri untuk Hewan Air -->' +
+        '<ellipse cx="265" cy="264" rx="135" ry="52" fill="#fde68a" stroke="#b45309" stroke-width="5"/>' +
+        '<ellipse cx="265" cy="264" rx="122" ry="43" fill="url(#cozyPondG)"/>' +
+        '<path d="M195,256 Q235,248 275,256 M235,278 Q275,272 315,278" fill="none" stroke="#e0f2fe" stroke-width="3.5" stroke-linecap="round" opacity="0.8"/>' +
+        '<!-- Rumah Kayu Pet & Cat Tree di Kanan Belakang -->' +
+        '<g transform="translate(705, 92)">' +
+            '<rect x="18" y="45" width="96" height="72" rx="6" fill="#fef3c7" stroke="#92400e" stroke-width="4"/>' +
+            '<polygon points="6,52 66,8 126,52" fill="#d97706" stroke="#78350f" stroke-width="4" stroke-linejoin="round"/>' +
+            '<path d="M46,117 L46,82 A20,20 0 0,1 86,82 L86,117 Z" fill="#5b3416"/>' +
+            '<circle cx="66" cy="34" r="7" fill="#fef08a" stroke="#78350f" stroke-width="2.5"/>' +
+        '</g>' +
+        '<g transform="translate(560, 88)">' +
+            '<rect x="34" y="25" width="18" height="92" fill="#d9a066" stroke="#92400e" stroke-width="3"/>' +
+            '<rect x="14" y="18" width="58" height="16" rx="8" fill="#fef3c7" stroke="#b45309" stroke-width="3"/>' +
+            '<rect x="12" y="64" width="62" height="14" rx="7" fill="#fef3c7" stroke="#b45309" stroke-width="3"/>' +
+            '<ellipse cx="43" cy="118" rx="44" ry="12" fill="#fde68a" stroke="#b45309" stroke-width="3"/>' +
+        '</g>' +
+        '<!-- Karpet Hijau Paw Print di Tengah -->' +
+        '<ellipse cx="565" cy="278" rx="145" ry="50" fill="#86efac" stroke="#4ade80" stroke-width="5"/>' +
+        '<g fill="#4ade80" opacity="0.55">' +
+            '<ellipse cx="565" cy="285" rx="28" ry="18"/>' +
+            '<circle cx="534" cy="264" r="10"/><circle cx="556" cy="256" r="10"/><circle cx="578" cy="256" r="10"/><circle cx="598" cy="265" r="10"/>' +
+        '</g>' +
+        '<!-- Semak Bunga Depan Kiri & Kanan -->' +
+        '<path d="M0,360 L0,300 Q45,282 78,318 Q112,298 145,360 Z" fill="#22c55e" stroke="#15803d" stroke-width="3"/>' +
+        '<circle cx="48" cy="322" r="7" fill="#f43f5e"/><circle cx="95" cy="336" r="6" fill="#facc15"/>' +
+        '<path d="M845,360 Q882,300 925,318 Q960,285 1000,305 L1000,360 Z" fill="#22c55e" stroke="#15803d" stroke-width="3"/>' +
+        '<circle cx="905" cy="332" r="7" fill="#fb923c"/><circle cx="952" cy="316" r="6" fill="#fef08a"/>' +
+    '</svg>';
 
     let themesMap = {
         "thm_volcano": '<svg viewBox="0 0 1000 360" preserveAspectRatio="none" style="position:absolute; inset:0; width:100%; height:100%; z-index:0; pointer-events:none;"><rect width="1000" height="360" fill="#7f1d1d"/><polygon points="200,200 400,20 600,200 800,50 1000,200 1000,360 0,360 0,200" fill="#1c1917"/><polygon points="370,50 400,20 430,50 410,120 450,180 350,180 390,120" fill="#ea580c"/><path d="M0,250 Q250,220 500,280 T1000,250 L1000,360 L0,360 Z" fill="#292524"/><path d="M200,260 Q400,230 600,300 T1000,280 L1000,360 L0,360 L0,300 Q100,280 200,260 Z" fill="#ea580c" opacity="0.8"/></svg>',
@@ -1584,6 +1663,31 @@ window.bangunSVGTemaHabitat = function(themeId) {
     };
 
     return themesMap[themeId] || defSvg;
+};
+
+window.dapatkanBioPet = function(petId) {
+    let bioMap = {
+        kecoa:    "Serangga gesit nan tangguh yang selalu bersemangat menjelajah sudut taman.",
+        tikus:    "Si mungil yang pintar dan selalu berburu keju favoritnya.",
+        kadal:    "Reptil ceria yang gemar berjemur di atas batu hangat.",
+        kelinci:  "Kelinci lembut bertelinga panjang yang suka melompat riang.",
+        kucing:   "Kucing lucu yang suka berjemur di bawah sinar matahari.",
+        anjing:   "Sahabat setia yang selalu gembira menyambutmu pulang belajar.",
+        pipit:    "Burung mungil berkicau merdu yang membawa suasana pagi yang segar.",
+        ikan:     "Ikan tropis berwarna cerah yang lincah berenang di kolam jernih.",
+        monyet:   "Monyet cerdas yang suka memanjat dan bermain sepanjang hari.",
+        buaya:    "Penjaga kolam yang santai, ramah, dan hobi berendam.",
+        ular:     "Ular hijau eksotis yang tenang dan elegan saat melingkar.",
+        beruang:  "Beruang hangat penyuka madu yang sangat suka dipeluk.",
+        gajah:    "Raksasa lembut berhati besar yang selalu melindungi teman-temannya.",
+        panda:    "Panda menggemaskan yang hobi bersantai sambil mengunyah rebung.",
+        elang:    "Penguasa langit gagah dengan penglihatan tajam dan sayap perkasa.",
+        shibainu: "Anjing Shiba Inu ikonik yang ceria, setia, dan selalu tersenyum.",
+        merak_s:  "Burung merak biru anggun dengan 5 lapis bulu berkilau memukau.",
+        naga:     "Naga legendaris berapi hangat yang melambangkan semangat pantang menyerah.",
+        merak_l:  "Merak emas mitologis yang memancarkan aura kemewahan di seluruh sanctuary."
+    };
+    return bioMap[petId] || "Sahabat setia yang menemani perjalanan belajarmu setiap hari.";
 };
 
 window.renderTabHabitatMyPet = function() {
@@ -1606,24 +1710,21 @@ window.renderTabHabitatMyPet = function() {
     if (ownedIds.length === 0) {
         if (isVisitMode) {
             container.innerHTML =
-                '<div style="background:white; border:2px dashed #cbd5e1; border-radius:16px; padding:40px 20px; text-align:center;">' +
+                '<div class="mypet-empty-cozy">' +
                     '<div style="font-size:56px; margin-bottom:10px;">🏡</div>' +
-                    '<h3 style="margin:0 0 8px 0; color:#0b3954; font-size:19px;">Habitat ' + (lb.namaLengkap || uName) + ' Masih Kosong</h3>' +
-                    '<p style="margin:0 auto 20px auto; max-width:420px; font-size:13px; color:#64748b;">Temanmu belum mengadopsi hewan peliharaan di habitatnya.</p>' +
-                    '<button type="button" class="btn-action" style="background:#e74c3c; width:auto; padding:10px 24px; border-radius:25px; font-size:13px; font-weight:800;" onclick="window.akhiriKunjunganPet()">🚪 Kembali ke Habitatku</button>' +
+                    '<h3>Habitat ' + (lb.namaLengkap || uName) + ' Masih Kosong</h3>' +
+                    '<p>Temanmu belum mengadopsi hewan peliharaan di habitatnya.</p>' +
+                    '<button type="button" class="mypet-green-cta" style="background:linear-gradient(180deg,#ef4444,#b91c1c); border-color:#7f1d1d;" onclick="window.akhiriKunjunganPet()">🚪 Kembali ke Habitatku</button>' +
                 '</div>';
             return;
         }
         let coinSaldo = window.ambilCoinSiswa(uName);
         container.innerHTML =
-            '<div style="background:white; border:2px dashed #cbd5e1; border-radius:16px; padding:40px 20px; text-align:center;">' +
+            '<div class="mypet-empty-cozy">' +
                 '<div style="font-size:64px; margin-bottom:10px;">🥚</div>' +
-                '<h3 style="margin:0 0 8px 0; color:#0b3954; font-size:20px;">Habitatmu Masih Kosong!</h3>' +
-                '<p style="margin:0 auto 20px auto; max-width:460px; font-size:13px; color:#64748b; line-height:1.6;">' +
-                    'Kamu memiliki <b>🪙 ' + coinSaldo.toLocaleString("id-ID") + ' Coin</b>. ' +
-                    'Yuk adopsi hewan darat atau hewan air pertamamu di <b>Shop</b>! Lembah & Sungai Habitat Universal sudah siap secara gratis.' +
-                '</p>' +
-                '<button type="button" class="btn-action" style="background:#16a085; width:auto; padding:11px 28px; border-radius:30px; font-size:14px; font-weight:800;" onclick="window.gantiTabMyPet(\'shop\')">🛒 Pergi ke Shop & Adopsi Pet</button>' +
+                '<h3>Sanctuary-mu Masih Kosong!</h3>' +
+                '<p>Kamu punya <b>🪙 ' + coinSaldo.toLocaleString("id-ID") + ' Coin</b>. Yuk adopsi hewan pertamamu di <b>Shop</b>! Semua hewan darat & air bisa tinggal bersama tanpa batas.</p>' +
+                '<button type="button" class="mypet-green-cta" onclick="window.gantiTabMyPet(\'shop\')">🏪 Pergi ke Shop & Adopsi Pet</button>' +
             '</div>';
         return;
     }
@@ -1649,9 +1750,9 @@ window.renderTabHabitatMyPet = function() {
         if (decCfg) {
             let svgDec = window.bangunSVGDeKorasiHabitat(decObj.id);
             let isFokus = (window.fokusDekorasiIdx === idx) && !isVisitMode;
-            let dragBtn = isFokus ?
-                '<div class="mypet-decor-drag-btn" style="position:absolute; top:-30px; left:50%; transform:translateX(-50%); background:#f39c12; color:white; padding:4px 12px; border-radius:12px; font-size:11px; font-weight:bold; cursor:grab; z-index:10; white-space:nowrap; box-shadow:0 2px 5px rgba(0,0,0,0.2);" onpointerdown="window.mulaiDragDekorasi(event, ' + idx + ')">✥ Drag</div>' +
-                '<button class="mypet-decor-del-btn" style="position:absolute; top:-30px; right:-25px; background:#e74c3c; color:white; border:none; border-radius:50%; width:24px; height:24px; font-size:11px; font-weight:bold; cursor:pointer; z-index:10; box-shadow:0 2px 5px rgba(0,0,0,0.2);" onclick="window.lepasDekorasiHabitat(' + idx + ', event)">✕</button>'
+            let dragBtn = isFokus
+                ? '<div class="mypet-decor-drag-btn" style="position:absolute; top:-30px; left:50%; transform:translateX(-50%); background:#f59e0b; color:white; padding:4px 12px; border-radius:12px; font-size:11px; font-weight:bold; cursor:grab; z-index:10; white-space:nowrap; box-shadow:0 2px 5px rgba(0,0,0,0.2);" onpointerdown="window.mulaiDragDekorasi(event, ' + idx + ')">✥ Drag</div>' +
+                  '<button class="mypet-decor-del-btn" style="position:absolute; top:-30px; right:-25px; background:#ef4444; color:white; border:none; border-radius:50%; width:24px; height:24px; font-size:11px; font-weight:bold; cursor:pointer; z-index:10; box-shadow:0 2px 5px rgba(0,0,0,0.2);" onclick="window.lepasDekorasiHabitat(' + idx + ', event)">✕</button>'
                 : '';
 
             decorHtml +=
@@ -1665,12 +1766,12 @@ window.renderTabHabitatMyPet = function() {
     let stagePetsHtml = '';
     let isMobileStage = window.innerWidth <= 768;
     let waterSlots = [
-        { l: 26, b: 14 }, { l: 37, b: 24 }, { l: 20, b: 28 }, { l: 33, b: 10 }, { l: 29, b: 33 }
+        { l: 25, b: 14 }, { l: 33, b: 22 }, { l: 20, b: 25 }, { l: 29, b: 10 }, { l: 27, b: 30 }
     ];
     let landSlots = [
-        { l: 58, b: 12 }, { l: 74, b: 20 }, { l: 48, b: 26 }, { l: 86, b: 16 },
-        { l: 64, b: 30 }, { l: 12, b: 18 }, { l: 79, b: 32 }, { l: 53, b: 18 },
-        { l: 69, b: 12 }, { l: 88, b: 28 }, { l: 44, b: 14 }, { l: 15, b: 32 }
+        { l: 56, b: 12 }, { l: 72, b: 20 }, { l: 45, b: 24 }, { l: 84, b: 15 },
+        { l: 62, b: 28 }, { l: 16, b: 12 }, { l: 78, b: 30 }, { l: 50, b: 16 },
+        { l: 68, b: 11 }, { l: 86, b: 26 }, { l: 41, b: 13 }, { l: 19, b: 28 }
     ];
     let wIdx = 0, lIdx = 0;
 
@@ -1682,38 +1783,43 @@ window.renderTabHabitatMyPet = function() {
 
         let isWaterPet = (pCat.zona === "water" || pid === "ikan" || pid === "buaya");
         let slotPos = isWaterPet ? waterSlots[(wIdx++) % waterSlots.length] : landSlots[(lIdx++) % landSlots.length];
-        let ukuranDiHabitat = isMobileStage ? (isMain ? 82 : 62) : (isMain ? 114 : 86);
+        let posL = (typeof pObj.posLeft === "number" && !isNaN(pObj.posLeft)) ? pObj.posLeft : slotPos.l;
+        let posB = (typeof pObj.posBottom === "number" && !isNaN(pObj.posBottom)) ? pObj.posBottom : slotPos.b;
+        let ukuranDiHabitat = isMobileStage ? (isMain ? 84 : 62) : (isMain ? 116 : 86);
         let svgPet = window.bangunVisualPet25DSVG(pid, pObj.outfit || {}, pLapar.animState, ukuranDiHabitat);
         let waterRipple = isWaterPet ? '<div class="mypet-water-ripple"></div>' : '';
+        let dragAttr = !isVisitMode ? (' onpointerdown="window.mulaiDragPetDiHabitat(event, \'' + pid + '\')"') : '';
 
         stagePetsHtml +=
-            '<div class="mypet-stage-actor-wrap ' + (isMain ? 'is-active-pet' : 'is-companion-pet') + (isWaterPet ? ' is-aquatic-pet' : '') + '" ' +
-                 'style="left:' + slotPos.l + '%; bottom:' + slotPos.b + '%; z-index:' + (isMain ? 12 : 7) + ';" ' +
-                 'onclick="window.interaksiKlikPetDiHabitat(\'' + pid + '\')" ' +
-                 'title="Klik untuk berinteraksi dengan ' + (pObj.customName || pCat.namaDefault) + '">' +
+            '<div id="mypet-stage-actor-' + pid + '" class="mypet-stage-actor-wrap ' + (isMain ? 'is-active-pet' : 'is-companion-pet') + (isWaterPet ? ' is-aquatic-pet' : '') + (!isVisitMode ? ' is-draggable-pet' : '') + '" ' +
+                 'style="left:' + posL + '%; bottom:' + posB + '%; z-index:' + (isMain ? 12 : 7) + ';"' +
+                 dragAttr +
+                 ' onclick="if(window._justDraggedPetId===\'' + pid + '\'){window._justDraggedPetId=\'\';return;} window.interaksiKlikPetDiHabitat(\'' + pid + '\')" ' +
+                 'title="' + (!isVisitMode ? 'Tahan & geser untuk memindahkan, atau klik untuk interaksi' : 'Klik untuk menyapa ' + (pObj.customName || pCat.namaDefault)) + '">' +
                 svgPet + waterRipple +
                 '<div class="mypet-stage-nametag">' + (isMain ? '⭐ ' : '') + (pObj.customName || pCat.namaDefault) + '</div>' +
             '</div>';
     });
 
+    // Laci Makanan
     let laciMakanHtml = '';
     if (window.bukaLaciMakanHabitat) {
         let myUName = sessionStorage.getItem("username");
         let myLb = window.pastikanStrukturDualXPDanPet(myUName);
         let inv = (myLb && myLb.myPetData) ? myLb.myPetData.foodInventory : {};
-        let semuaMakanan = [...window.MY_PET_CATALOG.foods, ...window.MY_PET_CATALOG.snacks];
+        let semuaMakanan = [].concat(window.MY_PET_CATALOG.foods, window.MY_PET_CATALOG.snacks);
         let stokAda = semuaMakanan.filter(function(f) { return (Number(inv[f.id]) || 0) > 0; });
 
         if (stokAda.length === 0) {
             laciMakanHtml =
-                '<div class="mypet-feed-drawer">' +
-                    '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">' +
-                        '<strong style="font-size:13px; color:#0b3954;">🍽️ Inventaris Makanan Kosong</strong>' +
-                        '<button type="button" onclick="window.toggleLaciMakanHabitat(false)" style="background:none; border:none; cursor:pointer; font-weight:bold; color:#64748b;">✕</button>' +
+                '<div class="mypet-feed-drawer cozy-drawer">' +
+                    '<div class="cozy-drawer-head">' +
+                        '<strong>🍽️ Inventaris Makanan Kosong</strong>' +
+                        '<button type="button" onclick="window.toggleLaciMakanHabitat(false)">✕</button>' +
                     '</div>' +
-                    '<div style="text-align:center; padding:12px; color:#64748b; font-size:12px;">' +
-                        'Stok makananmu sedang habis! Yuk beli makanan atau camilan favorit dengan Coin di Shop.' +
-                        (!isVisitMode ? '<div style="margin-top:8px;"><button type="button" class="btn-action" style="background:#e67e22; width:auto; padding:6px 16px; font-size:11px;" onclick="window.gantiTabMyPet(\'shop\'); window.renderTabShopMyPet(\'foods\');">🛒 Beli Makanan di Shop</button></div>' : '') +
+                    '<div style="text-align:center; padding:10px; color:#6b4c2e; font-size:12px;">' +
+                        'Stok makananmu habis! Beli makanan atau camilan favorit dengan Coin di Shop.' +
+                        (!isVisitMode ? '<div style="margin-top:8px;"><button type="button" class="mypet-green-cta sm" onclick="window.gantiTabMyPet(\'shop\'); window.renderTabShopMyPet(\'foods\');">🏪 Beli Makanan</button></div>' : '') +
                     '</div>' +
                 '</div>';
         } else {
@@ -1721,28 +1827,29 @@ window.renderTabHabitatMyPet = function() {
             stokAda.forEach(function(f) {
                 let jml = Number(inv[f.id]) || 0;
                 let isFav = (f.tipe === "snack" && f.favPet === activeId);
-                let badgeFav = isFav ? '<span style="background:#fef08a; color:#b45309; font-size:9px; padding:1px 5px; border-radius:6px; font-weight:800; margin-left:4px;">💖 Favorit!</span>' : '';
+                let badgeFav = isFav ? '<span class="cozy-fav-chip">💖 Favorit!</span>' : '';
                 itemsHtml +=
                     '<button type="button" class="mypet-food-item-btn" onclick="window.berikanMakananKePet(\'' + f.id + '\')">' +
                         '<span style="font-size:22px;">' + f.ikon + '</span>' +
                         '<div style="text-align:left; flex:1;">' +
-                            '<div style="font-weight:800; font-size:12px; color:#1e293b;">' + f.nama + badgeFav + '</div>' +
-                            '<div style="font-size:10px; color:#16a34a; font-weight:700;">+' + f.kenyang + ' Kenyang' + (f.mood ? ', +' + f.mood + ' Mood' : '') + '</div>' +
+                            '<div style="font-weight:800; font-size:12px; color:#4a2e14;">' + f.nama + badgeFav + '</div>' +
+                            '<div style="font-size:10px; color:#15803d; font-weight:700;">+' + f.kenyang + ' Kenyang' + (f.mood ? ', +' + f.mood + ' Mood' : '') + '</div>' +
                         '</div>' +
-                        '<span style="background:#0b3954; color:#f1c40f; padding:2px 8px; border-radius:12px; font-size:11px; font-weight:800;">x' + jml + '</span>' +
+                        '<span class="cozy-qty-pill">x' + jml + '</span>' +
                     '</button>';
             });
             laciMakanHtml =
-                '<div class="mypet-feed-drawer">' +
-                    '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">' +
-                        '<strong style="font-size:13px; color:#0b3954;">🍽️ ' + (isVisitMode ? 'Beri Camilan ke Pet Teman:' : 'Pilih Makanan untuk ' + (activePet.customName || catActive.namaDefault) + ':') + '</strong>' +
-                        '<button type="button" onclick="window.toggleLaciMakanHabitat(false)" style="background:none; border:none; cursor:pointer; font-weight:bold; color:#64748b;">✕ Tutup</button>' +
+                '<div class="mypet-feed-drawer cozy-drawer">' +
+                    '<div class="cozy-drawer-head">' +
+                        '<strong>🍽️ ' + (isVisitMode ? 'Beri Camilan ke Pet Teman:' : 'Pilih Makanan untuk ' + (activePet.customName || catActive.namaDefault) + ':') + '</strong>' +
+                        '<button type="button" onclick="window.toggleLaciMakanHabitat(false)">✕ Tutup</button>' +
                     '</div>' +
                     '<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(190px, 1fr)); gap:8px;">' + itemsHtml + '</div>' +
                 '</div>';
         }
     }
 
+    // Laci Mainan
     let laciMainanHtml = '';
     if (window.bukaLaciMainanHabitat && !isVisitMode) {
         let invToys = Array.isArray(petData.ownedWardrobe) ? petData.ownedWardrobe.filter(function(id) { return id.indexOf("toy_") === 0; }) : [];
@@ -1751,14 +1858,14 @@ window.renderTabHabitatMyPet = function() {
         }
         if (invToys.length === 0) {
             laciMainanHtml =
-                '<div class="mypet-feed-drawer">' +
-                    '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">' +
-                        '<strong style="font-size:13px; color:#0b3954;">🎾 Kotak Mainan Kosong</strong>' +
-                        '<button type="button" onclick="window.toggleLaciMainanHabitat(false)" style="background:none; border:none; cursor:pointer; font-weight:bold; color:#64748b;">✕</button>' +
+                '<div class="mypet-feed-drawer cozy-drawer">' +
+                    '<div class="cozy-drawer-head">' +
+                        '<strong>🎾 Kotak Mainan Kosong</strong>' +
+                        '<button type="button" onclick="window.toggleLaciMainanHabitat(false)">✕</button>' +
                     '</div>' +
-                    '<div style="text-align:center; padding:12px; color:#64748b; font-size:12px;">' +
-                        'Kamu belum memiliki mainan. Beli mainan permanen di Shop untuk bermain bersama pet!' +
-                        '<div style="margin-top:8px;"><button type="button" class="btn-action" style="background:#0b3954; color:#f1c40f; width:auto; padding:6px 16px; font-size:11px;" onclick="window.gantiTabMyPet(\'shop\'); window.renderTabShopMyPet(\'toys\');">🛒 Ke Shop Mainan</button></div>' +
+                    '<div style="text-align:center; padding:10px; color:#6b4c2e; font-size:12px;">' +
+                        'Kamu belum punya mainan. Beli mainan permanen di Shop untuk bermain bersama pet!' +
+                        '<div style="margin-top:8px;"><button type="button" class="mypet-green-cta sm" onclick="window.gantiTabMyPet(\'shop\'); window.renderTabShopMyPet(\'toys\');">🏪 Ke Shop Mainan</button></div>' +
                     '</div>' +
                 '</div>';
         } else {
@@ -1770,36 +1877,22 @@ window.renderTabHabitatMyPet = function() {
                         '<button type="button" class="mypet-food-item-btn" onclick="window.aksiMainDenganToy(\'' + t.id + '\')">' +
                             '<span style="font-size:22px;">' + t.ikon + '</span>' +
                             '<div style="text-align:left; flex:1;">' +
-                                '<div style="font-weight:800; font-size:12px; color:#1e293b;">' + t.nama + '</div>' +
-                                '<div style="font-size:10px; color:#ec4899; font-weight:700;">+15 Mood, +15 Bond</div>' +
+                                '<div style="font-weight:800; font-size:12px; color:#4a2e14;">' + t.nama + '</div>' +
+                                '<div style="font-size:10px; color:#db2777; font-weight:700;">+15 Mood, +15 Bond</div>' +
                             '</div>' +
                         '</button>';
                 }
             });
             laciMainanHtml =
-                '<div class="mypet-feed-drawer">' +
-                    '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">' +
-                        '<strong style="font-size:13px; color:#0b3954;">🎾 Pilih Mainan untuk ' + (activePet.customName || catActive.namaDefault) + ':</strong>' +
-                        '<button type="button" onclick="window.toggleLaciMainanHabitat(false)" style="background:none; border:none; cursor:pointer; font-weight:bold; color:#64748b;">✕ Tutup</button>' +
+                '<div class="mypet-feed-drawer cozy-drawer">' +
+                    '<div class="cozy-drawer-head">' +
+                        '<strong>🎾 Pilih Mainan untuk ' + (activePet.customName || catActive.namaDefault) + ':</strong>' +
+                        '<button type="button" onclick="window.toggleLaciMainanHabitat(false)">✕ Tutup</button>' +
                     '</div>' +
                     '<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(170px, 1fr)); gap:8px;">' + itemsHtml + '</div>' +
                 '</div>';
         }
     }
-
-    let bannerKritis = '';
-    if (infoLapar.isKritis && !isVisitMode) {
-        bannerKritis =
-            '<div style="background:#fee2e2; border:2px solid #dc2626; color:#991b1b; padding:10px 14px; border-radius:10px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; gap:10px; font-size:12px; font-weight:700;">' +
-                '<span>🆘 <b>PERINGATAN KRITIS:</b> ' + (activePet.customName || catActive.namaDefault) + ' kelaparan (0/100)! Beri makan sekarang!</span>' +
-                '<button type="button" class="btn-action" style="background:#dc2626; width:auto; padding:6px 12px; font-size:11px; white-space:nowrap;" onclick="window.toggleLaciMakanHabitat(true)">🍖 Pulihkan</button>' +
-            '</div>';
-    }
-
-    let detailActorSvg = window.bangunVisualPet25DSVG(activeId, activePet.outfit || {}, infoLapar.animState, (window.innerWidth <= 768 ? 125 : 155));
-    let titleHabitat = isVisitMode
-        ? ('🏡 Sedang Berkunjung ke Habitat: <b style="color:#d97706;">' + (lb.namaLengkap || uName) + '</b>')
-        : ('🏡 Sanctuary Alam Bebas (<b style="color:#16a34a;">' + ownedIds.length + ' Pet Tinggal Bersama</b>)');
 
     let laciStikerHtml = (window.bukaLaciStikerHabitat && isVisitMode && typeof window.bangunHTMLLaciStikerHabitat === "function")
         ? window.bangunHTMLLaciStikerHabitat(lb.namaLengkap || uName)
@@ -1809,65 +1902,117 @@ window.renderTabHabitatMyPet = function() {
         ? window.bangunHTMLPapanStikerHabitat(petData, isVisitMode)
         : '';
 
-    let tombolAksiUser = isVisitMode
-        ? '<div class="mypet-action-btns-grid visit-mode-3col">' +
-            '<button type="button" class="mypet-act-btn btn-elus" onclick="window.aksiElusPetAktif()">🤚 Sapa & Elus</button>' +
-            '<button type="button" class="mypet-act-btn btn-makan" onclick="window.toggleLaciMakanHabitat()">🎁 Beri Makan</button>' +
-            '<button type="button" class="mypet-act-btn btn-stiker" onclick="window.toggleLaciStikerHabitat()">💌 Kirim Stiker</button>' +
+    let bannerKritis = '';
+    if (infoLapar.isKritis && !isVisitMode) {
+        bannerKritis =
+            '<div class="mypet-kritis-banner">' +
+                '<span>🆘 <b>PERINGATAN KRITIS:</b> ' + (activePet.customName || catActive.namaDefault) + ' kelaparan (0/100)! Beri makan sekarang!</span>' +
+                '<button type="button" onclick="window.toggleLaciMakanHabitat(true)">🍖 Pulihkan</button>' +
+            '</div>';
+    }
+
+    // Dock Aksi Cepat di Kiri Panggung (Bergaya Cozy Game)
+    let stageDockKiri = isVisitMode
+        ? '<div class="mypet-stage-left-dock" onclick="event.stopPropagation();">' +
+            '<button type="button" class="stage-dock-btn" onclick="window.aksiElusPetAktif()" title="Sapa & Elus"><span>🤚</span><small>Elus</small></button>' +
+            '<button type="button" class="stage-dock-btn" onclick="window.toggleLaciMakanHabitat()" title="Beri Makan Teman"><span>🎁</span><small>Makan</small></button>' +
+            '<button type="button" class="stage-dock-btn" onclick="window.toggleLaciStikerHabitat()" title="Kirim Stiker"><span>💌</span><small>Stiker</small></button>' +
           '</div>'
-        : '<div class="mypet-action-btns-grid">' +
-            '<button type="button" class="mypet-act-btn btn-elus" onclick="window.aksiElusPetAktif()">🤚 Elus</button>' +
-            '<button type="button" class="mypet-act-btn btn-makan" onclick="window.toggleLaciMakanHabitat()">🍖 Beri Makan</button>' +
-            '<button type="button" class="mypet-act-btn btn-main" onclick="window.toggleLaciMainanHabitat()">🎾 Ajak Main</button>' +
-            '<button type="button" class="mypet-act-btn btn-dandan" onclick="window.gantiTabMyPet(\'wardrobe\')">👗 Dandani</button>' +
+        : '<div class="mypet-stage-left-dock" onclick="event.stopPropagation();">' +
+            '<button type="button" class="stage-dock-btn" onclick="window.aksiElusPetAktif()" title="Elus Pet"><span>🤚</span><small>Elus</small></button>' +
+            '<button type="button" class="stage-dock-btn" onclick="window.toggleLaciMakanHabitat()" title="Beri Makan"><span>🍖</span><small>Makan</small></button>' +
+            '<button type="button" class="stage-dock-btn" onclick="window.toggleLaciMainanHabitat()" title="Ajak Main"><span>🎾</span><small>Main</small></button>' +
+            '<button type="button" class="stage-dock-btn" onclick="window.gantiTabMyPet(\'wardrobe\')" title="Dandani Pet"><span>👗</span><small>Outfit</small></button>' +
           '</div>';
 
-    container.innerHTML =
-        bannerKritis +
-        '<div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:10px;">' +
-            '<div style="background:#ffffff; border:1px solid #cbd5e1; color:#334155; padding:6px 14px; border-radius:20px; font-size:12px;">' + titleHabitat + '</div>' +
-            (isVisitMode ? '<button class="btn-action" style="background:#e74c3c; width:auto; padding:6px 14px; font-size:11px;" onclick="window.akhiriKunjunganPet()">🚪 Pulang ke Habitat Sendiri</button>' : '<div style="font-size:11px; color:#64748b; font-weight:600;">💡 Klik 1x dekorasi untuk menyeretnya (drag). Klik ruang kosong untuk melepas!</div>') +
-        '</div>' +
+    // Kartu Status Hunger & Happiness Melayang di Kanan Atas Panggung (Seperti Referensi)
+    let stageStatusKanan =
+        '<div class="mypet-stage-status-card" onclick="event.stopPropagation();">' +
+            '<div class="stage-stat-row">' +
+                '<span class="stage-stat-ico">🍴</span>' +
+                '<div class="stage-stat-col">' +
+                    '<div class="stage-stat-top"><span>Hunger</span><b>' + hungerVal + '%</b></div>' +
+                    '<div class="stage-stat-track"><div class="stage-stat-fill hunger" style="width:' + hungerVal + '%;"></div></div>' +
+                '</div>' +
+            '</div>' +
+            '<div class="stage-stat-row">' +
+                '<span class="stage-stat-ico">😊</span>' +
+                '<div class="stage-stat-col">' +
+                    '<div class="stage-stat-top"><span>Happiness</span><b>' + moodVal + '%</b></div>' +
+                    '<div class="stage-stat-track"><div class="stage-stat-fill mood" style="width:' + moodVal + '%;"></div></div>' +
+                '</div>' +
+            '</div>' +
+            '<div class="stage-stat-bond">' +
+                '<span>❤️ Bond Lv.' + infoBond.level + '</span>' +
+                '<span class="stage-status-chip" style="background:' + infoLapar.bg + '; color:' + infoLapar.warna + ';">' + infoLapar.status + '</span>' +
+            '</div>' +
+        '</div>';
 
-        '<div id="mypet-habitat-stage" class="mypet-habitat-stage" style="border-color:#94a3b8;" onclick="if(window.fokusDekorasiIdx !== -1) { window.fokusDekorasiIdx = -1; window.renderTabHabitatMyPet(); }">' +
+    // Strip Pet Milik Sendiri di Bawah Panggung (Cepat Ganti Pet Aktif + Detail Ringkas)
+    let quickStripCards = '';
+    ownedIds.forEach(function(pid) {
+        let pObj = petData.ownedPets[pid];
+        let pCat = window.MY_PET_CATALOG.pets.find(function(x) { return x.id === pid; }) || window.MY_PET_CATALOG.pets[0];
+        let pLapar = window.dapatkanInfoStatusLaparPet(pObj.hunger);
+        let isMain = (pid === activeId);
+        let miniSvg = window.bangunVisualPet25DSVG(pid, pObj.outfit || {}, pLapar.animState, 56);
+        quickStripCards +=
+            '<button type="button" class="cozy-mini-pet-card ' + (isMain ? 'is-selected' : '') + '" onclick="window.interaksiKlikPetDiHabitat(\'' + pid + '\')">' +
+                '<div class="mini-pet-name">' + (pObj.customName || pCat.namaDefault) + '</div>' +
+                '<div class="mini-pet-svg">' + miniSvg + '</div>' +
+                '<div class="mini-pet-meta">🍖 ' + Math.round(Number(pObj.hunger) || 0) + '%</div>' +
+            '</button>';
+    });
+
+    let detailActorSvg = window.bangunVisualPet25DSVG(activeId, activePet.outfit || {}, infoLapar.animState, (isMobileStage ? 115 : 138));
+    let snackFavActive = window.MY_PET_CATALOG.snacks.find(function(s) { return s.favPet === activeId; });
+
+    let visitBarHtml = isVisitMode
+        ? '<div class="cozy-visit-banner">' +
+              '<span>🏡 Berkunjung ke Sanctuary: <b>' + (lb.namaLengkap || uName) + '</b> (' + ownedIds.length + ' Pet)</span>' +
+              '<button type="button" class="mypet-green-cta sm" style="background:linear-gradient(180deg,#ef4444,#b91c1c); border-color:#7f1d1d;" onclick="window.akhiriKunjunganPet()">🚪 Pulang</button>' +
+          '</div>'
+        : '';
+
+    container.innerHTML =
+        bannerKritis + visitBarHtml +
+        '<div id="mypet-habitat-stage" class="mypet-habitat-stage cozy-sanctuary-stage" onclick="if(window.fokusDekorasiIdx !== -1) { window.fokusDekorasiIdx = -1; window.renderTabHabitatMyPet(); }">' +
             window.bangunSVGTemaHabitat(petData.activeTheme) +
             decorHtml +
             stagePetsHtml +
-            (!isVisitMode ? '<div class="mypet-food-bowl" onclick="window.toggleLaciMakanHabitat(true)" title="Wadah Makanan (Klik untuk memberi makan)"><span>' + (hungerVal < 25 ? '🥣' : '🍲') + '</span></div>' : '') +
+            stageDockKiri +
+            stageStatusKanan +
+            (!isVisitMode ? '<div class="mypet-food-bowl cozy-bowl" onclick="event.stopPropagation(); window.toggleLaciMakanHabitat(true)" title="Wadah Makanan (Klik untuk memberi makan)"><span>' + (hungerVal < 25 ? '🥣' : '🍲') + '</span></div>' : '') +
             '<div id="mypet-interaction-toast" class="mypet-interaction-toast" style="display:none;"></div>' +
         '</div>' +
 
         laciMakanHtml + laciMainanHtml + laciStikerHtml +
 
-        '<div class="mypet-detail-card">' +
-            '<div id="mypet-detail-preview-box" class="mypet-detail-avatar-box" style="position:relative;" onclick="window.interaksiKlikPetDiHabitat(\'' + activeId + '\')">' +
-                detailActorSvg +
-                '<span style="font-size:10px; font-weight:800; padding:3px 10px; border-radius:12px; background:' + infoLapar.bg + '; color:' + infoLapar.warna + '; margin-top:4px;">' + infoLapar.status + '</span>' +
+        '<div class="cozy-habitat-bottom-grid">' +
+            '<div class="cozy-panel-box">' +
+                '<div class="cozy-panel-head">' +
+                    '<span>🐾 Penghuni Sanctuary (' + ownedIds.length + ' Pet)</span>' +
+                    (!isVisitMode ? '<small>Klik dekorasi di panggung untuk geser • Klik pet untuk fokus</small>' : '') +
+                '</div>' +
+                '<div class="cozy-mini-pets-grid">' + quickStripCards + '</div>' +
             '</div>' +
-            '<div class="mypet-detail-info-box">' +
-                '<div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px; flex-wrap:wrap;">' +
-                    '<div>' +
-                        '<div style="display:flex; align-items:center; gap:8px;">' +
-                            '<h3 style="margin:0; font-size:22px; color:#0f172a; font-weight:900;">' + (activePet.customName || catActive.namaDefault) + '</h3>' +
-                            (!isVisitMode ? '<button type="button" onclick="window.gantiNamaPetAktif()" style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:6px; padding:3px 8px; font-size:11px; font-weight:700; color:#334155; cursor:pointer;" title="Ganti Nama Pet">✏️ Nama</button>' : '') +
-                        '</div>' +
-                        '<div style="font-size:13px; font-weight:700; color:#64748b; margin-top:2px;">' +
-                            '<span style="color:' + catActive.warnaRarity + '; background:' + catActive.bgRarity + '; padding:1px 8px; border-radius:8px; font-size:11px; font-weight:800;">' + catActive.spesies + (catActive.zona === "water" ? " 🌊" : " 🌿") + '</span>' +
-                            ' · <span style="color:#d97706; font-weight:800;">❤️ Bond Lv. ' + infoBond.level + '</span>' +
-                        '</div>' +
-                    '</div>' +
+
+            '<div class="cozy-detail-spotlight">' +
+                '<div class="cozy-spotlight-header">' +
+                    '<span>' + (activePet.customName || catActive.namaDefault) + '</span>' +
+                    (!isVisitMode ? '<button type="button" class="cozy-rename-btn" onclick="window.gantiNamaPetAktif()" title="Ganti Nama">✏️</button>' : '') +
                 '</div>' +
-                '<div style="display:flex; flex-direction:column; gap:10px; margin:14px 0;">' +
-                    '<div>' +
-                        '<div style="display:flex; justify-content:space-between; font-size:12px; font-weight:800; color:#334155; margin-bottom:4px;"><span>🍖 Kenyang</span><span style="color:' + infoLapar.warna + ';">' + hungerVal + '/100</span></div>' +
-                        '<div class="mypet-stat-bar-bg"><div class="mypet-stat-bar-fill" style="width:' + hungerVal + '%; background:' + (hungerVal >= 50 ? 'linear-gradient(90deg, #22c55e, #16a34a)' : (hungerVal >= 25 ? '#f59e0b' : '#ef4444')) + ';"></div></div>' +
-                    '</div>' +
-                    '<div>' +
-                        '<div style="display:flex; justify-content:space-between; font-size:12px; font-weight:800; color:#334155; margin-bottom:4px;"><span>😊 Mood</span><span style="color:#ec4899;">' + moodVal + '/100</span></div>' +
-                        '<div class="mypet-stat-bar-bg"><div class="mypet-stat-bar-fill" style="width:' + moodVal + '%; background:linear-gradient(90deg, #f472b6, #ec4899);"></div></div>' +
-                    '</div>' +
+                '<div id="mypet-detail-preview-box" class="cozy-spotlight-stage" onclick="window.interaksiKlikPetDiHabitat(\'' + activeId + '\')">' +
+                    detailActorSvg +
                 '</div>' +
-                tombolAksiUser +
+                '<div class="cozy-spotlight-meta">' +
+                    '<span class="cozy-rarity-pill" style="background:' + catActive.bgRarity + '; color:' + catActive.warnaRarity + ';">' + catActive.rarity + ' • ' + catActive.spesies + '</span>' +
+                    '<div class="cozy-fav-line">Makanan Favorit: <b>' + (snackFavActive ? snackFavActive.ikon + ' ' + snackFavActive.nama : '-') + '</b></div>' +
+                    '<p class="cozy-bio-text">' + window.dapatkanBioPet(activeId) + '</p>' +
+                '</div>' +
+                (!isVisitMode
+                    ? '<button type="button" class="mypet-green-cta" onclick="window.toggleLaciMakanHabitat(true)">🍖 Beri Makan</button>'
+                    : '<button type="button" class="mypet-green-cta" onclick="window.toggleLaciStikerHabitat(true)">💌 Kirim Stiker</button>') +
             '</div>' +
         '</div>' +
         papanStikerHtml;
@@ -2152,6 +2297,40 @@ window.gantiNamaPetAktif = function() {
 };
 
 // 3. RENDER TAB PET COLLECTION (HABITAT UNIVERSAL TANPA BATAS KAPASITAS)
+window.activePetRarityFilter = "all";
+window.selectedShopPetId = "kucing";
+window.selectedCollectionPetId = "";
+
+window.bangunBarFilterRarityPet = function(onClickFnName) {
+    let rarities = [
+        { key: "all",       label: "Semua",     ikon: "🌟" },
+        { key: "Common",    label: "Common",    ikon: "🐾" },
+        { key: "Uncommon",  label: "Uncommon",  ikon: "🌿" },
+        { key: "Rare",      label: "Rare",      ikon: "💎" },
+        { key: "Epic",      label: "Epic",      ikon: "⭐" },
+        { key: "Special",   label: "Special",   ikon: "🌸" },
+        { key: "Legendary", label: "Legendary", ikon: "👑" }
+    ];
+    let cur = window.activePetRarityFilter || "all";
+    let html = '<div class="cozy-rarity-tabs">';
+    rarities.forEach(function(r) {
+        let act = (cur === r.key) ? " active" : "";
+        html += '<button type="button" class="cozy-rarity-tab' + act + '" onclick="' + onClickFnName + '(\'' + r.key + '\')"><span>' + r.ikon + '</span> ' + r.label + '</button>';
+    });
+    html += '</div>';
+    return html;
+};
+
+window.ubahFilterRarityCollection = function(rarKey) {
+    window.activePetRarityFilter = rarKey || "all";
+    window.renderTabCollectionMyPet();
+};
+
+window.pilihKartuCollectionPet = function(petId) {
+    window.selectedCollectionPetId = petId;
+    window.renderTabCollectionMyPet();
+};
+
 window.renderTabCollectionMyPet = function() {
     let container = document.getElementById("mypet-view-collection");
     if (!container) return;
@@ -2164,72 +2343,91 @@ window.renderTabCollectionMyPet = function() {
     let petData = lb.myPetData;
     let ownedMap = petData.ownedPets || {};
     let ownedCount = Object.keys(ownedMap).length;
+    let rarFilter = window.activePetRarityFilter || "all";
 
-    let html =
-        '<div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; background:white; padding:12px 16px; border-radius:12px; border:1px solid #e2e8f0; margin-bottom:14px;">' +
-            '<div>' +
-                '<h4 style="margin:0; color:#0b3954; font-size:15px;">🐾 Koleksi Hewan Peliharaanmu (' + ownedCount + ' / ' + window.MY_PET_CATALOG.pets.length + ' Spesies)</h4>' +
-                '<div style="font-size:11px; color:#64748b;">Seluruh pet yang telah diadopsi tinggal bersama di <b>Habitat Universal</b> milikmu!</div>' +
-            '</div>' +
-            '<button type="button" class="btn-action" style="background:#0b3954; width:auto; padding:7px 14px; font-size:11px; border-radius:20px;" onclick="window.gantiTabMyPet(\'shop\')">🛒 Adopsi Pet Baru</button>' +
-        '</div>' +
-        '<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(235px, 1fr)); gap:12px;">';
+    let filteredPets = window.MY_PET_CATALOG.pets.filter(function(p) {
+        return rarFilter === "all" || p.rarity === rarFilter;
+    });
+    if (filteredPets.length === 0) filteredPets = window.MY_PET_CATALOG.pets.slice();
 
-    window.MY_PET_CATALOG.pets.forEach(function(cat) {
+    if (!window.selectedCollectionPetId || !filteredPets.some(function(p) { return p.id === window.selectedCollectionPetId; })) {
+        let ownedInFilter = filteredPets.find(function(p) { return Boolean(ownedMap[p.id]); });
+        window.selectedCollectionPetId = ownedInFilter ? ownedInFilter.id : filteredPets[0].id;
+    }
+
+    let cardsHtml = '';
+    filteredPets.forEach(function(cat) {
         let dimiliki = ownedMap[cat.id];
-        let isFocused = (petData.activePetId === cat.id);
-        let snackFav = window.MY_PET_CATALOG.snacks.find(function(s) { return s.favPet === cat.id; });
+        let isSelected = (window.selectedCollectionPetId === cat.id);
+        let rarSlug = String(cat.rarity || "Common").toLowerCase();
+        let thumbSvg = window.bangunVisualPet25DSVG(
+            cat.id,
+            dimiliki ? (dimiliki.outfit || {}) : {},
+            dimiliki ? window.dapatkanInfoStatusLaparPet(dimiliki.hunger).animState : "idle",
+            66
+        );
+        let labelNama = dimiliki ? (dimiliki.customName || cat.namaDefault) : cat.namaDefault;
+        let subLine = dimiliki
+            ? '<span style="color:#15803d;">✓ Dimiliki</span>'
+            : '<span>🪙 ' + cat.harga.toLocaleString("id-ID") + '</span>';
 
-        if (dimiliki) {
-            let hVal = Math.max(0, Math.min(100, Math.round(Number(dimiliki.hunger) || 0)));
-            let mVal = Math.max(0, Math.min(100, Math.round(Number(dimiliki.mood) || 0)));
-            let stLapar = window.dapatkanInfoStatusLaparPet(hVal);
-            let bInfo = window.hitungLevelBondPet(dimiliki.bondXp || 0);
-            let thumbSvg = window.bangunVisualPet25DSVG(cat.id, dimiliki.outfit || {}, stLapar.animState, 74);
-
-            html +=
-                '<div style="background:white; border:2px solid ' + (isFocused ? '#16a085' : '#cbd5e1') + '; border-radius:14px; padding:14px; display:flex; flex-direction:column; gap:10px; box-shadow:0 4px 10px rgba(0,0,0,0.03);">' +
-                    '<div style="display:flex; align-items:center; gap:12px;">' +
-                        '<div style="width:76px; height:76px; background:' + cat.bgRarity + '; border-radius:14px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">' +
-                            thumbSvg +
-                        '</div>' +
-                        '<div style="flex:1; min-width:0;">' +
-                            '<span style="background:' + cat.bgRarity + '; color:' + cat.warnaRarity + '; font-size:10px; font-weight:800; padding:2px 8px; border-radius:10px;">' + cat.rarity + '</span>' +
-                            '<div style="font-weight:900; font-size:16px; color:#0f172a; margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + (dimiliki.customName || cat.namaDefault) + '</div>' +
-                            '<div style="font-size:11px; color:#64748b; font-weight:700;">' + cat.spesies + ' • ❤️ Bond Lv.' + bInfo.level + '</div>' +
-                        '</div>' +
-                    '</div>' +
-                    '<div style="font-size:11px; background:#f8fafc; padding:8px 10px; border-radius:8px; border:1px solid #e2e8f0; display:flex; justify-content:space-between;">' +
-                        '<span>🍖 Kenyang: <b style="color:' + stLapar.warna + ';">' + hVal + '%</b></span>' +
-                        '<span>😊 Mood: <b style="color:#ec4899;">' + mVal + '%</b></span>' +
-                    '</div>' +
-                    '<div style="font-size:10px; color:#64748b;">Camilan Favorit: <b>' + (snackFav ? snackFav.ikon + ' ' + snackFav.nama : '-') + '</b></div>' +
-                    '<button type="button" class="btn-action" style="background:' + (isFocused ? '#16a085' : '#0b3954') + '; width:100%; padding:8px; font-size:12px;" onclick="window.pilihPetAktifUtama(\'' + cat.id + '\')">' +
-                        (isFocused ? '🏡 Lihat Detail di Habitat' : '👆 Rawat / Berinteraksi') +
-                    '</button>' +
-                '</div>';
-        } else {
-            let thumbLocked = window.bangunVisualPet25DSVG(cat.id, {}, "idle", 74);
-            html +=
-                '<div style="background:#f8fafc; border:1px dashed #cbd5e1; border-radius:14px; padding:14px; display:flex; flex-direction:column; gap:10px; opacity:0.88;">' +
-                    '<div style="display:flex; align-items:center; gap:12px;">' +
-                        '<div style="width:76px; height:76px; background:#e2e8f0; border-radius:14px; display:flex; align-items:center; justify-content:center; flex-shrink:0; filter:grayscale(0.65);">' +
-                            thumbLocked +
-                        '</div>' +
-                        '<div style="flex:1; min-width:0;">' +
-                            '<span style="background:' + cat.bgRarity + '; color:' + cat.warnaRarity + '; font-size:10px; font-weight:800; padding:2px 8px; border-radius:10px;">' + cat.rarity + '</span>' +
-                            '<div style="font-weight:800; font-size:16px; color:#334155; margin-top:3px;">' + cat.spesies + '</div>' +
-                            '<div style="font-size:12px; color:#d97706; font-weight:800;">🪙 ' + cat.harga.toLocaleString("id-ID") + ' Coin</div>' +
-                        '</div>' +
-                    '</div>' +
-                    '<div style="font-size:10px; color:#64748b;">Camilan Favorit: <b>' + (snackFav ? snackFav.ikon + ' ' + snackFav.nama : '-') + '</b></div>' +
-                    '<button type="button" class="btn-action" style="background:#e67e22; width:100%; padding:8px; font-size:12px;" onclick="window.gantiTabMyPet(\'shop\'); window.renderTabShopMyPet(\'pets\');">🛒 Adopsi di Shop</button>' +
-                '</div>';
-        }
+        cardsHtml +=
+            '<button type="button" class="cozy-pet-grid-card rar-' + rarSlug + (isSelected ? ' is-selected' : '') + (!dimiliki ? ' is-locked' : '') + '" onclick="window.pilihKartuCollectionPet(\'' + cat.id + '\')">' +
+                '<div class="pet-card-top-name">' + labelNama + '</div>' +
+                '<div class="pet-card-svg-wrap">' + thumbSvg + '</div>' +
+                '<div class="pet-card-footer">' + subLine + '</div>' +
+            '</button>';
     });
 
-    html += '</div>';
-    container.innerHTML = html;
+    let selCat = window.MY_PET_CATALOG.pets.find(function(p) { return p.id === window.selectedCollectionPetId; }) || filteredPets[0];
+    let selOwned = ownedMap[selCat.id];
+    let snackFav = window.MY_PET_CATALOG.snacks.find(function(s) { return s.favPet === selCat.id; });
+    let bigSvg = window.bangunVisualPet25DSVG(selCat.id, selOwned ? (selOwned.outfit || {}) : {}, "idle", 136);
+
+    let detailStatsHtml = '';
+    let detailCtaHtml = '';
+    if (selOwned) {
+        let hVal = Math.max(0, Math.min(100, Math.round(Number(selOwned.hunger) || 0)));
+        let mVal = Math.max(0, Math.min(100, Math.round(Number(selOwned.mood) || 0)));
+        let bInfo = window.hitungLevelBondPet(selOwned.bondXp || 0);
+        detailStatsHtml =
+            '<div class="cozy-spotlight-stats">' +
+                '<span>🍖 ' + hVal + '%</span><span>😊 ' + mVal + '%</span><span>❤️ Lv.' + bInfo.level + '</span>' +
+            '</div>';
+        detailCtaHtml =
+            '<button type="button" class="mypet-green-cta" onclick="window.pilihPetAktifUtama(\'' + selCat.id + '\')">' +
+                (petData.activePetId === selCat.id ? '🏡 Lihat di Habitat' : '⭐ Rawat di Habitat') +
+            '</button>';
+    } else {
+        detailStatsHtml =
+            '<div class="cozy-price-row">🪙 <b>' + selCat.harga.toLocaleString("id-ID") + ' Coin</b></div>';
+        detailCtaHtml =
+            '<button type="button" class="mypet-green-cta" onclick="window.beliPetDiShop(\'' + selCat.id + '\')">🐾 Adopsi</button>';
+    }
+
+    container.innerHTML =
+        window.bangunBarFilterRarityPet("window.ubahFilterRarityCollection") +
+        '<div class="cozy-split-layout">' +
+            '<div class="cozy-split-left">' +
+                '<div class="cozy-panel-head" style="margin-bottom:8px;">' +
+                    '<span>🐾 Koleksi Sanctuary (' + ownedCount + ' / ' + window.MY_PET_CATALOG.pets.length + ' Spesies)</span>' +
+                '</div>' +
+                '<div class="cozy-pet-catalog-grid">' + cardsHtml + '</div>' +
+            '</div>' +
+            '<div class="cozy-detail-spotlight">' +
+                '<div class="cozy-spotlight-header">' +
+                    '<span>' + (selOwned ? (selOwned.customName || selCat.namaDefault) : selCat.namaDefault) + '</span>' +
+                    '<span class="cozy-sp-badge">' + selCat.spesies + '</span>' +
+                '</div>' +
+                '<div class="cozy-spotlight-stage">' + bigSvg + '</div>' +
+                '<div class="cozy-spotlight-meta">' +
+                    detailStatsHtml +
+                    '<div class="cozy-fav-line">Makanan Favorit:<br><b>' + (snackFav ? snackFav.ikon + ' ' + snackFav.nama : '-') + '</b></div>' +
+                    '<p class="cozy-bio-text">' + window.dapatkanBioPet(selCat.id) + '</p>' +
+                '</div>' +
+                detailCtaHtml +
+            '</div>' +
+        '</div>';
 };
 
 window.pilihPetAktifUtama = function(petId) {
@@ -2245,10 +2443,20 @@ window.pilihPetAktifUtama = function(petId) {
 };
 
 // =========================================================================
-// 4. RENDER TAB SHOP TERPADU (5 KATEGORI DENGAN MATA UANG COIN)
+// 4. RENDER TAB SHOP TERPADU (COZY GAME UI + SPLIT PANEL ADOPSI PET)
 // =========================================================================
 window.activeMyPetShopCategory = "pets";
 window.activeWardrobeSlot = "all";
+
+window.ubahFilterRarityShop = function(rarKey) {
+    window.activePetRarityFilter = rarKey || "all";
+    window.renderTabShopMyPet("pets");
+};
+
+window.pilihKartuShopPet = function(petId) {
+    window.selectedShopPetId = petId;
+    window.renderTabShopMyPet("pets");
+};
 
 window.renderTabShopMyPet = function(kategori) {
     if (kategori) window.activeMyPetShopCategory = kategori;
@@ -2262,193 +2470,215 @@ window.renderTabShopMyPet = function(kategori) {
     if (!lb) return;
 
     let petData = lb.myPetData;
-    let saldoCoin = window.ambilCoinSiswa(uName);
     let ownedPetsMap = petData.ownedPets || {};
 
     let navShopHtml =
-        '<div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; background:white; padding:12px 16px; border-radius:12px; border:1px solid #e2e8f0; margin-bottom:14px;">' +
-            '<div style="display:flex; gap:6px; overflow-x:auto; padding-bottom:2px;">' +
-                '<button type="button" class="mypet-subtab-btn ' + (catAktif === "pets" ? "active" : "") + '" onclick="window.renderTabShopMyPet(\'pets\')">🐾 Adopsi Pet</button>' +
-                '<button type="button" class="mypet-subtab-btn ' + (catAktif === "foods" ? "active" : "") + '" onclick="window.renderTabShopMyPet(\'foods\')">🍖 Makanan & Camilan</button>' +
-                '<button type="button" class="mypet-subtab-btn ' + (catAktif === "toys" ? "active" : "") + '" onclick="window.renderTabShopMyPet(\'toys\')">🎾 Mainan (Toys)</button>' +
-                '<button type="button" class="mypet-subtab-btn ' + (catAktif === "themes" ? "active" : "") + '" onclick="window.renderTabShopMyPet(\'themes\')">🖼️ Tema</button>' +
-                '<button type="button" class="mypet-subtab-btn ' + (catAktif === "habitat" ? "active" : "") + '" onclick="window.renderTabShopMyPet(\'habitat\')">⛲ Dekorasi</button>' +
-                '<button type="button" class="mypet-subtab-btn ' + (catAktif === "wardrobe" ? "active" : "") + '" onclick="window.renderTabShopMyPet(\'wardrobe\')">👗 Kostum & Aksesori</button>' +
-            '</div>' +
-            '<div style="font-size:12px; font-weight:800; color:#0b3954; background:#fef9e7; border:1px solid #facc15; padding:5px 12px; border-radius:20px;">' +
-                '🪙 Saldo Belanja: <span style="color:#d97706;">' + saldoCoin.toLocaleString("id-ID") + ' Coin</span>' +
-            '</div>' +
+        '<div class="cozy-shop-cat-bar">' +
+            '<button type="button" class="mypet-subtab-btn ' + (catAktif === "pets" ? "active" : "") + '" onclick="window.renderTabShopMyPet(\'pets\')">🐾 Adopsi Pet</button>' +
+            '<button type="button" class="mypet-subtab-btn ' + (catAktif === "foods" ? "active" : "") + '" onclick="window.renderTabShopMyPet(\'foods\')">🍖 Makanan</button>' +
+            '<button type="button" class="mypet-subtab-btn ' + (catAktif === "toys" ? "active" : "") + '" onclick="window.renderTabShopMyPet(\'toys\')">🎾 Mainan</button>' +
+            '<button type="button" class="mypet-subtab-btn ' + (catAktif === "themes" ? "active" : "") + '" onclick="window.renderTabShopMyPet(\'themes\')">🖼️ Tema</button>' +
+            '<button type="button" class="mypet-subtab-btn ' + (catAktif === "habitat" ? "active" : "") + '" onclick="window.renderTabShopMyPet(\'habitat\')">⛲ Dekorasi</button>' +
+            '<button type="button" class="mypet-subtab-btn ' + (catAktif === "wardrobe" ? "active" : "") + '" onclick="window.renderTabShopMyPet(\'wardrobe\')">👗 Kostum</button>' +
         '</div>';
 
     let bodyShopHtml = '';
 
-    // KATEGORI 1: ADOPSI PET (7 SPESIES, TANPA BATAS KAPASITAS)
+    // KATEGORI 1: ADOPSI PET (TATA LETAK SPLIT-PANEL + RARITY TABS)
     if (catAktif === "pets") {
-        bodyShopHtml +=
-            '<div style="background:#eaf2f8; border-left:4px solid #2980b9; padding:10px 14px; border-radius:8px; margin-bottom:12px; font-size:12px; color:#1e293b;">' +
-                '🏡 <b>Habitat Universal Gratis:</b> Seluruh pet yang kamu adopsi akan langsung tinggal dan bermain bersama di dalam satu taman tanpa batas kapasitas!' +
-            '</div>' +
-            '<div class="mypet-shop-grid">';
-
-        window.MY_PET_CATALOG.pets.forEach(function(p) {
-            let sudahPunya = Boolean(ownedPetsMap[p.id]);
-            let previewSvg = window.bangunVisualPet25DSVG(p.id, {}, "idle", 92);
-            let snackFav = window.MY_PET_CATALOG.snacks.find(function(s) { return s.favPet === p.id; });
-
-            let btnHtml = sudahPunya
-                ? '<button type="button" class="btn-action" style="background:#16a085; width:100%; padding:8px; font-size:12px;" onclick="window.pilihPetAktifUtama(\'' + p.id + '\')">✓ Sudah Dimiliki (Lihat)</button>'
-                : '<button type="button" class="btn-action" style="background:#0b3954; color:#f1c40f; width:100%; padding:9px; font-size:12px; font-weight:800;" onclick="window.beliPetDiShop(\'' + p.id + '\')">🛒 Adopsi (' + p.harga.toLocaleString("id-ID") + ' Coin)</button>';
-
-            bodyShopHtml +=
-                '<div class="mypet-shop-card">' +
-                    '<div style="display:flex; justify-content:space-between; align-items:center; width:100%;">' +
-                        '<span style="background:' + p.bgRarity + '; color:' + p.warnaRarity + '; font-size:10px; font-weight:800; padding:2px 8px; border-radius:10px;">' + p.rarity + '</span>' +
-                        '<span style="font-size:11px; color:#64748b; font-weight:700;">Fav: ' + (snackFav ? snackFav.ikon + ' ' + snackFav.nama : '-') + '</span>' +
-                    '</div>' +
-                    '<div style="height:100px; display:flex; align-items:center; justify-content:center; margin:4px 0;">' + previewSvg + '</div>' +
-                    '<div style="font-weight:900; font-size:16px; color:#0f172a;">' + p.spesies + '</div>' +
-                    '<div style="font-size:11px; color:#64748b; margin-bottom:6px;">Nama bawaan: <b>' + p.namaDefault + '</b></div>' +
-                    btnHtml +
-                '</div>';
+        let rarFilter = window.activePetRarityFilter || "all";
+        let sortedPets = window.MY_PET_CATALOG.pets.slice().sort(function(a, b) { return a.harga - b.harga; });
+        let filteredPets = sortedPets.filter(function(p) {
+            return rarFilter === "all" || p.rarity === rarFilter;
         });
-        bodyShopHtml += '</div>';
+        if (filteredPets.length === 0) filteredPets = sortedPets;
+
+        if (!window.selectedShopPetId || !filteredPets.some(function(p) { return p.id === window.selectedShopPetId; })) {
+            window.selectedShopPetId = filteredPets[0].id;
+        }
+
+        let gridCardsHtml = '';
+        filteredPets.forEach(function(p) {
+            let sudahPunya = Boolean(ownedPetsMap[p.id]);
+            let isSelected = (window.selectedShopPetId === p.id);
+            let rarSlug = String(p.rarity || "Common").toLowerCase();
+            let previewSvg = window.bangunVisualPet25DSVG(p.id, {}, "idle", 66);
+
+            gridCardsHtml +=
+                '<button type="button" class="cozy-pet-grid-card rar-' + rarSlug + (isSelected ? ' is-selected' : '') + '" onclick="window.pilihKartuShopPet(\'' + p.id + '\')">' +
+                    '<div class="pet-card-top-name">' + p.namaDefault + '</div>' +
+                    '<div class="pet-card-svg-wrap">' + previewSvg + '</div>' +
+                    '<div class="pet-card-footer">' +
+                        (sudahPunya ? '<span style="color:#15803d;">✓ Dimiliki</span>' : '<span>🪙 ' + p.harga.toLocaleString("id-ID") + '</span>') +
+                    '</div>' +
+                '</button>';
+        });
+
+        let selPet = window.MY_PET_CATALOG.pets.find(function(p) { return p.id === window.selectedShopPetId; }) || filteredPets[0];
+        let sudahPunyaSel = Boolean(ownedPetsMap[selPet.id]);
+        let snackFavSel = window.MY_PET_CATALOG.snacks.find(function(s) { return s.favPet === selPet.id; });
+        let bigPreviewSvg = window.bangunVisualPet25DSVG(selPet.id, {}, "idle", 136);
+
+        let ctaSelBtn = sudahPunyaSel
+            ? '<button type="button" class="mypet-green-cta" onclick="window.pilihPetAktifUtama(\'' + selPet.id + '\')">🏡 Lihat di Habitat</button>'
+            : '<button type="button" class="mypet-green-cta" onclick="window.beliPetDiShop(\'' + selPet.id + '\')">🐾 Adopsi</button>';
+
+        bodyShopHtml +=
+            window.bangunBarFilterRarityPet("window.ubahFilterRarityShop") +
+            '<div class="cozy-split-layout">' +
+                '<div class="cozy-split-left">' +
+                    '<div class="cozy-pet-catalog-grid">' + gridCardsHtml + '</div>' +
+                '</div>' +
+                '<div class="cozy-detail-spotlight">' +
+                    '<div class="cozy-spotlight-header">' +
+                        '<span>' + selPet.namaDefault + '</span>' +
+                        '<span class="cozy-sp-badge">' + selPet.rarity + '</span>' +
+                    '</div>' +
+                    '<div class="cozy-spotlight-stage">' + bigPreviewSvg + '</div>' +
+                    '<div class="cozy-spotlight-meta">' +
+                        '<div class="cozy-price-row">🪙 <b>' + selPet.harga.toLocaleString("id-ID") + ' Coin</b></div>' +
+                        '<div class="cozy-fav-line">Makanan Favorit:<br><b>' + (snackFavSel ? snackFavSel.ikon + ' ' + snackFavSel.nama : '-') + '</b></div>' +
+                        '<p class="cozy-bio-text">' + window.dapatkanBioPet(selPet.id) + '</p>' +
+                    '</div>' +
+                    ctaSelBtn +
+                '</div>' +
+            '</div>';
     }
 
     // KATEGORI 2: MAKANAN UTAMA & CAMILAN FAVORIT
     else if (catAktif === "foods") {
         let inv = petData.foodInventory || {};
         bodyShopHtml +=
-            '<h4 style="margin:0 0 10px 0; color:#0b3954; font-size:15px;">🍱 1. Makanan Utama Pet (Mengisi Indikator Kenyang 0–100)</h4>' +
-            '<div class="mypet-shop-grid" style="margin-bottom:22px;">';
+            '<h4 class="cozy-section-title">🍱 1. Makanan Utama Pet (Mengisi Indikator Hunger 0–100)</h4>' +
+            '<div class="mypet-shop-grid" style="margin-bottom:18px;">';
 
         window.MY_PET_CATALOG.foods.forEach(function(f) {
             let stok = Number(inv[f.id]) || 0;
             bodyShopHtml +=
-                '<div class="mypet-shop-card">' +
-                    '<div style="display:flex; justify-content:space-between; width:100%; font-size:10px; font-weight:800;">' +
-                        '<span style="background:#dcfce7; color:#16a34a; padding:2px 8px; border-radius:10px;">+' + f.kenyang + ' Kenyang</span>' +
-                        '<span style="color:#64748b;">Stok: <b>' + stok + '</b></span>' +
+                '<div class="mypet-shop-card cozy-item-card">' +
+                    '<div class="cozy-card-top-row">' +
+                        '<span class="cozy-tag green">+' + f.kenyang + ' Hunger</span>' +
+                        '<span class="cozy-stock-lbl">Stok: <b>' + stok + '</b></span>' +
                     '</div>' +
-                    '<div style="font-size:42px; margin:8px 0;">' + f.ikon + '</div>' +
-                    '<div style="font-weight:800; font-size:14px; color:#0f172a;">' + f.nama + '</div>' +
-                    '<div style="font-size:11px; color:#64748b; margin:2px 0 8px 0;">Tahan ± ' + f.tahan + '</div>' +
-                    '<button type="button" class="btn-action" style="background:#16a34a; width:100%; padding:8px; font-size:12px; font-weight:800;" onclick="window.beliMakananPetDiShop(\'' + f.id + '\')">🛒 Beli 1x (' + f.harga + ' Coin)</button>' +
+                    '<div style="font-size:40px; margin:8px 0;">' + f.ikon + '</div>' +
+                    '<div class="cozy-item-name">' + f.nama + '</div>' +
+                    '<div class="cozy-item-sub">Tahan ± ' + f.tahan + '</div>' +
+                    '<button type="button" class="mypet-green-cta sm" onclick="window.beliMakananPetDiShop(\'' + f.id + '\')">🪙 ' + f.harga.toLocaleString("id-ID") + '</button>' +
                 '</div>';
         });
 
         bodyShopHtml +=
             '</div>' +
-            '<h4 style="margin:0 0 10px 0; color:#0b3954; font-size:15px;">🦴 2. Camilan Favorit Spesies (+5 Kenyang, +10 Mood, & Reaksi Spesial)</h4>' +
+            '<h4 class="cozy-section-title">🦴 2. Camilan Favorit Spesies (+5 Hunger, +10 Mood, Reaksi Spesial)</h4>' +
             '<div class="mypet-shop-grid">';
 
         window.MY_PET_CATALOG.snacks.forEach(function(s) {
             let stok = Number(inv[s.id]) || 0;
             bodyShopHtml +=
-                '<div class="mypet-shop-card">' +
-                    '<div style="display:flex; justify-content:space-between; width:100%; font-size:10px; font-weight:800;">' +
-                        '<span style="background:#fef3c7; color:#d97706; padding:2px 8px; border-radius:10px;">💖 Fav: ' + s.favLabel + '</span>' +
-                        '<span style="color:#64748b;">Stok: <b>' + stok + '</b></span>' +
+                '<div class="mypet-shop-card cozy-item-card">' +
+                    '<div class="cozy-card-top-row">' +
+                        '<span class="cozy-tag amber">💖 ' + s.favLabel + '</span>' +
+                        '<span class="cozy-stock-lbl">Stok: <b>' + stok + '</b></span>' +
                     '</div>' +
-                    '<div style="font-size:40px; margin:8px 0;">' + s.ikon + '</div>' +
-                    '<div style="font-weight:800; font-size:14px; color:#0f172a;">' + s.nama + '</div>' +
-                    '<div style="font-size:11px; color:#ec4899; font-weight:700; margin:2px 0 8px 0;">+5 Kenyang, +10 Mood</div>' +
-                    '<button type="button" class="btn-action" style="background:#d97706; width:100%; padding:8px; font-size:12px; font-weight:800;" onclick="window.beliMakananPetDiShop(\'' + s.id + '\')">🛒 Beli 1x (' + s.harga + ' Coin)</button>' +
+                    '<div style="font-size:38px; margin:8px 0;">' + s.ikon + '</div>' +
+                    '<div class="cozy-item-name">' + s.nama + '</div>' +
+                    '<div class="cozy-item-sub" style="color:#db2777;">+5 Hunger, +10 Mood</div>' +
+                    '<button type="button" class="mypet-amber-cta sm" onclick="window.beliMakananPetDiShop(\'' + s.id + '\')">🪙 ' + s.harga.toLocaleString("id-ID") + '</button>' +
                 '</div>';
         });
         bodyShopHtml += '</div>';
     }
 
-    // KATEGORI 3: MAINAN PERMANEN (15 TOYS UNTUK INTERAKSI AJAK BERMAIN)
+    // KATEGORI 3: MAINAN PERMANEN
     else if (catAktif === "toys") {
         let ownedW = Array.isArray(petData.ownedWardrobe) ? petData.ownedWardrobe : [];
         let ownedT = Array.isArray(petData.ownedToys) ? petData.ownedToys : [];
-
-        bodyShopHtml +=
-            '<div style="background:#fffbeb; border-left:4px solid #f59e0b; padding:10px 14px; border-radius:8px; margin-bottom:12px; font-size:12px; color:#1e293b;">' +
-                '🎾 <b>Mainan Permanen:</b> Mainan yang sudah dibeli menjadi milikmu selamanya dan dapat dipakai berulang kali lewat tombol <b>🎾 Main</b> di Habitat!' +
-            '</div>' +
-            '<div class="mypet-shop-grid">';
+        bodyShopHtml += '<div class="mypet-shop-grid">';
 
         (window.MY_PET_CATALOG.toys || []).forEach(function(t) {
             let sudahPunya = ownedW.includes(t.id) || ownedT.includes(t.id);
             let btnToy = sudahPunya
-                ? '<button type="button" class="btn-action" style="background:#16a085; width:100%; padding:8px; font-size:12px;" onclick="window.gantiTabMyPet(\'habitat\'); window.toggleLaciMainanHabitat(true);">✓ Dimiliki (Pakai Main)</button>'
-                : '<button type="button" class="btn-action" style="background:#0b3954; color:#f1c40f; width:100%; padding:8px; font-size:12px; font-weight:800;" onclick="window.beliMainanDiShop(\'' + t.id + '\')">🛒 Beli (' + t.harga.toLocaleString("id-ID") + ' Coin)</button>';
+                ? '<button type="button" class="mypet-green-cta sm" onclick="window.gantiTabMyPet(\'habitat\'); window.toggleLaciMainanHabitat(true);">✓ Pakai Main</button>'
+                : '<button type="button" class="mypet-amber-cta sm" onclick="window.beliMainanDiShop(\'' + t.id + '\')">🪙 ' + t.harga.toLocaleString("id-ID") + '</button>';
 
             bodyShopHtml +=
-                '<div class="mypet-shop-card">' +
-                    '<div style="font-size:40px; margin:6px 0;">' + t.ikon + '</div>' +
-                    '<div style="font-weight:800; font-size:14px; color:#0f172a;">' + t.nama + '</div>' +
-                    '<div style="font-size:11px; color:#64748b; line-height:1.35; flex:1; margin:4px 0 8px 0;">' + t.deskripsi + '</div>' +
+                '<div class="mypet-shop-card cozy-item-card">' +
+                    '<div style="font-size:38px; margin:6px 0;">' + t.ikon + '</div>' +
+                    '<div class="cozy-item-name">' + t.nama + '</div>' +
+                    '<div class="cozy-item-sub" style="flex:1;">' + t.deskripsi + '</div>' +
                     btnToy +
                 '</div>';
         });
         bodyShopHtml += '</div>';
     }
 
-    // KATEGORI 4: DEKORASI TAMAN HABITAT (TERikat SLOT KOORDINAT TETAP)
+    // KATEGORI 4: DEKORASI TAMAN HABITAT
     else if (catAktif === "habitat") {
         let ownedDecs = Array.isArray(petData.ownedDecorations) ? petData.ownedDecorations : [];
         let activeDecs = Array.isArray(petData.activeDecorations) ? petData.activeDecorations : [];
-
-        bodyShopHtml +=
-            '<h4 style="margin:0 0 10px 0; color:#0b3954; font-size:15px;">⛲ Dekorasi Taman Habitat Universal</h4>' +
-            '<div class="mypet-shop-grid">';
+        bodyShopHtml += '<div class="mypet-shop-grid">';
 
         window.MY_PET_CATALOG.decorations.forEach(function(dec) {
             let isOwned = ownedDecs.includes(dec.id);
-            let isActive = activeDecs.includes(dec.id);
+            let isActive = activeDecs.some(function(x) { return (typeof x === "object" ? x.id : x) === dec.id; });
 
             let btnDec = isOwned
-                ? '<button type="button" class="btn-action" style="background:' + (isActive ? '#64748b' : '#27ae60') + '; width:100%; padding:8px; font-size:12px;" onclick="window.togglePasangDekorasiHabitat(\'' + dec.id + '\')">' +
-                      (isActive ? '✓ Terpasang (Lepas)' : '📌 Pasang di Slot') +
+                ? '<button type="button" class="' + (isActive ? 'mypet-gray-cta sm' : 'mypet-green-cta sm') + '" onclick="window.togglePasangDekorasiHabitat(\'' + dec.id + '\')">' +
+                      (isActive ? '✓ Terpasang (Lepas)' : '📌 Pasang') +
                   '</button>'
-                : '<button type="button" class="btn-action" style="background:#0b3954; color:#f1c40f; width:100%; padding:8px; font-size:12px; font-weight:800;" onclick="window.beliDekorasiHabitat(\'' + dec.id + '\')">🛒 Beli (' + dec.harga.toLocaleString("id-ID") + ' Coin)</button>';
+                : '<button type="button" class="mypet-amber-cta sm" onclick="window.beliDekorasiHabitat(\'' + dec.id + '\')">🪙 ' + dec.harga.toLocaleString("id-ID") + '</button>';
 
             bodyShopHtml +=
-                '<div class="mypet-shop-card">' +
-                    '<span style="background:#f1f5f9; color:#475569; font-size:10px; font-weight:800; padding:2px 8px; border-radius:8px;">📍 Slot: ' + (dec.slot || 'Taman') + '</span>' +
-                    '<div style="font-size:40px; margin:8px 0;">' + dec.ikon + '</div>' +
-                    '<div style="font-weight:800; font-size:14px; color:#0f172a;">' + dec.nama + '</div>' +
-                    '<div style="font-size:11px; color:#64748b; margin-bottom:8px;">Ornamen lingkungan habitat</div>' +
+                '<div class="mypet-shop-card cozy-item-card">' +
+                    '<span class="cozy-tag neutral">📍 ' + (dec.slot || 'Taman') + '</span>' +
+                    '<div style="font-size:38px; margin:8px 0;">' + dec.ikon + '</div>' +
+                    '<div class="cozy-item-name">' + dec.nama + '</div>' +
+                    '<div class="cozy-item-sub">Dekorasi bebas geser</div>' +
                     btnDec +
                 '</div>';
         });
         bodyShopHtml += '</div>';
     }
 
-    // KATEGORI 5: SHOP KOSTUM & AKSESORI (38 ITEM PERMANEN)
-else if (catAktif === "themes") {
+    // KATEGORI 5: TEMA HABITAT
+    else if (catAktif === "themes") {
         let ownedTh = Array.isArray(petData.ownedThemes) ? petData.ownedThemes : [];
         let activeTh = petData.activeTheme || "default";
 
+        bodyShopHtml += '<div class="mypet-shop-grid">';
+        // Kartu Tema Bawaan Cozy Sanctuary
         bodyShopHtml +=
-            '<div style="background:#eaf2f8; border-left:4px solid #2980b9; padding:10px 14px; border-radius:8px; margin-bottom:12px; font-size:12px; color:#1e293b;">' +
-                '🖼️ <b>Ganti Suasana Panggung Habitat:</b> Beli tema sekali dan gunakan selamanya untuk mengganti latar belakang alam di Habitat Universalmu!' +
-            '</div>' +
-            '<div class="mypet-shop-grid">';
+            '<div class="mypet-shop-card cozy-item-card">' +
+                '<div style="font-size:38px; margin:8px 0;">🏡</div>' +
+                '<div class="cozy-item-name">Cozy Sanctuary (Default)</div>' +
+                '<div class="cozy-item-sub" style="flex:1;">Teras kayu hangat, kolam air, dan karpet paw print.</div>' +
+                '<button type="button" class="' + (activeTh === "default" ? 'mypet-gray-cta sm' : 'mypet-green-cta sm') + '" onclick="window.pakaiTemaDefaultHabitat()">' +
+                    (activeTh === "default" ? '✓ Sedang Dipakai' : '✨ Pakai Tema') +
+                '</button>' +
+            '</div>';
 
         window.MY_PET_CATALOG.themes.forEach(function(thm) {
             let isOwned = ownedTh.includes(thm.id);
             let isActive = (activeTh === thm.id);
 
             let btnThm = isOwned
-                ? '<button type="button" class="btn-action" style="background:' + (isActive ? '#64748b' : '#27ae60') + '; width:100%; padding:8px; font-size:12px;" onclick="window.beliTemaHabitat(\'' + thm.id + '\')">' +
+                ? '<button type="button" class="' + (isActive ? 'mypet-gray-cta sm' : 'mypet-green-cta sm') + '" onclick="window.beliTemaHabitat(\'' + thm.id + '\')">' +
                       (isActive ? '✓ Sedang Dipakai' : '✨ Pakai Tema') +
                   '</button>'
-                : '<button type="button" class="btn-action" style="background:#0b3954; color:#f1c40f; width:100%; padding:8px; font-size:12px; font-weight:800;" onclick="window.beliTemaHabitat(\'' + thm.id + '\')">🛒 Beli (' + thm.harga.toLocaleString("id-ID") + ' Coin)</button>';
+                : '<button type="button" class="mypet-amber-cta sm" onclick="window.beliTemaHabitat(\'' + thm.id + '\')">🪙 ' + thm.harga.toLocaleString("id-ID") + '</button>';
 
             bodyShopHtml +=
-                '<div class="mypet-shop-card">' +
-                    '<div style="font-size:40px; margin:8px 0;">' + thm.ikon + '</div>' +
-                    '<div style="font-weight:800; font-size:14px; color:#0f172a;">' + thm.nama + '</div>' +
-                    '<div style="font-size:11px; color:#64748b; margin-bottom:8px; min-height:30px;">' + thm.deskripsi + '</div>' +
+                '<div class="mypet-shop-card cozy-item-card">' +
+                    '<div style="font-size:38px; margin:8px 0;">' + thm.ikon + '</div>' +
+                    '<div class="cozy-item-name">' + thm.nama + '</div>' +
+                    '<div class="cozy-item-sub" style="flex:1;">' + thm.deskripsi + '</div>' +
                     btnThm +
                 '</div>';
         });
         bodyShopHtml += '</div>';
     }
-    
+
+    // KATEGORI 6: KOSTUM & AKSESORI
     else if (catAktif === "wardrobe") {
         let ownedW = Array.isArray(petData.ownedWardrobe) ? petData.ownedWardrobe : [];
         let grupList = [
@@ -2462,20 +2692,20 @@ else if (catAktif === "themes") {
         grupList.forEach(function(g) {
             let items = window.MY_PET_CATALOG.wardrobe.filter(function(w) { return w.slot === g.slot; });
             bodyShopHtml +=
-                '<h4 style="margin:0 0 10px 0; color:#0b3954; font-size:15px;">' + g.judul + '</h4>' +
-                '<div class="mypet-shop-grid" style="margin-bottom:20px;">';
+                '<h4 class="cozy-section-title">' + g.judul + '</h4>' +
+                '<div class="mypet-shop-grid" style="margin-bottom:18px;">';
 
             items.forEach(function(item) {
                 let sudahPunya = ownedW.includes(item.id);
                 let btnW = sudahPunya
-                    ? '<button type="button" class="btn-action" style="background:#8b5cf6; width:100%; padding:8px; font-size:12px;" onclick="window.gantiTabMyPet(\'wardrobe\')">✓ Milikmu (Buka Wardrobe)</button>'
-                    : '<button type="button" class="btn-action" style="background:#0b3954; color:#f1c40f; width:100%; padding:8px; font-size:12px; font-weight:800;" onclick="window.beliItemWardrobeDiShop(\'' + item.id + '\')">🛒 Beli (' + item.harga.toLocaleString("id-ID") + ' Coin)</button>';
+                    ? '<button type="button" class="mypet-green-cta sm" onclick="window.gantiTabMyPet(\'wardrobe\')">✓ Buka Wardrobe</button>'
+                    : '<button type="button" class="mypet-amber-cta sm" onclick="window.beliItemWardrobeDiShop(\'' + item.id + '\')">🪙 ' + item.harga.toLocaleString("id-ID") + '</button>';
 
                 bodyShopHtml +=
-                    '<div class="mypet-shop-card">' +
-                        '<div style="font-size:38px; margin:6px 0;">' + item.ikon + '</div>' +
-                        '<div style="font-weight:800; font-size:14px; color:#0f172a;">' + item.nama + '</div>' +
-                        '<div style="font-size:11px; color:#64748b; line-height:1.35; flex:1; margin:4px 0 8px 0;">' + item.deskripsi + '</div>' +
+                    '<div class="mypet-shop-card cozy-item-card">' +
+                        '<div style="font-size:36px; margin:6px 0;">' + item.ikon + '</div>' +
+                        '<div class="cozy-item-name">' + item.nama + '</div>' +
+                        '<div class="cozy-item-sub" style="flex:1;">' + item.deskripsi + '</div>' +
                         btnW +
                     '</div>';
             });
@@ -2484,6 +2714,16 @@ else if (catAktif === "themes") {
     }
 
     container.innerHTML = navShopHtml + bodyShopHtml;
+};
+
+window.pakaiTemaDefaultHabitat = function() {
+    let uName = sessionStorage.getItem("username");
+    let cleanKey = window.normalisasiKeySiswaPet(uName);
+    let lb = window.pastikanStrukturDualXPDanPet(cleanKey);
+    if (!lb || !lb.myPetData) return;
+    lb.myPetData.activeTheme = "default";
+    if (typeof window.simpanLeaderboardSiswaKeDB === "function") window.simpanLeaderboardSiswaKeDB(cleanKey, lb);
+    window.gantiTabMyPet("habitat");
 };
 
 // =========================================================================
@@ -3130,4 +3370,70 @@ window.hapusStikerHabitat = function(idx) {
         window.simpanLeaderboardSiswaKeDB(cleanKey, lb);
     }
     window.renderTabHabitatMyPet();
+};
+// =========================================================================
+// 8. GESER BEBAS (DRAG-AND-DROP) PET DI DALAM HABITAT SANCTUARY
+// =========================================================================
+window._justDraggedPetId = "";
+
+window.mulaiDragPetDiHabitat = function(e, petId) {
+    if (window.modeKunjunganPet) return;
+    if (e.button !== undefined && e.button !== 0) return;
+
+    let uName = sessionStorage.getItem("username");
+    let cleanKey = window.normalisasiKeySiswaPet ? window.normalisasiKeySiswaPet(uName) : uName;
+    let lb = window.pastikanStrukturDualXPDanPet(cleanKey);
+    if (!lb || !lb.myPetData || !lb.myPetData.ownedPets || !lb.myPetData.ownedPets[petId]) return;
+
+    let el = document.getElementById("mypet-stage-actor-" + petId);
+    let stage = document.getElementById("mypet-habitat-stage");
+    if (!el || !stage) return;
+
+    let pObj = lb.myPetData.ownedPets[petId];
+    let sRect = stage.getBoundingClientRect();
+    let startX = e.clientX;
+    let startY = e.clientY;
+    let initLeft = parseFloat(el.style.left) || 50;
+    let initBottom = parseFloat(el.style.bottom) || 18;
+    let moved = false;
+
+    function onMove(ev) {
+        let dxPx = ev.clientX - startX;
+        let dyPx = ev.clientY - startY;
+        if (!moved && Math.hypot(dxPx, dyPx) < 6) return;
+
+        if (!moved) {
+            moved = true;
+            el.classList.add("is-dragging-pet");
+            el.style.zIndex = "30";
+        }
+        ev.preventDefault();
+
+        let nextLeft = Math.max(8, Math.min(92, initLeft + (dxPx / Math.max(1, sRect.width)) * 100));
+        let nextBottom = Math.max(5, Math.min(58, initBottom - (dyPx / Math.max(1, sRect.height)) * 100));
+
+        el.style.left = nextLeft.toFixed(1) + "%";
+        el.style.bottom = nextBottom.toFixed(1) + "%";
+        pObj.posLeft = Number(nextLeft.toFixed(1));
+        pObj.posBottom = Number(nextBottom.toFixed(1));
+    }
+
+    function onUp() {
+        document.removeEventListener("pointermove", onMove);
+        document.removeEventListener("pointerup", onUp);
+        document.removeEventListener("pointercancel", onUp);
+        el.classList.remove("is-dragging-pet");
+
+        if (moved) {
+            window._justDraggedPetId = petId;
+            setTimeout(function() { window._justDraggedPetId = ""; }, 120);
+            if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
+                window.simpanLeaderboardSiswaKeDB(cleanKey, lb);
+            }
+        }
+    }
+
+    document.addEventListener("pointermove", onMove, { passive: false });
+    document.addEventListener("pointerup", onUp);
+    document.addEventListener("pointercancel", onUp);
 };

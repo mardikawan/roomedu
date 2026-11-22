@@ -5729,3 +5729,2725 @@ body.dark-mode-active .tooltip-edit-btn {
     font-style: italic;
     font-size: 11.5px;
 }
+/* =========================================================================
+   ROMBAK UI/UX COZY GAME: MY PET SANCTUARY (GAYA ILUSTRASI HANGAT)
+   ========================================================================= */
+.mypet-modal-box.mypet-cozy-shell {
+    width: 940px !important;
+    max-width: 96vw !important;
+    height: 90vh !important;
+    max-height: 90dvh !important;
+    background: #fef9ed !important;
+    border: 4px solid #8c5a2b !important;
+    border-radius: 22px !important;
+    box-shadow: 0 20px 50px rgba(45, 25, 8, 0.45) !important;
+    font-family: 'Quicksand', 'Poppins', sans-serif !important;
+}
+
+/* Header HUD Game (Plakat Kayu + Pil Coin/XP + Ikon Navigasi) */
+.mypet-cozy-hud {
+    background: linear-gradient(180deg, #b8e9ff 0%, #dcfce7 100%);
+    border-bottom: 4px solid #9c6633;
+    padding: 10px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+}
+
+.mypet-hud-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.mypet-wood-sign {
+    background: linear-gradient(180deg, #c68443 0%, #8f5422 100%);
+    border: 3px solid #5c3210;
+    border-radius: 14px;
+    padding: 4px 12px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    box-shadow: 0 4px 0 #5c3210, inset 0 2px 0 rgba(255, 236, 179, 0.45);
+    cursor: pointer;
+    user-select: none;
+    transition: transform 0.15s;
+}
+
+.mypet-wood-sign:hover {
+    transform: translateY(-1px);
+}
+
+.mypet-sign-paw {
+    font-size: 20px;
+    filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.3));
+}
+
+.mypet-sign-title {
+    font-size: 13px;
+    font-weight: 900;
+    color: #fef08a;
+    line-height: 1.05;
+    text-shadow: 0 1.5px 0 #5c3210;
+}
+
+.mypet-sign-sub {
+    font-size: 11px;
+    font-weight: 800;
+    color: #ffffff;
+    line-height: 1.05;
+    text-shadow: 0 1.5px 0 #5c3210;
+}
+
+.mypet-hud-currencies {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.mypet-hud-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: linear-gradient(180deg, #9c6231 0%, #73421c 100%);
+    border: 2.5px solid #4e2b0f;
+    border-radius: 22px;
+    padding: 3px 12px 3px 4px;
+    color: #ffffff;
+    font-size: 12.5px;
+    box-shadow: 0 3px 0 #4e2b0f, inset 0 1.5px 0 rgba(255, 255, 255, 0.28);
+}
+
+.mypet-hud-pill .hud-orb {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    background: #fef08a;
+    border: 2px solid #b45309;
+}
+
+.mypet-hud-pill.xp-pill .hud-orb {
+    background: #bae6fd;
+    border-color: #0284c7;
+}
+
+.mypet-hud-right {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.mypet-hud-icon-btn {
+    background: linear-gradient(180deg, #fffdf5 0%, #f5deb3 100%);
+    border: 2.5px solid #8c5a2b;
+    border-radius: 12px;
+    padding: 4px 10px;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 58px;
+    cursor: pointer;
+    box-shadow: 0 3px 0 #73421c;
+    transition: transform 0.12s, background 0.15s;
+    font-family: 'Quicksand', 'Poppins', sans-serif;
+}
+
+.mypet-hud-icon-btn .hud-ico {
+    font-size: 16px;
+    line-height: 1.1;
+}
+
+.mypet-hud-icon-btn .hud-lbl {
+    font-size: 10px;
+    font-weight: 800;
+    color: #5c3210;
+    line-height: 1.1;
+    margin-top: 1px;
+}
+
+.mypet-hud-icon-btn:hover {
+    transform: translateY(-2px);
+}
+
+.mypet-hud-icon-btn.active {
+    background: linear-gradient(180deg, #86efac 0%, #22c55e 100%);
+    border-color: #14532d;
+    box-shadow: 0 3px 0 #14532d;
+}
+
+.mypet-hud-icon-btn.active .hud-lbl {
+    color: #ffffff;
+    text-shadow: 0 1px 0 #14532d;
+}
+
+.mypet-hud-icon-btn.garden-link-btn {
+    background: linear-gradient(180deg, #fef08a 0%, #f59e0b 100%);
+    border-color: #92400e;
+    box-shadow: 0 3px 0 #92400e;
+}
+
+.mypet-hud-icon-btn.garden-link-btn .hud-lbl {
+    color: #5c2606;
+}
+
+.mypet-hud-close-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: linear-gradient(180deg, #fb7185 0%, #dc2626 100%);
+    border: 2.5px solid #7f1d1d;
+    color: #ffffff;
+    font-size: 15px;
+    font-weight: 900;
+    cursor: pointer;
+    box-shadow: 0 3px 0 #7f1d1d;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mypet-hud-close-btn:hover {
+    transform: scale(1.06);
+}
+
+/* Body Area Hangat */
+.mypet-body-container.mypet-cozy-body {
+    background: linear-gradient(180deg, #eef9e3 0%, #fdf6e3 100%) !important;
+    padding: 14px !important;
+}
+
+/* Panggung Sanctuary Cozy */
+.mypet-habitat-stage.cozy-sanctuary-stage {
+    height: 325px;
+    border: 4px solid #8c5a2b !important;
+    border-radius: 18px !important;
+    box-shadow: 0 8px 20px rgba(92, 50, 16, 0.18), inset 0 0 0 2px rgba(255, 255, 255, 0.45) !important;
+}
+
+/* Dock Tombol Kiri di Panggung */
+.mypet-stage-left-dock {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 18;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    background: rgba(255, 250, 235, 0.92);
+    border: 2.5px solid #9c6633;
+    border-radius: 14px;
+    padding: 6px 5px;
+    box-shadow: 0 4px 12px rgba(78, 43, 15, 0.22);
+}
+
+.stage-dock-btn {
+    background: linear-gradient(180deg, #ffffff 0%, #fef3c7 100%);
+    border: 2px solid #d4a373;
+    border-radius: 10px;
+    padding: 5px 7px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    transition: transform 0.12s, border-color 0.12s;
+    min-width: 48px;
+}
+
+.stage-dock-btn span {
+    font-size: 18px;
+    line-height: 1.1;
+}
+
+.stage-dock-btn small {
+    font-size: 9.5px;
+    font-weight: 800;
+    color: #5c3210;
+    margin-top: 1px;
+}
+
+.stage-dock-btn:hover {
+    transform: scale(1.08);
+    border-color: #22c55e;
+}
+
+/* Kartu Status Hunger & Happiness Kanan Atas Panggung */
+.mypet-stage-status-card {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 18;
+    width: 170px;
+    background: rgba(255, 251, 238, 0.94);
+    border: 2.5px solid #9c6633;
+    border-radius: 14px;
+    padding: 8px 10px;
+    box-shadow: 0 4px 12px rgba(78, 43, 15, 0.2);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.stage-stat-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.stage-stat-ico {
+    font-size: 15px;
+    flex-shrink: 0;
+}
+
+.stage-stat-col {
+    flex: 1;
+    min-width: 0;
+}
+
+.stage-stat-top {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    font-weight: 800;
+    color: #5c3210;
+    margin-bottom: 2px;
+}
+
+.stage-stat-track {
+    width: 100%;
+    height: 8px;
+    background: #e7d7bf;
+    border-radius: 6px;
+    border: 1px solid #c29b6c;
+    overflow: hidden;
+}
+
+.stage-stat-fill {
+    height: 100%;
+    border-radius: 5px;
+    transition: width 0.3s ease;
+}
+
+.stage-stat-fill.hunger {
+    background: linear-gradient(90deg, #84cc16, #22c55e);
+}
+
+.stage-stat-fill.mood {
+    background: linear-gradient(90deg, #f472b6, #ec4899);
+}
+
+.stage-stat-bond {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 10px;
+    font-weight: 800;
+    color: #b45309;
+    padding-top: 3px;
+    border-top: 1px dashed #d6b68d;
+}
+
+.stage-status-chip {
+    font-size: 9.5px;
+    font-weight: 800;
+    padding: 1px 6px;
+    border-radius: 8px;
+}
+
+/* Rarity Tabs (Common, Uncommon, Rare, Epic, Special, Legendary) */
+.cozy-rarity-tabs {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 6px;
+    margin-bottom: 10px;
+    scrollbar-width: none;
+}
+
+.cozy-rarity-tabs::-webkit-scrollbar {
+    display: none;
+}
+
+.cozy-rarity-tab {
+    background: linear-gradient(180deg, #fffdf7 0%, #f3e4c7 100%);
+    border: 2px solid #b5834b;
+    border-radius: 14px 14px 8px 8px;
+    padding: 6px 13px;
+    font-family: 'Quicksand', 'Poppins', sans-serif;
+    font-size: 12px;
+    font-weight: 800;
+    color: #5c3210;
+    cursor: pointer;
+    white-space: nowrap;
+    box-shadow: 0 2px 0 #8c5a2b;
+    transition: transform 0.12s, background 0.15s;
+}
+
+.cozy-rarity-tab:hover {
+    transform: translateY(-1px);
+}
+
+.cozy-rarity-tab.active {
+    background: linear-gradient(180deg, #a3e635 0%, #4d7c0f 100%);
+    border-color: #365314;
+    color: #ffffff;
+    box-shadow: 0 2px 0 #365314;
+    text-shadow: 0 1px 0 #365314;
+}
+
+/* Split Layout (Grid Kiri + Spotlight Detail Kanan) */
+.cozy-split-layout,
+.cozy-habitat-bottom-grid {
+    display: grid;
+    grid-template-columns: 1fr 245px;
+    gap: 12px;
+    align-items: start;
+}
+
+.cozy-split-left,
+.cozy-panel-box {
+    background: #fffcf2;
+    border: 3px solid #c99b62;
+    border-radius: 16px;
+    padding: 12px;
+    box-shadow: 0 4px 10px rgba(92, 50, 16, 0.08);
+}
+
+.cozy-panel-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 800;
+    color: #5c3210;
+    margin-bottom: 10px;
+}
+
+.cozy-panel-head small {
+    font-size: 10.5px;
+    color: #8c6239;
+    font-weight: 600;
+}
+
+/* Grid Kartu Pet Kompak */
+.cozy-pet-catalog-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(105px, 1fr));
+    gap: 8px;
+}
+
+.cozy-pet-grid-card {
+    background: #ffffff;
+    border: 2.5px solid #d6b68d;
+    border-radius: 14px;
+    padding: 6px 5px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    transition: transform 0.14s, border-color 0.14s, box-shadow 0.14s;
+    font-family: 'Quicksand', 'Poppins', sans-serif;
+}
+
+.cozy-pet-grid-card:hover {
+    transform: translateY(-2px);
+}
+
+.cozy-pet-grid-card.rar-uncommon { background: #f0fdf4; border-color: #86efac; }
+.cozy-pet-grid-card.rar-rare     { background: #eff6ff; border-color: #93c5fd; }
+.cozy-pet-grid-card.rar-epic     { background: #faf5ff; border-color: #d8b4fe; }
+.cozy-pet-grid-card.rar-special  { background: #fdf2f8; border-color: #f9a8d4; }
+.cozy-pet-grid-card.rar-legendary{ background: linear-gradient(180deg, #fef9c3, #fde68a); border-color: #f59e0b; }
+
+.cozy-pet-grid-card.is-selected {
+    border-color: #22c55e !important;
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.3), 0 4px 10px rgba(21, 128, 61, 0.2) !important;
+    transform: translateY(-2px);
+}
+
+.cozy-pet-grid-card.is-locked .pet-card-svg-wrap {
+    filter: grayscale(0.45) opacity(0.85);
+}
+
+.pet-card-top-name {
+    font-size: 11.5px;
+    font-weight: 800;
+    color: #4a2e14;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.pet-card-svg-wrap {
+    height: 68px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.pet-card-footer {
+    font-size: 10.5px;
+    font-weight: 800;
+    color: #92400e;
+    margin-top: 2px;
+}
+
+/* Grid Mini Pet di Bawah Habitat */
+.cozy-mini-pets-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+    gap: 8px;
+}
+
+.cozy-mini-pet-card {
+    background: #ffffff;
+    border: 2px solid #d6b68d;
+    border-radius: 12px;
+    padding: 6px 4px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    transition: transform 0.14s;
+    font-family: 'Quicksand', 'Poppins', sans-serif;
+}
+
+.cozy-mini-pet-card.is-selected {
+    background: #f0fdf4;
+    border-color: #22c55e;
+    box-shadow: 0 0 0 2.5px rgba(34, 197, 94, 0.28);
+}
+
+.mini-pet-name {
+    font-size: 11px;
+    font-weight: 800;
+    color: #4a2e14;
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.mini-pet-svg {
+    height: 58px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mini-pet-meta {
+    font-size: 10px;
+    font-weight: 800;
+    color: #15803d;
+}
+
+/* Kartu Detail Spotlight Kanan (Seperti Panel Mochi di Referensi) */
+.cozy-detail-spotlight {
+    background: #fffdf6;
+    border: 3px solid #c99b62;
+    border-radius: 18px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    box-shadow: 0 6px 16px rgba(92, 50, 16, 0.12);
+    position: sticky;
+    top: 0;
+}
+
+.cozy-spotlight-header {
+    width: 100%;
+    background: linear-gradient(180deg, #fbcfe8 0%, #f472b6 100%);
+    border: 2px solid #be185d;
+    border-radius: 12px;
+    padding: 6px 10px;
+    color: #ffffff;
+    font-size: 16px;
+    font-weight: 900;
+    text-shadow: 0 1.5px 0 #9d174d;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-sizing: border-box;
+    margin-bottom: 8px;
+}
+
+.cozy-sp-badge {
+    font-size: 10px;
+    background: rgba(255, 255, 255, 0.28);
+    padding: 2px 7px;
+    border-radius: 10px;
+    text-shadow: none;
+    color: #ffffff;
+}
+
+.cozy-rename-btn {
+    background: rgba(255, 255, 255, 0.3);
+    border: none;
+    border-radius: 8px;
+    padding: 2px 6px;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.cozy-spotlight-stage {
+    width: 100%;
+    min-height: 142px;
+    background: radial-gradient(circle, #fef9c3 0%, #fffdf6 75%);
+    border: 1.5px dashed #e2c290;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 8px;
+    cursor: pointer;
+    position: relative;
+}
+
+.cozy-spotlight-meta {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-bottom: 10px;
+}
+
+.cozy-price-row {
+    font-size: 14px;
+    color: #92400e;
+}
+
+.cozy-spotlight-stats {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    font-size: 11px;
+    font-weight: 800;
+    color: #4a2e14;
+    background: #fef3c7;
+    padding: 5px 8px;
+    border-radius: 10px;
+}
+
+.cozy-rarity-pill {
+    display: inline-block;
+    align-self: center;
+    font-size: 10.5px;
+    font-weight: 800;
+    padding: 2px 10px;
+    border-radius: 10px;
+}
+
+.cozy-fav-line {
+    font-size: 11.5px;
+    color: #5c3210;
+    line-height: 1.35;
+}
+
+.cozy-bio-text {
+    margin: 2px 0 0 0;
+    font-size: 11.5px;
+    color: #785a3a;
+    line-height: 1.4;
+}
+
+/* Tombol Glossy 3D Hijau / Amber / Abu */
+.mypet-green-cta,
+.mypet-amber-cta,
+.mypet-gray-cta {
+    width: 100%;
+    padding: 9px 14px;
+    border-radius: 14px;
+    font-family: 'Quicksand', 'Poppins', sans-serif;
+    font-size: 14px;
+    font-weight: 900;
+    color: #ffffff;
+    cursor: pointer;
+    transition: transform 0.12s;
+    border: 2.5px solid #15803d;
+    background: linear-gradient(180deg, #86efac 0%, #22c55e 45%, #16a34a 100%);
+    box-shadow: 0 4px 0 #14532d;
+    text-shadow: 0 1.5px 0 #14532d;
+}
+
+.mypet-amber-cta {
+    border-color: #b45309;
+    background: linear-gradient(180deg, #fde047 0%, #f59e0b 55%, #d97706 100%);
+    box-shadow: 0 4px 0 #78350f;
+    text-shadow: 0 1.5px 0 #78350f;
+}
+
+.mypet-gray-cta {
+    border-color: #475569;
+    background: linear-gradient(180deg, #cbd5e1 0%, #64748b 100%);
+    box-shadow: 0 3px 0 #334155;
+    text-shadow: 0 1px 0 #334155;
+}
+
+.mypet-green-cta.sm,
+.mypet-amber-cta.sm,
+.mypet-gray-cta.sm {
+    padding: 7px 10px;
+    font-size: 12px;
+    border-radius: 11px;
+    box-shadow: 0 3px 0 rgba(0, 0, 0, 0.25);
+}
+
+.mypet-green-cta:hover,
+.mypet-amber-cta:hover {
+    transform: translateY(-1px);
+}
+
+.mypet-green-cta:active,
+.mypet-amber-cta:active {
+    transform: translateY(2px);
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
+}
+
+/* Sub-Bar Shop & Kartu Item Cozy */
+.cozy-shop-cat-bar {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    background: #fffcf2;
+    border: 2.5px solid #c99b62;
+    border-radius: 14px;
+    padding: 8px 10px;
+    margin-bottom: 12px;
+}
+
+.cozy-section-title {
+    margin: 4px 0 10px 0;
+    color: #5c3210;
+    font-size: 14.5px;
+    font-weight: 900;
+}
+
+.mypet-shop-card.cozy-item-card {
+    background: #fffdf6 !important;
+    border: 2.5px solid #d6b68d !important;
+    border-radius: 16px !important;
+}
+
+.cozy-card-top-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    font-size: 10px;
+    font-weight: 800;
+}
+
+.cozy-tag {
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 800;
+}
+.cozy-tag.green   { background: #dcfce7; color: #15803d; }
+.cozy-tag.amber   { background: #fef3c7; color: #b45309; }
+.cozy-tag.neutral { background: #f3e8d2; color: #5c3210; }
+
+.cozy-stock-lbl { color: #785a3a; }
+.cozy-item-name { font-weight: 900; font-size: 13.5px; color: #4a2e14; }
+.cozy-item-sub  { font-size: 11px; color: #785a3a; line-height: 1.35; margin: 3px 0 8px 0; }
+
+.mypet-feed-drawer.cozy-drawer {
+    background: #fffcf2 !important;
+    border: 3px solid #d97706 !important;
+    border-radius: 16px !important;
+}
+
+.cozy-drawer-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    font-size: 13px;
+    color: #5c3210;
+}
+
+.cozy-drawer-head button {
+    background: none;
+    border: none;
+    color: #8c5a2b;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.cozy-fav-chip {
+    background: #fef08a;
+    color: #b45309;
+    font-size: 9px;
+    padding: 1px 5px;
+    border-radius: 6px;
+    font-weight: 800;
+    margin-left: 4px;
+}
+
+.cozy-qty-pill {
+    background: #5c3210;
+    color: #fef08a;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.mypet-kritis-banner,
+.cozy-visit-banner {
+    background: #fee2e2;
+    border: 2.5px solid #dc2626;
+    color: #991b1b;
+    padding: 8px 14px;
+    border-radius: 12px;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.cozy-visit-banner {
+    background: #fef3c7;
+    border-color: #d97706;
+    color: #78350f;
+}
+
+.mypet-kritis-banner button {
+    background: #dc2626;
+    color: #ffffff;
+    border: none;
+    border-radius: 10px;
+    padding: 5px 12px;
+    font-weight: 800;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.mypet-empty-cozy {
+    background: #fffcf2;
+    border: 3px dashed #c99b62;
+    border-radius: 18px;
+    padding: 36px 20px;
+    text-align: center;
+    color: #5c3210;
+}
+
+.mypet-empty-cozy h3 {
+    margin: 0 0 8px 0;
+    font-size: 20px;
+    font-weight: 900;
+}
+
+.mypet-empty-cozy p {
+    margin: 0 auto 18px auto;
+    max-width: 440px;
+    font-size: 13px;
+    color: #785a3a;
+    line-height: 1.55;
+}
+
+.mypet-empty-cozy .mypet-green-cta {
+    width: auto;
+    padding: 10px 26px;
+}
+
+/* Responsif Layar HP */
+@media (max-width: 768px) {
+    .mypet-cozy-hud {
+        padding: 8px 10px;
+        gap: 6px;
+    }
+    .mypet-wood-sign {
+        padding: 3px 9px;
+    }
+    .mypet-hud-icon-btn {
+        min-width: 48px;
+        padding: 4px 6px;
+    }
+    .mypet-hud-icon-btn .hud-ico {
+        font-size: 14px;
+    }
+    .mypet-hud-icon-btn .hud-lbl {
+        font-size: 9px;
+    }
+    .mypet-habitat-stage.cozy-sanctuary-stage {
+        height: 235px !important;
+    }
+    .mypet-stage-left-dock {
+        left: 6px;
+        padding: 4px 3px;
+        gap: 4px;
+    }
+    .stage-dock-btn {
+        min-width: 38px;
+        padding: 3px 4px;
+    }
+    .stage-dock-btn span {
+        font-size: 14px;
+    }
+    .stage-dock-btn small {
+        font-size: 8.5px;
+    }
+    .mypet-stage-status-card {
+        width: 138px;
+        padding: 6px 8px;
+        top: 6px;
+        right: 6px;
+    }
+    .cozy-split-layout,
+    .cozy-habitat-bottom-grid {
+        grid-template-columns: 1fr !important;
+    }
+    .cozy-detail-spotlight {
+        position: static !important;
+    }
+    .cozy-pet-catalog-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+        gap: 6px !important;
+    }
+}
+/* =========================================================================
+   FITUR BARU: MY GARDEN (COZY FARM UI/UX, 20 PETAK, & TOMBOL MELAYANG)
+   ========================================================================= */
+.mygarden-floating-btn {
+    position: fixed;
+    left: 132px;
+    bottom: 48px;
+    background: linear-gradient(135deg, #15803d, #65a30d);
+    color: #ffffff;
+    border: 2px solid #fef08a;
+    border-radius: 30px;
+    padding: 9px 16px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 13px;
+    font-weight: 800;
+    cursor: pointer;
+    box-shadow: 0 6px 18px rgba(21, 128, 61, 0.35);
+    z-index: 8500;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.mode-edit-aktif .mygarden-floating-btn,
+.force-edit-mode .mygarden-floating-btn {
+    bottom: 105px;
+}
+
+.mygarden-floating-btn:hover {
+    transform: translateY(-3px) scale(1.04);
+    box-shadow: 0 8px 22px rgba(101, 163, 13, 0.5);
+}
+
+.mygarden-ready-badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 20px;
+    height: 20px;
+    background: #f59e0b;
+    color: #ffffff;
+    border: 2px solid #ffffff;
+    border-radius: 50%;
+    font-size: 11px;
+    font-weight: 900;
+    align-items: center;
+    justify-content: center;
+    animation: pulse-badge 1s infinite;
+}
+
+body.strict-mode-active .mygarden-floating-btn,
+body.modal-open-lock .mygarden-floating-btn {
+    display: none !important;
+}
+
+/* Modal Utama My Garden */
+.modal-box.mygarden-modal-box {
+    width: 960px !important;
+    max-width: 96vw !important;
+    height: 90vh !important;
+    max-height: 90dvh !important;
+    background: #eef9df !important;
+    border: 4px solid #7c4d21 !important;
+    border-radius: 22px !important;
+    box-shadow: 0 20px 50px rgba(34, 60, 20, 0.42) !important;
+    font-family: 'Quicksand', 'Poppins', sans-serif !important;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.mygarden-hud {
+    background: linear-gradient(180deg, #93dcff 0%, #c8f3b7 100%);
+    border-bottom: 4px solid #8c5a2b;
+    padding: 9px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+}
+
+.mygarden-hud-left,
+.mygarden-hud-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.mygarden-wood-sign {
+    background: linear-gradient(180deg, #b87333 0%, #7c4518 100%);
+    border: 3px solid #4e2b0f;
+    border-radius: 14px;
+    padding: 4px 12px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    box-shadow: 0 4px 0 #4e2b0f, inset 0 2px 0 rgba(255, 240, 190, 0.45);
+    cursor: pointer;
+    user-select: none;
+}
+
+.garden-sign-ico { font-size: 20px; }
+.garden-sign-top { font-size: 10.5px; font-weight: 900; color: #fef08a; line-height: 1; text-shadow: 0 1px 0 #4e2b0f; }
+.garden-sign-main { font-size: 14.5px; font-weight: 900; color: #bbf7d0; line-height: 1.05; text-shadow: 0 1.5px 0 #14532d; }
+
+.mygarden-hud-btn {
+    background: linear-gradient(180deg, #fffdf5 0%, #f5deb3 100%);
+    border: 2.5px solid #8c5a2b;
+    border-radius: 12px;
+    padding: 4px 10px;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 62px;
+    cursor: pointer;
+    box-shadow: 0 3px 0 #73421c;
+    transition: transform 0.12s;
+    font-family: 'Quicksand', 'Poppins', sans-serif;
+}
+
+.mygarden-hud-btn .hud-ico { font-size: 16px; line-height: 1.1; }
+.mygarden-hud-btn .hud-lbl { font-size: 10px; font-weight: 800; color: #5c3210; line-height: 1.1; margin-top: 1px; }
+.mygarden-hud-btn:hover { transform: translateY(-2px); }
+
+.mygarden-hud-btn.active {
+    background: linear-gradient(180deg, #7dd3fc 0%, #0284c7 100%);
+    border-color: #0c4a6e;
+    box-shadow: 0 3px 0 #0c4a6e;
+}
+.mygarden-hud-btn.active .hud-lbl { color: #ffffff; text-shadow: 0 1px 0 #0c4a6e; }
+
+.mygarden-hud-btn.pet-link-btn {
+    background: linear-gradient(180deg, #fbcfe8 0%, #ec4899 100%);
+    border-color: #831843;
+    box-shadow: 0 3px 0 #831843;
+}
+.mygarden-hud-btn.pet-link-btn .hud-lbl { color: #ffffff; text-shadow: 0 1px 0 #831843; }
+
+/* Body Padang Rumput Cerah */
+.mygarden-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 14px 18px 14px !important;
+    background:
+        radial-gradient(circle at 12% 16%, rgba(254, 240, 138, 0.55) 0%, transparent 32%),
+        radial-gradient(circle at 88% 14%, rgba(125, 211, 252, 0.45) 0%, transparent 35%),
+        linear-gradient(180deg, #b8e994 0%, #82cc64 50%, #6ab04c 100%) !important;
+    position: relative;
+}
+
+.mygarden-toast-box {
+    position: sticky;
+    top: 4px;
+    margin: 0 auto 8px auto;
+    width: fit-content;
+    max-width: 92%;
+    background: rgba(20, 40, 18, 0.92);
+    color: #ffffff;
+    border: 2px solid #facc15;
+    border-radius: 24px;
+    padding: 7px 16px;
+    font-size: 12.5px;
+    font-weight: 700;
+    text-align: center;
+    z-index: 40;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+}
+
+.garden-banner-row {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 10px;
+}
+
+.garden-curved-banner {
+    background: linear-gradient(180deg, #fde68a 0%, #f59e0b 100%);
+    border: 3px solid #78350f;
+    border-radius: 26px;
+    padding: 5px 28px;
+    font-size: 17px;
+    font-weight: 900;
+    color: #5c2606;
+    box-shadow: 0 4px 0 #78350f, inset 0 2px 0 rgba(255, 255, 255, 0.55);
+}
+
+.garden-tool-notice {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 8px 12px;
+    border-radius: 12px;
+    margin-bottom: 10px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #ffffff;
+}
+
+.garden-tool-notice.water { background: #0284c7; border: 2px solid #0c4a6e; }
+.garden-tool-notice.fert  { background: #b45309; border: 2px solid #78350f; }
+
+.garden-tool-notice > button {
+    background: rgba(255, 255, 255, 0.22);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-radius: 10px;
+    padding: 4px 12px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.garden-fert-chip {
+    background: rgba(255, 255, 255, 0.18);
+    color: #ffffff;
+    border: 1.5px solid rgba(255, 255, 255, 0.45);
+    border-radius: 14px;
+    padding: 3px 9px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.garden-fert-chip.active {
+    background: #fef08a;
+    color: #5c2606;
+    border-color: #ffffff;
+}
+
+/* Layout 3 Kolom Utama (Info Kiri | 20 Petak Tanah | Detail Kanan) */
+.garden-three-col {
+    display: grid;
+    grid-template-columns: 142px 1fr 236px;
+    gap: 12px;
+    align-items: start;
+}
+
+.garden-left-card,
+.garden-right-card {
+    background: #fffdf4;
+    border: 3px solid #9c6633;
+    border-radius: 18px;
+    padding: 11px;
+    box-shadow: 0 6px 16px rgba(45, 30, 10, 0.18);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.garden-card-title {
+    font-size: 13px;
+    font-weight: 900;
+    color: #365314;
+    border-bottom: 2px dashed #d6b68d;
+    padding-bottom: 6px;
+}
+
+.garden-stat-line {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12px;
+    color: #4a2e14;
+}
+
+.garden-stat-line small {
+    display: block;
+    font-size: 10px;
+    color: #785a3a;
+    line-height: 1.1;
+}
+
+.garden-mini-shop-btn {
+    margin-top: 4px;
+    background: linear-gradient(180deg, #fde047, #f59e0b);
+    border: 2px solid #92400e;
+    border-radius: 10px;
+    padding: 6px 8px;
+    font-family: 'Quicksand', 'Poppins', sans-serif;
+    font-size: 11.5px;
+    font-weight: 900;
+    color: #5c2606;
+    cursor: pointer;
+    box-shadow: 0 2px 0 #92400e;
+}
+
+/* Grid 20 Petak Tanah (5 Kolom x 4 Baris) */
+.garden-grid-frame {
+    background: rgba(101, 163, 13, 0.35);
+    border: 3px solid rgba(54, 83, 20, 0.38);
+    border-radius: 18px;
+    padding: 10px;
+    box-shadow: inset 0 3px 10px rgba(20, 50, 10, 0.18);
+}
+
+.garden-plots-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.garden-soil-plot {
+    aspect-ratio: 1 / 0.92;
+    background: radial-gradient(circle at 50% 42%, #9a6234 0%, #7c4920 75%, #613514 100%);
+    border: 3px solid #4e2b0f;
+    border-radius: 14px;
+    padding: 4px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: inset 0 4px 8px rgba(0, 0, 0, 0.25), 0 3px 0 #3f6212;
+    transition: transform 0.14s, box-shadow 0.14s, border-color 0.14s;
+}
+
+.garden-soil-plot:hover {
+    transform: translateY(-2px);
+    border-color: #fde047;
+}
+
+.garden-soil-plot.is-selected {
+    border-color: #fef08a !important;
+    box-shadow: 0 0 0 3.5px #facc15, inset 0 4px 8px rgba(0, 0, 0, 0.25) !important;
+    transform: translateY(-2px);
+}
+
+.garden-soil-plot.status-ready {
+    box-shadow: 0 0 12px rgba(250, 204, 21, 0.7), inset 0 2px 8px rgba(254, 240, 138, 0.25);
+}
+
+.plot-plant-wrap {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+
+.plot-plant-wrap svg {
+    max-width: 92%;
+    max-height: 92%;
+}
+
+.plot-badge {
+    position: absolute;
+    top: 3px;
+    right: 4px;
+    font-size: 9px;
+    font-weight: 800;
+    padding: 1px 5px;
+    border-radius: 8px;
+    line-height: 1.25;
+    z-index: 3;
+    pointer-events: none;
+}
+
+.plot-badge.ready  { background: #fef08a; color: #854d0e; border: 1px solid #eab308; }
+.plot-badge.wilted { background: #fee2e2; color: #991b1b; border: 1px solid #ef4444; }
+.plot-badge.timer  { background: rgba(15, 23, 42, 0.72); color: #ffffff; }
+
+/* Kartu Detail Kanan */
+.garden-right-card {
+    align-items: center;
+    text-align: center;
+}
+
+.garden-detail-ribbon {
+    width: 100%;
+    background: linear-gradient(180deg, #86efac 0%, #22c55e 100%);
+    border: 2px solid #15803d;
+    border-radius: 12px;
+    padding: 5px 8px;
+    font-size: 13.5px;
+    font-weight: 900;
+    color: #ffffff;
+    text-shadow: 0 1.5px 0 #14532d;
+    box-sizing: border-box;
+}
+
+.garden-detail-ribbon.wilted {
+    background: linear-gradient(180deg, #a8a29e 0%, #57534e 100%);
+    border-color: #292524;
+    text-shadow: 0 1px 0 #292524;
+}
+
+.garden-detail-preview {
+    width: 100%;
+    min-height: 104px;
+    background: radial-gradient(circle, #fef9c3 0%, #fffdf4 75%);
+    border: 1.5px dashed #d6b68d;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.garden-reward-row {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    font-size: 12.5px;
+    color: #5c3210;
+    background: #fef3c7;
+    border-radius: 10px;
+    padding: 5px 10px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.garden-dur-row {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: #4a2e14;
+}
+
+.garden-detail-desc {
+    margin: 0;
+    font-size: 11px;
+    color: #785a3a;
+    line-height: 1.4;
+}
+
+.garden-prog-wrap {
+    width: 100%;
+}
+
+.garden-prog-top {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10.5px;
+    font-weight: 800;
+    color: #365314;
+    margin-bottom: 3px;
+}
+
+.garden-prog-track {
+    width: 100%;
+    height: 9px;
+    background: #e5e7eb;
+    border-radius: 6px;
+    border: 1px solid #a3e635;
+    overflow: hidden;
+}
+
+.garden-prog-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #84cc16, #16a34a);
+    border-radius: 6px;
+}
+
+.garden-seed-pick-list {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 215px;
+    overflow-y: auto;
+}
+
+.garden-seed-pick-item {
+    width: 100%;
+    background: #ffffff;
+    border: 2px solid #d6b68d;
+    border-radius: 10px;
+    padding: 5px 7px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    cursor: pointer;
+    font-family: 'Quicksand', 'Poppins', sans-serif;
+    transition: border-color 0.12s, background 0.12s;
+}
+
+.garden-seed-pick-item:hover {
+    border-color: #22c55e;
+    background: #f0fdf4;
+}
+
+.seed-mini-name { font-size: 11.5px; font-weight: 800; color: #4a2e14; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.seed-mini-sub  { font-size: 10px; font-weight: 700; color: #15803d; }
+
+/* Tombol Bawah Tengah (Panen Semua & Buang Tanaman Layu) */
+.garden-bottom-actions {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+}
+
+.garden-wood-cta {
+    border-radius: 26px;
+    padding: 9px 22px;
+    font-family: 'Quicksand', 'Poppins', sans-serif;
+    font-size: 13.5px;
+    font-weight: 900;
+    cursor: pointer;
+    transition: transform 0.12s;
+}
+
+.garden-wood-cta.harvest-all {
+    background: linear-gradient(180deg, #86efac 0%, #16a34a 100%);
+    border: 3px solid #14532d;
+    color: #ffffff;
+    box-shadow: 0 4px 0 #14532d;
+    text-shadow: 0 1px 0 #14532d;
+}
+
+.garden-wood-cta.clear-wilted {
+    background: linear-gradient(180deg, #fde68a 0%, #f59e0b 100%);
+    border: 3px solid #78350f;
+    color: #5c2606;
+    box-shadow: 0 4px 0 #78350f;
+}
+
+.garden-wood-cta.clear-wilted.is-idle {
+    opacity: 0.78;
+}
+
+.garden-wood-cta:hover { transform: translateY(-2px); }
+
+/* Toko Bibit & Pupuk */
+.garden-shop-wrap {
+    background: rgba(255, 252, 242, 0.94);
+    border: 3px solid #9c6633;
+    border-radius: 18px;
+    padding: 14px;
+}
+
+.garden-shop-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding-bottom: 10px;
+    margin-bottom: 12px;
+    border-bottom: 2px dashed #d6b68d;
+}
+
+.garden-shop-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(175px, 1fr));
+    gap: 10px;
+}
+
+.garden-shop-card {
+    background: #ffffff;
+    border: 2.5px solid #d6b68d;
+    border-radius: 16px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.garden-shop-card.rar-uncommon  { background: #f0fdf4; border-color: #86efac; }
+.garden-shop-card.rar-rare      { background: #eff6ff; border-color: #93c5fd; }
+.garden-shop-card.rar-epic      { background: #faf5ff; border-color: #d8b4fe; }
+.garden-shop-card.rar-legendary { background: linear-gradient(180deg, #fef9c3, #fde68a); border-color: #f59e0b; }
+
+.garden-shop-meta {
+    font-size: 10.5px;
+    font-weight: 800;
+    color: #15803d;
+    margin: 2px 0 4px 0;
+}
+
+/* Responsif Layar HP */
+@media (max-width: 768px) {
+    /* Letakkan tombol My Garden rapi tepat di sebelah My Pet pada Dock Bawah HP */
+    .mygarden-floating-btn {
+        left: 96px !important;
+        bottom: 7px !important;
+        height: 32px !important;
+        padding: 0 9px !important;
+        font-size: 11px !important;
+        border-radius: 16px !important;
+        box-shadow: none !important;
+        z-index: 9010 !important;
+    }
+    .mygarden-floating-btn .mygarden-float-text {
+        display: none !important;
+    }
+    #bottom-breadcrumb {
+        margin-left: 138px !important;
+    }
+
+    .mygarden-modal-box {
+        height: 92dvh !important;
+        max-height: 92dvh !important;
+    }
+    .mygarden-hud {
+        padding: 8px 10px;
+        gap: 6px;
+    }
+    .mygarden-hud-btn {
+        min-width: 48px;
+        padding: 4px 6px;
+    }
+    .mygarden-hud-btn .hud-ico { font-size: 14px; }
+    .mygarden-hud-btn .hud-lbl { font-size: 9px; }
+
+    .garden-three-col {
+        grid-template-columns: 1fr !important;
+    }
+    .garden-left-card {
+        flex-direction: row !important;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 10px;
+    }
+    .garden-card-title {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+    .garden-plots-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+        gap: 6px;
+    }
+    .garden-shop-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 8px;
+    }
+}
+/* =========================================================================
+   MY GARDEN V2: LAHAN TERKUNCI, KUIS BIOLOGI BIBIT, & DRAG PET DI HABITAT
+   ========================================================================= */
+.garden-soil-plot.status-locked {
+    background: repeating-linear-gradient(135deg, #4b5563 0px, #4b5563 8px, #374151 8px, #374151 16px) !important;
+    border-color: #1f2937 !important;
+    flex-direction: column;
+    gap: 2px;
+    box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.35), 0 3px 0 #1f2937;
+}
+
+.plot-lock-ico {
+    font-size: 20px;
+    line-height: 1;
+}
+
+.plot-lock-price {
+    font-size: 9.5px;
+    font-weight: 800;
+    color: #fef08a;
+    background: rgba(15, 23, 42, 0.78);
+    padding: 1px 6px;
+    border-radius: 8px;
+    white-space: nowrap;
+}
+
+.garden-detail-ribbon.locked {
+    background: linear-gradient(180deg, #64748b 0%, #334155 100%);
+    border-color: #0f172a;
+    text-shadow: 0 1px 0 #0f172a;
+}
+
+.garden-latin-name {
+    font-size: 10px;
+    color: #64748b;
+    margin-bottom: 2px;
+}
+
+/* Overlay Kuis Biologi Pembelian Bibit */
+.garden-quiz-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.68);
+    backdrop-filter: blur(3px);
+    z-index: 90;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 14px;
+    box-sizing: border-box;
+}
+
+.garden-quiz-card {
+    width: 100%;
+    max-width: 480px;
+    background: #fffdf5;
+    border: 3.5px solid #8c5a2b;
+    border-radius: 18px;
+    padding: 16px;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.4);
+    font-family: 'Quicksand', 'Poppins', sans-serif;
+    max-height: 85vh;
+    overflow-y: auto;
+}
+
+.garden-quiz-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+    padding-bottom: 10px;
+    margin-bottom: 12px;
+    border-bottom: 2px dashed #d6b68d;
+}
+
+.garden-quiz-ico {
+    width: 50px;
+    height: 50px;
+    background: #fef9c3;
+    border: 2px solid #d6b68d;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.garden-quiz-close {
+    background: #fee2e2;
+    color: #b91c1c;
+    border: none;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    font-weight: 900;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.garden-quiz-question {
+    font-size: 13.5px;
+    font-weight: 800;
+    color: #1e293b;
+    line-height: 1.5;
+    margin-bottom: 12px;
+    background: #ffffff;
+    border: 1.5px solid #e2c290;
+    border-radius: 12px;
+    padding: 10px 12px;
+}
+
+.garden-quiz-opts {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+.garden-quiz-opt {
+    width: 100%;
+    text-align: left;
+    background: #ffffff;
+    border: 2px solid #d6b68d;
+    border-radius: 10px;
+    padding: 9px 12px;
+    font-family: 'Quicksand', 'Poppins', sans-serif;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #334155;
+    cursor: pointer;
+    display: flex;
+    align-items: flex-start;
+    gap: 7px;
+    transition: border-color 0.14s, background 0.14s;
+}
+
+.garden-quiz-opt:hover:not(:disabled) {
+    background: #f0fdf4;
+    border-color: #22c55e;
+}
+
+.garden-quiz-opt.is-correct {
+    background: #dcfce7 !important;
+    border-color: #16a34a !important;
+    color: #14532d !important;
+}
+
+.garden-quiz-opt.is-wrong {
+    background: #fee2e2 !important;
+    border-color: #dc2626 !important;
+    color: #7f1d1d !important;
+}
+
+.garden-quiz-feedback {
+    margin-top: 12px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.garden-quiz-feedback.ok {
+    background: #dcfce7;
+    border: 1.5px solid #22c55e;
+    color: #14532d;
+}
+
+.garden-quiz-feedback.err {
+    background: #fee2e2;
+    border: 1.5px solid #ef4444;
+    color: #7f1d1d;
+}
+
+/* Drag Pet Bebas di Habitat Sanctuary */
+.mypet-stage-actor-wrap.is-draggable-pet {
+    cursor: grab;
+    touch-action: none;
+}
+
+.mypet-stage-actor-wrap.is-dragging-pet {
+    cursor: grabbing !important;
+    transition: none !important;
+    filter: drop-shadow(0 12px 16px rgba(0, 0, 0, 0.3));
+}
+/* =========================================================================
+   FITUR BARU: MY FARM (PETERNAKAN COZY + SINERGI MY GARDEN)
+   ========================================================================= */
+.myfarm-floating-btn {
+    position: fixed;
+    left: 266px;
+    bottom: 48px;
+    background: linear-gradient(135deg, #b45309, #ea580c);
+    color: #ffffff;
+    border: 2px solid #fef08a;
+    border-radius: 30px;
+    padding: 9px 16px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 13px;
+    font-weight: 800;
+    cursor: pointer;
+    box-shadow: 0 6px 18px rgba(180, 83, 9, 0.35);
+    z-index: 8500;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.mode-edit-aktif .myfarm-floating-btn,
+.force-edit-mode .myfarm-floating-btn {
+    bottom: 105px;
+}
+
+.myfarm-floating-btn:hover {
+    transform: translateY(-3px) scale(1.04);
+    box-shadow: 0 8px 22px rgba(234, 88, 12, 0.5);
+}
+
+.myfarm-alert-badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 20px;
+    height: 20px;
+    background: #ef4444;
+    color: #ffffff;
+    border: 2px solid #ffffff;
+    border-radius: 50%;
+    font-size: 11px;
+    font-weight: 900;
+    align-items: center;
+    justify-content: center;
+    animation: pulse-badge 1s infinite;
+}
+
+body.strict-mode-active .myfarm-floating-btn,
+body.modal-open-lock .myfarm-floating-btn {
+    display: none !important;
+}
+
+.modal-box.myfarm-modal-box {
+    width: 960px !important;
+    max-width: 96vw !important;
+    height: 90vh !important;
+    max-height: 90dvh !important;
+    background: #fef9ec !important;
+    border: 4px solid #78350f !important;
+    border-radius: 22px !important;
+    box-shadow: 0 20px 50px rgba(69, 26, 3, 0.45) !important;
+    font-family: 'Quicksand', 'Poppins', sans-serif !important;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.myfarm-hud {
+    background: linear-gradient(180deg, #fed7aa 0%, #fef08a 100%);
+    border-bottom: 4px solid #92400e;
+    padding: 9px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+}
+
+.myfarm-hud-left,
+.myfarm-hud-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.myfarm-wood-sign {
+    background: linear-gradient(180deg, #b91c1c 0%, #7f1d1d 100%);
+    border: 3px solid #450a0a;
+    border-radius: 14px;
+    padding: 4px 12px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    box-shadow: 0 4px 0 #450a0a, inset 0 2px 0 rgba(255, 255, 255, 0.35);
+    cursor: pointer;
+    user-select: none;
+}
+
+.farm-sign-top  { font-size: 10.5px; font-weight: 900; color: #fef08a; line-height: 1; }
+.farm-sign-main { font-size: 14.5px; font-weight: 900; color: #ffffff; line-height: 1.05; }
+
+.myfarm-hud-btn {
+    background: linear-gradient(180deg, #fffdf5 0%, #f5deb3 100%);
+    border: 2.5px solid #8c5a2b;
+    border-radius: 12px;
+    padding: 4px 10px;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 58px;
+    cursor: pointer;
+    box-shadow: 0 3px 0 #73421c;
+    transition: transform 0.12s;
+    font-family: 'Quicksand', 'Poppins', sans-serif;
+}
+
+.myfarm-hud-btn .hud-ico { font-size: 16px; line-height: 1.1; }
+.myfarm-hud-btn .hud-lbl { font-size: 10px; font-weight: 800; color: #5c3210; line-height: 1.1; margin-top: 1px; }
+.myfarm-hud-btn:hover { transform: translateY(-2px); }
+
+.myfarm-hud-btn.active {
+    background: linear-gradient(180deg, #fb923c 0%, #ea580c 100%);
+    border-color: #7c2d12;
+    box-shadow: 0 3px 0 #7c2d12;
+}
+.myfarm-hud-btn.active .hud-lbl { color: #ffffff; }
+
+.myfarm-hud-btn.garden-btn {
+    background: linear-gradient(180deg, #86efac 0%, #16a34a 100%);
+    border-color: #14532d;
+    box-shadow: 0 3px 0 #14532d;
+}
+.myfarm-hud-btn.garden-btn .hud-lbl { color: #ffffff; }
+
+.myfarm-hud-btn.pet-btn {
+    background: linear-gradient(180deg, #fbcfe8 0%, #ec4899 100%);
+    border-color: #831843;
+    box-shadow: 0 3px 0 #831843;
+}
+.myfarm-hud-btn.pet-btn .hud-lbl { color: #ffffff; }
+
+.myfarm-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 14px 18px 14px !important;
+    background: linear-gradient(180deg, #fef3c7 0%, #d9f99d 45%, #84cc16 100%) !important;
+    position: relative;
+}
+
+/* Strip Stok Pakan & Aksi Cepat di Atas Kandang */
+.farm-supply-strip {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    background: rgba(255, 253, 244, 0.94);
+    border: 2.5px solid #92400e;
+    border-radius: 14px;
+    padding: 7px 12px;
+    margin-bottom: 10px;
+    box-shadow: 0 3px 8px rgba(69, 26, 3, 0.14);
+}
+
+.farm-supply-chips,
+.farm-quick-btns {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.farm-sup-pill {
+    background: #fef3c7;
+    border: 1.5px solid #d97706;
+    color: #5c2606;
+    padding: 3px 10px;
+    border-radius: 14px;
+    font-size: 11.5px;
+    font-weight: 700;
+}
+
+.farm-mini-cta {
+    border: none;
+    border-radius: 14px;
+    padding: 5px 11px;
+    font-family: 'Quicksand', 'Poppins', sans-serif;
+    font-size: 11.5px;
+    font-weight: 800;
+    color: #ffffff;
+    cursor: pointer;
+    box-shadow: 0 2px 0 rgba(0, 0, 0, 0.25);
+}
+
+.farm-mini-cta.green { background: #16a34a; }
+.farm-mini-cta.amber { background: #d97706; }
+
+.farm-sick-alert {
+    background: #fee2e2;
+    color: #b91c1c;
+    border: 1.5px solid #ef4444;
+    padding: 3px 9px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 800;
+}
+
+/* Split Utama: 2 Kandang Terbuka (Kiri) + Detail Hewan Terpilih (Kanan) */
+.farm-main-split {
+    display: grid;
+    grid-template-columns: 1fr 248px;
+    gap: 12px;
+    align-items: start;
+}
+
+.farm-paddocks-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* Kartu Kandang Berpagar Kayu Putih (Gaya Farm Frenzy) */
+.farm-paddock-card {
+    background: #5ca937;
+    border: 3px solid #365314;
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: 0 6px 16px rgba(34, 60, 20, 0.25);
+}
+
+.farm-paddock-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 7px 12px;
+    background: linear-gradient(180deg, #92400e 0%, #78350f 100%);
+    color: #ffffff;
+    border-bottom: 2.5px solid #451a03;
+}
+
+.farm-paddock-header strong {
+    display: block;
+    font-size: 13px;
+    font-weight: 900;
+    color: #fef08a;
+    line-height: 1.15;
+}
+
+.farm-paddock-header small {
+    font-size: 10px;
+    color: #fed7aa;
+    font-weight: 600;
+}
+
+.paddock-cap-pill {
+    background: rgba(0, 0, 0, 0.28);
+    color: #ffffff;
+    padding: 3px 9px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.paddock-upgrade-btn {
+    background: linear-gradient(180deg, #fde047 0%, #f59e0b 100%);
+    color: #5c2606;
+    border: 1.5px solid #451a03;
+    border-radius: 12px;
+    padding: 3px 9px;
+    font-family: 'Quicksand', 'Poppins', sans-serif;
+    font-size: 10.5px;
+    font-weight: 900;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.paddock-max-pill {
+    background: #16a34a;
+    color: #ffffff;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 2px 8px;
+    border-radius: 10px;
+}
+
+/* Rumput Hijau Luar + Pagar Kayu Putih */
+.farm-paddock-yard {
+    padding: 12px;
+    background:
+        radial-gradient(circle at 15% 20%, #84cc16 0%, transparent 45%),
+        radial-gradient(circle at 85% 80%, #65a30d 0%, transparent 45%),
+        #5ca937;
+}
+
+.paddock-fence-frame {
+    position: relative;
+    width: 100%;
+    height: 215px;
+    border-radius: 18px;
+    overflow: hidden;
+    box-sizing: border-box;
+    border: 6px dashed #ffffff;
+    box-shadow:
+        0 0 0 3px #cbd5e1,
+        inset 0 0 0 4px #e2e8f0,
+        inset 0 8px 22px rgba(69, 26, 3, 0.28);
+}
+
+/* Lantai Tanah Kandang Unggas (Jerami Hangat) */
+.yard-poultry .paddock-fence-frame {
+    background:
+        radial-gradient(ellipse at 50% 52%, #e6b873 0%, #c88d47 68%, #9a6529 100%);
+}
+
+/* Lantai Padang Rumput Sapi & Kambing (Tanah Pasture + Rumput Tepi) */
+.yard-pasture .paddock-fence-frame {
+    background:
+        radial-gradient(ellipse at 50% 50%, #c78b42 0%, #a56d2c 58%, #679c36 92%, #4f8527 100%);
+}
+
+.paddock-prop {
+    position: absolute;
+    font-size: 32px;
+    pointer-events: none;
+    opacity: 0.9;
+    filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.28));
+    z-index: 2;
+}
+
+.prop-coop, .prop-barn   { top: 6px; left: 10px; font-size: 38px; }
+.prop-pond, .prop-trough { bottom: 6px; right: 12px; font-size: 28px; }
+.prop-hay, .prop-grass   { top: 8px; right: 14px; font-size: 26px; }
+
+.paddock-empty-hint {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: #fffbeb;
+    font-size: 12px;
+    font-weight: 700;
+    text-shadow: 0 1.5px 3px rgba(0, 0, 0, 0.55);
+    padding: 12px;
+}
+
+.paddock-empty-hint > div {
+    font-size: 32px;
+    margin-bottom: 4px;
+}
+
+/* Aktor Hewan Bebas Berjalan Keliling */
+.paddock-animal-actor {
+    position: absolute;
+    transform: translate(-50%, -65%);
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.farm-actor-flip {
+    transition: transform 0.2s ease;
+    transform: scaleX(1);
+}
+
+.farm-actor-flip.facing-right {
+    transform: scaleX(-1);
+}
+
+@keyframes farmAnimalWalkBob {
+    0%, 100% { transform: translateY(0px) rotate(0deg); }
+    25%      { transform: translateY(-4px) rotate(-2deg); }
+    75%      { transform: translateY(-3px) rotate(2deg); }
+}
+
+.paddock-animal-actor.is-walking .farm-actor-flip svg {
+    animation: farmAnimalWalkBob 0.55s ease-in-out infinite;
+}
+
+/* Lingkaran Hijau Menyala Saat Hewan Dipilih */
+.paddock-select-ring {
+    display: none;
+    position: absolute;
+    bottom: 2px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 64px;
+    height: 22px;
+    border-radius: 50%;
+    border: 3px solid #4ade80;
+    background: rgba(74, 222, 128, 0.25);
+    box-shadow: 0 0 12px #22c55e, inset 0 0 8px #4ade80;
+    pointer-events: none;
+}
+
+.paddock-animal-actor.is-selected .paddock-select-ring {
+    display: block;
+}
+
+.paddock-prod-bubble {
+    position: absolute;
+    top: -14px;
+    right: -10px;
+    background: linear-gradient(180deg, #fef08a 0%, #f59e0b 100%);
+    border: 2px solid #78350f;
+    border-radius: 14px;
+    padding: 1px 6px;
+    font-size: 10.5px;
+    font-weight: 900;
+    color: #451a03;
+    cursor: pointer;
+    z-index: 5;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.28);
+    animation: pulse-badge 1.2s infinite;
+}
+
+.paddock-waste-bubble {
+    position: absolute;
+    bottom: -4px;
+    left: -10px;
+    background: #fef3c7;
+    border: 1.5px solid #92400e;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 5;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25);
+}
+
+.paddock-stage-pill {
+    position: absolute;
+    top: -10px;
+    left: -8px;
+    font-size: 9px;
+    font-weight: 800;
+    padding: 1px 5px;
+    border-radius: 8px;
+    z-index: 4;
+    pointer-events: none;
+}
+
+.paddock-stage-pill.growing { background: rgba(15, 23, 42, 0.78); color: #fef08a; }
+.paddock-stage-pill.sick    { background: #fee2e2; color: #dc2626; border: 1px solid #ef4444; }
+
+/* Kotak Info Fase di Panel Detail Kanan */
+.farm-phase-box {
+    width: 100%;
+    border-radius: 10px;
+    padding: 7px 9px;
+    font-size: 11px;
+    line-height: 1.4;
+    box-sizing: border-box;
+}
+
+.farm-phase-box.growing    { background: #fef9c3; border: 1.5px solid #eab308; color: #713f12; }
+.farm-phase-box.ready-wait { background: #dcfce7; border: 1.5px solid #22c55e; color: #14532d; }
+.farm-phase-box.sick       { background: #fee2e2; border: 1.5px solid #ef4444; color: #991b1b; }
+
+@media (max-width: 768px) {
+    .myfarm-floating-btn {
+        left: 140px !important;
+        bottom: 7px !important;
+        height: 32px !important;
+        padding: 0 9px !important;
+        font-size: 11px !important;
+        border-radius: 16px !important;
+        box-shadow: none !important;
+        z-index: 9010 !important;
+    }
+    .myfarm-floating-btn .myfarm-float-text {
+        display: none !important;
+    }
+    #bottom-breadcrumb {
+        margin-left: 182px !important;
+    }
+    .farm-main-split {
+        grid-template-columns: 1fr !important;
+    }
+    .paddock-fence-frame {
+        height: 185px !important;
+    }
+}
+/* =========================================================================
+   MY WORLD HUB (STARDEW VALLEY STYLE) & PENYEDERHANAAN 1 TOMBOL MELAYANG
+   ========================================================================= */
+
+/* Sembunyikan 3 tombol melayang lama -> diganti 1 tombol tunggal "🏡 My World" */
+#btn-floating-mypet,
+#btn-floating-mygarden,
+#btn-floating-myfarm {
+    display: none !important;
+}
+
+/* Sembunyikan tombol lompat langsung antar-dunia saat masuk lewat Lahan Utama (paksa keluar lewat Hub) */
+body.from-myworld-hub .garden-link-btn,
+body.from-myworld-hub .pet-link-btn,
+body.from-myworld-hub .myfarm-hud-btn.garden-btn,
+body.from-myworld-hub .myfarm-hud-btn.pet-btn {
+    display: none !important;
+}
+
+.myworld-floating-btn {
+    position: fixed;
+    left: 20px;
+    bottom: 48px;
+    background: linear-gradient(135deg, #15803d 0%, #0b3954 100%);
+    color: #ffffff;
+    border: 2.5px solid #fef08a;
+    border-radius: 30px;
+    padding: 9px 18px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 13px;
+    font-weight: 800;
+    cursor: pointer;
+    box-shadow: 0 6px 18px rgba(11, 57, 84, 0.35);
+    z-index: 8500;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.mode-edit-aktif .myworld-floating-btn,
+.force-edit-mode .myworld-floating-btn {
+    bottom: 105px;
+}
+
+.myworld-floating-btn:hover {
+    transform: translateY(-3px) scale(1.04);
+    box-shadow: 0 8px 22px rgba(21, 128, 61, 0.5);
+}
+
+.myworld-float-icon {
+    font-size: 18px;
+    line-height: 1;
+}
+
+.myworld-alert-badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 20px;
+    height: 20px;
+    background: #ef4444;
+    color: #ffffff;
+    border: 2px solid #ffffff;
+    border-radius: 50%;
+    font-size: 11px;
+    font-weight: 900;
+    align-items: center;
+    justify-content: center;
+    animation: pulse-badge 1s infinite;
+}
+
+body.strict-mode-active .myworld-floating-btn,
+body.modal-open-lock .myworld-floating-btn {
+    display: none !important;
+}
+
+/* Modal Utama Lahan Utama */
+.modal-box.myworld-modal-box {
+    width: 960px !important;
+    max-width: 96vw !important;
+    height: 88vh !important;
+    max-height: 88dvh !important;
+    background: #4e8c33 !important;
+    border: 4px solid #6b3e1b !important;
+    border-radius: 22px !important;
+    box-shadow: 0 22px 54px rgba(20, 42, 12, 0.52) !important;
+    font-family: 'Quicksand', 'Poppins', sans-serif !important;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.myworld-hud {
+    background: linear-gradient(180deg, #9ce0ff 0%, #d9f99d 100%);
+    border-bottom: 4px solid #7c4a1d;
+    padding: 8px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+}
+
+.myworld-hud-left,
+.myworld-hud-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.myworld-wood-sign {
+    background: linear-gradient(180deg, #b87333 0%, #7c4518 100%);
+    border: 3px solid #4e2b0f;
+    border-radius: 14px;
+    padding: 4px 12px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    box-shadow: 0 3px 0 #4e2b0f, inset 0 2px 0 rgba(255, 240, 190, 0.45);
+}
+
+.world-sign-top  { font-size: 9.5px; font-weight: 800; color: #fef08a; line-height: 1; text-transform: uppercase; letter-spacing: 0.4px; }
+.world-sign-main { font-size: 14.5px; font-weight: 900; color: #ffffff; line-height: 1.05; text-shadow: 0 1.5px 0 #4e2b0f; }
+
+.myworld-ctrl-hint {
+    background: rgba(255, 253, 245, 0.85);
+    border: 1.5px solid #9c6633;
+    color: #5c3210;
+    padding: 4px 10px;
+    border-radius: 14px;
+    font-size: 11px;
+    font-weight: 800;
+}
+
+/* Area Peta Lahan Utama */
+.myworld-map-wrap {
+    flex: 1;
+    min-height: 0;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #5ca937;
+}
+
+.myworld-stage {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    cursor: pointer;
+    user-select: none;
+    touch-action: manipulation;
+}
+
+.myworld-bg-svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+/* 3 Zona Interaktif (Rumah, Peternakan, Kebun) */
+.world-zone-btn {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    z-index: 15;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0;
+    font-family: 'Quicksand', 'Poppins', sans-serif;
+}
+
+.world-zone-btn.zone-pet    { left: 23%; top: 27%; width: 22%; height: 34%; }
+.world-zone-btn.zone-farm   { left: 77%; top: 27%; width: 23%; height: 34%; }
+.world-zone-btn.zone-garden { left: 50%; top: 79%; width: 32%; height: 28%; }
+
+.world-zone-tag {
+    background: linear-gradient(180deg, #fffdf5 0%, #f5deb3 100%);
+    border: 2.5px solid #7c4a1d;
+    border-radius: 14px;
+    padding: 3px 10px;
+    font-size: 11.5px;
+    font-weight: 900;
+    color: #4e2b0f;
+    white-space: nowrap;
+    box-shadow: 0 3px 0 #5c3210;
+    transition: transform 0.15s, background 0.15s;
+}
+
+.world-zone-btn:hover .world-zone-tag,
+.world-zone-btn.is-near .world-zone-tag {
+    background: linear-gradient(180deg, #fef08a 0%, #f59e0b 100%);
+    transform: scale(1.07);
+}
+
+.world-door-glow {
+    width: 44px;
+    height: 16px;
+    border-radius: 50%;
+    border: 2.5px dashed rgba(254, 240, 138, 0.85);
+    background: rgba(254, 240, 138, 0.25);
+    box-shadow: 0 0 12px rgba(250, 204, 21, 0.6);
+    opacity: 0.7;
+    transition: opacity 0.2s, transform 0.2s;
+}
+
+.world-zone-btn.zone-garden {
+    flex-direction: column-reverse;
+}
+
+.world-zone-btn:hover .world-door-glow,
+.world-zone-btn.is-near .world-door-glow {
+    opacity: 1;
+    transform: scale(1.18);
+    border-color: #4ade80;
+    background: rgba(74, 222, 128, 0.35);
+}
+
+.world-zone-alert {
+    position: absolute;
+    top: -6px;
+    right: 6px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #ef4444;
+    color: #ffffff;
+    border: 2px solid #ffffff;
+    font-size: 12px;
+    font-weight: 900;
+    align-items: center;
+    justify-content: center;
+    animation: pulse-badge 1s infinite;
+    z-index: 5;
+}
+
+/* Avatar Pemain */
+.myworld-avatar {
+    position: absolute;
+    transform: translate(-50%, -82%);
+    z-index: 30;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    will-change: left, top;
+}
+
+.myworld-avatar-name {
+    background: rgba(15, 23, 42, 0.8);
+    color: #fef08a;
+    border: 1.5px solid rgba(254, 240, 138, 0.55);
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 800;
+    margin-bottom: -4px;
+    white-space: nowrap;
+}
+
+.myworld-avatar-flip {
+    transition: transform 0.12s ease;
+}
+
+.myworld-avatar-flip.facing-left {
+    transform: scaleX(-1);
+}
+
+@keyframes avatarWalkHop {
+    0%, 100% { transform: translateY(0px) rotate(0deg); }
+    25%      { transform: translateY(-5px) rotate(-3deg); }
+    75%      { transform: translateY(-4px) rotate(3deg); }
+}
+
+.myworld-avatar.is-walking .myworld-avatar-svg {
+    animation: avatarWalkHop 0.38s ease-in-out infinite;
+}
+
+/* Efek Ripple Klik Peta */
+@keyframes mwClickRipple {
+    0%   { transform: translate(-50%, -50%) scale(0.4); opacity: 0.95; }
+    100% { transform: translate(-50%, -50%) scale(1.7); opacity: 0; }
+}
+
+.myworld-click-ripple {
+    position: absolute;
+    width: 30px;
+    height: 18px;
+    border-radius: 50%;
+    border: 3px solid #fef08a;
+    pointer-events: none;
+    z-index: 20;
+}
+
+.myworld-click-ripple.pop {
+    animation: mwClickRipple 0.55s ease-out forwards;
+}
+
+/* D-Pad Kompak Kiri Bawah */
+.myworld-dpad {
+    position: absolute;
+    left: 14px;
+    bottom: 52px;
+    width: 98px;
+    height: 98px;
+    z-index: 40;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    gap: 2px;
+    opacity: 0.82;
+}
+
+.dpad-btn {
+    background: rgba(15, 23, 42, 0.65);
+    color: #ffffff;
+    border: 1.5px solid rgba(255, 255, 255, 0.45);
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 900;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    touch-action: none;
+    user-select: none;
+}
+
+.dpad-btn:active {
+    background: #f59e0b;
+    color: #451a03;
+}
+
+.dpad-btn.up    { grid-column: 2; grid-row: 1; }
+.dpad-btn.left  { grid-column: 1; grid-row: 2; }
+.dpad-btn.right { grid-column: 3; grid-row: 2; }
+.dpad-btn.down  { grid-column: 2; grid-row: 3; }
+
+/* Bar Prompt Bawah Lahan Utama */
+.myworld-enter-bar {
+    position: absolute;
+    left: 50%;
+    bottom: 10px;
+    transform: translateX(-50%);
+    z-index: 45;
+    background: rgba(255, 252, 242, 0.94);
+    border: 2.5px solid #7c4a1d;
+    border-radius: 22px;
+    padding: 6px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 5px 16px rgba(0, 0, 0, 0.25);
+    font-size: 11.5px;
+    font-weight: 700;
+    color: #4e2b0f;
+    max-width: 92%;
+    white-space: nowrap;
+}
+
+.myworld-enter-btn {
+    background: linear-gradient(180deg, #86efac 0%, #16a34a 100%);
+    border: 2px solid #14532d;
+    color: #ffffff;
+    border-radius: 16px;
+    padding: 4px 12px;
+    font-family: 'Quicksand', 'Poppins', sans-serif;
+    font-size: 11.5px;
+    font-weight: 900;
+    cursor: pointer;
+    box-shadow: 0 2px 0 #14532d;
+}
+
+@media (max-width: 768px) {
+    /* Kembalikan ruang dock bawah HP menjadi lega dengan 1 tombol My World saja */
+    .myworld-floating-btn {
+        left: 8px !important;
+        bottom: 7px !important;
+        height: 32px !important;
+        padding: 0 11px !important;
+        font-size: 11px !important;
+        border-radius: 16px !important;
+        box-shadow: none !important;
+        z-index: 9010 !important;
+    }
+    .myworld-float-icon {
+        font-size: 14px !important;
+    }
+    #bottom-breadcrumb {
+        margin-left: 102px !important;
+    }
+    .myworld-ctrl-hint {
+        display: none;
+    }
+    .world-zone-tag {
+        font-size: 9.5px;
+        padding: 2px 6px;
+    }
+    .myworld-enter-bar {
+        font-size: 10.5px;
+        padding: 5px 10px;
+        white-space: normal;
+        text-align: center;
+    }
+    .myworld-dpad {
+        left: 8px;
+        bottom: 58px;
+        width: 84px;
+        height: 84px;
+    }
+}
+/* =========================================================================
+   MODE VISIT WORLD TERPADU & MODAL TANTANGAN KUIS 20 SOAL BIOLOGI
+   ========================================================================= */
+.world-visit-quota-pill {
+    background: #fef3c7;
+    border: 2px solid #d97706;
+    color: #78350f;
+    padding: 4px 11px;
+    border-radius: 16px;
+    font-size: 11px;
+    font-weight: 800;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+}
+
+.world-pulang-btn {
+    background: linear-gradient(180deg, #fb7185 0%, #dc2626 100%);
+    border: 2px solid #7f1d1d;
+    color: #ffffff;
+    border-radius: 14px;
+    padding: 5px 12px;
+    font-family: 'Quicksand', 'Poppins', sans-serif;
+    font-size: 11.5px;
+    font-weight: 900;
+    cursor: pointer;
+    box-shadow: 0 3px 0 #7f1d1d;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+}
+
+.world-pulang-btn:hover {
+    transform: translateY(-1px);
+}
+
+.modal-overlay.visit-quiz-overlay {
+    background: rgba(15, 23, 42, 0.72);
+    backdrop-filter: blur(4px);
+    padding: 14px;
+}
+
+.visit-quiz-card-box {
+    width: 100%;
+    max-width: 520px;
+    max-height: 88dvh;
+    overflow-y: auto;
+    background: #fffdf5;
+    border: 4px solid #8c5a2b;
+    border-radius: 20px;
+    padding: 18px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+    font-family: 'Quicksand', 'Poppins', sans-serif;
+    box-sizing: border-box;
+}
+
+.vq-progress-strip {
+    background: #fef9e7;
+    border: 1.5px solid #e2c290;
+    border-radius: 12px;
+    padding: 8px 10px;
+}
+
+.vq-stat-pills {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.vq-result-wrap {
+    text-align: center;
+    padding: 6px 2px;
+}
+
+.vq-score-box {
+    display: flex;
+    justify-content: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    background: #fef3c7;
+    border: 1.5px solid #f59e0b;
+    border-radius: 12px;
+    padding: 8px 12px;
+    font-size: 13px;
+    color: #4a2e14;
+}
