@@ -8451,3 +8451,484 @@ body.modal-open-lock .myworld-floating-btn {
     font-size: 13px;
     color: #4a2e14;
 }
+/* =========================================================================
+   MODE LANDSCAPE HP GLOBAL: MY WORLD, MY PET, MY GARDEN, MY FARM, & KUIS
+   (NATIVE ANDROID LANDSCAPE + IPHONE 90° VISUALVIEWPORT ANTI-TERPOTONG)
+   ========================================================================= */
+:root {
+    --mw-vp-w: 100vw;
+    --mw-vp-h: 100vh;
+}
+
+.world-fs-btn {
+    display: none;
+    background: linear-gradient(180deg, #fffdf5 0%, #f5deb3 100%);
+    border: 2px solid #7c4a1d;
+    border-radius: 10px;
+    width: 30px;
+    height: 30px;
+    font-size: 14px;
+    font-weight: 900;
+    color: #4e2b0f;
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 0 #5c3210;
+}
+
+/* --- A. WADAH FULLSCREEN LANDSCAPE ASLI (ANDROID / IPHONE DIPUTAR FISIK) --- */
+body.world-mobile-landscape #modal-my-world,
+body.world-mobile-landscape #modal-my-pet,
+body.world-mobile-landscape #modal-my-garden,
+body.world-mobile-landscape #modal-my-farm {
+    padding: 0 !important;
+}
+
+body.world-mobile-landscape #modal-my-world .myworld-modal-box,
+body.world-mobile-landscape #modal-my-pet .mypet-modal-box,
+body.world-mobile-landscape #modal-my-garden .mygarden-modal-box,
+body.world-mobile-landscape #modal-my-farm .myfarm-modal-box {
+    width: var(--mw-vp-w) !important;
+    max-width: var(--mw-vp-w) !important;
+    height: var(--mw-vp-h) !important;
+    max-height: var(--mw-vp-h) !important;
+    border-radius: 0 !important;
+    border-width: 2px !important;
+}
+
+/* --- B. WADAH AUTO-ROTATE 90° GLOBAL (IPHONE / SAFARI SAAT POTRET) --- */
+body.world-force-rotated #modal-my-world,
+body.world-force-rotated #modal-my-pet,
+body.world-force-rotated #modal-my-garden,
+body.world-force-rotated #modal-my-farm,
+body.world-force-rotated #modal-visit-quiz-20,
+body.world-force-rotated #modal-custom-dialog {
+    padding: 0 !important;
+    overflow: hidden !important;
+}
+
+body.world-force-rotated #modal-my-world .myworld-modal-box,
+body.world-force-rotated #modal-my-pet .mypet-modal-box,
+body.world-force-rotated #modal-my-garden .mygarden-modal-box,
+body.world-force-rotated #modal-my-farm .myfarm-modal-box {
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    width: var(--mw-vp-h) !important;
+    max-width: var(--mw-vp-h) !important;
+    height: var(--mw-vp-w) !important;
+    max-height: var(--mw-vp-w) !important;
+    transform: translate(-50%, -50%) rotate(90deg) !important;
+    transform-origin: center center !important;
+    border-radius: 0 !important;
+    border-width: 2px !important;
+    box-sizing: border-box !important;
+    padding-left: env(safe-area-inset-top, 0px);
+    padding-right: env(safe-area-inset-bottom, 0px);
+}
+
+body.world-force-rotated #modal-visit-quiz-20 .visit-quiz-card-box,
+body.world-force-rotated #modal-custom-dialog .modal-box {
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    width: min(520px, calc(var(--mw-vp-h) - 28px)) !important;
+    max-width: calc(var(--mw-vp-h) - 28px) !important;
+    max-height: calc(var(--mw-vp-w) - 18px) !important;
+    transform: translate(-50%, -50%) rotate(90deg) !important;
+    transform-origin: center center !important;
+}
+
+/* --- C. HUD RAMPING SATU BARIS UNTUK KEEMPAT FITUR DI LANDSCAPE HP --- */
+body.world-mobile-landscape .world-fs-btn,
+body.world-force-rotated .world-fs-btn {
+    display: inline-flex;
+}
+
+body.world-mobile-landscape .myworld-hud,
+body.world-force-rotated .myworld-hud,
+body.world-mobile-landscape .mypet-cozy-hud,
+body.world-force-rotated .mypet-cozy-hud,
+body.world-mobile-landscape .mygarden-hud,
+body.world-force-rotated .mygarden-hud,
+body.world-mobile-landscape .myfarm-hud,
+body.world-force-rotated .myfarm-hud {
+    padding: 4px 10px !important;
+    gap: 6px !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+body.world-mobile-landscape .myworld-wood-sign,
+body.world-force-rotated .myworld-wood-sign,
+body.world-mobile-landscape .mypet-wood-sign,
+body.world-force-rotated .mypet-wood-sign,
+body.world-mobile-landscape .mygarden-wood-sign,
+body.world-force-rotated .mygarden-wood-sign,
+body.world-mobile-landscape .myfarm-wood-sign,
+body.world-force-rotated .myfarm-wood-sign {
+    padding: 2px 8px !important;
+    gap: 5px !important;
+    flex-shrink: 0;
+}
+
+body.world-mobile-landscape .world-sign-top,
+body.world-force-rotated .world-sign-top,
+body.world-mobile-landscape .mypet-sign-sub,
+body.world-force-rotated .mypet-sign-sub,
+body.world-mobile-landscape .garden-sign-top,
+body.world-force-rotated .garden-sign-top,
+body.world-mobile-landscape .farm-sign-top,
+body.world-force-rotated .farm-sign-top {
+    font-size: 8.5px !important;
+}
+
+body.world-mobile-landscape .world-sign-main,
+body.world-force-rotated .world-sign-main,
+body.world-mobile-landscape .mypet-sign-title,
+body.world-force-rotated .mypet-sign-title,
+body.world-mobile-landscape .garden-sign-main,
+body.world-force-rotated .garden-sign-main,
+body.world-mobile-landscape .farm-sign-main,
+body.world-force-rotated .farm-sign-main {
+    font-size: 12px !important;
+}
+
+body.world-mobile-landscape .mypet-hud-pill,
+body.world-force-rotated .mypet-hud-pill {
+    padding: 2px 8px 2px 3px !important;
+    font-size: 11px !important;
+    white-space: nowrap;
+}
+
+body.world-mobile-landscape .mypet-hud-pill .hud-orb,
+body.world-force-rotated .mypet-hud-pill .hud-orb {
+    width: 19px !important;
+    height: 19px !important;
+    font-size: 11px !important;
+}
+
+body.world-mobile-landscape .mypet-hud-icon-btn,
+body.world-force-rotated .mypet-hud-icon-btn,
+body.world-mobile-landscape .mygarden-hud-btn,
+body.world-force-rotated .mygarden-hud-btn,
+body.world-mobile-landscape .myfarm-hud-btn,
+body.world-force-rotated .myfarm-hud-btn {
+    flex-direction: row !important;
+    gap: 4px !important;
+    min-width: auto !important;
+    padding: 4px 8px !important;
+    border-radius: 10px !important;
+    white-space: nowrap;
+}
+
+body.world-mobile-landscape .mypet-hud-icon-btn .hud-ico,
+body.world-force-rotated .mypet-hud-icon-btn .hud-ico,
+body.world-mobile-landscape .mygarden-hud-btn .hud-ico,
+body.world-force-rotated .mygarden-hud-btn .hud-ico,
+body.world-mobile-landscape .myfarm-hud-btn .hud-ico,
+body.world-force-rotated .myfarm-hud-btn .hud-ico {
+    font-size: 13px !important;
+}
+
+body.world-mobile-landscape .mypet-hud-icon-btn .hud-lbl,
+body.world-force-rotated .mypet-hud-icon-btn .hud-lbl,
+body.world-mobile-landscape .mygarden-hud-btn .hud-lbl,
+body.world-force-rotated .mygarden-hud-btn .hud-lbl,
+body.world-mobile-landscape .myfarm-hud-btn .hud-lbl,
+body.world-force-rotated .myfarm-hud-btn .hud-lbl {
+    font-size: 10px !important;
+    margin-top: 0 !important;
+}
+
+body.world-mobile-landscape .mypet-hud-close-btn,
+body.world-force-rotated .mypet-hud-close-btn {
+    width: 28px !important;
+    height: 28px !important;
+    font-size: 13px !important;
+    flex-shrink: 0;
+}
+
+/* --- D. MY WORLD LANDSCAPE HP --- */
+body.world-mobile-landscape .myworld-ctrl-hint,
+body.world-force-rotated .myworld-ctrl-hint {
+    display: none !important;
+}
+
+body.world-mobile-landscape .myworld-dpad,
+body.world-force-rotated .myworld-dpad {
+    left: 10px !important;
+    bottom: 40px !important;
+    width: 80px !important;
+    height: 80px !important;
+}
+
+body.world-mobile-landscape .myworld-enter-bar,
+body.world-force-rotated .myworld-enter-bar {
+    bottom: 5px !important;
+    padding: 3px 10px !important;
+    font-size: 10px !important;
+    white-space: nowrap !important;
+}
+
+body.world-mobile-landscape .world-zone-tag,
+body.world-force-rotated .world-zone-tag {
+    font-size: 9.5px !important;
+    padding: 2px 7px !important;
+}
+
+/* --- E. MY PET SANCTUARY LANDSCAPE HP (2 KOLOM LEGA & PANGGUNG PROPORSONAL) --- */
+body.world-mobile-landscape .mypet-cozy-body,
+body.world-force-rotated .mypet-cozy-body {
+    padding: 8px 10px 14px 10px !important;
+}
+
+body.world-mobile-landscape .mypet-habitat-stage.cozy-sanctuary-stage,
+body.world-force-rotated .mypet-habitat-stage.cozy-sanctuary-stage {
+    height: 195px !important;
+    margin-bottom: 8px !important;
+}
+
+body.world-mobile-landscape .mypet-stage-left-dock,
+body.world-force-rotated .mypet-stage-left-dock {
+    left: 6px !important;
+    padding: 4px 3px !important;
+    gap: 3px !important;
+}
+
+body.world-mobile-landscape .stage-dock-btn,
+body.world-force-rotated .stage-dock-btn {
+    min-width: 36px !important;
+    padding: 2px 4px !important;
+}
+
+body.world-mobile-landscape .stage-dock-btn span,
+body.world-force-rotated .stage-dock-btn span {
+    font-size: 13px !important;
+}
+
+body.world-mobile-landscape .stage-dock-btn small,
+body.world-force-rotated .stage-dock-btn small {
+    font-size: 8px !important;
+}
+
+body.world-mobile-landscape .mypet-stage-status-card,
+body.world-force-rotated .mypet-stage-status-card {
+    width: 145px !important;
+    padding: 5px 8px !important;
+    gap: 4px !important;
+    top: 6px !important;
+    right: 6px !important;
+}
+
+body.world-mobile-landscape .cozy-split-layout,
+body.world-force-rotated .cozy-split-layout,
+body.world-mobile-landscape .cozy-habitat-bottom-grid,
+body.world-force-rotated .cozy-habitat-bottom-grid {
+    grid-template-columns: 1fr 205px !important;
+    gap: 8px !important;
+}
+
+body.world-mobile-landscape .cozy-pet-catalog-grid,
+body.world-force-rotated .cozy-pet-catalog-grid {
+    grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)) !important;
+    gap: 6px !important;
+}
+
+body.world-mobile-landscape .cozy-detail-spotlight,
+body.world-force-rotated .cozy-detail-spotlight {
+    padding: 8px !important;
+    position: sticky !important;
+    top: 0 !important;
+}
+
+body.world-mobile-landscape .cozy-spotlight-stage,
+body.world-force-rotated .cozy-spotlight-stage {
+    min-height: 92px !important;
+    margin-bottom: 6px !important;
+}
+
+body.world-mobile-landscape .cozy-spotlight-stage .mypet-25d-actor,
+body.world-force-rotated .cozy-spotlight-stage .mypet-25d-actor {
+    width: 88px !important;
+    height: 88px !important;
+}
+
+/* --- F. MY GARDEN LANDSCAPE HP (3 KOLOM UTUH + 5 KOLOM PETAK TANAH) --- */
+body.world-mobile-landscape .mygarden-body,
+body.world-force-rotated .mygarden-body {
+    padding: 6px 10px 12px 10px !important;
+}
+
+body.world-mobile-landscape .garden-banner-row,
+body.world-force-rotated .garden-banner-row {
+    margin-bottom: 6px !important;
+}
+
+body.world-mobile-landscape .garden-curved-banner,
+body.world-force-rotated .garden-curved-banner {
+    font-size: 13px !important;
+    padding: 3px 16px !important;
+}
+
+body.world-mobile-landscape .garden-three-col,
+body.world-force-rotated .garden-three-col {
+    grid-template-columns: 116px 1fr 196px !important;
+    gap: 8px !important;
+}
+
+body.world-mobile-landscape .garden-left-card,
+body.world-force-rotated .garden-left-card {
+    flex-direction: column !important;
+    padding: 7px 8px !important;
+    gap: 5px !important;
+}
+
+body.world-mobile-landscape .garden-card-title,
+body.world-force-rotated .garden-card-title {
+    font-size: 11.5px !important;
+    border-bottom: 1.5px dashed #d6b68d !important;
+    padding-bottom: 4px !important;
+}
+
+body.world-mobile-landscape .garden-stat-line,
+body.world-force-rotated .garden-stat-line {
+    font-size: 10.5px !important;
+    gap: 5px !important;
+}
+
+body.world-mobile-landscape .garden-grid-frame,
+body.world-force-rotated .garden-grid-frame {
+    padding: 6px !important;
+}
+
+body.world-mobile-landscape .garden-plots-grid,
+body.world-force-rotated .garden-plots-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    gap: 5px !important;
+}
+
+body.world-mobile-landscape .garden-soil-plot,
+body.world-force-rotated .garden-soil-plot {
+    aspect-ratio: 1 / 0.82 !important;
+    border-width: 2px !important;
+    border-radius: 10px !important;
+}
+
+body.world-mobile-landscape .garden-right-card,
+body.world-force-rotated .garden-right-card {
+    padding: 8px !important;
+    gap: 5px !important;
+}
+
+body.world-mobile-landscape .garden-detail-ribbon,
+body.world-force-rotated .garden-detail-ribbon {
+    font-size: 11.5px !important;
+    padding: 4px 6px !important;
+}
+
+body.world-mobile-landscape .garden-detail-preview,
+body.world-force-rotated .garden-detail-preview {
+    min-height: 68px !important;
+}
+
+body.world-mobile-landscape .garden-detail-preview svg,
+body.world-force-rotated .garden-detail-preview svg {
+    width: 64px !important;
+    height: 64px !important;
+}
+
+body.world-mobile-landscape .garden-seed-pick-list,
+body.world-force-rotated .garden-seed-pick-list {
+    max-height: 120px !important;
+}
+
+body.world-mobile-landscape .garden-shop-grid,
+body.world-force-rotated .garden-shop-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important;
+    gap: 7px !important;
+}
+
+body.world-mobile-landscape .garden-bottom-actions,
+body.world-force-rotated .garden-bottom-actions {
+    margin-top: 7px !important;
+}
+
+body.world-mobile-landscape .garden-wood-cta,
+body.world-force-rotated .garden-wood-cta {
+    padding: 6px 14px !important;
+    font-size: 11.5px !important;
+}
+
+/* --- G. MY FARM LANDSCAPE HP (2 KOLOM UTUH & KANDANG LUAS) --- */
+body.world-mobile-landscape .myfarm-body,
+body.world-force-rotated .myfarm-body {
+    padding: 6px 10px 12px 10px !important;
+}
+
+body.world-mobile-landscape .farm-supply-strip,
+body.world-force-rotated .farm-supply-strip {
+    padding: 5px 10px !important;
+    margin-bottom: 6px !important;
+}
+
+body.world-mobile-landscape .farm-sup-pill,
+body.world-force-rotated .farm-sup-pill {
+    font-size: 10.5px !important;
+    padding: 2px 8px !important;
+}
+
+body.world-mobile-landscape .farm-main-split,
+body.world-force-rotated .farm-main-split {
+    grid-template-columns: 1fr 205px !important;
+    gap: 8px !important;
+}
+
+body.world-mobile-landscape .farm-paddocks-stack,
+body.world-force-rotated .farm-paddocks-stack {
+    gap: 8px !important;
+}
+
+body.world-mobile-landscape .farm-paddock-header,
+body.world-force-rotated .farm-paddock-header {
+    padding: 5px 10px !important;
+}
+
+body.world-mobile-landscape .farm-paddock-header strong,
+body.world-force-rotated .farm-paddock-header strong {
+    font-size: 11.5px !important;
+}
+
+body.world-mobile-landscape .farm-paddock-yard,
+body.world-force-rotated .farm-paddock-yard {
+    padding: 7px !important;
+}
+
+body.world-mobile-landscape .paddock-fence-frame,
+body.world-force-rotated .paddock-fence-frame {
+    height: 148px !important;
+    border-width: 4px !important;
+}
+
+/* --- H. KUIS BIBIT / TERNAK / 20 SOAL RAPI DI TINGGI LAYAR LANDSCAPE --- */
+body.world-mobile-landscape .garden-quiz-card,
+body.world-force-rotated .garden-quiz-card,
+body.world-mobile-landscape .visit-quiz-card-box,
+body.world-force-rotated .visit-quiz-card-box {
+    padding: 10px 12px !important;
+    max-height: 92% !important;
+}
+
+body.world-mobile-landscape .garden-quiz-question,
+body.world-force-rotated .garden-quiz-question {
+    font-size: 12px !important;
+    padding: 7px 9px !important;
+    margin-bottom: 8px !important;
+}
+
+body.world-mobile-landscape .garden-quiz-opt,
+body.world-force-rotated .garden-quiz-opt {
+    padding: 6px 9px !important;
+    font-size: 11.5px !important;
+}

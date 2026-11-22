@@ -822,7 +822,10 @@ window.klikPetaMyWorld = function(e) {
     let modal = document.getElementById("modal-my-world");
     if (!stage) return;
     let rect = stage.getBoundingClientRect();
-    let isCssRotated = Boolean(modal && modal.classList.contains("myworld-css-rotated"));
+    let isCssRotated = Boolean(
+        document.body.classList.contains("world-force-rotated") ||
+        (modal && modal.classList.contains("myworld-css-rotated"))
+    );
 
     let rawPx = isCssRotated
         ? ((e.clientY - rect.top) / Math.max(1, rect.height)) * 100
@@ -1135,14 +1138,33 @@ document.addEventListener("DOMContentLoaded", function() {
     setTimeout(window.perbaruiBadgeMyWorld, 2000);
 });
 // =========================================================================
-// 7. MESIN PAKSA FULLSCREEN LANDSCAPE (ANDROID NATIVE + IPHONE 90° FALLBACK)
-//    & KUNCI RASIO PETA 1000:560 ANTI-GEPENG
+// 7. MESIN LANDSCAPE GLOBAL (ANDROID FULLSCREEN + IPHONE AUTO-ROTATE 90°
+//    BERBASIS VISUALVIEWPORT UNTUK WORLD, PET, GARDEN, FARM, & KUIS)
 // =========================================================================
 window.apakahPerangkatHPMyWorld = function() {
-    let minSide = Math.min(window.innerWidth, window.innerHeight);
-    let maxSide = Math.max(window.innerWidth, window.innerHeight);
+    let vv = window.visualViewport;
+    let curW = vv ? vv.width : window.innerWidth;
+    let curH = vv ? vv.height : window.innerHeight;
+    let minSide = Math.min(curW, curH);
+    let maxSide = Math.max(curW, curH);
     let isTouch = ("ontouchstart" in window) || (navigator.maxTouchPoints > 0);
-    return (minSide <= 540) || (isTouch && maxSide <= 960);
+    return (minSide <= 540) || (isTouch && maxSide <= 960 && minSide <= 600);
+};
+
+window.apakahSesiWorldAktif = function() {
+    return Boolean(
+        (window.myWorldState && (window.myWorldState.isOpen || window.myWorldState.openedFromHub)) ||
+        window.modeKunjunganWorld
+    );
+};
+
+window.sinkronkanUkuranViewportWorld = function() {
+    let vv = window.visualViewport;
+    let vw = Math.round(vv ? vv.width : window.innerWidth);
+    let vh = Math.round(vv ? vv.height : window.innerHeight);
+    document.documentElement.style.setProperty("--mw-vp-w", vw + "px");
+    document.documentElement.style.setProperty("--mw-vp-h", vh + "px");
+    return { vw: vw, vh: vh };
 };
 
 window.sesuaikanRasioPetaMyWorld = function() {
@@ -1165,34 +1187,46 @@ window.sesuaikanRasioPetaMyWorld = function() {
 };
 
 window.perbaruiOrientasiTampilanMyWorld = function() {
-    let modal = document.getElementById("modal-my-world");
-    if (!modal || !window.myWorldState.isOpen) return;
+    if (!window.apakahSesiWorldAktif()) return;
 
+    let vp = window.sinkronkanUkuranViewportWorld();
     let isMobile = window.apakahPerangkatHPMyWorld();
-    let isPortrait = window.innerHeight > window.innerWidth;
+    let isPortrait = vp.vh > vp.vw;
+    let modalWorld = document.getElementById("modal-my-world");
 
     if (isMobile && isPortrait) {
-        // Fallback otomatis putar 90° jika perangkat masih dalam posisi potret (misal iPhone Safari)
-        modal.classList.add("myworld-css-rotated");
-        modal.classList.remove("myworld-mobile-landscape");
+        // Putar 90° secara global (World, Pet, Garden, Farm, Kuis, & Dialog) saat HP masih posisi potret (termasuk iPhone)
+        document.body.classList.add("world-force-rotated");
+        document.body.classList.remove("world-mobile-landscape");
+        if (modalWorld) {
+            modalWorld.classList.add("myworld-css-rotated");
+            modalWorld.classList.remove("myworld-mobile-landscape");
+        }
     } else if (isMobile) {
-        // Layar HP sudah dalam posisi landscape asli (native lock atau diputar fisik)
-        modal.classList.remove("myworld-css-rotated");
-        modal.classList.add("myworld-mobile-landscape");
+        // HP sudah dalam orientasi landscape asli (Android Lock atau iPhone diputar fisik)
+        document.body.classList.remove("world-force-rotated");
+        document.body.classList.add("world-mobile-landscape");
+        if (modalWorld) {
+            modalWorld.classList.remove("myworld-css-rotated");
+            modalWorld.classList.add("myworld-mobile-landscape");
+        }
     } else {
-        // Layar laptop/desktop normal
-        modal.classList.remove("myworld-css-rotated", "myworld-mobile-landscape");
+        document.body.classList.remove("world-force-rotated", "world-mobile-landscape");
+        if (modalWorld) {
+            modalWorld.classList.remove("myworld-css-rotated", "myworld-mobile-landscape");
+        }
     }
 
-    setTimeout(window.sesuaikanRasioPetaMyWorld, 40);
-    setTimeout(window.sesuaikanRasioPetaMyWorld, 220);
+    if (window.myWorldState && window.myWorldState.isOpen) {
+        setTimeout(window.sesuaikanRasioPetaMyWorld, 40);
+        setTimeout(window.sesuaikanRasioPetaMyWorld, 240);
+    }
 };
 
 window.aktifkanLandscapeFullscreenMyWorld = function() {
     window.perbaruiOrientasiTampilanMyWorld();
     if (!window.apakahPerangkatHPMyWorld()) return;
 
-    // 1. Masuk Fullscreen (seperti YouTube) pada dokumen utama agar Pet/Garden/Farm ikut landscape penuh
     let docEl = document.documentElement;
     let reqFs = docEl.requestFullscreen || docEl.webkitRequestFullscreen || docEl.msRequestFullscreen;
 
@@ -1225,9 +1259,10 @@ window.aktifkanLandscapeFullscreenMyWorld = function() {
 };
 
 window.nonaktifkanLandscapeFullscreenMyWorld = function() {
-    let modal = document.getElementById("modal-my-world");
-    if (modal) {
-        modal.classList.remove("myworld-css-rotated", "myworld-mobile-landscape");
+    document.body.classList.remove("world-force-rotated", "world-mobile-landscape");
+    let modalWorld = document.getElementById("modal-my-world");
+    if (modalWorld) {
+        modalWorld.classList.remove("myworld-css-rotated", "myworld-mobile-landscape");
     }
 
     try {
@@ -1246,19 +1281,27 @@ window.nonaktifkanLandscapeFullscreenMyWorld = function() {
 };
 
 window.addEventListener("resize", function() {
-    if (window.myWorldState && window.myWorldState.isOpen) {
+    if (window.apakahSesiWorldAktif()) {
         window.perbaruiOrientasiTampilanMyWorld();
     }
 });
 
 window.addEventListener("orientationchange", function() {
-    if (window.myWorldState && window.myWorldState.isOpen) {
-        setTimeout(window.perbaruiOrientasiTampilanMyWorld, 150);
+    if (window.apakahSesiWorldAktif()) {
+        setTimeout(window.perbaruiOrientasiTampilanMyWorld, 160);
     }
 });
 
+if (window.visualViewport) {
+    window.visualViewport.addEventListener("resize", function() {
+        if (window.apakahSesiWorldAktif()) {
+            window.perbaruiOrientasiTampilanMyWorld();
+        }
+    });
+}
+
 document.addEventListener("fullscreenchange", function() {
-    if (window.myWorldState && window.myWorldState.isOpen) {
+    if (window.apakahSesiWorldAktif()) {
         setTimeout(window.perbaruiOrientasiTampilanMyWorld, 120);
     }
 });
