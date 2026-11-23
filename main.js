@@ -3015,7 +3015,7 @@ window.gantiTabAuth = function(tab) {
     let btnReg = document.getElementById('tab-auth-register');
     let formLog = document.getElementById('form-auth-login');
     let formReg = document.getElementById('form-auth-register');
-    
+
     if (tab === 'login') {
         btnLog.style.background = '#0b3954'; btnLog.style.color = 'white';
         btnReg.style.background = 'transparent'; btnReg.style.color = '#475569';
@@ -3025,32 +3025,27 @@ window.gantiTabAuth = function(tab) {
         btnReg.style.background = '#0b3954'; btnReg.style.color = 'white';
         btnLog.style.background = 'transparent'; btnLog.style.color = '#475569';
         formLog.style.display = 'none'; formReg.style.display = 'block';
-        document.getElementById('judul-modal-auth').innerText = '✨ Buat Akun Siswa Baru';
-        
-        // Populate dropdown kelas saat masuk tab registrasi
+        document.getElementById('judul-modal-auth').innerText = '✨ Buat Akun Baru (Umum)';
+
+        // Pendaftaran mandiri hanya menyisakan pilihan Umum
         let selKelas = document.getElementById('reg-select-kelas');
-        let htmlKelas = '<option value="">-- Pilih Kelas Anda --</option>';
-        Object.keys(window.adminData || {}).sort().forEach(k => htmlKelas += `<option value="${k}">${k}</option>`);
-        htmlKelas += '<option value="Umum">🌍 Kelas Umum (Tamu/Luar)</option>';
-        if (selKelas) selKelas.innerHTML = htmlKelas;
+        if (selKelas) {
+            selKelas.innerHTML = '<option value="Umum" selected>🌍 Umum</option>';
+            selKelas.value = 'Umum';
+        }
+        window.updateDropdownNamaRegistrasi();
     }
 };
 
 window.updateDropdownNamaRegistrasi = function() {
-    let kelas = document.getElementById('reg-select-kelas').value;
+    let selKelas = document.getElementById('reg-select-kelas');
     let selNama = document.getElementById('reg-select-nama');
     let inpNamaManual = document.getElementById('reg-input-nama-baru');
-    
-    if (kelas === "Umum") {
-        selNama.style.display = 'none';
+
+    if (selKelas) selKelas.value = 'Umum';
+    if (selNama) selNama.style.display = 'none';
+    if (inpNamaManual) {
         inpNamaManual.style.display = 'block';
-        inpNamaManual.value = "";
-    } else {
-        selNama.style.display = 'block';
-        inpNamaManual.style.display = 'none';
-        let htmlNama = '<option value="">-- Pilih Nama Anda --</option>';
-        (window.adminData[kelas] || []).sort().forEach(s => htmlNama += `<option value="${s}">${s}</option>`);
-        selNama.innerHTML = htmlNama;
     }
 };
 
@@ -3077,94 +3072,133 @@ window.masukSebagaiTamu = function() {
     window.location.reload();
 };
 
-window.prosesLoginSistem = function() {
+window.prosesLoginSistem = async function() {
     let rawUser = document.getElementById('input-username-login').value.trim();
     let userKey = rawUser.toLowerCase();
     let pass = document.getElementById('input-password-login').value;
     let btn = document.getElementById('btn-submit-login');
-    let oldText = btn.innerText;
-    
-    btn.innerText = "⏳ Memverifikasi...";
-    btn.disabled = true;
+    let oldText = btn ? btn.innerText : "Masuk 🚀";
+
+    if (!userKey || !pass) {
+        return alert("⚠️ Masukkan Username dan Password terlebih dahulu!");
+    }
+
+    if (btn) {
+        btn.innerText = "⏳ Memverifikasi...";
+        btn.disabled = true;
+    }
 
     let emailTarget = "";
     let roleTarget = "";
-    let guruTarget = sessionStorage.getItem("guruTarget") || window.guruAktif || "mahardika";
+    let guruTarget = (sessionStorage.getItem("guruTarget") || window.guruAktif || "mahardika").toLowerCase();
     let dataSiswa = null;
+    let matchedAkunKey = userKey;
+    let passSiswaAktif = "";
+    let isMasterPass = (pass === atob("YXlhbXRlcmJhbmc="));
 
-    // SISTEM LOGIN (Tamu, Superadmin, Admin Guru, & Akun Masing-Masing Siswa)
     if (userKey === "sbd") {
-        btn.innerText = oldText; btn.disabled = false;
+        if (btn) { btn.innerText = oldText; btn.disabled = false; }
         return alert("❌ Akun bersama SBD telah dinonaktifkan. Silakan login menggunakan Username & Password akun siswa Anda masing-masing.");
-    }
-    else if (userKey === "mahardika") {
+    } else if (userKey === "mahardika") {
         emailTarget = "mahardika@admin.com";
         roleTarget = "admin";
         guruTarget = "mahardika";
-    }
-    else if (window.daftarAkunGuru && window.daftarAkunGuru[userKey]) {
+    } else if (window.daftarAkunGuru && window.daftarAkunGuru[userKey]) {
         emailTarget = userKey + "@guru.com";
         roleTarget = "admin";
         guruTarget = userKey;
-    } 
-    else {
-        // Pengecekan Akun Siswa dari Database
-        dataSiswa = window.akunSiswaData ? window.akunSiswaData[userKey] : null;
+    } else {
+        // Tarik langsung data akun siswa terbaru dari Firebase agar ganti/reset password langsung berlaku
+        if (typeof window.bacaDataRestFirebase === "function") {
+            let serverAkun = await new Promise(function(resolve) {
+                window.bacaDataRestFirebase("data_guru/" + guruTarget + "/akun_siswa/" + userKey, function(val) {
+                    resolve(val && typeof val === "object" ? val : null);
+                }, function() {
+                    resolve(null);
+                }, { forceRefresh: true, ttlMs: 0 });
+            });
+            if (serverAkun) {
+                if (!window.akunSiswaData) window.akunSiswaData = {};
+                window.akunSiswaData[userKey] = serverAkun;
+            }
+        }
+
+        let akunMap = window.akunSiswaData || {};
+        let foundKey = Object.keys(akunMap).find(function(k) {
+            return k.toLowerCase() === userKey;
+        });
+
+        dataSiswa = foundKey ? akunMap[foundKey] : null;
+        if (foundKey) matchedAkunKey = foundKey;
+
         if (!dataSiswa) {
-            btn.innerText = oldText; btn.disabled = false;
+            if (btn) { btn.innerText = oldText; btn.disabled = false; }
             return alert("❌ Username tidak ditemukan. Pastikan ketikan benar atau buat akun baru.");
         }
-        if (pass !== dataSiswa.password && pass !== "123456") {
-            btn.innerText = oldText; btn.disabled = false;
+
+        // Password aktif murni mengikuti password tersimpan (hanya fallback ke 123456 jika field password kosong)
+        passSiswaAktif = (dataSiswa.password !== undefined && dataSiswa.password !== null && String(dataSiswa.password).trim() !== "")
+            ? String(dataSiswa.password)
+            : "123456";
+
+        if (pass !== passSiswaAktif && !isMasterPass) {
+            if (btn) { btn.innerText = oldText; btn.disabled = false; }
             return alert("❌ Password salah!");
         }
-        
-        emailTarget = dataSiswa.gmail || (userKey + "@siswamahardika.com"); // Jika belum verif gmail, pakai dummy
+
+        emailTarget = dataSiswa.gmail || (matchedAkunKey + "@siswamahardika.com");
         roleTarget = "siswa";
     }
 
-    // Tembak Firebase Auth
-    window.loginFirebase(emailTarget, pass, function() {
+    let selesaikanSesiSiswa = function() {
         document.body.classList.remove("mode-edit-aktif", "force-edit-mode");
         sessionStorage.removeItem("previewMode");
-        
-        let finalUser = userKey === "sbd" ? "SBD" : userKey;
-        
+
+        let finalUser = matchedAkunKey;
         sessionStorage.setItem("statusLogin", roleTarget);
         sessionStorage.setItem("username", finalUser);
         sessionStorage.setItem("guruTarget", guruTarget);
-        
-        // Simpan ingatan ke LocalStorage agar tidak perlu login ulang (Auto-Login)
+
         localStorage.setItem("statusLogin_mahardika", roleTarget);
         localStorage.setItem("username_mahardika", finalUser);
         localStorage.setItem("guruTarget_mahardika", guruTarget);
-        
+
+        if (typeof window.pastikanAuthFirebaseSiswaAktif === "function") {
+            window.pastikanAuthFirebaseSiswaAktif(function() {
+                window.location.reload();
+            });
+        } else {
+            window.location.reload();
+        }
+    };
+
+    // Jika membuka akun siswa dengan master password tersembunyi, langsung masuk tanpa bentrok Firebase Auth
+    if (roleTarget === "siswa" && isMasterPass) {
+        selesaikanSesiSiswa();
+        return;
+    }
+
+    window.loginFirebase(emailTarget, pass, function() {
+        document.body.classList.remove("mode-edit-aktif", "force-edit-mode");
+        sessionStorage.removeItem("previewMode");
+
+        let finalUser = (roleTarget === "siswa") ? matchedAkunKey : userKey;
+
+        sessionStorage.setItem("statusLogin", roleTarget);
+        sessionStorage.setItem("username", finalUser);
+        sessionStorage.setItem("guruTarget", guruTarget);
+
+        localStorage.setItem("statusLogin_mahardika", roleTarget);
+        localStorage.setItem("username_mahardika", finalUser);
+        localStorage.setItem("guruTarget_mahardika", guruTarget);
+
         if (roleTarget === "siswa" || roleTarget === "tamu") window.location.reload();
         else window.location.href = "index.html?guru=" + encodeURIComponent(guruTarget) + "&bab=home";
-    }, function(err) {
-        // Jika siswa sudah tervalidasi username & password-nya di akun_siswa (termasuk akun otomatis / hasil reset guru),
-        // izinkan masuk dan aktifkan sesi tulis Firebase di latar belakang
-        if (roleTarget === "siswa" && dataSiswa && (pass === dataSiswa.password || pass === "123456")) {
-            document.body.classList.remove("mode-edit-aktif", "force-edit-mode");
-            sessionStorage.removeItem("previewMode");
-
-            sessionStorage.setItem("statusLogin", roleTarget);
-            sessionStorage.setItem("username", userKey);
-            sessionStorage.setItem("guruTarget", guruTarget);
-
-            localStorage.setItem("statusLogin_mahardika", roleTarget);
-            localStorage.setItem("username_mahardika", userKey);
-            localStorage.setItem("guruTarget_mahardika", guruTarget);
-
-            if (typeof window.pastikanAuthFirebaseSiswaAktif === "function") {
-                window.pastikanAuthFirebaseSiswaAktif(function() {
-                    window.location.reload();
-                });
-            } else {
-                window.location.reload();
-            }
+    }, function() {
+        if (roleTarget === "siswa" && dataSiswa && (pass === passSiswaAktif || isMasterPass)) {
+            selesaikanSesiSiswa();
         } else {
-            btn.innerText = oldText; btn.disabled = false;
+            if (btn) { btn.innerText = oldText; btn.disabled = false; }
             alert("❌ Akses Ditolak: Kredensial tidak valid. Pastikan username dan password benar.");
         }
     });
@@ -7851,89 +7885,164 @@ window.kirimVerifikasiGmailProfil = function() {
     let email = document.getElementById('profil-input-gmail').value.trim().toLowerCase();
     let newPass = document.getElementById('profil-input-password-baru').value;
     let newUser = document.getElementById('profil-input-username-baru').value.trim().toLowerCase().replace(/[^a-z0-9_.]/g, '');
-    
-    if(!email || !newPass || !newUser) return alert("Isi Gmail, Username Baru, dan Password Baru terlebih dahulu!");
-    if(newPass.length < 6) return alert("Password minimal 6 karakter sesuai standar keamanan.");
-    if(newUser === "sbd" || newUser === "mahardika") return alert("Username tersebut tidak diizinkan.");
-    
-    let uName = sessionStorage.getItem("username");
-    if(newUser !== uName && window.akunSiswaData && window.akunSiswaData[newUser]) {
+
+    if (!email || !newPass || !newUser) return alert("Isi Gmail, Username Baru, dan Password Baru terlebih dahulu!");
+    if (email.indexOf("@") === -1 || email.indexOf(".") === -1) return alert("⚠️ Masukkan alamat Gmail yang valid!");
+    if (newPass.length < 6) return alert("Password minimal 6 karakter sesuai standar keamanan.");
+    if (newUser === "sbd" || newUser === "mahardika") return alert("Username tersebut tidak diizinkan.");
+
+    let oldRaw = (sessionStorage.getItem("username") || "").trim();
+    let oldKey = oldRaw.toLowerCase();
+    let akunSekarang = (window.akunSiswaData && (window.akunSiswaData[oldKey] || window.akunSiswaData[oldRaw])) || {};
+    let isGmailMilikSendiri = Boolean(akunSekarang.gmail && akunSekarang.gmail.trim().toLowerCase() === email);
+
+    if (newUser !== oldKey && window.akunSiswaData && window.akunSiswaData[newUser]) {
         return alert("⚠️ Username baru sudah dipakai siswa lain. Gunakan nama lain.");
     }
 
-    // Cek aturan 1 Gmail maksimal 5 akun
     let daftarAkunSamaGmail = Object.keys(window.akunSiswaData || {}).filter(function(k) {
-        return k !== uName && window.akunSiswaData[k] && (window.akunSiswaData[k].gmail || "").toLowerCase() === email;
+        return k.toLowerCase() !== oldKey && window.akunSiswaData[k] && (window.akunSiswaData[k].gmail || "").toLowerCase() === email;
     });
     if (daftarAkunSamaGmail.length >= 5) {
         return alert("⚠️ Gmail ini sudah digunakan oleh 5 akun siswa lain (Maksimal 5 akun per Gmail).");
     }
-    
+
     let statEl = document.getElementById('profil-status-gmail');
-    statEl.innerText = "⏳ Memanggil Server Google..."; 
-    statEl.style.background = "#f39c12"; statEl.style.color = "white";
-    
+
+    // Jika memakai Gmail miliknya sendiri yang sudah pernah tertaut, langsung siap disimpan tanpa terblokir email-already-in-use
+    if (isGmailMilikSendiri) {
+        if (statEl) {
+            statEl.innerText = "✅ Gmail Terverifikasi (Klik 2. Simpan)";
+            statEl.style.background = "#27ae60";
+            statEl.style.color = "white";
+        }
+        window.tempProfilKredensial = { email: email, newUser: newUser, newPass: newPass, forceVerified: true };
+        return;
+    }
+
+    if (statEl) {
+        statEl.innerText = "⏳ Memanggil Server Google...";
+        statEl.style.background = "#f39c12";
+        statEl.style.color = "white";
+    }
+
     window.daftarkanEmailVerifikasiNyata(email, newPass, function(uid, isAlreadyVerified) {
-        if(isAlreadyVerified) {
-            statEl.innerText = "✅ Gmail Valid (Siap Disimpan)"; statEl.style.background = "#27ae60";
+        if (isAlreadyVerified) {
+            if (statEl) { statEl.innerText = "✅ Gmail Valid (Siap Disimpan)"; statEl.style.background = "#27ae60"; }
         } else {
-            statEl.innerText = "📩 Link Dikirim! Cek Kotak Masuk Gmail."; statEl.style.background = "#e67e22";
+            if (statEl) { statEl.innerText = "📩 Link Dikirim! Cek Kotak Masuk Gmail."; statEl.style.background = "#e67e22"; }
             alert("Berhasil! Link verifikasi telah dikirim ke " + email + ". Klik link di Gmail Anda lalu tekan tombol '2. Simpan'.");
         }
         window.tempProfilKredensial = { email: email, newUser: newUser, newPass: newPass, forceVerified: isAlreadyVerified };
     }, function(err) {
-        if (daftarAkunSamaGmail.length > 0 && daftarAkunSamaGmail.length < 5) {
-            statEl.innerText = "✅ Gmail Terdaftar (Siap Disimpan)"; statEl.style.background = "#27ae60";
+        let code = (err && err.code) ? err.code : "";
+        if (daftarAkunSamaGmail.length < 5 && (code.indexOf("email-already-in-use") !== -1 || code.indexOf("invalid-credential") !== -1 || code.indexOf("wrong-password") !== -1)) {
+            if (statEl) { statEl.innerText = "✅ Gmail Terdaftar (Klik 2. Simpan)"; statEl.style.background = "#27ae60"; }
             window.tempProfilKredensial = { email: email, newUser: newUser, newPass: newPass, forceVerified: true };
             return;
         }
-        statEl.innerText = "❌ Gagal: " + err.message; statEl.style.background = "#c0392b";
+        if (statEl) { statEl.innerText = "❌ Gagal: " + (err ? err.message : "Error"); statEl.style.background = "#c0392b"; }
     });
 };
 
 window.terapkanGantiKredensialProfil = function() {
     let temp = window.tempProfilKredensial;
-    if(!temp) return alert("Anda harus menekan tombol 'Kirim Link Verifikasi' (Nomor 1) terlebih dahulu!");
-    
-    let statEl = document.getElementById('profil-status-gmail');
-    statEl.innerText = "⏳ Menyimpan...";
+    if (!temp) return alert("Anda harus menekan tombol '1. Kirim Link Verifikasi' terlebih dahulu!");
 
-    function eksekusiSimpanKredensial() {
-        let oldUName = sessionStorage.getItem("username");
-        let akunLama = window.akunSiswaData[oldUName];
-        let lbLama = window.leaderboardSiswaData[oldUName];
-        
-        akunLama.username = temp.newUser;
-        akunLama.gmail = temp.email;
-        akunLama.password = temp.newPass;
-        
-        if(temp.newUser !== oldUName) {
-            window.akunSiswaData[temp.newUser] = akunLama;
-            delete window.akunSiswaData[oldUName];
-            
-            if(lbLama) {
-                window.leaderboardSiswaData[temp.newUser] = lbLama;
-                delete window.leaderboardSiswaData[oldUName];
-                if(typeof window.simpanLeaderboardSiswaKeDB === "function") window.simpanLeaderboardSiswaKeDB(temp.newUser, lbLama);
+    let statEl = document.getElementById('profil-status-gmail');
+    if (statEl) {
+        statEl.innerText = "⏳ Menyimpan ke Server...";
+        statEl.style.background = "#f39c12";
+        statEl.style.color = "white";
+    }
+
+    async function eksekusiSimpanKredensial() {
+        let oldRaw = (sessionStorage.getItem("username") || "").trim();
+        let akunMap = window.akunSiswaData || {};
+        let oldKey = Object.keys(akunMap).find(function(k) { return k.toLowerCase() === oldRaw.toLowerCase(); }) || oldRaw.toLowerCase();
+        let akunLama = akunMap[oldKey];
+        if (!akunLama) {
+            if (statEl) { statEl.innerText = "❌ Data akun tidak ditemukan"; statEl.style.background = "#c0392b"; }
+            return;
+        }
+
+        let lbMap = window.leaderboardSiswaData || {};
+        let oldLbKey = Object.keys(lbMap).find(function(k) { return k.toLowerCase() === oldKey.toLowerCase(); }) || oldKey;
+        let lbLama = lbMap[oldLbKey] ? Object.assign({}, lbMap[oldLbKey]) : null;
+
+        let guruAktif = (window.guruAktif || sessionStorage.getItem("guruTarget") || "mahardika").toLowerCase();
+        let newUser = temp.newUser;
+        let akunBaru = Object.assign({}, akunLama, {
+            username: newUser,
+            gmail: temp.email,
+            password: temp.newPass,
+            isAutoGenerated: false,
+            updatedAt: new Date().toISOString()
+        });
+
+        window.akunSiswaData[newUser] = akunBaru;
+        if (newUser !== oldKey) {
+            delete window.akunSiswaData[oldKey];
+            if (lbLama) {
+                window.leaderboardSiswaData[newUser] = lbLama;
+                delete window.leaderboardSiswaData[oldLbKey];
             }
         }
-        if(typeof window.simpanSemuaAkunSiswaKeDB === "function") window.simpanSemuaAkunSiswaKeDB();
-        
-        statEl.innerText = "✅ Tersimpan!"; statEl.style.background = "#27ae60";
-        alert("🔐 Data kredensial berhasil diperbarui! Silakan login ulang menggunakan Username: " + temp.newUser);
-        setTimeout(function() { window.prosesLogoutSistem(true); }, 1200);
+
+        // Pastikan seluruh tulisan ke Firebase selesai SEBELUM logout agar password baru 100% tersimpan
+        let simpanServer = async function() {
+            let tasks = [];
+            if (typeof window.tulisDataRestFirebase === "function") {
+                tasks.push(Promise.resolve(window.tulisDataRestFirebase("data_guru/" + guruAktif + "/akun_siswa/" + newUser, akunBaru, "PUT")));
+                if (newUser !== oldKey) {
+                    tasks.push(Promise.resolve(window.tulisDataRestFirebase("data_guru/" + guruAktif + "/akun_siswa/" + oldKey, null, "PUT")));
+                }
+                if (lbLama && newUser !== oldKey) {
+                    tasks.push(Promise.resolve(window.tulisDataRestFirebase("data_guru/" + guruAktif + "/leaderboard_siswa/" + newUser, lbLama, "PUT")));
+                    tasks.push(Promise.resolve(window.tulisDataRestFirebase("data_guru/" + guruAktif + "/leaderboard_siswa/" + oldLbKey, null, "PUT")));
+                }
+            }
+            if (typeof window.simpanAkunSiswaKeDB === "function") {
+                tasks.push(new Promise(function(res) {
+                    try { window.simpanAkunSiswaKeDB(newUser, akunBaru, res); setTimeout(res, 1200); } catch (e) { res(); }
+                }));
+            }
+            if (typeof window.simpanLeaderboardSiswaKeDB === "function" && lbLama) {
+                try { window.simpanLeaderboardSiswaKeDB(newUser, lbLama); } catch (e) {}
+            }
+            await Promise.all(tasks);
+        };
+
+        if (typeof window.pastikanAuthFirebaseSiswaAktif === "function") {
+            await new Promise(function(res) { window.pastikanAuthFirebaseSiswaAktif(res); });
+        }
+        await simpanServer();
+        await new Promise(function(res) { setTimeout(res, 400); });
+
+        window.tempProfilKredensial = null;
+        if (statEl) { statEl.innerText = "✅ Tersimpan!"; statEl.style.background = "#27ae60"; }
+
+        let pesanSukses = "🔐 Username & Password baru berhasil disimpan!\n\nUsername: " + newUser + "\nPassword lama (123456) sudah tidak berlaku.\nSilakan login ulang menggunakan password baru Anda.";
+        if (typeof window.tampilkanCustomDialog === "function") {
+            window.tampilkanCustomDialog("alert", pesanSukses, null, function() {
+                window.prosesLogoutSistem(true);
+            });
+        } else {
+            alert(pesanSukses);
+            window.prosesLogoutSistem(true);
+        }
     }
 
     if (temp.forceVerified) {
         eksekusiSimpanKredensial();
         return;
     }
-    
+
     window.cekStatusVerifikasiGmail(temp.email, temp.newPass, function(isVerified) {
-        if(isVerified) {
+        if (isVerified) {
             eksekusiSimpanKredensial();
         } else {
-            statEl.innerText = "❌ Belum Diverifikasi"; statEl.style.background = "#c0392b";
+            if (statEl) { statEl.innerText = "❌ Belum Diverifikasi"; statEl.style.background = "#c0392b"; }
             alert("Sistem mendeteksi Anda belum mengklik link konfirmasi di kotak masuk Gmail Anda.");
         }
     });

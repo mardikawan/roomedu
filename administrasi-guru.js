@@ -411,7 +411,6 @@ window.resetPasswordSiswaAdmin = function(namaLengkap) {
         return ak && ak.kelas === kls && String(ak.namaLengkap || "").trim().toLowerCase() === cleanNama;
     });
 
-    // Jika akun belum terbuat, buatkan otomatis dengan mewarisi XP/Coin lama
     if (!userKey) {
         window.sinkronkanAkunSiswaDariAdminData();
         userKey = Object.keys(window.akunSiswaData || {}).find(function(k) {
@@ -425,11 +424,11 @@ window.resetPasswordSiswaAdmin = function(namaLengkap) {
     }
 
     let akun = window.akunSiswaData[userKey];
-    let lb = (window.leaderboardSiswaData && window.leaderboardSiswaData[userKey]) ? window.leaderboardSiswaData[userKey] : null;
+    let lb = (window.leaderboardSiswaData && (window.leaderboardSiswaData[userKey] || window.leaderboardSiswaData[userKey.toLowerCase()])) || null;
     let infoXP = lb ? ((Number(lb.xpTotal !== undefined ? lb.xpTotal : lb.xp) || 0).toLocaleString('id-ID') + " XP") : "Tetap Aman";
 
-    let passBaru = prompt(
-        "🔑 KELOLA & RESET PASSWORD SISWA\n" +
+    let pesanKonfirmasi =
+        "🔑 RESET PASSWORD SISWA KE 123456\n" +
         "----------------------------------------\n" +
         "Nama : " + akun.namaLengkap + "\n" +
         "Kelas : " + akun.kelas + "\n" +
@@ -437,26 +436,39 @@ window.resetPasswordSiswaAdmin = function(namaLengkap) {
         "Password Saat Ini : " + (akun.password || "123456") + "\n" +
         "Data XP / Coin : " + infoXP + " (100% Terlindungi)\n" +
         "----------------------------------------\n" +
-        "Ketik password baru di bawah ini (default: 123456):",
-        "123456"
-    );
+        "Yakin reset password siswa ini kembali menjadi 123456?";
 
-    if (passBaru === null) return;
-    passBaru = passBaru.trim();
-    if (!passBaru) return alert("⚠️ Password tidak boleh kosong!");
+    let eksekusiReset = async function() {
+        let passDefault = "123456";
+        akun.password = passDefault;
+        akun.resetAt = new Date().toISOString();
+        window.akunSiswaData[userKey] = akun;
 
-    akun.password = passBaru;
-    window.akunSiswaData[userKey] = akun;
+        let guruAktif = (window.guruAktif || sessionStorage.getItem("guruTarget") || "mahardika").toLowerCase();
+        let tasks = [];
 
-    if (typeof window.simpanAkunSiswaKeDB === "function") {
-        window.simpanAkunSiswaKeDB(userKey, akun, function() {
-            window.renderListSiswaAdmin();
-            alert("✅ Password untuk " + akun.namaLengkap + " berhasil direset!\n\nUsername: " + userKey + "\nPassword Baru: " + passBaru + "\n\nSeluruh data XP, Coin, dan progres siswa tetap utuh.");
-        });
-    } else if (typeof window.simpanSemuaAkunSiswaKeDB === "function") {
-        window.simpanSemuaAkunSiswaKeDB();
+        if (typeof window.tulisDataRestFirebase === "function") {
+            tasks.push(Promise.resolve(window.tulisDataRestFirebase("data_guru/" + guruAktif + "/akun_siswa/" + userKey, akun, "PUT")));
+        }
+        if (typeof window.simpanAkunSiswaKeDB === "function") {
+            tasks.push(new Promise(function(res) {
+                try { window.simpanAkunSiswaKeDB(userKey, akun, res); setTimeout(res, 1000); } catch (e) { res(); }
+            }));
+        } else if (typeof window.simpanSemuaAkunSiswaKeDB === "function") {
+            try { window.simpanSemuaAkunSiswaKeDB(); } catch (e) {}
+        }
+
+        await Promise.all(tasks);
         window.renderListSiswaAdmin();
-        alert("✅ Password untuk " + akun.namaLengkap + " berhasil direset!\n\nUsername: " + userKey + "\nPassword Baru: " + passBaru);
+        alert("✅ Password untuk " + akun.namaLengkap + " berhasil direset!\n\nUsername: " + userKey + "\nPassword Baru: 123456\n\nSeluruh data XP, Coin, dan progres siswa tetap utuh.");
+    };
+
+    if (typeof window.tampilkanCustomDialog === "function") {
+        window.tampilkanCustomDialog("confirm", pesanKonfirmasi, null, function(isYes) {
+            if (isYes) eksekusiReset();
+        });
+    } else if (confirm(pesanKonfirmasi)) {
+        eksekusiReset();
     }
 };
 

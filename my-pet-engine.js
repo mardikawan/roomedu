@@ -3409,8 +3409,14 @@ window.mulaiDragPetDiHabitat = function(e, petId) {
         }
         ev.preventDefault();
 
-        let nextLeft = Math.max(8, Math.min(92, initLeft + (dxPx / Math.max(1, sRect.width)) * 100));
-        let nextBottom = Math.max(5, Math.min(58, initBottom - (dyPx / Math.max(1, sRect.height)) * 100));
+        let isRot90 = document.body.classList.contains("world-force-rotated");
+        let localDx = isRot90 ? dyPx : dxPx;
+        let localDy = isRot90 ? -dxPx : dyPx;
+        let stageW = Math.max(1, isRot90 ? sRect.height : sRect.width);
+        let stageH = Math.max(1, isRot90 ? sRect.width : sRect.height);
+
+        let nextLeft = Math.max(8, Math.min(92, initLeft + (localDx / stageW) * 100));
+        let nextBottom = Math.max(5, Math.min(58, initBottom - (localDy / stageH) * 100));
 
         el.style.left = nextLeft.toFixed(1) + "%";
         el.style.bottom = nextBottom.toFixed(1) + "%";

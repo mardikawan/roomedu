@@ -608,20 +608,18 @@ window.verifikasiMasukUjian = function() {
         }
     }
 
-    let dataMonitorSiswa = window.ambilDataMonitorSiswaSinkron(namaPaket, kelas, namaLengkap);
+    let monitorPaketKey = (typeof window.buatKeyPaketLiveMonitor === "function")
+        ? window.buatKeyPaketLiveMonitor(namaPaket, isRemedialExam)
+        : (isRemedialExam ? (namaPaket + " (Remedial)") : namaPaket);
+
+    let dataMonitorSiswa = window.ambilDataMonitorSiswaSinkron(monitorPaketKey, kelas, namaLengkap);
 
     if (dataMonitorSiswa) {
         let statusLM = dataMonitorSiswa.status || "";
         prevPelanggaran = dataMonitorSiswa.pelanggaran || 0;
 
-        if (isRemedialExam && statusLM === "Selesai") {
-            isResumeMode = false;
-            prevPelanggaran = 0;
-            try {
-                localStorage.removeItem('cadangan_ujian_' + kode + '_' + kelas + '_' + namaLengkap);
-            } catch (e) {}
-        } else if (statusLM === "Selesai" || statusLM === "Dikeluarkan") {
-            return alert("⚠️ AKSES DITOLAK MUTLAK!\n\nStatus ujian Anda tercatat: " + statusLM.toUpperCase() + ".\nAnda tidak dapat masuk kembali ke ujian ini tanpa izin dari Guru (Guru harus mereset nama Anda dari Live Monitor).");
+        if (statusLM === "Selesai" || statusLM === "Dikeluarkan") {
+            return alert("⚠️ AKSES DITOLAK MUTLAK!\n\nStatus ujian Anda pada sesi \"" + monitorPaketKey + "\" tercatat: " + statusLM.toUpperCase() + ".\nAnda tidak dapat masuk kembali tanpa izin Guru (Guru harus mereset nama Anda dari Live Monitor).");
         } else if (statusLM === "Sedang Mengerjakan") {
             let lanjut = confirm("⚠️ TERDETEKSI TERKELUAR DARI UJIAN!\n\nSistem menemukan sesi Anda sebelumnya terputus di tengah jalan.\nAnda dapat masuk kembali untuk melanjutkannya (waktu & jawaban tersimpan), NAMUN pelanggaran Anda akan bertambah +1.\n\nKlik OK untuk meneruskan ujian.");
             if (!lanjut) return;
@@ -661,6 +659,7 @@ window.verifikasiMasukUjian = function() {
         nama: namaLengkap,
         kode: kode,
         paket: namaPaket,
+        monitorPaket: monitorPaketKey,
         durasi: Number(ujianAktif.durasi) || 90,
         soal: soalDisiapkan,
         bobot: window.hitungBobotIdealUjian(paketData, soalDisiapkan),
@@ -833,7 +832,7 @@ window.bukaRuangUjianStrict = function() {
     let judulUI = document.getElementById('ujian-judul-ui');
     if (judulUI) {
         judulUI.style.color = '#c0392b';
-        judulUI.innerText = "🎯 " + window.sesiUjianSiswa.paket;
+        judulUI.innerText = "🎯 " + window.sesiUjianSiswa.paket + (window.sesiUjianSiswa.isRemedial ? " (REMEDIAL)" : "");
     }
     let subUI = document.getElementById('ujian-strict-subtitle');
     if (subUI) subUI.innerText = "Mode Ketat: Dilarang Keluar atau Membuka Aplikasi Lain! (Layar Anti-Sleep Aktif)";
@@ -944,23 +943,25 @@ window.bukaRuangUjianStrict = function() {
         }
     }, 1500);
 
-    // Simpan ke memori lokal & kirim ke Firebase Live Monitor
+    // Simpan ke memori lokal & kirim ke Firebase Live Monitor (Terpisah antara Reguler & Remedial)
+    let monPkt = pkt.monitorPaket || window.buatKeyPaketLiveMonitor(pkt.paket, pkt.isRemedial);
     if (!window.adminLiveMonitorData) window.adminLiveMonitorData = {};
-    if (!window.adminLiveMonitorData[pkt.paket]) window.adminLiveMonitorData[pkt.paket] = {};
-    if (!window.adminLiveMonitorData[pkt.paket][pkt.kelas]) window.adminLiveMonitorData[pkt.paket][pkt.kelas] = {};
+    if (!window.adminLiveMonitorData[monPkt]) window.adminLiveMonitorData[monPkt] = {};
+    if (!window.adminLiveMonitorData[monPkt][pkt.kelas]) window.adminLiveMonitorData[monPkt][pkt.kelas] = {};
     let payloadMonitorAwal = {
         kelas: pkt.kelas,
         nama: pkt.nama,
-        paket: pkt.paket,
+        paket: monPkt,
+        isRemedial: Boolean(pkt.isRemedial),
         status: "Sedang Mengerjakan",
         pelanggaran: window.violationCount || 0,
         waktuUpdate: new Date().toISOString()
     };
-    window.adminLiveMonitorData[pkt.paket][pkt.kelas][pkt.nama] = payloadMonitorAwal;
+    window.adminLiveMonitorData[monPkt][pkt.kelas][pkt.nama] = payloadMonitorAwal;
 
     if (typeof window.simpanStatusLiveMonitorKeDB === "function") {
         if (typeof window.modeHematServerUjian === "function") window.modeHematServerUjian(false);
-        window.simpanStatusLiveMonitorKeDB(pkt.paket, pkt.kelas, pkt.nama, payloadMonitorAwal);
+        window.simpanStatusLiveMonitorKeDB(monPkt, pkt.kelas, pkt.nama, payloadMonitorAwal);
         setTimeout(function() {
             if (window.isStrictUjianActive && typeof window.modeHematServerUjian === "function") {
                 window.modeHematServerUjian(true);
@@ -1435,16 +1436,23 @@ window.kumpulkanUjianSiswa = function(isForce, isKicked) {
         }
 
         let jalankanKirimServer = function() {
+            let monPkt = pkt.monitorPaket || window.buatKeyPaketLiveMonitor(pkt.paket, pkt.isRemedial);
             if (typeof window.simpanStatusLiveMonitorKeDB === "function") {
                 let finalStatus = kickedSubmit ? "Dikeluarkan" : "Selesai";
-                window.simpanStatusLiveMonitorKeDB(pkt.paket, pkt.kelas, pkt.nama, {
+                let payloadSelesaiMon = {
                     kelas: pkt.kelas,
                     nama: pkt.nama,
-                    paket: pkt.paket,
+                    paket: monPkt,
+                    isRemedial: Boolean(pkt.isRemedial),
                     status: finalStatus,
                     pelanggaran: window.violationCount || 0,
                     waktuUpdate: new Date().toISOString()
-                });
+                };
+                if (!window.adminLiveMonitorData) window.adminLiveMonitorData = {};
+                if (!window.adminLiveMonitorData[monPkt]) window.adminLiveMonitorData[monPkt] = {};
+                if (!window.adminLiveMonitorData[monPkt][pkt.kelas]) window.adminLiveMonitorData[monPkt][pkt.kelas] = {};
+                window.adminLiveMonitorData[monPkt][pkt.kelas][pkt.nama] = payloadSelesaiMon;
+                window.simpanStatusLiveMonitorKeDB(monPkt, pkt.kelas, pkt.nama, payloadSelesaiMon);
             }
 
             let attemptKirim = function(retryCount) {
@@ -1725,18 +1733,20 @@ window.triggerPelanggaran = function(alasanKhusus) {
 
     if (window.sesiUjianSiswa) {
         let pkt = window.sesiUjianSiswa;
+        let monPkt = pkt.monitorPaket || window.buatKeyPaketLiveMonitor(pkt.paket, pkt.isRemedial);
         let payloadPelanggaran = {
             kelas: pkt.kelas,
             nama: pkt.nama,
-            paket: pkt.paket,
+            paket: monPkt,
+            isRemedial: Boolean(pkt.isRemedial),
             status: window.violationCount >= 6 ? "Dikeluarkan" : "Sedang Mengerjakan",
             pelanggaran: window.violationCount,
             waktuUpdate: new Date().toISOString()
         };
         if (!window.adminLiveMonitorData) window.adminLiveMonitorData = {};
-        if (!window.adminLiveMonitorData[pkt.paket]) window.adminLiveMonitorData[pkt.paket] = {};
-        if (!window.adminLiveMonitorData[pkt.paket][pkt.kelas]) window.adminLiveMonitorData[pkt.paket][pkt.kelas] = {};
-        window.adminLiveMonitorData[pkt.paket][pkt.kelas][pkt.nama] = payloadPelanggaran;
+        if (!window.adminLiveMonitorData[monPkt]) window.adminLiveMonitorData[monPkt] = {};
+        if (!window.adminLiveMonitorData[monPkt][pkt.kelas]) window.adminLiveMonitorData[monPkt][pkt.kelas] = {};
+        window.adminLiveMonitorData[monPkt][pkt.kelas][pkt.nama] = payloadPelanggaran;
 
         if (typeof window.perbaruiBadgeNotifMonitor === "function") {
             window.perbaruiBadgeNotifMonitor();
@@ -1744,7 +1754,7 @@ window.triggerPelanggaran = function(alasanKhusus) {
 
         if (typeof window.simpanStatusLiveMonitorKeDB === "function") {
             if (typeof window.modeHematServerUjian === "function") window.modeHematServerUjian(false);
-            window.simpanStatusLiveMonitorKeDB(pkt.paket, pkt.kelas, pkt.nama, payloadPelanggaran);
+            window.simpanStatusLiveMonitorKeDB(monPkt, pkt.kelas, pkt.nama, payloadPelanggaran);
             if (window.violationCount < 6) {
                 setTimeout(function() {
                     if (window.isStrictUjianActive && typeof window.modeHematServerUjian === "function") {
@@ -3046,10 +3056,565 @@ window.simpanNilaiManual = function(kelas, paket, nama, nilaiRaw, inputId) {
     }
 };
 
+window._ljkPreviewPhotoMap = window._ljkPreviewPhotoMap || {};
+
 window.triggerUploadLJK = function(kelas, paket, nama) {
     window.targetUploadLJK = { kelas: kelas, paket: paket, nama: nama };
     let inputLJK = document.getElementById('input-file-ljk');
     if (inputLJK) inputLJK.click();
+};
+
+// --- MESIN PENGOLAH CITRA & OMR LOKAL KHUSUS LEMBAR KUNCI JAWABAN ---
+window.buatIntegralImageGray = function(gray, w, h) {
+    let stride = w + 1;
+    let sat = new Int32Array(stride * (h + 1));
+    for (let y = 0; y < h; y++) {
+        let rowSum = 0;
+        let yOff = y * w;
+        let satRow = (y + 1) * stride;
+        let satPrev = y * stride;
+        for (let x = 0; x < w; x++) {
+            rowSum += gray[yOff + x];
+            sat[satRow + x + 1] = sat[satPrev + x + 1] + rowSum;
+        }
+    }
+    return sat;
+};
+
+window.binarisasiAdaptifLJK = function(gray, sat, w, h, radius, offsetC) {
+    let stride = w + 1;
+    let bin = new Uint8Array(w * h);
+    let r = radius || 18;
+    let c = offsetC || 16;
+
+    for (let y = 0; y < h; y++) {
+        let y1 = y - r; if (y1 < 0) y1 = 0;
+        let y2 = y + r; if (y2 >= h) y2 = h - 1;
+        let rowY1 = y1 * stride;
+        let rowY2 = (y2 + 1) * stride;
+        let dy = y2 - y1 + 1;
+        let outRow = y * w;
+
+        for (let x = 0; x < w; x++) {
+            let x1 = x - r; if (x1 < 0) x1 = 0;
+            let x2 = x + r; if (x2 >= w) x2 = w - 1;
+            let sum = sat[rowY2 + x2 + 1] - sat[rowY1 + x2 + 1] - sat[rowY2 + x1] + sat[rowY1 + x1];
+            let mean = sum / (dy * (x2 - x1 + 1));
+            bin[outRow + x] = (gray[outRow + x] < (mean - c)) ? 1 : 0;
+        }
+    }
+    return bin;
+};
+
+window.cariPuncakProyeksi = function(arr, startIdx, endIdx, threshold, minGap) {
+    let peaks = [];
+    let s = Math.max(0, startIdx);
+    let e = Math.min(arr.length - 1, endIdx);
+    let i = s;
+    while (i <= e) {
+        if (arr[i] >= threshold) {
+            let bestIdx = i;
+            let bestVal = arr[i];
+            let j = i + 1;
+            while (j <= e && (j - bestIdx) <= minGap) {
+                if (arr[j] > bestVal) {
+                    bestVal = arr[j];
+                    bestIdx = j;
+                }
+                j++;
+            }
+            peaks.push({ idx: bestIdx, val: bestVal });
+            i = bestIdx + minGap;
+        } else {
+            i++;
+        }
+    }
+    return peaks;
+};
+
+window.snapGarisKePuncak = function(peaks, expected, tol) {
+    let best = expected;
+    let bestScore = -1;
+    for (let i = 0; i < peaks.length; i++) {
+        let dist = Math.abs(peaks[i].idx - expected);
+        if (dist <= tol && peaks[i].val > bestScore) {
+            bestScore = peaks[i].val;
+            best = peaks[i].idx;
+        }
+    }
+    return Math.round(best);
+};
+
+window.deteksiGridLJK = function(bin, w, h) {
+    let yBand1 = Math.round(h * 0.22);
+    let yBand2 = Math.round(h * 0.84);
+    let bandH = Math.max(1, yBand2 - yBand1);
+
+    // Proyeksi vertikal keseluruhan pada area tengah-vertikal halaman
+    let vProj = new Float32Array(w);
+    for (let x = 0; x < w; x++) {
+        let cnt = 0;
+        for (let y = yBand1; y < yBand2; y++) {
+            if (bin[y * w + x]) cnt++;
+        }
+        vProj[x] = cnt / bandH;
+    }
+
+    // --- 1. DETEKSI TABEL KIRI: PILIHAN GANDA (40 BARIS x 6 KOLOM) ---
+    let pgPeaksV = window.cariPuncakProyeksi(vProj, Math.round(w * 0.015), Math.round(w * 0.46), 0.34, Math.max(6, Math.round(w * 0.012)));
+    let pgLeft = Math.round(w * 0.06);
+    let pgRight = Math.round(w * 0.40);
+
+    if (pgPeaksV.length >= 2) {
+        let validL = pgPeaksV.filter(function(p) { return p.idx >= w * 0.02 && p.idx <= w * 0.44; });
+        if (validL.length >= 2) {
+            let candL = validL[0].idx;
+            let candR = validL[validL.length - 1].idx;
+            if ((candR - candL) >= w * 0.24 && (candR - candL) <= w * 0.43) {
+                pgLeft = candL;
+                pgRight = candR;
+            }
+        }
+    }
+
+    let pgW = Math.max(60, pgRight - pgLeft);
+    // Rasio 7 garis vertikal PG: [kiri, batas NO|A, A|B, B|C, C|D, D|E, kanan]
+    let pgColFrac = [0, 0.142, 0.314, 0.486, 0.657, 0.829, 1.0];
+    let pgColX = pgColFrac.map(function(fr) {
+        return window.snapGarisKePuncak(pgPeaksV, pgLeft + fr * pgW, pgW * 0.065);
+    });
+
+    // Hitung kemiringan horizontal (slant) tabel PG antara sepertiga atas & bawah
+    let cariBatasKiriRentang = function(yA, yB, xCenter) {
+        let bestX = xCenter, bestV = -1;
+        let rX = Math.max(8, Math.round(w * 0.025));
+        for (let x = Math.max(0, xCenter - rX); x <= Math.min(w - 1, xCenter + rX); x++) {
+            let c = 0;
+            for (let y = yA; y < yB; y++) if (bin[y * w + x]) c++;
+            if (c > bestV) { bestV = c; bestX = x; }
+        }
+        return bestX;
+    };
+    let pgTopX = cariBatasKiriRentang(Math.round(h * 0.20), Math.round(h * 0.40), pgColX[0]);
+    let pgBotX = cariBatasKiriRentang(Math.round(h * 0.65), Math.round(h * 0.85), pgColX[0]);
+    let pgSlantPerY = (pgBotX - pgTopX) / Math.max(1, h * 0.45);
+    if (Math.abs(pgSlantPerY) > 0.08) pgSlantPerY = 0;
+    let pgRefY = h * 0.52;
+
+    // Proyeksi horizontal dalam tabel PG untuk mencari batas atas (pgTop) & bawah (pgBottom)
+    let hProjPG = new Float32Array(h);
+    for (let y = Math.round(h * 0.08); y < Math.round(h * 0.98); y++) {
+        let shift = Math.round((y - pgRefY) * pgSlantPerY);
+        let x1 = Math.max(0, pgLeft + shift + 4);
+        let x2 = Math.min(w - 1, pgRight + shift - 4);
+        let cnt = 0;
+        for (let x = x1; x <= x2; x++) if (bin[y * w + x]) cnt++;
+        hProjPG[y] = cnt / Math.max(1, x2 - x1);
+    }
+
+    let pgPeaksH = window.cariPuncakProyeksi(hProjPG, Math.round(h * 0.09), Math.round(h * 0.97), 0.46, Math.max(5, Math.round(h * 0.008)));
+    let pgTop = Math.round(h * 0.14);
+    let pgBottom = Math.round(h * 0.92);
+    if (pgPeaksH.length >= 10) {
+        pgTop = pgPeaksH[0].idx;
+        pgBottom = pgPeaksH[pgPeaksH.length - 1].idx;
+    }
+
+    // Cek apakah tabel PG punya 40 baris standar (tanpa header di dalam tabel)
+    let pgRowY = [];
+    let pgStep = (pgBottom - pgTop) / 40;
+    for (let r = 0; r <= 40; r++) {
+        pgRowY.push(window.snapGarisKePuncak(pgPeaksH, pgTop + r * pgStep, pgStep * 0.30));
+    }
+
+    // --- 2. DETEKSI TABEL KANAN: ISIAN (HEADER + 40 BARIS) ---
+    let isSearchLeft = Math.min(w - 40, pgRight + Math.round(w * 0.015));
+    let isPeaksV = window.cariPuncakProyeksi(vProj, isSearchLeft, Math.round(w * 0.985), 0.32, Math.max(6, Math.round(w * 0.012)));
+
+    let isLeft = Math.min(w - 100, pgRight + Math.round(w * 0.03));
+    let isRight = Math.round(w * 0.94);
+    if (isPeaksV.length >= 2) {
+        let candIL = isPeaksV[0].idx;
+        let candIR = isPeaksV[isPeaksV.length - 1].idx;
+        if ((candIR - candIL) >= w * 0.35) {
+            isLeft = candIL;
+            isRight = candIR;
+        }
+    }
+    let isW = Math.max(120, isRight - isLeft);
+    // Garis pemisah kolom NO | JAWABAN berada di sekitar 8% - 13% lebar tabel isian
+    let isColSplit = window.snapGarisKePuncak(isPeaksV, isLeft + isW * 0.10, isW * 0.06);
+
+    let isTopX = cariBatasKiriRentang(Math.round(h * 0.20), Math.round(h * 0.40), isLeft);
+    let isBotX = cariBatasKiriRentang(Math.round(h * 0.65), Math.round(h * 0.85), isLeft);
+    let isSlantPerY = (isBotX - isTopX) / Math.max(1, h * 0.45);
+    if (Math.abs(isSlantPerY) > 0.08) isSlantPerY = pgSlantPerY;
+
+    let hProjIS = new Float32Array(h);
+    for (let y = Math.round(h * 0.08); y < Math.round(h * 0.98); y++) {
+        let shift = Math.round((y - pgRefY) * isSlantPerY);
+        let x1 = Math.max(0, isLeft + shift + 4);
+        let x2 = Math.min(w - 1, isRight + shift - 4);
+        let cnt = 0;
+        for (let x = x1; x <= x2; x++) if (bin[y * w + x]) cnt++;
+        hProjIS[y] = cnt / Math.max(1, x2 - x1);
+    }
+
+    let isPeaksH = window.cariPuncakProyeksi(hProjIS, Math.round(h * 0.09), Math.round(h * 0.975), 0.46, Math.max(5, Math.round(h * 0.008)));
+    let isTop = pgTop;
+    let isBottom = Math.min(h - 4, Math.round(pgBottom + pgStep * 1.1));
+    if (isPeaksH.length >= 10) {
+        isTop = isPeaksH[0].idx;
+        isBottom = isPeaksH[isPeaksH.length - 1].idx;
+    }
+
+    // Lewati baris header "NO | JAWABAN" (baris paling atas tabel kanan)
+    let isRow1Top = isTop + (isBottom - isTop) / 41.3;
+    if (isPeaksH.length >= 2) {
+        let firstGap = isPeaksH[1].idx - isPeaksH[0].idx;
+        let expectedH = (isBottom - isTop) / 41;
+        if (firstGap >= expectedH * 0.7 && firstGap <= expectedH * 2.1) {
+            isRow1Top = isPeaksH[1].idx;
+        }
+    }
+
+    let isRowY = [];
+    let isStep = (isBottom - isRow1Top) / 40;
+    for (let r = 0; r <= 40; r++) {
+        isRowY.push(window.snapGarisKePuncak(isPeaksH, isRow1Top + r * isStep, isStep * 0.30));
+    }
+
+    return {
+        pgColX: pgColX,
+        pgRowY: pgRowY,
+        pgSlantPerY: pgSlantPerY,
+        pgRefY: pgRefY,
+        isLeft: isLeft,
+        isColSplit: isColSplit,
+        isRight: isRight,
+        isRowY: isRowY,
+        isSlantPerY: isSlantPerY
+    };
+};
+
+// Deteksi tanda silang (X) di 5 kotak A-E sekaligus mengabaikan kotak yang diarsir rapat/batal
+window.deteksiSilangPGRow = function(bin, w, h, grid, rowIdx, isPGK) {
+    if (rowIdx < 0 || rowIdx >= 40) return isPGK ? [] : "-";
+    let y0 = grid.pgRowY[rowIdx];
+    let y1 = grid.pgRowY[rowIdx + 1];
+    let rowH = Math.max(8, y1 - y0);
+    let yMid = (y0 + y1) / 2;
+    let slantShift = Math.round((yMid - grid.pgRefY) * grid.pgSlantPerY);
+
+    let padY = Math.max(2, Math.round(rowH * 0.16));
+    let cy1 = Math.max(0, y0 + padY);
+    let cy2 = Math.min(h - 1, y1 - padY);
+    let huruf = ["A", "B", "C", "D", "E"];
+    let stats = [];
+
+    for (let c = 0; c < 5; c++) {
+        let x0 = grid.pgColX[c + 1] + slantShift;
+        let x1 = grid.pgColX[c + 2] + slantShift;
+        let colW = Math.max(10, x1 - x0);
+        let padX = Math.max(2, Math.round(colW * 0.12));
+        let cx1 = Math.max(0, x0 + padX);
+        let cx2 = Math.min(w - 1, x1 - padX);
+
+        let innerW = Math.max(1, cx2 - cx1 + 1);
+        let innerH = Math.max(1, cy2 - cy1 + 1);
+        let centerX1 = cx1 + Math.round(innerW * 0.33);
+        let centerX2 = cx1 + Math.round(innerW * 0.67);
+        let centerY1 = cy1 + Math.round(innerH * 0.16);
+        let centerY2 = cy1 + Math.round(innerH * 0.84);
+
+        let totalPx = 0, totalDark = 0;
+        let outerPx = 0, outerDark = 0;
+
+        for (let y = cy1; y <= cy2; y++) {
+            let yOff = y * w;
+            let inCenterY = (y >= centerY1 && y <= centerY2);
+            for (let x = cx1; x <= cx2; x++) {
+                totalPx++;
+                let isDark = bin[yOff + x];
+                if (isDark) totalDark++;
+                if (!(inCenterY && x >= centerX1 && x <= centerX2)) {
+                    outerPx++;
+                    if (isDark) outerDark++;
+                }
+            }
+        }
+
+        stats.push({
+            label: huruf[c],
+            cx1: cx1, cy1: cy1, cx2: cx2, cy2: cy2,
+            totalInk: totalDark / Math.max(1, totalPx),
+            outerInk: outerDark / Math.max(1, outerPx)
+        });
+    }
+
+    let sortedTotal = stats.map(function(s) { return s.totalInk; }).sort(function(a, b) { return a - b; });
+    let sortedOuter = stats.map(function(s) { return s.outerInk; }).sort(function(a, b) { return a - b; });
+    // Gunakan kuartil bawah/median dari 5 kotak sebagai baseline huruf cetak polos
+    let baseTotal = (sortedTotal[1] + sortedTotal[2]) / 2;
+    let baseOuter = (sortedOuter[1] + sortedOuter[2]) / 2;
+
+    stats.forEach(function(s) {
+        s.excessTotal = Math.max(0, s.totalInk - baseTotal);
+        s.excessOuter = Math.max(0, s.outerInk - baseOuter);
+        s.score = s.excessTotal + (1.35 * s.excessOuter);
+    });
+
+    let kandidat = stats.filter(function(s) {
+        return s.score >= 0.032 && (s.excessTotal >= 0.022 || s.excessOuter >= 0.022);
+    }).sort(function(a, b) { return b.score - a.score; });
+
+    if (kandidat.length === 0) {
+        return { jawaban: isPGK ? [] : "-", boxes: [] };
+    }
+
+    // Jika ada kotak diarsir penuh (ralat/batal, misal totalInk > 0.36) dan ada kotak silang X yang bersih -> abaikan yang diarsir penuh
+    if (kandidat.length >= 2) {
+        let nonScribble = kandidat.filter(function(s) { return s.totalInk <= 0.36; });
+        let heavyScribble = kandidat.filter(function(s) { return s.totalInk > 0.36; });
+        if (heavyScribble.length > 0 && nonScribble.length > 0) {
+            kandidat = nonScribble;
+        }
+    }
+
+    if (isPGK) {
+        let dipilih = kandidat.filter(function(s) { return s.score >= 0.038; });
+        let labels = dipilih.map(function(s) { return s.label; }).sort();
+        return { jawaban: labels, boxes: dipilih };
+    }
+
+    return { jawaban: kandidat[0].label, boxes: [kandidat[0]] };
+};
+
+// Siapkan potongan gambar 1 baris isian: deteksi kosong, hapus coretan ralat, & perbesar 2.5x untuk Tesseract
+window.siapkanKanvasBarisIsian = function(gray, bin, w, h, grid, rowIdx) {
+    if (rowIdx < 0 || rowIdx >= 40) return { kosong: true };
+    let y0 = grid.isRowY[rowIdx];
+    let y1 = grid.isRowY[rowIdx + 1];
+    let rowH = Math.max(10, y1 - y0);
+    let yMid = (y0 + y1) / 2;
+    let slantShift = Math.round((yMid - grid.pgRefY) * grid.isSlantPerY);
+
+    let xStart = Math.max(0, grid.isColSplit + slantShift + 6);
+    let xRightBorder = grid.isRight + slantShift;
+    // Perluas sedikit ke kanan (3%) untuk tulisan siswa yang keluar garis tepi kanan
+    let xEnd = Math.min(w - 2, xRightBorder + Math.round(w * 0.03));
+    let yStart = Math.max(0, y0 + Math.max(2, Math.round(rowH * 0.12)));
+    let yEnd = Math.min(h - 1, y1 - Math.max(2, Math.round(rowH * 0.12)));
+
+    let cw = xEnd - xStart + 1;
+    let ch = yEnd - yStart + 1;
+    if (cw < 20 || ch < 8) return { kosong: true };
+
+    // Salin biner lokal dan hapus garis vertikal kanan tabel jika ikut terpotong
+    let localBin = new Uint8Array(cw * ch);
+    let localBorderX = xRightBorder - xStart;
+
+    for (let y = 0; y < ch; y++) {
+        let srcRow = (yStart + y) * w;
+        let dstRow = y * cw;
+        for (let x = 0; x < cw; x++) {
+            if (Math.abs(x - localBorderX) <= 2) {
+                localBin[dstRow + x] = 0;
+            } else {
+                localBin[dstRow + x] = bin[srcRow + xStart + x];
+            }
+        }
+    }
+
+    // Hapus blok coretan ralat yang pekat (misal kata dicoret tebal di kiri lalu ditulis ulang di kanan)
+    let colDensity = new Float32Array(cw);
+    for (let x = 0; x < cw; x++) {
+        let c = 0;
+        for (let y = 0; y < ch; y++) if (localBin[y * cw + x]) c++;
+        colDensity[x] = c / ch;
+    }
+
+    let runStart = -1;
+    let denseRanges = [];
+    for (let x = 0; x < cw; x++) {
+        if (colDensity[x] >= 0.46) {
+            if (runStart === -1) runStart = x;
+        } else {
+            if (runStart !== -1 && (x - runStart) >= Math.max(16, Math.round(ch * 0.85))) {
+                denseRanges.push([runStart, x - 1]);
+            }
+            runStart = -1;
+        }
+    }
+    if (runStart !== -1 && (cw - runStart) >= Math.max(16, Math.round(ch * 0.85))) {
+        denseRanges.push([runStart, cw - 1]);
+    }
+
+    // Hanya hapus blok coretan jika masih ada tulisan normal di bagian lain baris tersebut
+    if (denseRanges.length > 0) {
+        let nonDenseDark = 0;
+        for (let x = 0; x < cw; x++) {
+            let inDense = denseRanges.some(function(rg) { return x >= rg[0] - 2 && x <= rg[1] + 2; });
+            if (!inDense) {
+                for (let y = 0; y < ch; y++) if (localBin[y * cw + x]) nonDenseDark++;
+            }
+        }
+        if (nonDenseDark >= 24) {
+            denseRanges.forEach(function(rg) {
+                let a = Math.max(0, rg[0] - 2);
+                let b = Math.min(cw - 1, rg[1] + 2);
+                for (let y = 0; y < ch; y++) {
+                    for (let x = a; x <= b; x++) localBin[y * cw + x] = 0;
+                }
+            });
+        }
+    }
+
+    // Hitung jumlah tinta & bounding box teks
+    let darkCount = 0;
+    let minX = cw, maxX = -1, minY = ch, maxY = -1;
+    for (let y = 1; y < ch - 1; y++) {
+        for (let x = 1; x < cw - 1; x++) {
+            if (localBin[y * cw + x]) {
+                darkCount++;
+                if (x < minX) minX = x;
+                if (x > maxX) maxX = x;
+                if (y < minY) minY = y;
+                if (y > maxY) maxY = y;
+            }
+        }
+    }
+
+    if (darkCount < 24 || (maxX - minX) < 8 || (maxY - minY) < 4) {
+        return { kosong: true, box: { x1: xStart, y1: yStart, x2: xRightBorder, y2: yEnd } };
+    }
+
+    let cropW = maxX - minX + 1;
+    let cropH = maxY - minY + 1;
+
+    // Render teks biner bersih lalu upscale 2.4x + padding putih agar Tesseract PSM 7 optimal
+    let rawCanv = document.createElement('canvas');
+    rawCanv.width = cropW;
+    rawCanv.height = cropH;
+    let rCtx = rawCanv.getContext('2d');
+    let imgData = rCtx.createImageData(cropW, cropH);
+    for (let y = 0; y < cropH; y++) {
+        for (let x = 0; x < cropW; x++) {
+            let v = localBin[(minY + y) * cw + (minX + x)] ? 15 : 255;
+            let p = (y * cropW + x) * 4;
+            imgData.data[p] = v;
+            imgData.data[p + 1] = v;
+            imgData.data[p + 2] = v;
+            imgData.data[p + 3] = 255;
+        }
+    }
+    rCtx.putImageData(imgData, 0, 0);
+
+    let scale = Math.min(3.0, Math.max(1.8, 56 / Math.max(10, cropH)));
+    let pad = 22;
+    let outCanv = document.createElement('canvas');
+    outCanv.width = Math.round(cropW * scale) + pad * 2;
+    outCanv.height = Math.round(cropH * scale) + pad * 2;
+    let oCtx = outCanv.getContext('2d');
+    oCtx.fillStyle = '#ffffff';
+    oCtx.fillRect(0, 0, outCanv.width, outCanv.height);
+    oCtx.imageSmoothingEnabled = true;
+    oCtx.drawImage(rawCanv, pad, pad, Math.round(cropW * scale), Math.round(cropH * scale));
+
+    return {
+        kosong: false,
+        canvas: outCanv,
+        box: { x1: xStart, y1: yStart, x2: xRightBorder, y2: yEnd }
+    };
+};
+
+// Jarak Levenshtein untuk toleransi typo ringan istilah Biologi pada IS
+window.hitungJarakLevenshtein = function(a, b) {
+    let s1 = String(a || '').toLowerCase();
+    let s2 = String(b || '').toLowerCase();
+    let m = s1.length, n = s2.length;
+    if (m === 0) return n;
+    if (n === 0) return m;
+    let dp = new Array(n + 1);
+    for (let j = 0; j <= n; j++) dp[j] = j;
+    for (let i = 1; i <= m; i++) {
+        let prev = dp[0];
+        dp[0] = i;
+        for (let j = 1; j <= n; j++) {
+            let temp = dp[j];
+            let cost = (s1[i - 1] === s2[j - 1]) ? 0 : 1;
+            dp[j] = Math.min(dp[j] + 1, dp[j - 1] + 1, prev + cost);
+            prev = temp;
+        }
+    }
+    return dp[n];
+};
+
+window.cocokkanJawabanIsianLJK = function(ansSiswa, kunciArr) {
+    let bersih = String(ansSiswa || '').trim().toLowerCase();
+    if (!bersih || bersih === '-') return false;
+    let listKunci = (Array.isArray(kunciArr) ? kunciArr : [kunciArr]).map(function(k) {
+        return String(k || '').trim().toLowerCase();
+    }).filter(Boolean);
+    if (listKunci.length === 0) return false;
+
+    let bagianSiswa = bersih.split(/[\/,;]+/).map(function(s) { return s.trim(); }).filter(Boolean);
+    if (bagianSiswa.indexOf(bersih) === -1) bagianSiswa.push(bersih);
+
+    for (let i = 0; i < bagianSiswa.length; i++) {
+        let seg = bagianSiswa[i];
+        let segAlnum = seg.replace(/[^a-z0-9]/g, '');
+        for (let j = 0; j < listKunci.length; j++) {
+            let k = listKunci[j];
+            let kAlnum = k.replace(/[^a-z0-9]/g, '');
+            if (!kAlnum) continue;
+            if (seg === k || segAlnum === kAlnum) return true;
+            if (kAlnum.length >= 4 && segAlnum.indexOf(kAlnum) !== -1) return true;
+
+            let maxTypo = kAlnum.length >= 11 ? 2 : (kAlnum.length >= 6 ? 1 : 0);
+            if (maxTypo > 0 && Math.abs(segAlnum.length - kAlnum.length) <= maxTypo) {
+                if (window.hitungJarakLevenshtein(segAlnum, kAlnum) <= maxTypo) return true;
+            }
+        }
+    }
+    return false;
+};
+
+// Saring teks OCR agar tulisan yang tidak terbaca jelas langsung dikosongkan ("")
+window.bersihkanDanValidasiTeksOCRLJK = function(rawText, confidence, kunciArr) {
+    let cleaned = String(rawText || '')
+        .replace(/[\r\n]+/g, ' ')
+        .replace(/[|_~=`{}\[\]<>\\^]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    // Hapus tanda baca liar di awal & akhir kalimat
+    while (cleaned.length > 0 && /^[\.\-\:\;\,\!\?\'\"]/.test(cleaned)) {
+        cleaned = cleaned.slice(1).trim();
+    }
+    while (cleaned.length > 0 && /[\-\:\;\,\'\"]$/.test(cleaned.slice(-1))) {
+        cleaned = cleaned.slice(0, -1).trim();
+    }
+
+    if (!cleaned) return '';
+
+    let nonSpace = cleaned.replace(/\s+/g, '');
+    let alnumOnly = cleaned.replace(/[^a-zA-Z0-9]/g, '');
+    if (alnumOnly.length === 0) return '';
+
+    let alphaRatio = alnumOnly.length / Math.max(1, nonSpace.length);
+    let cocokKunci = window.cocokkanJawabanIsianLJK(cleaned, kunciArr);
+
+    // Jika cocok dekat dengan kunci soal, langsung loloskan
+    if (cocokKunci) return cleaned;
+
+    // Jika terlalu pendek (1 huruf bukan angka), terlalu banyak simbol aneh, atau confidence rendah -> kosongkan!
+    let hanyaSatuHurufBukanAngka = (alnumOnly.length < 2 && !/^\d$/.test(alnumOnly));
+    if (hanyaSatuHurufBukanAngka || alphaRatio < 0.65 || (Number(confidence) || 0) < 42) {
+        return '';
+    }
+
+    return cleaned;
 };
 
 window.prosesUploadLJK = async function(inputElem) {
@@ -3058,12 +3623,14 @@ window.prosesUploadLJK = async function(inputElem) {
 
     let t = window.targetUploadLJK;
     inputElem.value = "";
+    if (!t) return;
 
     let toast = document.createElement('div');
-    toast.style.cssText = "position:fixed; top:20px; left:50%; transform:translateX(-50%); background:#e67e22; color:white; padding:12px 25px; border-radius:30px; font-family:'Poppins', sans-serif; font-size:13px; font-weight:bold; box-shadow:0 4px 15px rgba(0,0,0,0.2); z-index:9999999; text-align:center;";
-    toast.innerHTML = "⏳ Mengaktifkan AI Scanner...<br><span style='font-size:11px; font-weight:normal;'>Memindai LJK & Tulisan Tangan: " + t.nama + "</span>";
+    toast.style.cssText = "position:fixed; top:20px; left:50%; transform:translateX(-50%); background:#e67e22; color:white; padding:12px 24px; border-radius:26px; font-family:'Poppins', sans-serif; font-size:13px; font-weight:bold; box-shadow:0 6px 20px rgba(0,0,0,0.28); z-index:9999999; text-align:center; max-width:92vw;";
+    toast.innerHTML = "⏳ Menyiapkan Mesin Scanner Lokal...<br><span style='font-size:11px; font-weight:normal;'>Memindai LJK: " + t.nama + "</span>";
     document.body.appendChild(toast);
 
+    let worker = null;
     try {
         let safeKelas = window.sanitasiKeyRekapFirebase(t.kelas);
         let safePaket = window.sanitasiKeyRekapFirebase(t.paket);
@@ -3072,70 +3639,148 @@ window.prosesUploadLJK = async function(inputElem) {
         let paketData = (window.adminBankUjianData && (window.adminBankUjianData[t.paket] || window.adminBankUjianData[safePaket])) || null;
         if (!paketData || !paketData.soal) throw new Error("Data bank soal tidak ditemukan untuk paket ini.");
 
-        if (!window.Tesseract) throw new Error("Mesin Tesseract OCR sedang dimuat, tunggu beberapa detik.");
+        let soalArr = window.normalisasiSoalUjianCBT(paketData.soal);
+        let bobot = window.hitungBobotIdealUjian(paketData, soalArr);
 
-        toast.innerHTML = "🔍 Membaca LJK...<br><span style='font-size:11px; font-weight:normal;'>Mengekstrak teks & pola jawaban...</span>";
-        let worker = await Tesseract.createWorker('ind');
-        let ocrResult = await worker.recognize(file);
-        await worker.terminate();
+        // 1. Muat gambar ke kanvas lokal (maks. lebar 1500px untuk keseimbangan akurasi & kecepatan)
+        toast.innerHTML = "🖼️ Menganalisis Garis Tabel & Pencahayaan...<br><span style='font-size:11px; font-weight:normal;'>Mendeteksi kolom PG & Isian</span>";
+        let imgObj = await new Promise(function(resolve, reject) {
+            let reader = new FileReader();
+            reader.onload = function(ev) {
+                let im = new Image();
+                im.onload = function() { resolve(im); };
+                im.onerror = function() { reject(new Error("Gagal membaca file gambar.")); };
+                im.src = ev.target.result;
+            };
+            reader.onerror = function() { reject(new Error("Gagal membuka file.")); };
+            reader.readAsDataURL(file);
+        });
 
-        let extractedText = ocrResult.data.text;
+        let maxW = 1500;
+        let scaleImg = imgObj.naturalWidth > maxW ? (maxW / imgObj.naturalWidth) : 1;
+        let cw = Math.max(400, Math.round(imgObj.naturalWidth * scaleImg));
+        let ch = Math.max(400, Math.round(imgObj.naturalHeight * scaleImg));
+
+        let mainCanv = document.createElement('canvas');
+        mainCanv.width = cw;
+        mainCanv.height = ch;
+        let mCtx = mainCanv.getContext('2d');
+        mCtx.drawImage(imgObj, 0, 0, cw, ch);
+
+        let rawRGBA = mCtx.getImageData(0, 0, cw, ch).data;
+        let gray = new Uint8Array(cw * ch);
+        for (let i = 0, p = 0; i < gray.length; i++, p += 4) {
+            gray[i] = Math.round(0.299 * rawRGBA[p] + 0.587 * rawRGBA[p + 1] + 0.114 * rawRGBA[p + 2]);
+        }
+
+        let sat = window.buatIntegralImageGray(gray, cw, ch);
+        let bin = window.binarisasiAdaptifLJK(gray, sat, cw, ch, Math.max(14, Math.round(cw * 0.014)), 15);
+        let grid = window.deteksiGridLJK(bin, cw, ch);
+
+        // Siapkan kanvas pratinjau beranotasi agar guru bisa mengecek deteksi langsung di modal Koreksi
+        let annotCanv = document.createElement('canvas');
+        annotCanv.width = cw;
+        annotCanv.height = ch;
+        let aCtx = annotCanv.getContext('2d');
+        aCtx.drawImage(mainCanv, 0, 0);
+
+        // 2. Pastikan Tesseract lokal siap hanya jika paket memiliki soal IS / Essay
+        let adaIsianAtauEssay = soalArr.some(function(q) { return q.type === 'IS' || q.type === 'Essay'; });
+        if (adaIsianAtauEssay) {
+            if (!window.Tesseract && typeof window.pastikanMesinDokumenSiap === 'function') {
+                toast.innerHTML = "⏳ Memuat Mesin Tesseract Lokal...<br><span style='font-size:11px; font-weight:normal;'>Hanya sekali muat pada sesi ini</span>";
+                await window.pastikanMesinDokumenSiap('ocr');
+            }
+            if (window.Tesseract) {
+                worker = await window.Tesseract.createWorker('ind');
+                if (typeof worker.setParameters === 'function') {
+                    await worker.setParameters({ tessedit_pageseg_mode: '7' });
+                }
+            }
+        }
+
         let totalNilai = 0;
+        let totalMax = 0;
         let hasilDetail = [];
-        let bobot = paketData.bobot || { PG: 0, PGK: 0, IS: 0, Essay: 0 };
+        let pgRowCursor = 0;
+        let isRowCursor = 0;
+        let totalISCount = soalArr.filter(function(q) { return q.type === 'IS' || q.type === 'Essay'; }).length;
+        let isDiproses = 0;
 
-        paketData.soal.forEach(function(q, idx) {
+        for (let idx = 0; idx < soalArr.length; idx++) {
+            let q = soalArr[idx];
+            let noSoal = idx + 1;
             let ansSiswa = "";
             let poin = 0;
             let maxP = bobot[q.type] || 0;
             let status = "Salah";
-            let noSoal = idx + 1;
 
-            if (q.type === 'PG') {
-                let regexPG = new RegExp(noSoal + "\\s*[\\.\\)]\\s*([A-E])", "i");
-                let match = extractedText.match(regexPG);
-                ansSiswa = match ? match[1].toUpperCase() : "-";
-                if (ansSiswa === (q.correct[0] || '').toUpperCase()) { poin = bobot.PG; status = "Benar"; }
-            } else if (q.type === 'PGK') {
-                let ansArray = [];
-                let correctCount = 0;
-                let totalOps = (q.options || []).length;
-                (q.options || []).forEach(function(opt, oIdx) {
-                    let regexPGK = new RegExp((oIdx + 1) + "\\s+(Benar|Salah|Tepat|Tidak Tepat|Tidak|B|S|T|TT)", "i");
-                    let match = extractedText.match(regexPGK);
-                    if (match) {
-                        let ansWord = match[1].toUpperCase();
-                        let isCentangBenar = ansWord === 'BENAR' || ansWord === 'B' || ansWord === 'TEPAT' || ansWord === 'T';
-                        if (isCentangBenar) ansArray.push(opt.label);
-                    }
+            if (q.type === 'PG' || q.type === 'PGK') {
+                let det = window.deteksiSilangPGRow(bin, cw, ch, grid, pgRowCursor, q.type === 'PGK');
+                pgRowCursor++;
+
+                // Gambar kotak hijau di foto anotasi pada opsi yang terdeteksi
+                aCtx.strokeStyle = '#16a34a';
+                aCtx.lineWidth = 3;
+                (det.boxes || []).forEach(function(bx) {
+                    aCtx.strokeRect(bx.cx1, bx.cy1, bx.cx2 - bx.cx1, bx.cy2 - bx.cy1);
                 });
-                ansSiswa = ansArray;
-                if (totalOps > 0 && ansArray.length > 0) {
-                    (q.options || []).forEach(function(opt) {
-                        let isExpected = (q.correct || []).includes(opt.label);
-                        let isAnswered = ansArray.includes(opt.label);
-                        if (isExpected === isAnswered) correctCount++;
-                    });
-                    poin = (bobot.PGK / totalOps) * correctCount;
-                    if (correctCount === totalOps) status = "Benar Sempurna";
-                    else if (correctCount > 0) status = "Benar Parsial";
+
+                if (q.type === 'PG') {
+                    ansSiswa = det.jawaban || "-";
+                    let normKey = window.normalisasiKunciPGK(q.correct, q.options);
+                    if (ansSiswa !== "-" && normKey.length > 0 && ansSiswa === normKey[0]) {
+                        poin = maxP;
+                        status = "Benar";
+                    }
+                } else {
+                    let ansArr = Array.isArray(det.jawaban) ? det.jawaban : [];
+                    ansSiswa = ansArr.length > 0 ? ansArr.join(", ") : "-";
+                    if (window.apakahJawabanPGKBenar(ansArr, q.correct, q.options)) {
+                        poin = maxP;
+                        status = "Benar Sempurna";
+                    }
                 }
-            } else if (q.type === 'IS' || q.type === 'Essay') {
-                let regexIS = new RegExp(noSoal + "\\s*[\\.\\)]\\s*(.+)", "i");
-                let matchIS = extractedText.match(regexIS);
-                ansSiswa = matchIS ? matchIS[1].trim() : "-";
-                if (q.type === 'IS' && ansSiswa !== "-") {
-                    let isBenar = (q.correct || []).some(function(k) { return ansSiswa.toLowerCase().includes(k.toLowerCase().trim()); });
-                    if (isBenar) { poin = bobot.IS; status = "Benar"; }
-                } else if (q.type === 'Essay') {
-                    poin = 0; status = "Menunggu Guru";
+            } else {
+                isDiproses++;
+                toast.innerHTML = "🔍 Membaca Tulisan Tangan (" + isDiproses + "/" + totalISCount + ")...<br><span style='font-size:11px; font-weight:normal;'>Baris Isian #" + (isRowCursor + 1) + " • Yang buram otomatis dikosongkan</span>";
+                let prep = window.siapkanKanvasBarisIsian(gray, bin, cw, ch, grid, isRowCursor);
+                isRowCursor++;
+
+                if (prep.box) {
+                    aCtx.strokeStyle = prep.kosong ? 'rgba(148,163,184,0.45)' : '#f59e0b';
+                    aCtx.lineWidth = 2;
+                    aCtx.strokeRect(prep.box.x1, prep.box.y1, prep.box.x2 - prep.box.x1, prep.box.y2 - prep.box.y1);
+                }
+
+                if (prep.kosong || !worker) {
+                    ansSiswa = "";
+                } else {
+                    let ocrRes = await worker.recognize(prep.canvas);
+                    let rawTxt = (ocrRes && ocrRes.data && ocrRes.data.text) ? ocrRes.data.text : "";
+                    let conf = (ocrRes && ocrRes.data && typeof ocrRes.data.confidence === 'number') ? ocrRes.data.confidence : 0;
+                    ansSiswa = window.bersihkanDanValidasiTeksOCRLJK(rawTxt, conf, q.correct);
+                }
+
+                if (q.type === 'IS') {
+                    if (ansSiswa && window.cocokkanJawabanIsianLJK(ansSiswa, q.correct)) {
+                        poin = maxP;
+                        status = "Benar";
+                    } else {
+                        poin = 0;
+                        status = ansSiswa ? "Salah" : "Menunggu Guru";
+                    }
+                } else {
+                    poin = 0;
+                    status = "Menunggu Guru";
                 }
             }
 
             totalNilai += poin;
+            totalMax += maxP;
             hasilDetail.push({
                 nomor: noSoal,
-                soal: q.question,
+                soal: q.question || "",
                 tipe: q.type,
                 kunci: q.correct || [],
                 jawabSiswa: ansSiswa,
@@ -3146,13 +3791,25 @@ window.prosesUploadLJK = async function(inputElem) {
                 maxPoin: maxP,
                 status: status
             });
-        });
+        }
 
+        if (worker) {
+            await worker.terminate();
+            worker = null;
+        }
+
+        // Simpan pratinjau foto LJK beranotasi di memori sesi agar guru bisa melihatnya saat koreksi
+        let previewKey = safeKelas + "__" + safePaket + "__" + safeNama;
+        try {
+            window._ljkPreviewPhotoMap[previewKey] = annotCanv.toDataURL('image/jpeg', 0.72);
+        } catch (e) {}
+
+        let nilaiAkhirSkala = totalMax > 0 ? ((totalNilai / totalMax) * 100) : totalNilai;
         let payload = {
             namaAsli: t.nama,
             kelasAsli: t.kelas,
             paketAsli: t.paket,
-            nilaiAkhir: parseFloat(totalNilai.toFixed(2)),
+            nilaiAkhir: parseFloat(nilaiAkhirSkala.toFixed(2)),
             waktuKumpul: new Date().toISOString(),
             detail: hasilDetail,
             rincian: hasilDetail,
@@ -3165,28 +3822,39 @@ window.prosesUploadLJK = async function(inputElem) {
             if (!window.adminRekapNilaiData[safeKelas]) window.adminRekapNilaiData[safeKelas] = {};
             if (!window.adminRekapNilaiData[safeKelas][safePaket]) window.adminRekapNilaiData[safeKelas][safePaket] = {};
             window.adminRekapNilaiData[safeKelas][safePaket][safeNama] = payload;
+
             window.renderRekapNilai();
             if (typeof window.renderLedgerSiswa === "function") window.renderLedgerSiswa();
             if (typeof window.renderRemedialTabAdmin === "function") window.renderRemedialTabAdmin();
+
             toast.style.background = "#27ae60";
-            toast.innerHTML = "✅ LJK Berhasil Dipindai!<br><span style='font-size:18px;'>Nilai: " + payload.nilaiAkhir + "</span>";
-            setTimeout(function() { toast.remove(); }, 3500);
+            toast.innerHTML = "✅ LJK Selesai Dipindai! Nilai Sementara: <b>" + payload.nilaiAkhir + "</b><br><span style='font-size:11px; font-weight:normal;'>Membuka Detail & Koreksi agar Anda bisa memeriksa/mengedit...</span>";
+            setTimeout(function() { toast.remove(); }, 3200);
+
+            // Langsung buka jendela koreksi agar guru bisa melengkapi IS/Essay yang kosong atau mengedit PG/PGK
+            window.tempKoreksiTarget = { kelas: t.kelas, paket: t.paket };
+            window.modeTampilanKoreksiPG = false;
+            window.muatDataKoreksi(safeNama);
         }, function(err) {
-            throw new Error(err.message);
+            throw new Error(err ? err.message : "Gagal menyimpan hasil scan ke server.");
         });
 
     } catch (err) {
+        if (worker) {
+            try { await worker.terminate(); } catch (e) {}
+        }
         console.error(err);
         toast.style.background = "#c0392b";
-        toast.innerHTML = "❌ Gagal memindai: " + err.message;
-        setTimeout(function() { toast.remove(); }, 4000);
+        toast.innerHTML = "❌ Gagal memindai LJK: " + (err ? err.message : "Error");
+        setTimeout(function() { toast.remove(); }, 4200);
     }
 };
 
 // =========================================================================
-// 6. KOREKSI ESSAY, TAMPILAN PG/PGK (GAMBAR 2), & DETAIL JAWABAN SISWA
+// 6. KOREKSI & EDIT JAWABAN SISWA LENGKAP (PG, PGK, IS, ESSAY, & FOTO LJK)
 // =========================================================================
 window.modeTampilanKoreksiPG = false;
+window._tampilFotoLJKKoreksi = false;
 
 window.bukaKoreksiUjian = function(btnElement) {
     let k = btnElement.getAttribute('data-k');
@@ -3194,24 +3862,32 @@ window.bukaKoreksiUjian = function(btnElement) {
     let n = btnElement.getAttribute('data-n');
     window.tempKoreksiTarget = { kelas: k, paket: p };
     window.modeTampilanKoreksiPG = false;
+    window._tampilFotoLJKKoreksi = false;
     window.muatDataKoreksi(n);
 };
 
 window.gantiSiswaKoreksi = function() {
     let n = document.getElementById('koreksi-select-siswa').value;
+    window._tampilFotoLJKKoreksi = false;
     window.muatDataKoreksi(n);
 };
 
 window.centangSemuaKoreksi = function() {
     if (window.modeTampilanKoreksiPG) {
-        window.toggleTampilanPGKoreksi(false);
+        document.querySelectorAll('#koreksi-section-pg-pgk input[type="checkbox"][id^="chk-koreksi-pg-"]').forEach(function(chk) {
+            chk.checked = true;
+        });
+        document.querySelectorAll('#koreksi-section-pg-pgk input[type="number"][id^="input-koreksi-pgk-"]').forEach(function(inp) {
+            inp.value = "1.00";
+        });
+    } else {
+        document.querySelectorAll('#koreksi-section-is-essay input[type="checkbox"][id^="chk-koreksi-"]').forEach(function(chk) {
+            chk.checked = true;
+        });
+        document.querySelectorAll('#koreksi-section-is-essay input[type="number"][id^="input-koreksi-"]').forEach(function(inp) {
+            inp.value = "1.00";
+        });
     }
-    document.querySelectorAll('#koreksi-grid-container input[type="checkbox"][id^="chk-koreksi-"]').forEach(function(chk) {
-        chk.checked = true;
-    });
-    document.querySelectorAll('#koreksi-grid-container input[type="number"][id^="input-koreksi-"]').forEach(function(inp) {
-        inp.value = "1.00";
-    });
     window.hitungSkorLiveKoreksi();
 };
 
@@ -3224,7 +3900,28 @@ window.pastikanTombolPGKoreksiAda = function() {
 
     let barKontrol = btnCentang.parentElement;
     let grupKanan = document.createElement('div');
-    grupKanan.style.cssText = 'display:flex; align-items:center; gap:8px; flex-wrap:wrap;';
+    grupKanan.style.cssText = 'display:flex; align-items:center; gap:6px; flex-wrap:wrap;';
+
+    let btnFoto = document.createElement('button');
+    btnFoto.type = 'button';
+    btnFoto.id = 'btn-toggle-foto-ljk';
+    btnFoto.className = 'btn-action';
+    btnFoto.style.cssText = 'display:none; background:#16a085; width:auto; padding:6px 12px; font-size:11.5px; border-radius:6px; color:white; cursor:pointer;';
+    btnFoto.innerHTML = '🖼️ Foto LJK';
+    btnFoto.onclick = function() { window.togglePreviewFotoLJKKoreksi(); };
+
+    let btnScanUlang = document.createElement('button');
+    btnScanUlang.type = 'button';
+    btnScanUlang.id = 'btn-rescan-ljk-koreksi';
+    btnScanUlang.className = 'btn-action';
+    btnScanUlang.style.cssText = 'background:#8e44ad; width:auto; padding:6px 12px; font-size:11.5px; border-radius:6px; color:white; cursor:pointer;';
+    btnScanUlang.innerHTML = '📷 Scan LJK';
+    btnScanUlang.title = 'Scan / Upload ulang foto LJK untuk siswa ini';
+    btnScanUlang.onclick = function() {
+        let t = window.tempKoreksiTarget;
+        if (!t || !t.data) return;
+        window.triggerUploadLJK(t.data.kelasAsli || t.kelas, t.data.paketAsli || t.paket, t.data.namaAsli || t.nama);
+    };
 
     let btnPG = document.createElement('button');
     btnPG.type = 'button';
@@ -3237,9 +3934,18 @@ window.pastikanTombolPGKoreksiAda = function() {
     };
 
     barKontrol.insertBefore(grupKanan, btnCentang);
+    grupKanan.appendChild(btnFoto);
+    grupKanan.appendChild(btnScanUlang);
     grupKanan.appendChild(btnPG);
     grupKanan.appendChild(btnCentang);
     return btnPG;
+};
+
+window.togglePreviewFotoLJKKoreksi = function() {
+    let box = document.getElementById('koreksi-foto-ljk-box');
+    if (!box) return;
+    window._tampilFotoLJKKoreksi = !window._tampilFotoLJKKoreksi;
+    box.style.display = window._tampilFotoLJKKoreksi ? 'block' : 'none';
 };
 
 window.toggleTampilanPGKoreksi = function(forceModePG) {
@@ -3260,7 +3966,7 @@ window.toggleTampilanPGKoreksi = function(forceModePG) {
         if (btnPG) {
             btnPG.style.background = '#0b3954';
             btnPG.style.border = '2px solid #f1c40f';
-            btnPG.innerHTML = '✍️ Kembali ke IS & Essay';
+            btnPG.innerHTML = '✍️ Edit IS & Essay';
         }
     } else {
         if (secISEssay) secISEssay.style.display = 'flex';
@@ -3268,7 +3974,7 @@ window.toggleTampilanPGKoreksi = function(forceModePG) {
         if (btnPG) {
             btnPG.style.background = '#2980b9';
             btnPG.style.border = 'none';
-            btnPG.innerHTML = '📋 PG & PGK (' + jmlPG + ')';
+            btnPG.innerHTML = '📋 Edit PG & PGK (' + jmlPG + ')';
         }
     }
 
@@ -3276,6 +3982,144 @@ window.toggleTampilanPGKoreksi = function(forceModePG) {
     if (grid && grid.parentElement) {
         grid.parentElement.scrollTo({ top: 0, behavior: 'smooth' });
     }
+};
+
+// --- HANDLER EDIT LANGSUNG JAWABAN SISWA OLEH ADMIN (PG, PGK, IS, ESSAY) ---
+window.ubahJawabanSiswaKoreksiPG = function(idx, hurufBaru) {
+    let t = window.tempKoreksiTarget;
+    if (!t || !t.data || !t.data.detail || !t.data.detail[idx]) return;
+    let h = t.data.detail[idx];
+
+    h.jawabSiswa = hurufBaru;
+    h.jawabanSiswa = hurufBaru;
+
+    let normKey = window.normalisasiKunciPGK(h.kunci, []);
+    let isBenar = (hurufBaru !== '-' && normKey.length > 0 && hurufBaru === normKey[0]);
+
+    let chk = document.getElementById('chk-koreksi-pg-' + idx);
+    if (chk) chk.checked = isBenar;
+
+    document.querySelectorAll('.btn-edit-pg-' + idx).forEach(function(b) {
+        let valB = b.getAttribute('data-opt');
+        let aktif = (valB === hurufBaru);
+        b.style.background = aktif ? (isBenar ? '#16a34a' : (hurufBaru === '-' ? '#64748b' : '#dc2626')) : '#ffffff';
+        b.style.color = aktif ? '#ffffff' : '#334155';
+        b.style.borderColor = aktif ? '#0f172a' : '#cbd5e1';
+    });
+
+    window.segarkanBadgeKartuPGKoreksi(idx);
+    window.hitungSkorLiveKoreksi();
+};
+
+window.ubahJawabanSiswaKoreksiPGK = function(idx) {
+    let t = window.tempKoreksiTarget;
+    if (!t || !t.data || !t.data.detail || !t.data.detail[idx]) return;
+    let h = t.data.detail[idx];
+
+    let picked = [];
+    document.querySelectorAll('.chk-edit-pgk-' + idx).forEach(function(cb) {
+        if (cb.checked) picked.push(cb.value);
+    });
+    picked.sort();
+
+    let strVal = picked.length > 0 ? picked.join(', ') : '-';
+    h.jawabSiswa = strVal;
+    h.jawabanSiswa = strVal;
+
+    let isBenarSempurna = window.apakahJawabanPGKBenar(picked, h.kunci, []);
+    let inpFrak = document.getElementById('input-koreksi-pgk-' + idx);
+    if (inpFrak) {
+        inpFrak.value = isBenarSempurna ? '1.00' : '0.00';
+    }
+
+    window.segarkanBadgeKartuPGKoreksi(idx);
+    window.hitungSkorLiveKoreksi();
+};
+
+window.segarkanBadgeKartuPGKoreksi = function(idx) {
+    let t = window.tempKoreksiTarget;
+    if (!t || !t.data || !t.data.detail || !t.data.detail[idx]) return;
+    let h = t.data.detail[idx];
+    let tipeUpper = String(h.tipe || h.type || 'PG').toUpperCase();
+    let maxP = Number(h.maxPoin) || 0;
+    let pDidapat = 0;
+
+    if (tipeUpper === 'PGK') {
+        let inp = document.getElementById('input-koreksi-pgk-' + idx);
+        let val = inp ? Math.max(0, Math.min(1, parseFloat(inp.value) || 0)) : 0;
+        pDidapat = val * maxP;
+    } else {
+        let chk = document.getElementById('chk-koreksi-pg-' + idx);
+        pDidapat = (chk && chk.checked) ? maxP : 0;
+    }
+
+    let isBenar = pDidapat > 0;
+    let card = document.getElementById('card-koreksi-pg-' + idx);
+    if (card) card.style.borderLeftColor = isBenar ? '#27ae60' : '#e74c3c';
+
+    let badge = document.getElementById('badge-koreksi-pg-' + idx);
+    if (badge) {
+        if (isBenar) {
+            badge.style.background = '#d4edda';
+            badge.style.color = '#155724';
+            badge.innerText = '✅ Benar (+' + pDidapat.toFixed(2) + ' / ' + maxP.toFixed(2) + ' pt)';
+        } else {
+            badge.style.background = '#f8d7da';
+            badge.style.color = '#721c24';
+            badge.innerText = '❌ Salah (0 / ' + maxP.toFixed(2) + ' pt)';
+        }
+    }
+};
+
+window.ubahTeksJawabanSiswaKoreksi = function(idx, teksBaru, tipe) {
+    let t = window.tempKoreksiTarget;
+    if (!t || !t.data || !t.data.detail || !t.data.detail[idx]) return;
+    let h = t.data.detail[idx];
+    h.jawabSiswa = teksBaru;
+    h.jawabanSiswa = teksBaru;
+
+    // Jika soal Isian Singkat, otomatis centang BENAR bila ketikan admin cocok dengan kunci
+    if (tipe === 'IS') {
+        let chk = document.getElementById('chk-koreksi-' + idx);
+        if (chk) {
+            let cocok = window.cocokkanJawabanIsianLJK(teksBaru, h.kunci);
+            if (cocok) chk.checked = true;
+            else if (!String(teksBaru || '').trim()) chk.checked = false;
+        }
+        window.hitungSkorLiveKoreksi();
+    }
+};
+
+window.inisialisasiDetailKosongDariBankSoal = function() {
+    let t = window.tempKoreksiTarget;
+    if (!t || !t.data) return;
+
+    let labelPaketTampil = t.data.paketAsli || t.paket;
+    let safePkt = window.sanitasiKeyRekapFirebase(labelPaketTampil);
+    let bankData = (window.adminBankUjianData && (window.adminBankUjianData[t.paket] || window.adminBankUjianData[labelPaketTampil] || window.adminBankUjianData[safePkt])) || null;
+    if (!bankData || !bankData.soal) {
+        return alert("⚠️ Bank Soal tidak ditemukan untuk paket ujian ini.");
+    }
+
+    let soalArr = window.normalisasiSoalUjianCBT(bankData.soal);
+    let bobot = window.hitungBobotIdealUjian(bankData, soalArr);
+    t.data.detail = soalArr.map(function(q, idx) {
+        return {
+            nomor: idx + 1,
+            soal: q.question || "",
+            tipe: q.type,
+            kunci: q.correct || [],
+            jawabSiswa: (q.type === 'PG' || q.type === 'PGK') ? '-' : '',
+            jawabanSiswa: (q.type === 'PG' || q.type === 'PGK') ? '-' : '',
+            pembahasan: q.explanation || "Tidak ada pembahasan.",
+            poin: 0,
+            poinDidapat: 0,
+            maxPoin: bobot[q.type] || 0,
+            status: (q.type === 'Essay' || q.type === 'IS') ? 'Menunggu Guru' : 'Salah'
+        };
+    });
+    t.data.rincian = t.data.detail;
+    window.muatDataKoreksi(t.nama);
 };
 
 window.muatDataKoreksi = function(namaSiswa) {
@@ -3295,13 +4139,14 @@ window.muatDataKoreksi = function(namaSiswa) {
 
     let labelKelasTampil = dataSiswa.kelasAsli || t.kelas;
     let labelPaketTampil = dataSiswa.paketAsli || t.paket;
+    let safeKls = window.sanitasiKeyRekapFirebase(labelKelasTampil);
     let safePkt = window.sanitasiKeyRekapFirebase(labelPaketTampil);
+    let safeNama = window.sanitasiKeyRekapFirebase(dataSiswa.namaAsli || matchedKey);
 
     let bankData = (window.adminBankUjianData && (window.adminBankUjianData[t.paket] || window.adminBankUjianData[labelPaketTampil] || window.adminBankUjianData[safePkt])) || null;
     let bankSoal = (bankData && Array.isArray(bankData.soal) && bankData.soal.length > 0) ? bankData.soal : [];
 
-    // Sinkronkan & urutkan soal agar 100% SAMA urutannya dengan Bank Soal & menu Nilai Saya (Nomor 1, 2, 3, dst.)
-    if (bankSoal.length > 0 && typeof window.sinkronkanDetailSiswaKeBankUjian === "function") {
+    if (bankSoal.length > 0 && dataSiswa.detail.length > 0 && typeof window.sinkronkanDetailSiswaKeBankUjian === "function") {
         let tersinkron = window.sinkronkanDetailSiswaKeBankUjian(dataSiswa.detail, bankSoal);
         let hasilUrut = [];
         tersinkron.forEach(function(item, bIdx) {
@@ -3354,6 +4199,14 @@ window.muatDataKoreksi = function(namaSiswa) {
     let maxPoinIS = bobotIdeal.IS;
     let maxPoinEssay = bobotIdeal.Essay;
 
+    let escAttr = function(s) {
+        return String(s === undefined || s === null ? '' : s)
+            .replace(/&/g, '&amp;')
+            .replace(/"/g, '&quot;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+    };
+
     let grupBelumBenar = [];
     let grupSudahBenar = [];
     let grupPGdanPGK = [];
@@ -3376,17 +4229,22 @@ window.muatDataKoreksi = function(namaSiswa) {
             if (fraksiSkor < 0) fraksiSkor = 0;
 
             let sudahBenar = isEssay ? (fraksiSkor >= 1 && h.status !== 'Menunggu Guru') : ((Number(h.poinDidapat) || 0) > 0);
+            let rawAnsTeks = (h.jawabSiswa === '-' || h.jawabSiswa === undefined || h.jawabSiswa === null) ? '' : String(h.jawabSiswa);
+
+            let inputJawabanHtml = isEssay
+                ? '<textarea id="edit-jwb-koreksi-' + idx + '" rows="3" placeholder="(Kosong / tidak terbaca — ketik atau edit jawaban siswa di sini...)" style="width:100%; box-sizing:border-box; padding:8px; font-size:13px; font-weight:600; color:#1e293b; border:1.5px solid #cbd5e1; border-radius:6px; font-family:inherit; resize:vertical;" oninput="window.ubahTeksJawabanSiswaKoreksi(' + idx + ', this.value, \'Essay\')">' + escAttr(rawAnsTeks) + '</textarea>'
+                : '<input type="text" id="edit-jwb-koreksi-' + idx + '" value="' + escAttr(rawAnsTeks) + '" placeholder="(Kosong / tidak terbaca — ketik di sini...)" style="width:100%; box-sizing:border-box; padding:8px; font-size:13.5px; font-weight:700; color:#c0392b; border:1.5px solid #cbd5e1; border-radius:6px;" oninput="window.ubahTeksJawabanSiswaKoreksi(' + idx + ', this.value, \'IS\')">';
 
             let uiKoreksiGuru = '';
             if (isEssay) {
-                uiKoreksiGuru = '<div style="flex:1; min-width:220px; background:#fdf2e9; border:1px solid #edbb99; border-radius:6px; padding:10px; display:flex; justify-content:space-between; align-items:center;">' +
-                    '<div><div style="font-size:10px; font-weight:bold; color:#d35400; margin-bottom:3px; text-transform:uppercase;">Koreksi Essay</div><div style="font-size:11px; color:#ba4a00;">Input fraksi (0.0 - 1.0)</div></div>' +
-                    '<input type="number" id="input-koreksi-' + idx + '" step="0.1" min="0" max="1" value="' + fraksiSkor.toFixed(2) + '" style="width:60px; padding:5px; text-align:center; font-weight:bold; border:2px solid #d35400; border-radius:4px; color:#d35400; background:white; font-size:14px;" oninput="window.hitungSkorLiveKoreksi()">' +
+                uiKoreksiGuru = '<div style="flex:0.85; min-width:210px; background:#fdf2e9; border:1px solid #edbb99; border-radius:6px; padding:10px; display:flex; justify-content:space-between; align-items:center;">' +
+                    '<div><div style="font-size:10px; font-weight:bold; color:#d35400; margin-bottom:3px; text-transform:uppercase;">Koreksi Essay</div><div style="font-size:11px; color:#ba4a00;">Skor fraksi (0.0 - 1.0)</div></div>' +
+                    '<input type="number" id="input-koreksi-' + idx + '" step="0.1" min="0" max="1" value="' + fraksiSkor.toFixed(2) + '" style="width:64px; padding:5px; text-align:center; font-weight:bold; border:2px solid #d35400; border-radius:4px; color:#d35400; background:white; font-size:14px;" oninput="window.hitungSkorLiveKoreksi()">' +
                 '</div>';
             } else {
                 let isChecked = ((Number(h.poinDidapat) || 0) > 0) ? 'checked' : '';
-                uiKoreksiGuru = '<div style="flex:1; min-width:220px; background:#eafaf1; border:1px solid #a9dfbf; border-radius:6px; padding:10px; display:flex; justify-content:space-between; align-items:center;">' +
-                    '<div><div style="font-size:10px; font-weight:bold; color:#27ae60; margin-bottom:3px; text-transform:uppercase;">Koreksi Guru</div><div style="font-size:11px; color:#1e8449;">Klik centang jika benar</div></div>' +
+                uiKoreksiGuru = '<div style="flex:0.85; min-width:210px; background:#eafaf1; border:1px solid #a9dfbf; border-radius:6px; padding:10px; display:flex; justify-content:space-between; align-items:center;">' +
+                    '<div><div style="font-size:10px; font-weight:bold; color:#27ae60; margin-bottom:3px; text-transform:uppercase;">Koreksi Guru</div><div style="font-size:11px; color:#1e8449;">Centang jika benar</div></div>' +
                     '<label style="cursor:pointer; display:flex; align-items:center; gap:8px; background:white; padding:6px 10px; border-radius:6px; border:1px solid #27ae60;">' +
                         '<span style="font-size:12px; font-weight:bold; color:#27ae60;">BENAR</span>' +
                         '<input type="checkbox" id="chk-koreksi-' + idx + '" style="width:20px; height:20px; cursor:pointer; accent-color:#16a085;" onchange="window.hitungSkorLiveKoreksi()" ' + isChecked + '>' +
@@ -3404,9 +4262,9 @@ window.muatDataKoreksi = function(namaSiswa) {
                 '<div style="padding:12px 15px;">' +
                     '<div style="font-size:14px; color:#2c3e50; margin-bottom:12px; line-height:1.4;">' + (h.soal || '') + '</div>' +
                     '<div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px;">' +
-                        '<div style="flex:1; min-width:220px; background:#fdfefe; border:1px solid #d5dbdb; border-radius:6px; padding:10px;">' +
-                            '<div style="font-size:10px; font-weight:bold; color:#7f8c8d; margin-bottom:5px; text-transform:uppercase;">Jawaban Siswa</div>' +
-                            '<div style="font-size:14px; color:#c0392b; font-weight:600;">' + (h.jawabSiswa || '-') + '</div>' +
+                        '<div style="flex:1.25; min-width:220px; background:#fdfefe; border:1px solid #d5dbdb; border-radius:6px; padding:10px;">' +
+                            '<div style="font-size:10px; font-weight:bold; color:#7f8c8d; margin-bottom:5px; text-transform:uppercase;">✏️ Jawaban Siswa (Bisa Diedit Admin)</div>' +
+                            inputJawabanHtml +
                         '</div>' +
                         uiKoreksiGuru +
                     '</div>' +
@@ -3420,9 +4278,10 @@ window.muatDataKoreksi = function(namaSiswa) {
             if (sudahBenar) grupSudahBenar.push(cardHTML);
             else grupBelumBenar.push(cardHTML);
         } else {
-            // KARTU PG & PGK (TAMPILAN PERSIS GAMBAR 2 & BERURUTAN)
-            let labelTipePG = (tipeUpper === 'PGK') ? 'PGK' : 'PG';
-            let defaultMaxPG = (labelTipePG === 'PGK') ? maxPoinPGK : maxPoinPG;
+            // KARTU PG & PGK (SEKARANG BISA DIEDIT LANGSUNG OLEH ADMIN)
+            let isPGK = (tipeUpper === 'PGK');
+            let labelTipePG = isPGK ? 'PGK' : 'PG';
+            let defaultMaxPG = isPGK ? maxPoinPGK : maxPoinPG;
             let pMax = (h.maxPoin !== undefined && Number(h.maxPoin) > 0) ? Number(h.maxPoin) : defaultMaxPG;
             h.maxPoin = pMax;
             let pDidapat = Number(h.poinDidapat !== undefined ? h.poinDidapat : (h.poin || 0)) || 0;
@@ -3430,29 +4289,66 @@ window.muatDataKoreksi = function(namaSiswa) {
             let borderColPG = isBenarPG ? "#27ae60" : "#e74c3c";
 
             let badgeStatusPG = isBenarPG
-                ? '<span style="background:#d4edda; color:#155724; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:800;">✅ Benar (+' + pDidapat.toFixed(2) + ' / ' + pMax.toFixed(2) + ' pt)</span>'
-                : '<span style="background:#f8d7da; color:#721c24; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:800;">❌ Salah (0 / ' + pMax.toFixed(2) + ' pt)</span>';
+                ? '<span id="badge-koreksi-pg-' + idx + '" style="background:#d4edda; color:#155724; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:800;">✅ Benar (+' + pDidapat.toFixed(2) + ' / ' + pMax.toFixed(2) + ' pt)</span>'
+                : '<span id="badge-koreksi-pg-' + idx + '" style="background:#f8d7da; color:#721c24; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:800;">❌ Salah (0 / ' + pMax.toFixed(2) + ' pt)</span>';
 
             let rawJwbPG = h.jawabSiswa !== undefined ? h.jawabSiswa : (h.jawabanSiswa || "-");
-            let strJwbPG = Array.isArray(rawJwbPG) ? rawJwbPG.join(", ") : String(rawJwbPG || "-");
+            let normJwbArr = window.normalisasiKunciPGK(rawJwbPG, []);
+            let jwbHurufPG = normJwbArr.length > 0 ? normJwbArr[0] : '-';
             let rawKunciPG = h.kunci || [];
             let strKunciPG = Array.isArray(rawKunciPG) ? rawKunciPG.join(", ") : String(rawKunciPG || "-");
 
+            let kontrolEditPG = '';
+            if (!isPGK) {
+                let btns = ['-', 'A', 'B', 'C', 'D', 'E'].map(function(optL) {
+                    let aktif = (jwbHurufPG === optL);
+                    let bgBtn = aktif ? (isBenarPG ? '#16a34a' : (optL === '-' ? '#64748b' : '#dc2626')) : '#ffffff';
+                    let colBtn = aktif ? '#ffffff' : '#334155';
+                    let brdBtn = aktif ? '#0f172a' : '#cbd5e1';
+                    return '<button type="button" class="btn-edit-pg-' + idx + '" data-opt="' + optL + '" onclick="window.ubahJawabanSiswaKoreksiPG(' + idx + ', \'' + optL + '\')" style="width:32px; height:30px; border-radius:6px; border:1.5px solid ' + brdBtn + '; background:' + bgBtn + '; color:' + colBtn + '; font-weight:800; font-size:12px; cursor:pointer;">' + optL + '</button>';
+                }).join('');
+
+                kontrolEditPG =
+                    '<div style="display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;">' +
+                        '<div style="display:flex; gap:5px; flex-wrap:wrap;">' + btns + '</div>' +
+                        '<label style="cursor:pointer; display:inline-flex; align-items:center; gap:5px; background:#ffffff; padding:4px 8px; border-radius:6px; border:1px solid #27ae60; font-size:11px; font-weight:800; color:#15803d;">' +
+                            '<input type="checkbox" id="chk-koreksi-pg-' + idx + '" ' + (isBenarPG ? 'checked' : '') + ' style="width:16px; height:16px; accent-color:#16a085; cursor:pointer;" onchange="window.segarkanBadgeKartuPGKoreksi(' + idx + '); window.hitungSkorLiveKoreksi();"> BENAR' +
+                        '</label>' +
+                    '</div>';
+            } else {
+                let frakPGK = pMax > 0 ? Math.max(0, Math.min(1, pDidapat / pMax)) : 0;
+                let checks = ['A', 'B', 'C', 'D', 'E'].map(function(optL) {
+                    let isCk = normJwbArr.indexOf(optL) !== -1;
+                    return '<label style="display:inline-flex; align-items:center; gap:4px; background:#ffffff; border:1.5px solid #cbd5e1; border-radius:6px; padding:4px 8px; font-size:12px; font-weight:800; color:#1e293b; cursor:pointer;">' +
+                        '<input type="checkbox" class="chk-edit-pgk-' + idx + '" value="' + optL + '" ' + (isCk ? 'checked' : '') + ' style="accent-color:#8e44ad; cursor:pointer;" onchange="window.ubahJawabanSiswaKoreksiPGK(' + idx + ')"> ' + optL +
+                    '</label>';
+                }).join('');
+
+                kontrolEditPG =
+                    '<div style="display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;">' +
+                        '<div style="display:flex; gap:5px; flex-wrap:wrap;">' + checks + '</div>' +
+                        '<div style="display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:800; color:#7e22ce;">' +
+                            '<span>Skor (0-1):</span>' +
+                            '<input type="number" id="input-koreksi-pgk-' + idx + '" step="0.1" min="0" max="1" value="' + frakPGK.toFixed(2) + '" style="width:58px; padding:4px; text-align:center; font-weight:800; border:1.5px solid #8e44ad; border-radius:6px;" oninput="window.segarkanBadgeKartuPGKoreksi(' + idx + '); window.hitungSkorLiveKoreksi();">' +
+                        '</div>' +
+                    '</div>';
+            }
+
             let cardPGHTML =
-                '<div style="background:white; border:1px solid #cbd5e1; border-left:5px solid ' + borderColPG + '; border-radius:10px; padding:14px 16px; box-shadow:0 2px 6px rgba(0,0,0,0.03);">' +
+                '<div id="card-koreksi-pg-' + idx + '" style="background:white; border:1px solid #cbd5e1; border-left:5px solid ' + borderColPG + '; border-radius:10px; padding:14px 16px; box-shadow:0 2px 6px rgba(0,0,0,0.03);">' +
                     '<div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; border-bottom:1px solid #f1f5f9; padding-bottom:8px; margin-bottom:10px;">' +
                         '<span style="font-weight:800; color:#0b3954; font-size:13px;">Soal Nomor ' + nomorUrut + ' <span style="background:#eef2f7; color:#475569; padding:2px 8px; border-radius:6px; font-size:11px; margin-left:6px;">Tipe: ' + labelTipePG + '</span></span>' +
                         badgeStatusPG +
                     '</div>' +
                     '<div style="font-size:14px; color:#1e293b; line-height:1.5; margin-bottom:12px; font-weight:600;">' + (h.soal || "-") + '</div>' +
-                    '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:10px; margin-bottom:10px;">' +
-                        '<div style="background:' + (isBenarPG ? "#f0fdf4" : "#fef2f2") + '; border:1px solid ' + (isBenarPG ? "#bbf7d0" : "#fecaca") + '; padding:10px 12px; border-radius:8px;">' +
-                            '<div style="font-size:10px; font-weight:800; color:#64748b; text-transform:uppercase; margin-bottom:3px;">JAWABAN SISWA</div>' +
-                            '<div style="font-size:14px; font-weight:800; color:' + (isBenarPG ? "#15803d" : "#b91c1c") + ';">' + strJwbPG + '</div>' +
+                    '<div style="display:grid; grid-template-columns:1.5fr 1fr; gap:10px; margin-bottom:10px;">' +
+                        '<div style="background:#f8fafc; border:1px solid #cbd5e1; padding:10px 12px; border-radius:8px;">' +
+                            '<div style="font-size:10px; font-weight:800; color:#475569; text-transform:uppercase; margin-bottom:6px;">✏️ EDIT JAWABAN SISWA</div>' +
+                            kontrolEditPG +
                         '</div>' +
                         '<div style="background:#fef9e7; border:1px solid #fde68a; padding:10px 12px; border-radius:8px;">' +
                             '<div style="font-size:10px; font-weight:800; color:#b45309; text-transform:uppercase; margin-bottom:3px;">🔑 KUNCI JAWABAN</div>' +
-                            '<div style="font-size:14px; font-weight:800; color:#92400e;">' + strKunciPG + '</div>' +
+                            '<div style="font-size:15px; font-weight:900; color:#92400e;">' + strKunciPG + '</div>' +
                         '</div>' +
                     '</div>' +
                     '<div style="background:#f8fafc; border-left:3px solid #3498db; padding:8px 12px; border-radius:6px; font-size:12px; color:#334155;">' +
@@ -3465,32 +4361,50 @@ window.muatDataKoreksi = function(namaSiswa) {
     });
 
     let htmlISEssay = '';
-    if (grupBelumBenar.length > 0) {
-        htmlISEssay += '<div style="background:#fef9e7; border:1px solid #f9e79f; color:#d35400; padding:8px 14px; border-radius:6px; font-size:12px; font-weight:bold;">🔍 Perlu Diperiksa Manual / Belum Tercentang Benar (' + grupBelumBenar.length + ' Soal)</div>';
-        htmlISEssay += grupBelumBenar.join('');
-    }
-    if (grupSudahBenar.length > 0) {
-        htmlISEssay += '<div style="background:#eafaf1; border:1px solid #a9dfbf; color:#1e8449; padding:8px 14px; border-radius:6px; font-size:12px; font-weight:bold; margin-top:10px;">✅ Sudah Terdeteksi / Tercentang Benar (' + grupSudahBenar.length + ' Soal)</div>';
-        htmlISEssay += grupSudahBenar.join('');
-    }
-    if (grupBelumBenar.length === 0 && grupSudahBenar.length === 0) {
-        htmlISEssay = '<div style="text-align:center; padding:30px; color:#7f8c8d; font-weight:bold;">Tidak ada soal Isian Singkat atau Essay pada paket ujian ini. Klik tombol <b>📋 PG & PGK</b> di kanan atas untuk melihat detail jawaban PG/PGK siswa.</div>';
+    if (dataSiswa.detail.length === 0 && bankSoal.length > 0) {
+        htmlISEssay =
+            '<div style="text-align:center; padding:28px; background:#ffffff; border:1px dashed #cbd5e1; border-radius:10px;">' +
+                '<div style="font-weight:800; color:#334155; margin-bottom:8px;">Belum ada rincian jawaban per soal untuk siswa ini (nilai diinput manual).</div>' +
+                '<button type="button" class="btn-action" style="background:#2980b9; width:auto; padding:8px 16px; font-size:12px;" onclick="window.inisialisasiDetailKosongDariBankSoal()">📝 Buat Lembar Jawaban Manual dari Bank Soal</button>' +
+            '</div>';
+    } else {
+        if (grupBelumBenar.length > 0) {
+            htmlISEssay += '<div style="background:#fef9e7; border:1px solid #f9e79f; color:#d35400; padding:8px 14px; border-radius:6px; font-size:12px; font-weight:bold;">🔍 Perlu Diperiksa Manual / Belum Tercentang Benar (' + grupBelumBenar.length + ' Soal)</div>';
+            htmlISEssay += grupBelumBenar.join('');
+        }
+        if (grupSudahBenar.length > 0) {
+            htmlISEssay += '<div style="background:#eafaf1; border:1px solid #a9dfbf; color:#1e8449; padding:8px 14px; border-radius:6px; font-size:12px; font-weight:bold; margin-top:10px;">✅ Sudah Terdeteksi / Tercentang Benar (' + grupSudahBenar.length + ' Soal)</div>';
+            htmlISEssay += grupSudahBenar.join('');
+        }
+        if (grupBelumBenar.length === 0 && grupSudahBenar.length === 0) {
+            htmlISEssay = '<div style="text-align:center; padding:30px; color:#7f8c8d; font-weight:bold;">Tidak ada soal Isian Singkat atau Essay pada paket ujian ini. Klik tombol <b>📋 Edit PG & PGK</b> di atas untuk melihat atau mengedit jawaban PG/PGK siswa.</div>';
+        }
     }
 
-    let htmlPGSection = '';
-    if (grupPGdanPGK.length > 0) {
-        htmlPGSection = grupPGdanPGK.join('');
-    } else {
-        htmlPGSection = '<div style="text-align:center; padding:30px; color:#7f8c8d; font-weight:bold;">Tidak ada soal Pilihan Ganda (PG) atau PGK pada paket ujian ini.</div>';
-    }
+    let htmlPGSection = grupPGdanPGK.length > 0
+        ? grupPGdanPGK.join('')
+        : '<div style="text-align:center; padding:30px; color:#7f8c8d; font-weight:bold;">Tidak ada soal Pilihan Ganda (PG) atau PGK pada paket ujian ini.</div>';
 
     let btnPG = window.pastikanTombolPGKoreksiAda();
     if (btnPG) {
         btnPG.setAttribute('data-jml-pg', String(grupPGdanPGK.length));
     }
 
+    let previewKey = safeKls + "__" + safePkt + "__" + safeNama;
+    let previewFotoSrc = (window._ljkPreviewPhotoMap && window._ljkPreviewPhotoMap[previewKey]) ? window._ljkPreviewPhotoMap[previewKey] : "";
+    let btnFoto = document.getElementById('btn-toggle-foto-ljk');
+    if (btnFoto) btnFoto.style.display = previewFotoSrc ? 'inline-flex' : 'none';
+
+    let fotoPreviewBoxHtml = previewFotoSrc
+        ? '<div id="koreksi-foto-ljk-box" style="display:' + (window._tampilFotoLJKKoreksi ? 'block' : 'none') + '; background:#0f172a; padding:10px; border-radius:10px; text-align:center; border:2px solid #16a085;">' +
+              '<div style="color:#a7f3d0; font-size:11px; font-weight:700; margin-bottom:6px;">🖼️ Pratinjau Foto LJK (Hijau = Silang PG Terdeteksi • Oranye = Baris Isian Terisi)</div>' +
+              '<img src="' + previewFotoSrc + '" style="max-width:100%; max-height:420px; border-radius:6px; object-fit:contain; background:#fff;">' +
+          '</div>'
+        : '';
+
     if (grid) {
         grid.innerHTML =
+            fotoPreviewBoxHtml +
             '<div id="koreksi-section-is-essay" style="display:flex; flex-direction:column; gap:15px;">' + htmlISEssay + '</div>' +
             '<div id="koreksi-section-pg-pgk" style="display:none; flex-direction:column; gap:14px;">' + htmlPGSection + '</div>';
     }
@@ -3515,12 +4429,25 @@ window.hitungSkorLiveKoreksi = function() {
 
     detailArr.forEach(function(h, idx) {
         let tipeUpper = String(h.tipe || h.type || 'PG').trim().toUpperCase();
-        let pAwal = Number(h.poinDidapat !== undefined ? h.poinDidapat : (h.poin || 0)) || 0;
 
-        if (tipeUpper === 'PG' || tipeUpper === 'PGK') {
-            let defaultMax = tipeUpper === 'PGK' ? bobotIdeal.PGK : bobotIdeal.PG;
-            let maxP = (h.maxPoin !== undefined && Number(h.maxPoin) > 0) ? Number(h.maxPoin) : defaultMax;
-            totalPoin += pAwal;
+        if (tipeUpper === 'PG') {
+            let maxP = (h.maxPoin !== undefined && Number(h.maxPoin) > 0) ? Number(h.maxPoin) : bobotIdeal.PG;
+            let chkPG = document.getElementById('chk-koreksi-pg-' + idx);
+            if (chkPG) {
+                if (chkPG.checked) totalPoin += maxP;
+            } else {
+                totalPoin += (Number(h.poinDidapat !== undefined ? h.poinDidapat : (h.poin || 0)) || 0);
+            }
+            totalMax += maxP;
+        } else if (tipeUpper === 'PGK') {
+            let maxP = (h.maxPoin !== undefined && Number(h.maxPoin) > 0) ? Number(h.maxPoin) : bobotIdeal.PGK;
+            let inpPGK = document.getElementById('input-koreksi-pgk-' + idx);
+            if (inpPGK) {
+                let val = Math.max(0, Math.min(1, parseFloat(inpPGK.value) || 0));
+                totalPoin += (val * maxP);
+            } else {
+                totalPoin += (Number(h.poinDidapat !== undefined ? h.poinDidapat : (h.poin || 0)) || 0);
+            }
             totalMax += maxP;
         } else if (tipeUpper === 'IS' || tipeUpper === 'ISIAN' || tipeUpper === 'SHORT_ANSWER') {
             let maxP = (h.maxPoin !== undefined && Number(h.maxPoin) > 0) ? Number(h.maxPoin) : bobotIdeal.IS;
@@ -3531,16 +4458,14 @@ window.hitungSkorLiveKoreksi = function() {
             let maxP = (h.maxPoin !== undefined && Number(h.maxPoin) > 0) ? Number(h.maxPoin) : bobotIdeal.Essay;
             let inp = document.getElementById('input-koreksi-' + idx);
             if (inp) {
-                let val = parseFloat(inp.value) || 0;
-                if (val > 1) val = 1;
-                if (val < 0) val = 0;
+                let val = Math.max(0, Math.min(1, parseFloat(inp.value) || 0));
                 totalPoin += (val * maxP);
             }
             totalMax += maxP;
         }
     });
 
-    let nilaiSkala100 = totalMax > 0 ? ((totalPoin / totalMax) * 100) : totalPoin;
+    let nilaiSkala100 = totalMax > 0 ? ((totalPoin / totalMax) * 100) : (Number(t.data.nilaiAkhir) || 0);
 
     if (t.data.isRemedial) {
         let batasKkm = Number(t.data.maxScore) || (typeof window.dapatkanKKMKelas === "function" ? window.dapatkanKKMKelas(t.kelas) : 75);
@@ -3579,13 +4504,41 @@ window.simpanKoreksiManual = function() {
         let pAwal = Number(h.poinDidapat !== undefined ? h.poinDidapat : (h.poin || 0)) || 0;
         let wasCorrect = pAwal > 0;
 
-        if (tipeUpper === 'PG' || tipeUpper === 'PGK') {
-            let defaultMax = tipeUpper === 'PGK' ? bobotIdeal.PGK : bobotIdeal.PG;
-            let maxP = (h.maxPoin !== undefined && Number(h.maxPoin) > 0) ? Number(h.maxPoin) : defaultMax;
-            h.poinDidapat = pAwal;
+        // Ambil teks jawaban terbaru bila diedit oleh admin (IS / Essay)
+        let inpTeks = document.getElementById('edit-jwb-koreksi-' + idx);
+        if (inpTeks) {
+            let txtBaru = inpTeks.value.trim();
+            h.jawabSiswa = txtBaru;
+            h.jawabanSiswa = txtBaru;
+        }
+
+        if (tipeUpper === 'PG') {
+            let maxP = (h.maxPoin !== undefined && Number(h.maxPoin) > 0) ? Number(h.maxPoin) : bobotIdeal.PG;
+            let chkPG = document.getElementById('chk-koreksi-pg-' + idx);
+            let isChecked = chkPG ? chkPG.checked : wasCorrect;
+            h.poinDidapat = isChecked ? maxP : 0;
+            h.poin = h.poinDidapat;
             h.maxPoin = maxP;
-            totalPoinBaru += pAwal;
+            h.status = isChecked ? "Benar" : "Salah";
+            totalPoinBaru += h.poinDidapat;
             totalMaxBaru += maxP;
+
+            if (!wasCorrect && isChecked) xpTambahanSiswa += window.dapatkanPoinXPPerSoal('PG');
+            else if (wasCorrect && !isChecked) xpTambahanSiswa -= window.dapatkanPoinXPPerSoal('PG');
+        } else if (tipeUpper === 'PGK') {
+            let maxP = (h.maxPoin !== undefined && Number(h.maxPoin) > 0) ? Number(h.maxPoin) : bobotIdeal.PGK;
+            let inpPGK = document.getElementById('input-koreksi-pgk-' + idx);
+            let val = inpPGK ? Math.max(0, Math.min(1, parseFloat(inpPGK.value) || 0)) : (maxP > 0 ? (pAwal / maxP) : 0);
+            h.poinDidapat = val * maxP;
+            h.poin = h.poinDidapat;
+            h.maxPoin = maxP;
+            h.status = val >= 1 ? "Benar Sempurna" : (val > 0 ? "Benar Parsial" : "Salah");
+            totalPoinBaru += h.poinDidapat;
+            totalMaxBaru += maxP;
+
+            let isCorrectNow = val > 0;
+            if (!wasCorrect && isCorrectNow) xpTambahanSiswa += window.dapatkanPoinXPPerSoal('PGK');
+            else if (wasCorrect && !isCorrectNow) xpTambahanSiswa -= window.dapatkanPoinXPPerSoal('PGK');
         } else if (tipeUpper === 'IS' || tipeUpper === 'ISIAN' || tipeUpper === 'SHORT_ANSWER') {
             let maxP = (h.maxPoin !== undefined && Number(h.maxPoin) > 0) ? Number(h.maxPoin) : bobotIdeal.IS;
             let chk = document.getElementById('chk-koreksi-' + idx);
@@ -3602,10 +4555,7 @@ window.simpanKoreksiManual = function() {
         } else if (tipeUpper === 'ESSAY' || tipeUpper === 'ESAI' || tipeUpper === 'URAIAN') {
             let maxP = (h.maxPoin !== undefined && Number(h.maxPoin) > 0) ? Number(h.maxPoin) : bobotIdeal.Essay;
             let inp = document.getElementById('input-koreksi-' + idx);
-            let val = inp ? parseFloat(inp.value) : 0;
-            if (isNaN(val)) val = 0;
-            if (val > 1) val = 1;
-            if (val < 0) val = 0;
+            let val = inp ? Math.max(0, Math.min(1, parseFloat(inp.value) || 0)) : 0;
 
             h.poinDidapat = (val * maxP);
             h.poin = h.poinDidapat;
@@ -3620,7 +4570,7 @@ window.simpanKoreksiManual = function() {
         }
     });
 
-    let nilaiSkala100 = totalMaxBaru > 0 ? ((totalPoinBaru / totalMaxBaru) * 100) : totalPoinBaru;
+    let nilaiSkala100 = totalMaxBaru > 0 ? ((totalPoinBaru / totalMaxBaru) * 100) : (Number(t.data.nilaiAkhir) || 0);
 
     if (t.data.isRemedial) {
         let batasKkm = Number(t.data.maxScore) || (typeof window.dapatkanKKMKelas === "function" ? window.dapatkanKKMKelas(kelasAsli) : 75);
@@ -3640,7 +4590,6 @@ window.simpanKoreksiManual = function() {
     if (!window.adminRekapNilaiData[safeKls][safePkt]) window.adminRekapNilaiData[safeKls][safePkt] = {};
     window.adminRekapNilaiData[safeKls][safePkt][safeNama] = t.data;
 
-    // Bersihkan duplikat kunci mentah jika berbeda dengan kunci yang disanitasi
     if (window.adminRekapNilaiData[kelasAsli] && window.adminRekapNilaiData[kelasAsli][paketAsli] && namaAsli !== safeNama) {
         delete window.adminRekapNilaiData[kelasAsli][paketAsli][namaAsli];
     }
@@ -3670,7 +4619,7 @@ window.simpanKoreksiManual = function() {
         }
     }
 
-    let msg = xpTambahanSiswa > 0 ? "✅ Data diperbarui (Siswa mendapat +" + xpTambahanSiswa + " XP)" : "✅ Data diperbarui";
+    let msg = xpTambahanSiswa > 0 ? "✅ Jawaban & nilai disimpan (+" + xpTambahanSiswa + " XP)" : "✅ Jawaban & nilai diperbarui";
     let toast = document.createElement('div');
     toast.innerText = msg;
     toast.style.cssText = "position:fixed; top:20px; left:50%; transform:translateX(-50%); background:#27ae60; color:white; padding:10px 20px; border-radius:30px; font-family:'Poppins', sans-serif; font-size:13px; font-weight:bold; box-shadow:0 4px 12px rgba(0,0,0,0.15); z-index:9999999; opacity:0; transition:opacity 0.3s;";
@@ -3685,8 +4634,15 @@ window.simpanKoreksiManual = function() {
 };
 
 // =========================================================================
-// 7. LOGIKA KONTROL UJIAN & LIVE MONITOR (TERINTEGRASI DI MANAJER UJIAN)
+// 7. LOGIKA KONTROL UJIAN (EDIT KODE/DURASI/REMEDIAL) & LIVE MONITOR TERPISAH
 // =========================================================================
+window.editingUjianAktifKode = null;
+
+window.buatKeyPaketLiveMonitor = function(namaPaket, isRemedial) {
+    let base = String(namaPaket || "").replace(/\s*\(Remedial\)\s*$/i, "").trim();
+    return isRemedial ? (base + " (Remedial)") : base;
+};
+
 window.bukaModalKontrolUjian = function() {
     window.bukaModal('modal-manajer-ujian');
     if (typeof window.bukaTabManajerUjian === "function") {
@@ -3700,19 +4656,25 @@ window.renderKontrolUjian = function() {
     let prevSelected = selectEl ? selectEl.value : "";
     let htmlOpt = '<option value="">-- Pilih Paket Ujian --</option>';
 
-    let paketAktif = Object.values(window.adminUjianAktifData || {}).map(function(u) { return u.paket; });
+    let aktifValues = Object.values(window.adminUjianAktifData || {});
     let bankKeys = Object.keys(window.adminBankUjianData || {}).sort();
 
+    // Tampilkan semua paket di Bank Ujian agar guru bisa mengaktifkan versi Reguler maupun versi Remedial sekaligus
     bankKeys.forEach(function(k) {
-        if (!paketAktif.includes(k)) {
-            let isSel = (k === prevSelected) ? ' selected' : '';
-            htmlOpt += '<option value="' + k.replace(/"/g, '&quot;') + '"' + isSel + '>' + k + '</option>';
-        }
+        let adaReguler = aktifValues.some(function(u) { return u && u.paket === k && !u.isRemedial; });
+        let adaRemedial = aktifValues.some(function(u) { return u && u.paket === k && u.isRemedial; });
+        let statusTag = '';
+        if (adaReguler && adaRemedial) statusTag = ' [Aktif + Remedial]';
+        else if (adaReguler) statusTag = ' [Aktif]';
+        else if (adaRemedial) statusTag = ' [Remedial Aktif]';
+
+        let isSel = (k === prevSelected) ? ' selected' : '';
+        htmlOpt += '<option value="' + k.replace(/"/g, '&quot;') + '"' + isSel + '>' + k + statusTag + '</option>';
     });
 
     if (selectEl) {
         selectEl.innerHTML = htmlOpt;
-        if (prevSelected && !paketAktif.includes(prevSelected) && bankKeys.includes(prevSelected)) {
+        if (prevSelected && bankKeys.includes(prevSelected)) {
             selectEl.value = prevSelected;
         }
     }
@@ -3731,31 +4693,112 @@ window.renderKontrolUjian = function() {
     let htmlAktif = '';
     aktifKeys.forEach(function(kode) {
         let u = window.adminUjianAktifData[kode] || {};
-        let badgeRemed = u.isRemedial ? ' <span style="background:#e74c3c; color:white; padding:1px 6px; border-radius:4px; font-size:10px;">REMEDIAL (' + (u.kelas || 'Semua') + ')</span>' : '';
-        let safeKode = kode.replace(/'/g, "\\'");
+        let isRem = Boolean(u.isRemedial);
+        let badgeRemed = isRem
+            ? ' <span style="background:#e74c3c; color:white; padding:2px 7px; border-radius:4px; font-size:10px; font-weight:800;">🔥 REMEDIAL' + (u.kelas ? ' (' + u.kelas + ')' : ' (Maks. KKM)') + '</span>'
+            : '';
+        let safeKode = kode.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+        let isEditing = (window.editingUjianAktifKode === kode);
 
-        htmlAktif += '<div style="display:flex; justify-content:space-between; align-items:center; background:#fff; border:1px solid #e1e8ed; padding:12px; border-radius:6px; margin-bottom:8px; border-left:4px solid #27ae60; box-shadow:0 2px 5px rgba(0,0,0,0.02);">' +
-            '<div>' +
-                '<div style="font-weight:bold; color:#2c3e50; font-size:14px; margin-bottom:4px;">🎯 ' + (u.paket || kode) + badgeRemed + '</div>' +
-                '<div style="font-size:11px; color:#7f8c8d;">' +
-                    'Kode Akses: <span style="background:#f1c40f; color:#333; padding:2px 6px; border-radius:4px; font-weight:bold; font-size:12px; letter-spacing:1px;">' + kode + '</span> | Waktu: <span style="font-weight:bold;">' + (u.durasi || 90) + ' Menit</span>' +
+        if (isEditing) {
+            let safeId = kode.replace(/[^a-zA-Z0-9_-]/g, '_');
+            htmlAktif +=
+                '<div style="background:#fef9e7; border:2px solid #f39c12; padding:14px; border-radius:8px; margin-bottom:10px; box-shadow:0 3px 8px rgba(243,156,18,0.15);">' +
+                    '<div style="font-weight:800; color:#0b3954; font-size:14px; margin-bottom:10px;">✏️ Edit Ujian Aktif: ' + (u.paket || kode) + '</div>' +
+                    '<div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px;">' +
+                        '<div style="flex:1; min-width:130px;">' +
+                            '<label style="font-size:11px; font-weight:bold; color:#334155; display:block; margin-bottom:4px;">Kode Akses Baru:</label>' +
+                            '<input type="text" id="edit-kode-ujian-' + safeId + '" class="input-box" value="' + kode.replace(/"/g, '&quot;') + '" style="margin:0; font-weight:bold; text-transform:uppercase; padding:7px;">' +
+                        '</div>' +
+                        '<div style="width:120px;">' +
+                            '<label style="font-size:11px; font-weight:bold; color:#334155; display:block; margin-bottom:4px;">Durasi (Menit):</label>' +
+                            '<input type="number" id="edit-durasi-ujian-' + safeId + '" class="input-box" min="1" value="' + (Number(u.durasi) || 90) + '" style="margin:0; font-weight:bold; padding:7px;">' +
+                        '</div>' +
+                    '</div>' +
+                    '<label style="display:flex; align-items:center; gap:8px; background:#ffffff; border:1px solid #f5b7b1; padding:8px 10px; border-radius:6px; margin-bottom:10px; cursor:pointer; font-size:12px; color:#922b21; font-weight:bold;">' +
+                        '<input type="checkbox" id="edit-remedial-ujian-' + safeId + '" ' + (isRem ? 'checked' : '') + ' style="width:16px; height:16px; accent-color:#c0392b; cursor:pointer;">' +
+                        '<span>🔥 Remedial (Menimpa nilai sebelumnya, maksimal nilai KKM, &amp; pisah di Live Monitor)</span>' +
+                    '</label>' +
+                    '<div style="display:flex; gap:8px; justify-content:flex-end;">' +
+                        '<button type="button" style="background:#94a3b8; color:white; border:none; padding:6px 14px; border-radius:5px; font-size:11px; font-weight:bold; cursor:pointer;" onclick="window.batalEditUjianAktif()">Batal</button>' +
+                        '<button type="button" style="background:#27ae60; color:white; border:none; padding:6px 16px; border-radius:5px; font-size:11px; font-weight:bold; cursor:pointer;" onclick="window.simpanEditUjianAktif(\'' + safeKode + '\', \'' + safeId + '\')">💾 Simpan Perubahan</button>' +
+                    '</div>' +
+                '</div>';
+        } else {
+            htmlAktif += '<div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; background:#fff; border:1px solid #e1e8ed; padding:12px; border-radius:6px; margin-bottom:8px; border-left:4px solid ' + (isRem ? '#e74c3c' : '#27ae60') + '; box-shadow:0 2px 5px rgba(0,0,0,0.02);">' +
+                '<div>' +
+                    '<div style="font-weight:bold; color:#2c3e50; font-size:14px; margin-bottom:4px;">🎯 ' + (u.paket || kode) + badgeRemed + '</div>' +
+                    '<div style="font-size:11px; color:#7f8c8d;">' +
+                        'Kode Akses: <span style="background:#f1c40f; color:#333; padding:2px 6px; border-radius:4px; font-weight:bold; font-size:12px; letter-spacing:1px;">' + kode + '</span> | Waktu: <span style="font-weight:bold;">' + (u.durasi || 90) + ' Menit</span>' +
+                    '</div>' +
                 '</div>' +
-            '</div>' +
-            '<button style="background:#c0392b; color:white; border:none; padding:6px 12px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer; transition:0.2s;" onclick="window.nonaktifkanUjian(\'' + safeKode + '\')" onmouseover="this.style.background=\'#a93226\'" onmouseout="this.style.background=\'#c0392b\'">🛑 Tutup Akses</button>' +
-        '</div>';
+                '<div style="display:flex; gap:6px; align-items:center;">' +
+                    '<button type="button" style="background:#2980b9; color:white; border:none; padding:6px 11px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;" onclick="window.bukaEditUjianAktif(\'' + safeKode + '\')" title="Ubah Kode Akses, Durasi, atau Mode Remedial">✏️ Edit</button>' +
+                    '<button type="button" style="background:#c0392b; color:white; border:none; padding:6px 12px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer; transition:0.2s;" onclick="window.nonaktifkanUjian(\'' + safeKode + '\')" onmouseover="this.style.background=\'#a93226\'" onmouseout="this.style.background=\'#c0392b\'">🛑 Tutup Akses</button>' +
+                '</div>' +
+            '</div>';
+        }
     });
     if (container) container.innerHTML = htmlAktif;
+};
+
+window.bukaEditUjianAktif = function(kode) {
+    window.editingUjianAktifKode = kode;
+    window.renderKontrolUjian();
+};
+
+window.batalEditUjianAktif = function() {
+    window.editingUjianAktifKode = null;
+    window.renderKontrolUjian();
+};
+
+window.simpanEditUjianAktif = function(kodeLama, safeId) {
+    if (!window.adminUjianAktifData || !window.adminUjianAktifData[kodeLama]) return;
+
+    let inpKode = document.getElementById('edit-kode-ujian-' + safeId);
+    let inpDurasi = document.getElementById('edit-durasi-ujian-' + safeId);
+    let chkRem = document.getElementById('edit-remedial-ujian-' + safeId);
+
+    let kodeBaru = inpKode ? inpKode.value.trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '') : '';
+    let durasiBaru = inpDurasi ? parseInt(inpDurasi.value, 10) : 0;
+    let isRemedialBaru = chkRem ? Boolean(chkRem.checked) : false;
+
+    if (!kodeBaru) return alert("⚠️ Kode akses ujian tidak boleh kosong!");
+    if (kodeBaru !== kodeLama && window.adminUjianAktifData[kodeBaru]) {
+        return alert("⚠️ Kode akses \"" + kodeBaru + "\" sudah dipakai oleh ujian aktif lain. Gunakan kode yang berbeda!");
+    }
+    if (!durasiBaru || durasiBaru <= 0) return alert("⚠️ Durasi ujian harus lebih dari 0 menit!");
+
+    let dataUjian = Object.assign({}, window.adminUjianAktifData[kodeLama]);
+    dataUjian.durasi = durasiBaru;
+    dataUjian.isRemedial = isRemedialBaru;
+    if (!isRemedialBaru) {
+        delete dataUjian.maxScore;
+        delete dataUjian.kelas;
+    }
+
+    if (kodeBaru !== kodeLama) {
+        delete window.adminUjianAktifData[kodeLama];
+    }
+    window.adminUjianAktifData[kodeBaru] = dataUjian;
+    window.editingUjianAktifKode = null;
+
+    window.renderKontrolUjian();
+    window.muatDropdownLiveMonitor();
+    if (typeof window.simpanUjianAktifKeDB === "function") window.simpanUjianAktifKeDB();
 };
 
 window.simpanKontrolUjian = function() {
     let elPilih = document.getElementById('admin-pilih-ujian');
     let elKode = document.getElementById('admin-kode-ujian');
     let elDurasi = document.getElementById('admin-durasi-ujian');
+    let elRemedial = document.getElementById('admin-remedial-ujian');
     if (!elPilih || !elKode || !elDurasi) return;
 
     let paket = elPilih.value;
-    let kode = elKode.value.trim().toUpperCase();
+    let kode = elKode.value.trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '');
     let durasi = parseInt(elDurasi.value, 10);
+    let isRemedial = elRemedial ? Boolean(elRemedial.checked) : false;
 
     if (!paket) return alert("Pilih paket ujian terlebih dahulu!");
     if (!kode) return alert("Kode akses ujian tidak boleh kosong!");
@@ -3766,25 +4809,30 @@ window.simpanKontrolUjian = function() {
     window.adminUjianAktifData[kode] = {
         paket: paket,
         durasi: durasi,
+        isRemedial: isRemedial,
         dibuat: new Date().toISOString()
     };
 
     elKode.value = "";
     elDurasi.value = "90";
+    if (elRemedial) elRemedial.checked = false;
 
     window.renderKontrolUjian();
+    window.muatDropdownLiveMonitor();
     if (typeof window.simpanUjianAktifKeDB === "function") window.simpanUjianAktifKeDB();
 };
 
 window.nonaktifkanUjian = function(kode) {
     if (confirm('Yakin ingin menutup akses ujian (Kode: ' + kode + ')? Siswa yang belum masuk tidak akan bisa mengaksesnya lagi.')) {
+        if (window.editingUjianAktifKode === kode) window.editingUjianAktifKode = null;
         if (window.adminUjianAktifData) delete window.adminUjianAktifData[kode];
         window.renderKontrolUjian();
+        window.muatDropdownLiveMonitor();
         if (typeof window.simpanUjianAktifKeDB === "function") window.simpanUjianAktifKeDB();
     }
 };
 
-// --- MESIN LIVE MONITOR UJIAN (SINKRON DENGAN KUNCI SANITASI FIREBASE) ---
+// --- MESIN LIVE MONITOR UJIAN (TERPISAH ANTARA UJIAN REGULER & REMEDIAL) ---
 window.ambilObjekLiveMonitorPaket = function(paket) {
     if (!paket || !window.adminLiveMonitorData) return {};
     let safePkt = window.sanitasiKeyRekapFirebase(paket).toLowerCase();
@@ -3860,8 +4908,20 @@ window.muatDropdownLiveMonitor = function() {
         }
     }
 
-    Object.keys(window.adminBankUjianData || {}).forEach(function(p) { tambahPaketMonitor(p, p); });
-    Object.values(window.adminUjianAktifData || {}).forEach(function(u) { if (u && u.paket) tambahPaketMonitor(u.paket, u.paket); });
+    // 1. Semua paket reguler di Bank Ujian
+    Object.keys(window.adminBankUjianData || {}).forEach(function(p) {
+        tambahPaketMonitor(p, p);
+    });
+
+    // 2. Semua ujian yang sedang aktif (memisahkan Reguler vs "(Remedial)")
+    Object.values(window.adminUjianAktifData || {}).forEach(function(u) {
+        if (u && u.paket) {
+            let monKey = window.buatKeyPaketLiveMonitor(u.paket, Boolean(u.isRemedial));
+            tambahPaketMonitor(monKey, monKey);
+        }
+    });
+
+    // 3. Semua riwayat Live Monitor yang sudah tercatat (Reguler maupun Remedial)
     Object.keys(window.adminLiveMonitorData || {}).forEach(function(p) {
         let klsMap = window.adminLiveMonitorData[p] || {};
         let firstKls = Object.values(klsMap)[0] || {};
@@ -3881,7 +4941,7 @@ window.muatDropdownLiveMonitor = function() {
     if (!selPaket.value) {
         let aktifValues = Object.values(window.adminUjianAktifData || {});
         if (aktifValues.length === 1 && aktifValues[0].paket) {
-            selPaket.value = aktifValues[0].paket;
+            selPaket.value = window.buatKeyPaketLiveMonitor(aktifValues[0].paket, Boolean(aktifValues[0].isRemedial));
         } else if (daftarPaket.length === 1) {
             selPaket.value = daftarPaket[0];
         }

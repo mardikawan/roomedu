@@ -198,10 +198,12 @@
                     <div style="background:#eaf2f8; border-left:4px solid #2980b9; padding:8px 10px; border-radius:4px; font-size:11px; color:#2c3e50; margin-bottom:12px;">
                         📧 Link verifikasi resmi dikirim ke <b>Gmail</b> Anda (1 Gmail maksimal untuk 5 akun, dan login tetap menggunakan <b>Username</b>).
                     </div>
-                    <label style="font-size:11px; font-weight:bold; color:#2c3e50;">1. Pilih Kelas (Atau Kelas Umum):</label>
-                    <select id="reg-select-kelas" class="input-box" style="margin-bottom:10px; font-weight:bold;" onchange="window.updateDropdownNamaRegistrasi()"></select>
+                    <label style="font-size:11px; font-weight:bold; color:#2c3e50;">1. Kategori Akun:</label>
+                    <select id="reg-select-kelas" class="input-box" style="margin-bottom:10px; font-weight:bold;" onchange="window.updateDropdownNamaRegistrasi()">
+                        <option value="Umum" selected>🌍 Umum</option>
+                    </select>
 
-                    <label style="font-size:11px; font-weight:bold; color:#2c3e50;">2. Nama Lengkap Siswa:</label>
+                    <label style="font-size:11px; font-weight:bold; color:#2c3e50;">2. Nama Lengkap:</label>
                     <select id="reg-select-nama" class="input-box" style="margin-bottom:8px; font-weight:bold;" onchange="window.isiOtomatisUsernameReg()"></select>
                     <input type="text" id="reg-input-nama-baru" class="input-box" placeholder="Ketik Nama Lengkap Anda..." style="display:none; margin-bottom:10px; font-weight:bold;">
 
@@ -490,7 +492,7 @@
                         </select>
                     </div>
                     <div style="display:flex; gap:8px;">
-                        <input type="file" id="input-file-ljk" accept="image/*" capture="environment" style="display:none;" onchange="window.prosesUploadLJK(this)">
+                        <input type="file" id="input-file-ljk" accept="image/*" style="display:none;" onchange="window.prosesUploadLJK(this)">
                         <button class="btn-action" style="background:#e74c3c; width:auto; padding:8px 15px;" onclick="window.bukaModalRemedial()">🔥 Remedial</button>
                         <button class="btn-action" style="background:#3498db; width:auto; padding:8px 15px;" onclick="window.bukaModalSpreadsheetNilai()">📊 Spreadsheet Nilai</button>
                         <button class="btn-action" style="background:#27ae60; width:auto; padding:8px 15px;" onclick="window.exportExcelRekapNilai()">📥 Export Rekap (Skala 0-1)</button>
@@ -732,12 +734,19 @@
                     <div id="tab-ujian-kontrol" class="ujian-tab-content" style="display:none; gap:20px; flex:1; overflow-y:auto; flex-wrap:wrap; align-content:flex-start;">
                         <div style="flex:1; min-width:300px; background:#f8f9fa; border:1px solid #e1e8ed; padding:18px; border-radius:8px;">
                             <h4 style="margin:0 0 12px 0; color:#2c3e50; border-bottom:2px solid #e1e8ed; padding-bottom:8px;">➕ Aktifkan Ujian Baru</h4>
-                            <label style="font-weight:bold;font-size:12px;display:block;color:#2c3e50;margin-bottom:5px;">Pilih Paket Ujian (Yang Belum Aktif):</label>
+                            <label style="font-weight:bold;font-size:12px;display:block;color:#2c3e50;margin-bottom:5px;">Pilih Paket Ujian:</label>
                             <select id="admin-pilih-ujian" class="input-box"></select>
                             <label style="font-weight:bold;font-size:12px;display:block;color:#2c3e50;margin-bottom:5px;">Kode Akses Ujian:</label>
                             <input type="text" id="admin-kode-ujian" class="input-box" placeholder="Contoh: BIO100" style="font-weight:bold;text-transform:uppercase;">
                             <label style="font-weight:bold;font-size:12px;display:block;color:#2c3e50;margin-bottom:5px;">Durasi Waktu Ujian (Menit):</label>
                             <input type="number" id="admin-durasi-ujian" class="input-box" placeholder="Contoh: 90" value="90" style="font-weight:bold;">
+                            <label style="display:flex; align-items:flex-start; gap:8px; background:#fdf2f2; border:1px solid #f5b7b1; padding:10px 12px; border-radius:6px; margin-bottom:12px; cursor:pointer;">
+                                <input type="checkbox" id="admin-remedial-ujian" style="width:17px; height:17px; margin-top:2px; accent-color:#c0392b; cursor:pointer;">
+                                <span style="font-size:12px; color:#922b21; line-height:1.4;">
+                                    <b>🔥 Remedial</b><br>
+                                    <span style="font-size:11px; font-weight:normal; color:#7f8c8d;">Menimpa nilai ujian sebelumnya dengan batas maksimal KKM kelas &amp; tampil terpisah di Live Monitor.</span>
+                                </span>
+                            </label>
                             <button class="btn-action" style="background:#27ae60; margin-top:5px;" onclick="simpanKontrolUjian()">Aktifkan Ujian 🚀</button>
                         </div>
                         <div style="flex:1.4; min-width:320px; background:#ffffff; border:1px solid #e1e8ed; padding:18px; border-radius:8px;">
@@ -1286,7 +1295,7 @@
         <span onclick="window.bukaModal('modal-rekap-nilai')">📊 Rekap Nilai</span>
         <span onclick="window.bukaModalPerkembanganSiswa()" style="color:#27ae60; font-weight:900;">📈 Perkembangan Siswa</span>
         <span onclick="window.bukaWelcomePopup()">📢 Popup</span>
-        <span onclick="window.cetakMateriHalamanA4()" style="color:#16a085; font-weight:900;">🖨️ Cetak Materi (A4)</span>
+        <span onclick="window.bukaModal('modal-jadwal-guru'); window.gantiTabJadwalGuru('excel');" style="color:#16a085; font-weight:900;">📅 Jadwal Pelajaran</span>
         <!-- TOMBOL BARU CATATAN GURU -->
         <span onclick="window.bukaCatatanGuru()" style="color:#e67e22; font-weight:900; border-left:2px solid #eee; padding-left:15px;">📝 Catatan Guru</span>
     </div>
@@ -2154,6 +2163,7 @@
     <script src="./my-pet-engine.js"></script>
     <script src="./my-garden-engine.js"></script>
     <script src="./my-farm-engine.js"></script>
+    <script src="./my-lab-engine.js"></script>
     <script src="./my-world-hub.js"></script>
     <script type="module" src="./firebase-db.js"></script>
 <!-- =======================================================================

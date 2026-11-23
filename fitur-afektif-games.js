@@ -507,18 +507,36 @@ window.renderStepPenutupCheckin = function() {
 
 window.selesaikanCheckinHarian = function() {
     let stat = sessionStorage.getItem("statusLogin");
-    let uName = sessionStorage.getItem("username") || "admin";
+    let uName = (sessionStorage.getItem("username") || "admin").trim();
+    let cleanKey = (typeof window.normalisasiUsernameSiswa === "function")
+        ? window.normalisasiUsernameSiswa(uName)
+        : uName.toLowerCase();
     let keyHariIni = window.dapatkanKunciHariCheckin();
 
     let namaLengkap = uName;
     let kelasSiswa = "Umum";
 
-    if (window.akunSiswaData && window.akunSiswaData[uName]) {
-        namaLengkap = window.akunSiswaData[uName].namaLengkap || uName;
-        kelasSiswa = window.akunSiswaData[uName].kelas || "Umum";
-    } else if (window.leaderboardSiswaData && window.leaderboardSiswaData[uName]) {
-        namaLengkap = window.leaderboardSiswaData[uName].namaLengkap || uName;
-        kelasSiswa = window.leaderboardSiswaData[uName].kelas || "Umum";
+    let akunObj = null;
+    if (window.akunSiswaData) {
+        akunObj = window.akunSiswaData[uName] || window.akunSiswaData[cleanKey] || null;
+        if (!akunObj) {
+            let kFound = Object.keys(window.akunSiswaData).find(function(k) {
+                return k.toLowerCase() === cleanKey;
+            });
+            if (kFound) akunObj = window.akunSiswaData[kFound];
+        }
+    }
+    let lbObj = null;
+    if (window.leaderboardSiswaData) {
+        lbObj = window.leaderboardSiswaData[uName] || window.leaderboardSiswaData[cleanKey] || null;
+    }
+
+    if (akunObj) {
+        namaLengkap = akunObj.namaLengkap || uName;
+        kelasSiswa = akunObj.kelas || "Umum";
+    } else if (lbObj) {
+        namaLengkap = lbObj.namaLengkap || uName;
+        kelasSiswa = lbObj.kelas || "Umum";
     }
 
     let now = new Date();
@@ -528,9 +546,12 @@ window.selesaikanCheckinHarian = function() {
                    String(now.getHours()).padStart(2, '0') + ':' +
                    String(now.getMinutes()).padStart(2, '0');
 
+    let safeUserId = String(cleanKey || "siswa").replace(/[^a-zA-Z0-9_-]/g, "_");
+    let safeRecordId = "af_" + Date.now() + "_" + safeUserId;
+
     let recordAfektif = {
-        id: "af_" + Date.now() + "_" + uName,
-        username: uName,
+        id: safeRecordId,
+        username: cleanKey || uName,
         nama: namaLengkap,
         kelas: kelasSiswa,
         tanggalKey: keyHariIni.split('_')[0],
@@ -542,11 +563,29 @@ window.selesaikanCheckinHarian = function() {
         jawaban2: window.checkinState.jawaban2 || "-"
     };
 
-    if (!Array.isArray(window.adminAfektifData)) window.adminAfektifData = [];
+    if (!Array.isArray(window.adminAfektifData)) {
+        window.adminAfektifData = (typeof window.normalisasiArrayDataFirebase === "function")
+            ? window.normalisasiArrayDataFirebase(window.adminAfektifData)
+            : [];
+    }
     window.adminAfektifData.push(recordAfektif);
 
-    if (typeof window.simpanDataAfektifKeDB === "function") {
-        window.simpanDataAfektifKeDB();
+    // Kirim HANYA 1 entri unik ini ke node resmi admin_afektif_siswa agar 100% aman dan tidak menimpa siswa lain
+    let guru = String(window.guruAktif || sessionStorage.getItem("guruTarget") || "mahardika").trim().toLowerCase();
+    let pathAfektif = "data_guru/" + guru + "/admin_afektif_siswa/" + safeRecordId;
+
+    let kirimCheckinKeServer = function() {
+        if (typeof window.tulisDataRestFirebase === "function") {
+            window.tulisDataRestFirebase(pathAfektif, recordAfektif, "PUT");
+        } else if (typeof window.simpanDataAfektifKeDB === "function") {
+            window.simpanDataAfektifKeDB();
+        }
+    };
+
+    if (stat === "siswa" && typeof window.pastikanAuthFirebaseSiswaAktif === "function") {
+        window.pastikanAuthFirebaseSiswaAktif(kirimCheckinKeServer);
+    } else {
+        kirimCheckinKeServer();
     }
 
     if (stat === "siswa") {
@@ -602,18 +641,7 @@ window.bukaModalPerkembanganSiswa = function() {
     window.bukaModal("modal-perkembangan-siswa");
     window.pastikanTombolRefreshPerkembanganAda();
     window.gantiTabPerkembanganSiswa(window._activeTabPerkembangan || "kognitif");
-
-    // Tarik otomatis data dari Firebase jika memori lokal masih kosong / belum lengkap
-    let perluTarik =
-        !window.adminData || Object.keys(window.adminData).length === 0 ||
-        !window.adminRekapNilaiData || Object.keys(window.adminRekapNilaiData).length === 0 ||
-        window.normalisasiArrayDataFirebase(window.adminAfektifData).length === 0 ||
-        !window._lastFullLBFetchTime ||
-        (Date.now() - window._lastSyncPerkembanganMs > 180000);
-
-    if (perluTarik) {
-        window.sinkronkanDataPerkembanganDariServer(false);
-    }
+    window.sinkronkanDataPerkembanganDariServer(false);
 };
 
 window.pastikanTombolRefreshPerkembanganAda = function() {
@@ -652,53 +680,45 @@ window.sinkronkanDataPerkembanganDariServer = function(forceRefresh) {
     if (btnA) { btnA.disabled = true; btnA.innerText = "⏳ Memuat..."; }
 
     let tasks = [];
-    let bacaAman = function(subPath) {
+    let bacaAman = function(subPath, ttlCustom) {
         return new Promise(function(resolve) {
             if (typeof window.bacaDataRestFirebase !== "function") return resolve(null);
             window.bacaDataRestFirebase(basePath + "/" + subPath, function(val) {
                 resolve(val);
             }, function() {
                 resolve(null);
-            }, { forceRefresh: Boolean(forceRefresh), ttlMs: forceRefresh ? 0 : 120000 });
+            }, { forceRefresh: Boolean(forceRefresh), ttlMs: forceRefresh ? 0 : (ttlCustom !== undefined ? ttlCustom : 60000) });
         });
     };
 
-    // 1. Daftar Kelas & Siswa
+    // 1. Daftar Kelas & Siswa (admin_data)
     if (forceRefresh || !window.adminData || Object.keys(window.adminData).length === 0) {
-        tasks.push(bacaAman("admin_data").then(function(val) {
+        tasks.push(bacaAman("admin_data", 120000).then(function(val) {
             if (val && typeof val === "object") window.adminData = val;
         }));
     }
 
-    // 2. Rekap Nilai Ujian (cek admin_rekap dan fallback rekap_nilai)
+    // 2. Rekap Nilai Ujian & Meta Kolom Ledger (admin_rekap_nilai & admin_ledger_meta)
     if (forceRefresh || !window.adminRekapNilaiData || Object.keys(window.adminRekapNilaiData).length === 0) {
-        tasks.push(bacaAman("admin_rekap").then(function(val) {
+        tasks.push(bacaAman("admin_rekap_nilai", 60000).then(function(val) {
             if (val && typeof val === "object" && Object.keys(val).length > 0) {
                 window.adminRekapNilaiData = val;
-                return;
             }
-            return bacaAman("rekap_nilai").then(function(val2) {
-                if (val2 && typeof val2 === "object" && Object.keys(val2).length > 0) {
-                    window.adminRekapNilaiData = val2;
-                }
-            });
+        }));
+    }
+    if (forceRefresh || !window.adminLedgerMetaData || Object.keys(window.adminLedgerMetaData).length === 0) {
+        tasks.push(bacaAman("admin_ledger_meta", 120000).then(function(val) {
+            if (val && typeof val === "object") window.adminLedgerMetaData = val;
         }));
     }
 
-    // 3. Data Check-in Afektif (cek admin_afektif dan fallback data_afektif)
-    if (forceRefresh || window.normalisasiArrayDataFirebase(window.adminAfektifData).length === 0) {
-        tasks.push(bacaAman("admin_afektif").then(function(val) {
-            let arr = window.normalisasiArrayDataFirebase(val);
-            if (arr.length > 0) {
-                window.adminAfektifData = arr;
-                return;
-            }
-            return bacaAman("data_afektif").then(function(val2) {
-                let arr2 = window.normalisasiArrayDataFirebase(val2);
-                if (arr2.length > 0) window.adminAfektifData = arr2;
-            });
-        }));
-    }
+    // 3. Data Check-in Afektif (NODE RESMI: admin_afektif_siswa — selalu segarkan agar check-in terbaru langsung tampil)
+    tasks.push(bacaAman("admin_afektif_siswa", 15000).then(function(val) {
+        let arr = window.normalisasiArrayDataFirebase(val);
+        if (arr.length > 0 || forceRefresh) {
+            window.adminAfektifData = arr;
+        }
+    }));
 
     // 4. Leaderboard Penuh (untuk XP & jumlah soal latihan mandiri)
     if (typeof window.muatLeaderboardPenuhSekali === "function" && (forceRefresh || !window._lastFullLBFetchTime)) {
@@ -720,6 +740,33 @@ window.sinkronkanDataPerkembanganDariServer = function(forceRefresh) {
             window.renderTabelKognitifAdmin();
         }
     });
+};
+
+window.gantiTabPerkembanganSiswa = function(tab) {
+    window._activeTabPerkembangan = tab || "kognitif";
+    let btnKog = document.getElementById("btn-tab-perkembangan-kognitif");
+    let btnAfe = document.getElementById("btn-tab-perkembangan-afektif");
+    let viewKog = document.getElementById("view-perkembangan-kognitif");
+    let viewAfe = document.getElementById("view-perkembangan-afektif");
+
+    if (tab === "kognitif") {
+        if (btnKog) { btnKog.style.background = "#0b3954"; btnKog.style.color = "white"; }
+        if (btnAfe) { btnAfe.style.background = "#ffffff"; btnAfe.style.color = "#333"; }
+        if (viewKog) viewKog.style.display = "flex";
+        if (viewAfe) viewAfe.style.display = "none";
+        window.muatFilterKognitifAdmin();
+        window.renderTabelKognitifAdmin();
+    } else {
+        if (btnAfe) { btnAfe.style.background = "#27ae60"; btnAfe.style.color = "white"; }
+        if (btnKog) { btnKog.style.background = "#ffffff"; btnKog.style.color = "#333"; }
+        if (viewKog) viewKog.style.display = "none";
+        if (viewAfe) viewAfe.style.display = "flex";
+        window.muatFilterKelasAfektif();
+        window.renderTabelAfektifAdmin();
+        if (Date.now() - (window._lastSyncPerkembanganMs || 0) > 15000) {
+            window.sinkronkanDataPerkembanganDariServer(false);
+        }
+    }
 };
 
 window.gantiTabPerkembanganSiswa = function(tab) {

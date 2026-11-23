@@ -19,6 +19,7 @@ window.MY_GARDEN_CATALOG = {
         { id: "daisy",         nama: "Bunga Daisy",            latin: "Bellis perennis",          rarity: "Common",    harga: 60,   panenCoin: 130,  panenXp: 12,  durasiDetik: 3600,   durasiLabel: "1 jam",  deskripsi: "Bunga majemuk Asteraceae berwarna putih dengan cakram kuning cerah." },
         { id: "tulip",         nama: "Tulip Merah",            latin: "Tulipa gesneriana",        rarity: "Common",    harga: 90,   panenCoin: 195,  panenXp: 15,  durasiDetik: 7200,   durasiLabel: "2 jam",  deskripsi: "Tumbuhan monokotil berbunga merah cerah yang berkembang biak dengan umbi lapis." },
         { id: "tomat",         nama: "Tomat Ceri",             latin: "Solanum lycopersicum",     rarity: "Uncommon",  harga: 130,  panenCoin: 280,  panenXp: 18,  durasiDetik: 10800,  durasiLabel: "3 jam",  deskripsi: "Buah buni merah segar anggota Solanaceae yang kaya likopen dan vitamin C." },
+        { id: "pukul_empat",   nama: "Bunga Pukul Empat",      latin: "Mirabilis jalapa",         rarity: "Uncommon",  harga: 150,  panenCoin: 330,  panenXp: 20,  durasiDetik: 10800,  durasiLabel: "3 jam",  deskripsi: "Flora model genetika klasik (Merah, Merah Muda, Putih) yang mekar menjelang sore hari." },
         { id: "matahari",      nama: "Bunga Matahari",         latin: "Helianthus annuus",        rarity: "Uncommon",  harga: 180,  panenCoin: 390,  panenXp: 22,  durasiDetik: 14400,  durasiLabel: "4 jam",  deskripsi: "Bunga ceria yang menunjukkan gerak fototropisme mengikuti arah matahari." },
         { id: "stroberi",      nama: "Stroberi Manis",         latin: "Fragaria × ananassa",      rarity: "Uncommon",  harga: 240,  panenCoin: 520,  panenXp: 25,  durasiDetik: 18000,  durasiLabel: "5 jam",  deskripsi: "Buah semu merah manis yang berkembang biak vegetatif menggunakan stolon." },
         { id: "kaktus",        nama: "Kaktus Emas",            latin: "Echinocactus grusonii",    rarity: "Rare",      harga: 350,  panenCoin: 770,  panenXp: 35,  durasiDetik: 21600,  durasiLabel: "6 jam",  deskripsi: "Tumbuhan xerofit berduri dengan batang sukulen penyimpan air dan fotosintesis CAM." },
@@ -60,6 +61,11 @@ window.MY_GARDEN_PLANT_QUIZ = {
         { q: "Pigmen karotenoid yang menyebabkan buah tomat matang berwarna merah cerah adalah...", opts: ["Xantofil", "Likopen", "Klorofil b", "Fikoeritrin"], ans: 1, info: "Likopen adalah pigmen karotenoid merah sekaligus antioksidan kuat pada tomat." },
         { q: "Secara botani, buah tomat yang berdaging tebal dengan banyak biji di dalamnya digolongkan sebagai...", opts: ["Buah buni (berry)", "Buah polong", "Buah batu (drupa)", "Buah semu"], ans: 0, info: "Tomat adalah buah sejati berdaging tipe buah buni (berry)." },
         { q: "Tumbuhan tomat (Solanum lycopersicum) satu famili dengan kentang dan terung, yaitu famili...", opts: ["Rutaceae", "Solanaceae", "Malvaceae", "Arecaceae"], ans: 1, info: "Tomat, kentang, cabai, dan terung tergabung dalam famili Solanaceae." }
+    ],
+    pukul_empat: [
+        { q: "Bunga Pukul Empat (Mirabilis jalapa) terkenal dalam kajian genetika karena persilangan bunga merah (MM) dan putih (mm) menghasilkan F1 berwarna merah muda (Mm). Sifat ini disebut...", opts: ["Dominansi penuh", "Intermediet (dominansi tak sempurna)", "Epistasis resesif", "Mutasi kromosom"], ans: 1, info: "Pada sifat intermediet, alel dominan tidak menutupi alel resesif secara penuh sehingga muncul warna antara (merah muda)." },
+        { q: "Gerak mekarnya bunga Mirabilis jalapa secara rutin pada sore hari akibat perubahan intensitas cahaya disebut gerak...", opts: ["Fotonasti", "Seismonasti", "Geotropisme", "Hidrotropisme"], ans: 0, info: "Fotonasti adalah gerak nasti tumbuhan yang dipengaruhi oleh rangsangan perubahan cahaya." },
+        { q: "Menurut Hukum Mendel I (Segregasi Bebas), pada saat pembentukan gamet dari individu bergenotipe Mm, alel M dan m akan...", opts: ["Selalu menempel bersama dalam satu gamet", "Memisah secara bebas sehingga terbentuk gamet M dan gamet m", "Menghilang seluruhnya", "Berubah menjadi alel resesif ganda"], ans: 1, info: "Hukum Segregasi Bebas menyatakan pasangan alel memisah secara bebas saat pembelahan meiosis." }
     ],
     matahari: [
         { q: "Gerak pucuk bunga matahari muda mengikuti pergerakan arah datangnya cahaya matahari disebut...", opts: ["Geotropisme", "Fototropisme / Heliotropisme", "Kemotropisme", "Tigmonasti"], ans: 1, info: "Heliotropisme adalah bentuk fototropisme yang dipengaruhi distribusi hormon auksin." },
@@ -121,6 +127,79 @@ window.MY_GARDEN_PLANT_QUIZ = {
         { q: "Reaksi terang fotosintesis yang menghasilkan ATP, NADPH, dan oksigen berlangsung di bagian kloroplas bernama...", opts: ["Stroma", "Grana (membran tilakoid)", "Krista mitokondria", "Ribosom"], ans: 1, info: "Reaksi terang terjadi di membran tilakoid (grana), sedangkan Siklus Calvin terjadi di stroma." },
         { q: "Proses keluarnya uap air dari tumbuhan melalui stomata daun ke atmosfer disebut...", opts: ["Gutasi", "Transpirasi", "Respirasi anaerob", "Imbibisi"], ans: 1, info: "Transpirasi membantu daya isap daun untuk menaikkan air lewat pembuluh xilem." }
     ]
+};
+
+// Kamus Variasi Warna & Sifat Genetik My Garden (Monohibrid, Intermediet, & Dihibrid)
+window.MY_GARDEN_GENE_VARIANTS = {
+    tulip: {
+        MM: { label: "Merah Dominan",    primary: "#f43f5e", secondary: "#fb7185", stroke: "#9f1239", bonusMult: 1.05 },
+        Mm: { label: "Merah Hibrida",    primary: "#e11d48", secondary: "#fb7185", stroke: "#881337", bonusMult: 1.12 },
+        Mp: { label: "Merah Muda",       primary: "#f472b6", secondary: "#fbcfe8", stroke: "#be185d", bonusMult: 1.25 },
+        mm: { label: "Putih Resesif",    primary: "#f8fafc", secondary: "#e2e8f0", stroke: "#64748b", bonusMult: 1.30 },
+        kk: { label: "Kuning Emas",      primary: "#facc15", secondary: "#fef08a", stroke: "#a16207", bonusMult: 1.25 },
+        uu: { label: "Ungu Royal",       primary: "#a855f7", secondary: "#d8b4fe", stroke: "#581c87", bonusMult: 1.35 }
+    },
+    pukul_empat: {
+        MM: { label: "Merah Dominan",    primary: "#e11d48", secondary: "#fb7185", stroke: "#881337", bonusMult: 1.05 },
+        Mm: { label: "Merah Hibrida",    primary: "#f43f5e", secondary: "#fda4af", stroke: "#9f1239", bonusMult: 1.12 },
+        Mp: { label: "Pink Intermediet", primary: "#f472b6", secondary: "#fbcfe8", stroke: "#be185d", bonusMult: 1.25 },
+        mm: { label: "Putih Resesif",    primary: "#ffffff", secondary: "#f1f5f9", stroke: "#64748b", bonusMult: 1.30 },
+        kk: { label: "Kuning Cerah",     primary: "#facc15", secondary: "#fef08a", stroke: "#a16207", bonusMult: 1.25 }
+    },
+    daisy: {
+        MM: { label: "Putih Dominan",    primary: "#ffffff", secondary: "#facc15", stroke: "#94a3b8", bonusMult: 1.05 },
+        Mm: { label: "Putih Hibrida",    primary: "#f8fafc", secondary: "#fbbf24", stroke: "#94a3b8", bonusMult: 1.12 },
+        Mp: { label: "Pink Pastel",      primary: "#fbcfe8", secondary: "#facc15", stroke: "#db2777", bonusMult: 1.25 },
+        mm: { label: "Biru Resesif",     primary: "#7dd3fc", secondary: "#fef08a", stroke: "#0284c7", bonusMult: 1.30 },
+        kk: { label: "Kuning Mentari",   primary: "#fef08a", secondary: "#f97316", stroke: "#ca8a04", bonusMult: 1.25 }
+    },
+    anggrek: {
+        MM: { label: "Putih Dominan",    primary: "#ffffff", secondary: "#facc15", stroke: "#cbd5e1", bonusMult: 1.05 },
+        Mm: { label: "Putih Hibrida",    primary: "#f8fafc", secondary: "#f59e0b", stroke: "#cbd5e1", bonusMult: 1.12 },
+        Mp: { label: "Ungu Lavender",    primary: "#e9d5ff", secondary: "#a855f7", stroke: "#7e22ce", bonusMult: 1.25 },
+        mm: { label: "Kuning Emas",      primary: "#fef08a", secondary: "#ea580c", stroke: "#ca8a04", bonusMult: 1.30 }
+    }
+};
+
+window.parseSeedKeyGarden = function(rawKey) {
+    let str = String(rawKey || "");
+    if (str.indexOf("__") !== -1) {
+        let parts = str.split("__");
+        return { baseId: parts[0], geneCode: parts[1] || "" };
+    }
+    return { baseId: str, geneCode: "" };
+};
+
+window.ambilInfoVarianGenetikGarden = function(plantId, geneCode) {
+    if (!geneCode) return null;
+    let clean = String(geneCode).trim();
+    // Mendukung 2 huruf (Monohibrid/Intermediet) & 4 huruf (Dihibrid: 2 huruf warna + 2 huruf ukuran)
+    let colorKey = clean.length >= 2 ? clean.slice(0, 2) : clean;
+    let sizeKey = clean.length >= 4 ? clean.slice(2, 4) : "";
+
+    let mapPlant = window.MY_GARDEN_GENE_VARIANTS[plantId];
+    let v = (mapPlant && mapPlant[colorKey]) ? mapPlant[colorKey] : null;
+    if (!v) return null;
+
+    let sizeScale = 1.0;
+    let sizeLabel = "";
+    if (sizeKey === "bb") {
+        sizeScale = 0.82;
+        sizeLabel = " Mini";
+    } else if (sizeKey === "BB" || sizeKey === "Bb") {
+        sizeScale = 1.08;
+        sizeLabel = " Besar";
+    }
+
+    return {
+        code: clean,
+        label: v.label + sizeLabel,
+        primary: v.primary,
+        secondary: v.secondary,
+        stroke: v.stroke,
+        bonusMult: v.bonusMult || 1.1,
+        sizeScale: sizeScale
+    };
 };
 
 (function kunciKatalogGarden() {
@@ -338,8 +417,9 @@ window.perbaruiCountdownLiveGarden = function() {
 // =========================================================================
 // 3. GENERATOR SVG 2.5D UNTUK 16 TANAMAN + FASE BIBIT, TUMBUH, LAYU, & GEMBOK
 // =========================================================================
-window.bangunSVGTanamanKebun = function(plantId, status, sizePx) {
+window.bangunSVGTanamanKebun = function(plantId, status, sizePx, geneCode) {
     let sz = sizePx || 72;
+    let gVar = window.ambilInfoVarianGenetikGarden(plantId, geneCode);
 
     if (status === "empty") {
         return '<svg viewBox="0 0 120 120" width="' + sz + '" height="' + sz + '"><ellipse cx="60" cy="88" rx="40" ry="14" fill="#6b3e1b" opacity="0.45"/><circle cx="48" cy="86" r="4" fill="#4a2810" opacity="0.5"/><circle cx="68" cy="91" r="5" fill="#4a2810" opacity="0.5"/><circle cx="78" cy="83" r="3" fill="#4a2810" opacity="0.5"/></svg>';
@@ -386,20 +466,49 @@ window.bangunSVGTanamanKebun = function(plantId, status, sizePx) {
             '<path d="M38,52 Q60,42 82,52 L67,102 Q60,110 53,102 Z" fill="#f97316" stroke="#9a3412" stroke-width="3.5" stroke-linejoin="round"/>' +
             '<path d="M46,64 L58,64 M62,74 L73,74 M50,84 L62,84" stroke="#c2410c" stroke-width="3" stroke-linecap="round"/>',
 
-        daisy:
-            '<ellipse cx="60" cy="100" rx="36" ry="9" fill="#4a2810" opacity="0.4"/>' +
-            '<path d="M60,98 L60,44 M60,96 Q42,76 34,58 M60,96 Q78,76 86,58" fill="none" stroke="#15803d" stroke-width="5" stroke-linecap="round"/>' +
-            '<g transform="translate(60,36)"><circle cx="0" cy="-14" r="9" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/><circle cx="13" cy="-5" r="9" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/><circle cx="8" cy="11" r="9" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/><circle cx="-8" cy="11" r="9" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/><circle cx="-13" cy="-5" r="9" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/><circle cx="0" cy="0" r="9" fill="#facc15" stroke="#ca8a04" stroke-width="2"/></g>' +
-            '<g transform="translate(32,56) scale(0.75)"><circle cx="0" cy="-14" r="9" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/><circle cx="13" cy="-5" r="9" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/><circle cx="8" cy="11" r="9" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/><circle cx="-8" cy="11" r="9" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/><circle cx="-13" cy="-5" r="9" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/><circle cx="0" cy="0" r="9" fill="#facc15" stroke="#ca8a04" stroke-width="2"/></g>' +
-            '<g transform="translate(88,56) scale(0.75)"><circle cx="0" cy="-14" r="9" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/><circle cx="13" cy="-5" r="9" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/><circle cx="8" cy="11" r="9" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/><circle cx="-8" cy="11" r="9" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/><circle cx="-13" cy="-5" r="9" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/><circle cx="0" cy="0" r="9" fill="#facc15" stroke="#ca8a04" stroke-width="2"/></g>',
+        daisy: (function() {
+            let pCol = gVar ? gVar.primary : "#ffffff";
+            let cCol = gVar ? gVar.secondary : "#facc15";
+            let sCol = gVar ? gVar.stroke : "#cbd5e1";
+            let floret = '<circle cx="0" cy="-14" r="9" fill="' + pCol + '" stroke="' + sCol + '" stroke-width="2"/><circle cx="13" cy="-5" r="9" fill="' + pCol + '" stroke="' + sCol + '" stroke-width="2"/><circle cx="8" cy="11" r="9" fill="' + pCol + '" stroke="' + sCol + '" stroke-width="2"/><circle cx="-8" cy="11" r="9" fill="' + pCol + '" stroke="' + sCol + '" stroke-width="2"/><circle cx="-13" cy="-5" r="9" fill="' + pCol + '" stroke="' + sCol + '" stroke-width="2"/><circle cx="0" cy="0" r="9" fill="' + cCol + '" stroke="#ca8a04" stroke-width="2"/>';
+            return '<ellipse cx="60" cy="100" rx="36" ry="9" fill="#4a2810" opacity="0.4"/>' +
+                '<path d="M60,98 L60,44 M60,96 Q42,76 34,58 M60,96 Q78,76 86,58" fill="none" stroke="#15803d" stroke-width="5" stroke-linecap="round"/>' +
+                '<g transform="translate(60,36)">' + floret + '</g>' +
+                '<g transform="translate(32,56) scale(0.75)">' + floret + '</g>' +
+                '<g transform="translate(88,56) scale(0.75)">' + floret + '</g>';
+        })(),
 
-        tulip:
-            '<ellipse cx="60" cy="100" rx="32" ry="9" fill="#4a2810" opacity="0.4"/>' +
-            '<path d="M60,98 L60,58" stroke="#15803d" stroke-width="6.5" stroke-linecap="round"/>' +
-            '<path d="M58,96 C32,88 22,64 30,44 C44,54 54,74 58,96 Z" fill="#22c55e" stroke="#14532d" stroke-width="3"/>' +
-            '<path d="M62,96 C88,88 98,64 90,44 C76,54 66,74 62,96 Z" fill="#16a34a" stroke="#14532d" stroke-width="3"/>' +
-            '<path d="M36,46 C36,24 48,18 60,30 C72,18 84,24 84,46 C84,66 72,72 60,72 C48,72 36,66 36,46 Z" fill="#f43f5e" stroke="#9f1239" stroke-width="3.5"/>' +
-            '<path d="M48,34 Q60,12 72,34 Q66,68 60,70 Q54,68 48,34 Z" fill="#fb7185" stroke="#9f1239" stroke-width="3"/>',
+        tulip: (function() {
+            let pCol = gVar ? gVar.primary : "#f43f5e";
+            let sCol = gVar ? gVar.secondary : "#fb7185";
+            let stCol = gVar ? gVar.stroke : "#9f1239";
+            return '<ellipse cx="60" cy="100" rx="32" ry="9" fill="#4a2810" opacity="0.4"/>' +
+                '<path d="M60,98 L60,58" stroke="#15803d" stroke-width="6.5" stroke-linecap="round"/>' +
+                '<path d="M58,96 C32,88 22,64 30,44 C44,54 54,74 58,96 Z" fill="#22c55e" stroke="#14532d" stroke-width="3"/>' +
+                '<path d="M62,96 C88,88 98,64 90,44 C76,54 66,74 62,96 Z" fill="#16a34a" stroke="#14532d" stroke-width="3"/>' +
+                '<path d="M36,46 C36,24 48,18 60,30 C72,18 84,24 84,46 C84,66 72,72 60,72 C48,72 36,66 36,46 Z" fill="' + pCol + '" stroke="' + stCol + '" stroke-width="3.5"/>' +
+                '<path d="M48,34 Q60,12 72,34 Q66,68 60,70 Q54,68 48,34 Z" fill="' + sCol + '" stroke="' + stCol + '" stroke-width="3"/>';
+        })(),
+
+        pukul_empat: (function() {
+            let pCol = gVar ? gVar.primary : "#e11d48";
+            let sCol = gVar ? gVar.secondary : "#fb7185";
+            let stCol = gVar ? gVar.stroke : "#881337";
+            let trump =
+                '<ellipse cx="0" cy="-12" rx="10" ry="12" fill="' + pCol + '" stroke="' + stCol + '" stroke-width="2"/>' +
+                '<ellipse cx="12" cy="-3" rx="10" ry="11" transform="rotate(72 12 -3)" fill="' + pCol + '" stroke="' + stCol + '" stroke-width="2"/>' +
+                '<ellipse cx="7" cy="11" rx="10" ry="11" transform="rotate(144 7 11)" fill="' + sCol + '" stroke="' + stCol + '" stroke-width="2"/>' +
+                '<ellipse cx="-7" cy="11" rx="10" ry="11" transform="rotate(216 -7 11)" fill="' + sCol + '" stroke="' + stCol + '" stroke-width="2"/>' +
+                '<ellipse cx="-12" cy="-3" rx="10" ry="11" transform="rotate(288 -12 -3)" fill="' + pCol + '" stroke="' + stCol + '" stroke-width="2"/>' +
+                '<circle cx="0" cy="0" r="6" fill="#fef08a" stroke="' + stCol + '" stroke-width="1.5"/>';
+            return '<ellipse cx="60" cy="100" rx="36" ry="9" fill="#4a2810" opacity="0.4"/>' +
+                '<path d="M60,98 L60,44 M60,86 Q40,72 34,54 M60,86 Q80,72 86,54" fill="none" stroke="#15803d" stroke-width="5" stroke-linecap="round"/>' +
+                '<path d="M58,92 C32,90 22,74 36,68 C48,64 56,78 58,92 Z" fill="#22c55e" stroke="#14532d" stroke-width="2.5"/>' +
+                '<path d="M62,92 C88,90 98,74 84,68 C72,64 64,78 62,92 Z" fill="#16a34a" stroke="#14532d" stroke-width="2.5"/>' +
+                '<g transform="translate(60,36)">' + trump + '</g>' +
+                '<g transform="translate(33,54) scale(0.72)">' + trump + '</g>' +
+                '<g transform="translate(87,54) scale(0.72)">' + trump + '</g>';
+        })(),
 
         tomat:
             '<ellipse cx="60" cy="100" rx="36" ry="9" fill="#4a2810" opacity="0.4"/>' +
@@ -459,13 +568,17 @@ window.bangunSVGTanamanKebun = function(plantId, status, sizePx) {
             '<g transform="translate(36,68) scale(0.75)"><circle cx="0" cy="-10" r="6" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/><circle cx="10" cy="0" r="6" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/><circle cx="0" cy="10" r="6" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/><circle cx="-10" cy="0" r="6" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/><circle cx="0" cy="0" r="4.5" fill="#fef08a"/></g>' +
             '<g transform="translate(84,68) scale(0.75)"><circle cx="0" cy="-10" r="6" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/><circle cx="10" cy="0" r="6" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/><circle cx="0" cy="10" r="6" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/><circle cx="-10" cy="0" r="6" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/><circle cx="0" cy="0" r="4.5" fill="#fef08a"/></g>',
 
-        anggrek:
-            '<ellipse cx="60" cy="100" rx="32" ry="9" fill="#4a2810" opacity="0.4"/>' +
-            '<path d="M58,98 C58,72 52,46 72,26" fill="none" stroke="#15803d" stroke-width="5.5" stroke-linecap="round"/>' +
-            '<path d="M58,96 C32,96 22,78 36,72 C48,68 58,82 58,96 Z" fill="#16a34a" stroke="#14532d" stroke-width="3"/>' +
-            '<path d="M60,96 C86,96 96,78 82,72 C70,68 60,82 60,96 Z" fill="#22c55e" stroke="#14532d" stroke-width="3"/>' +
-            '<g transform="translate(68,36)"><ellipse cx="-16" cy="0" rx="14" ry="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="2.5"/><ellipse cx="16" cy="0" rx="14" ry="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="2.5"/><ellipse cx="0" cy="-14" rx="10" ry="13" fill="#f8fafc" stroke="#cbd5e1" stroke-width="2.5"/><ellipse cx="-9" cy="12" rx="9" ry="11" fill="#ffffff" stroke="#cbd5e1" stroke-width="2.5"/><ellipse cx="9" cy="12" rx="9" ry="11" fill="#ffffff" stroke="#cbd5e1" stroke-width="2.5"/><circle cx="0" cy="2" r="7" fill="#facc15" stroke="#d97706" stroke-width="2"/></g>' +
-            '<g transform="translate(46,58) scale(0.75)"><ellipse cx="-16" cy="0" rx="14" ry="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="2.5"/><ellipse cx="16" cy="0" rx="14" ry="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="2.5"/><ellipse cx="0" cy="-14" rx="10" ry="13" fill="#f8fafc" stroke="#cbd5e1" stroke-width="2.5"/><circle cx="0" cy="2" r="7" fill="#facc15"/></g>',
+        anggrek: (function() {
+            let pCol = gVar ? gVar.primary : "#ffffff";
+            let cCol = gVar ? gVar.secondary : "#facc15";
+            let stCol = gVar ? gVar.stroke : "#cbd5e1";
+            return '<ellipse cx="60" cy="100" rx="32" ry="9" fill="#4a2810" opacity="0.4"/>' +
+                '<path d="M58,98 C58,72 52,46 72,26" fill="none" stroke="#15803d" stroke-width="5.5" stroke-linecap="round"/>' +
+                '<path d="M58,96 C32,96 22,78 36,72 C48,68 58,82 58,96 Z" fill="#16a34a" stroke="#14532d" stroke-width="3"/>' +
+                '<path d="M60,96 C86,96 96,78 82,72 C70,68 60,82 60,96 Z" fill="#22c55e" stroke="#14532d" stroke-width="3"/>' +
+                '<g transform="translate(68,36)"><ellipse cx="-16" cy="0" rx="14" ry="10" fill="' + pCol + '" stroke="' + stCol + '" stroke-width="2.5"/><ellipse cx="16" cy="0" rx="14" ry="10" fill="' + pCol + '" stroke="' + stCol + '" stroke-width="2.5"/><ellipse cx="0" cy="-14" rx="10" ry="13" fill="' + pCol + '" stroke="' + stCol + '" stroke-width="2.5"/><ellipse cx="-9" cy="12" rx="9" ry="11" fill="' + pCol + '" stroke="' + stCol + '" stroke-width="2.5"/><ellipse cx="9" cy="12" rx="9" ry="11" fill="' + pCol + '" stroke="' + stCol + '" stroke-width="2.5"/><circle cx="0" cy="2" r="7" fill="' + cCol + '" stroke="#d97706" stroke-width="2"/></g>' +
+                '<g transform="translate(46,58) scale(0.75)"><ellipse cx="-16" cy="0" rx="14" ry="10" fill="' + pCol + '" stroke="' + stCol + '" stroke-width="2.5"/><ellipse cx="16" cy="0" rx="14" ry="10" fill="' + pCol + '" stroke="' + stCol + '" stroke-width="2.5"/><ellipse cx="0" cy="-14" rx="10" ry="13" fill="' + pCol + '" stroke="' + stCol + '" stroke-width="2.5"/><circle cx="0" cy="2" r="7" fill="' + cCol + '"/></g>';
+        })(),
 
         kantong_semar:
             '<ellipse cx="60" cy="100" rx="34" ry="9" fill="#4a2810" opacity="0.4"/>' +
@@ -544,7 +657,11 @@ window.bangunSVGTanamanKebun = function(plantId, status, sizePx) {
             '<polygon points="92,18 94,23 99,25 94,27 92,32 90,27 85,25 90,23" fill="#fef08a"/>'
     };
 
-    return '<svg viewBox="0 0 120 120" width="' + sz + '" height="' + sz + '">' + (innerMap[plantId] || innerMap.matahari) + '</svg>';
+    let bodySvg = innerMap[plantId] || innerMap.matahari;
+    if (gVar && gVar.sizeScale && gVar.sizeScale !== 1.0) {
+        bodySvg = '<g transform="scale(' + gVar.sizeScale + ')" style="transform-origin:60px 100px;">' + bodySvg + '</g>';
+    }
+    return '<svg viewBox="0 0 120 120" width="' + sz + '" height="' + sz + '">' + bodySvg + '</svg>';
 };
 
 // =========================================================================
@@ -838,11 +955,15 @@ window.renderMyGardenUI = function() {
             badgeHtml = '<span class="plot-badge timer" data-plot-timer="' + i + '">' + (pObj && pObj.watered ? '💧' : '') + window.formatDurasiRingkasKebun(info.remainingMs) + '</span>';
         }
 
-        let plantSvg = window.bangunSVGTanamanKebun(pObj ? pObj.plantId : "", info.status, 64);
+        let pGene = pObj ? (pObj.geneCode || "") : "";
+        let plantSvg = window.bangunSVGTanamanKebun(pObj ? pObj.plantId : "", info.status, 64, pGene);
+        let geneChip = (pGene && info.status !== "empty")
+            ? '<span class="plot-gene-chip">' + pGene + '</span>'
+            : '';
 
         gridHtml +=
-            '<button type="button" class="garden-soil-plot status-' + info.status + (isSel ? ' is-selected' : '') + '" onclick="window.klikPetakKebun(' + i + ')" title="Petak #' + (i + 1) + '">' +
-                badgeHtml +
+            '<button type="button" class="garden-soil-plot status-' + info.status + (isSel ? ' is-selected' : '') + '" onclick="window.klikPetakKebun(' + i + ')" title="Petak #' + (i + 1) + (pGene ? ' • Gen: ' + pGene : '') + '">' +
+                badgeHtml + geneChip +
                 '<div class="plot-plant-wrap">' + plantSvg + '</div>' +
             '</button>';
     }
@@ -947,22 +1068,30 @@ window.bangunKartuDetailPetakGarden = function(plotIdx, plotObj, info, gData, ct
             return '<div class="garden-right-card"><div class="garden-detail-ribbon">🟫 Petak #' + (plotIdx + 1) + ' Kosong</div><div class="garden-detail-preview">' + window.bangunSVGTanamanKebun("", "empty", 78) + '</div><p class="garden-detail-desc">Petak ini sedang kosong. Pilih petak bertanda 🎁 untuk meminta hasil kebun teman!</p></div>';
         }
         let sInv = gData.seedInventory || {};
-        let daftarBibitDimiliki = window.MY_GARDEN_CATALOG.plants.filter(function(p) { return (Number(sInv[p.id]) || 0) > 0; });
+        let daftarBibitDimiliki = Object.keys(sInv).filter(function(k) {
+            let parsed = window.parseSeedKeyGarden(k);
+            return (Number(sInv[k]) || 0) > 0 && Boolean(window.cariInfoTanaman(parsed.baseId));
+        });
         let listBibitHtml = '';
         if (daftarBibitDimiliki.length === 0) {
             listBibitHtml =
-                '<div style="font-size:11.5px; color:#785a3a; margin:8px 0 12px 0; line-height:1.45;">Stok bibitmu kosong. Jawab kuis biologi di <b>Toko Bibit</b> untuk membeli bibit baru!</div>' +
+                '<div style="font-size:11.5px; color:#785a3a; margin:8px 0 12px 0; line-height:1.45;">Stok bibitmu kosong. Jawab kuis biologi di <b>Toko Bibit</b> atau silangkan bunga di <b>My Lab</b>!</div>' +
                 '<button type="button" class="mypet-green-cta" onclick="window.gantiViewMyGarden(\'toko\')">🏪 Buka Toko Bibit</button>';
         } else {
             listBibitHtml = '<div class="garden-seed-pick-list">';
-            daftarBibitDimiliki.forEach(function(p) {
-                let qty = Number(sInv[p.id]) || 0;
+            daftarBibitDimiliki.forEach(function(seedKey) {
+                let parsed = window.parseSeedKeyGarden(seedKey);
+                let p = window.cariInfoTanaman(parsed.baseId);
+                let vInfo = window.ambilInfoVarianGenetikGarden(parsed.baseId, parsed.geneCode);
+                let qty = Number(sInv[seedKey]) || 0;
+                let coinEst = vInfo ? Math.round(p.panenCoin * vInfo.bonusMult) : p.panenCoin;
+                let labelBibit = vInfo ? (p.nama + ' (' + vInfo.label + ' • ' + vInfo.code + ')') : p.nama;
                 listBibitHtml +=
-                    '<button type="button" class="garden-seed-pick-item" onclick="window.tanamBibitDiPetak(' + plotIdx + ', \'' + p.id + '\')">' +
-                        '<div class="seed-mini-svg">' + window.bangunSVGTanamanKebun(p.id, "ready", 36) + '</div>' +
+                    '<button type="button" class="garden-seed-pick-item" onclick="window.tanamBibitDiPetak(' + plotIdx + ', \'' + seedKey + '\')">' +
+                        '<div class="seed-mini-svg">' + window.bangunSVGTanamanKebun(p.id, "ready", 36, parsed.geneCode) + '</div>' +
                         '<div style="flex:1; text-align:left; min-width:0;">' +
-                            '<div class="seed-mini-name">' + p.nama + '</div>' +
-                            '<div class="seed-mini-sub">⏳ ' + p.durasiLabel + ' • 🪙 ' + p.panenCoin.toLocaleString("id-ID") + '</div>' +
+                            '<div class="seed-mini-name">' + labelBibit + '</div>' +
+                            '<div class="seed-mini-sub">⏳ ' + p.durasiLabel + ' • 🪙 ' + coinEst.toLocaleString("id-ID") + (vInfo ? ' 🧬' : '') + '</div>' +
                         '</div>' +
                         '<span class="cozy-qty-pill">x' + qty + '</span>' +
                     '</button>';
@@ -980,6 +1109,11 @@ window.bangunKartuDetailPetakGarden = function(plotIdx, plotObj, info, gData, ct
     }
 
     let p = info.plant;
+    let pGene = plotObj ? (plotObj.geneCode || "") : "";
+    let vInfo = window.ambilInfoVarianGenetikGarden(p.id, pGene);
+    let namaLengkap = vInfo ? (p.nama + " (" + vInfo.label + ")") : p.nama;
+    let panenCoinAktif = vInfo ? Math.round(p.panenCoin * vInfo.bonusMult) : p.panenCoin;
+    let badgeGenDetail = vInfo ? '<div class="garden-gene-badge">🧬 Genotipe: <b>' + vInfo.code + '</b> • ' + vInfo.label + '</div>' : '';
 
     if (info.status === "wilted") {
         let biaya = window.MY_GARDEN_CATALOG.wiltClearCost;
@@ -1005,9 +1139,10 @@ window.bangunKartuDetailPetakGarden = function(plotIdx, plotObj, info, gData, ct
                 : '<button type="button" class="mypet-green-cta" onclick="window.mintaHasilKebunTeman(' + plotIdx + ')">🎁 Minta Hasil Kebun</button>';
             return (
                 '<div class="garden-right-card is-ready-card">' +
-                    '<div class="garden-detail-ribbon">🌿 ' + p.nama + '</div>' +
-                    '<div class="garden-detail-preview">' + window.bangunSVGTanamanKebun(p.id, "ready", 104) + '</div>' +
-                    '<div class="garden-reward-row"><span>🪙 <b>+' + p.panenCoin.toLocaleString("id-ID") + '</b></span><span>⭐ <b>+' + p.panenXp + ' XP</b></span></div>' +
+                    '<div class="garden-detail-ribbon">🌿 ' + namaLengkap + '</div>' +
+                    '<div class="garden-detail-preview">' + window.bangunSVGTanamanKebun(p.id, "ready", 104, pGene) + '</div>' +
+                    badgeGenDetail +
+                    '<div class="garden-reward-row"><span>🪙 <b>+' + panenCoinAktif.toLocaleString("id-ID") + '</b></span><span>⭐ <b>+' + p.panenXp + ' XP</b></span></div>' +
                     '<p class="garden-detail-desc">Hasil kebun ' + ctx.hostNama + ' siap diminta! (Tidak mengurangi tanaman milik teman).</p>' +
                     btnMinta +
                 '</div>'
@@ -1015,9 +1150,10 @@ window.bangunKartuDetailPetakGarden = function(plotIdx, plotObj, info, gData, ct
         }
         return (
             '<div class="garden-right-card is-ready-card">' +
-                '<div class="garden-detail-ribbon">🌿 ' + p.nama + '</div>' +
-                '<div class="garden-detail-preview">' + window.bangunSVGTanamanKebun(p.id, "ready", 104) + '</div>' +
-                '<div class="garden-reward-row"><span>🪙 <b>+' + p.panenCoin.toLocaleString("id-ID") + '</b></span><span>⭐ <b>+' + p.panenXp + ' XP</b></span></div>' +
+                '<div class="garden-detail-ribbon">🌿 ' + namaLengkap + '</div>' +
+                '<div class="garden-detail-preview">' + window.bangunSVGTanamanKebun(p.id, "ready", 104, pGene) + '</div>' +
+                badgeGenDetail +
+                '<div class="garden-reward-row"><span>🪙 <b>+' + panenCoinAktif.toLocaleString("id-ID") + '</b></span><span>⭐ <b>+' + p.panenXp + ' XP</b></span></div>' +
                 '<div class="garden-dur-row">⏳ ' + p.durasiLabel + ' • ✨ Siap Panen!</div>' +
                 '<p class="garden-detail-desc">' + p.deskripsi + '</p>' +
                 '<button type="button" class="mypet-green-cta" onclick="window.panenSatuPetak(' + plotIdx + ')">🧺 Panen</button>' +
@@ -1027,13 +1163,14 @@ window.bangunKartuDetailPetakGarden = function(plotIdx, plotObj, info, gData, ct
 
     return (
         '<div class="garden-right-card">' +
-            '<div class="garden-detail-ribbon">🌱 ' + p.nama + '</div>' +
-            '<div class="garden-detail-preview">' + window.bangunSVGTanamanKebun(p.id, info.status, 96) + '</div>' +
+            '<div class="garden-detail-ribbon">🌱 ' + namaLengkap + '</div>' +
+            '<div class="garden-detail-preview">' + window.bangunSVGTanamanKebun(p.id, info.status, 96, pGene) + '</div>' +
+            badgeGenDetail +
             '<div class="garden-prog-wrap">' +
                 '<div class="garden-prog-top"><span>Pertumbuhan</span><b id="garden-detail-prog-pct">' + info.pct + '%</b></div>' +
                 '<div class="garden-prog-track"><div id="garden-detail-prog-fill" class="garden-prog-fill" style="width:' + info.pct + '%;"></div></div>' +
             '</div>' +
-            '<div class="garden-reward-row"><span>🪙 ' + p.panenCoin.toLocaleString("id-ID") + '</span><span>⭐ +' + p.panenXp + ' XP</span></div>' +
+            '<div class="garden-reward-row"><span>🪙 ' + panenCoinAktif.toLocaleString("id-ID") + '</span><span>⭐ +' + p.panenXp + ' XP</span></div>' +
             '<div class="garden-dur-row">⏳ Sisa: <b id="garden-detail-sisa-val">' + window.formatDurasiRingkasKebun(info.remainingMs) + '</b></div>' +
             '<p class="garden-detail-desc">' + p.deskripsi + '</p>' +
             (!isVisit
@@ -1370,26 +1507,29 @@ window.beliPupukGarden = function(fertId) {
     }
 };
 
-window.tanamBibitDiPetak = function(plotIdx, plantId) {
+window.tanamBibitDiPetak = function(plotIdx, seedKey) {
     let uName = sessionStorage.getItem("username");
     let lb = window.pastikanStrukturMyGarden(uName);
-    let plant = window.cariInfoTanaman(plantId);
+    let parsed = window.parseSeedKeyGarden(seedKey);
+    let plant = window.cariInfoTanaman(parsed.baseId);
     if (!lb || !plant) return;
 
     let gData = lb.myGardenData;
     if (!window.apakahLahanTerbuka(gData, plotIdx)) return;
 
-    let stok = Number(gData.seedInventory[plantId]) || 0;
+    let stok = Number(gData.seedInventory[seedKey]) || 0;
     if (stok <= 0) {
         return window.tampilkanToastGarden("⚠️ Stok bibit " + plant.nama + " habis!");
     }
 
-    gData.seedInventory[plantId] = stok - 1;
-    if (gData.seedInventory[plantId] <= 0) delete gData.seedInventory[plantId];
+    gData.seedInventory[seedKey] = stok - 1;
+    if (gData.seedInventory[seedKey] <= 0) delete gData.seedInventory[seedKey];
 
     let now = Date.now();
+    let vInfo = window.ambilInfoVarianGenetikGarden(parsed.baseId, parsed.geneCode);
     gData.plots[String(plotIdx)] = {
-        plantId: plantId,
+        plantId: parsed.baseId,
+        geneCode: parsed.geneCode || "",
         plantedAt: now,
         readyAt: now + (plant.durasiDetik * 1000),
         watered: false,
@@ -1399,7 +1539,7 @@ window.tanamBibitDiPetak = function(plotIdx, plantId) {
 
     window.simpanDataKebunKeServer(lb);
     window.renderMyGardenUI();
-    window.tampilkanToastGarden("🌱 Bibit <b>" + plant.nama + "</b> ditanam di Petak #" + (plotIdx + 1) + "!");
+    window.tampilkanToastGarden("🌱 Bibit <b>" + plant.nama + (vInfo ? " (" + vInfo.label + " • " + vInfo.code + ")" : "") + "</b> ditanam di Petak #" + (plotIdx + 1) + "!");
 };
 
 window.siramPetakKebun = function(plotIdx) {
@@ -1466,16 +1606,20 @@ window.panenSatuPetak = function(plotIdx) {
     if (!plotObj || info.status !== "ready" || !info.plant) return;
 
     let plant = info.plant;
+    let vInfo = window.ambilInfoVarianGenetikGarden(plant.id, plotObj.geneCode);
+    let gainCoin = vInfo ? Math.round(plant.panenCoin * vInfo.bonusMult) : plant.panenCoin;
+
     // Setelah dipanen, petak otomatis menyisakan tanaman layu yang harus dibuang (5 Coin)
     gData.plots[String(plotIdx)] = {
         plantId: plant.id,
+        geneCode: plotObj.geneCode || "",
         plantedAt: plotObj.plantedAt,
         readyAt: plotObj.readyAt,
         harvestedWilted: true
     };
     gData.totalHarvested = (Number(gData.totalHarvested) || 0) + 1;
 
-    lb.coin = (Number(lb.coin !== undefined ? lb.coin : lb.xpTersedia) || 0) + plant.panenCoin;
+    lb.coin = (Number(lb.coin !== undefined ? lb.coin : lb.xpTersedia) || 0) + gainCoin;
     lb.xpTersedia = lb.coin;
     lb.xpTotal = (Number(lb.xpTotal !== undefined ? lb.xpTotal : lb.xp) || 0) + plant.panenXp;
     lb.xp = lb.xpTotal;
@@ -1485,7 +1629,7 @@ window.panenSatuPetak = function(plotIdx) {
     if (typeof window.perbaruiUIHeaderProfilSiswa === "function") window.perbaruiUIHeaderProfilSiswa();
 
     window.renderMyGardenUI();
-    window.tampilkanToastGarden("🎉 Panen <b>" + plant.nama + "</b>! +🪙 " + plant.panenCoin.toLocaleString("id-ID") + " Coin & +⭐ " + plant.panenXp + " XP! Jangan lupa buang sisa tanaman layunya.");
+    window.tampilkanToastGarden("🎉 Panen <b>" + plant.nama + (vInfo ? " (" + vInfo.label + ")" : "") + "</b>! +🪙 " + gainCoin.toLocaleString("id-ID") + " Coin & +⭐ " + plant.panenXp + " XP! Jangan lupa buang sisa tanaman layunya.");
 };
 
 window.panenSemuaTanamanSiap = function() {
@@ -1502,11 +1646,13 @@ window.panenSemuaTanamanSiap = function() {
         let pObj = gData.plots[k];
         let info = window.hitungStatusPetakKebun(pObj);
         if (info.status === "ready" && info.plant) {
-            totalCoin += info.plant.panenCoin;
+            let vInfo = window.ambilInfoVarianGenetikGarden(info.plant.id, pObj.geneCode);
+            totalCoin += (vInfo ? Math.round(info.plant.panenCoin * vInfo.bonusMult) : info.plant.panenCoin);
             totalXp += info.plant.panenXp;
             jumlah++;
             gData.plots[k] = {
                 plantId: info.plant.id,
+                geneCode: pObj.geneCode || "",
                 plantedAt: pObj.plantedAt,
                 readyAt: pObj.readyAt,
                 harvestedWilted: true

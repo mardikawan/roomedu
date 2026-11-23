@@ -7,9 +7,12 @@
    ========================================================================= */
 
 window.MY_WORLD_ZONES = [
-    { id: "pet",    nama: "Rumah Sanctuary (My Pet)", labelSingkat: "🏡 My Pet",    doorX: 23, doorY: 43, exitX: 23, exitY: 53 },
-    { id: "farm",   nama: "Peternakan (My Farm)",     labelSingkat: "🐄 My Farm",   doorX: 77, doorY: 43, exitX: 77, exitY: 53 },
-    { id: "garden", nama: "Kebun Sains (My Garden)",  labelSingkat: "🌱 My Garden", doorX: 50, doorY: 66, exitX: 50, exitY: 56 }
+    { id: "pet",    nama: "Rumah Sanctuary (My Pet)",    labelSingkat: "🏡 My Pet",    doorX: 23, doorY: 43, exitX: 23, exitY: 53 },
+    { id: "lab",    nama: "Laboratorium Sains (My Lab)", labelSingkat: "🧪 My Lab",    doorX: 50, doorY: 35, exitX: 50, exitY: 45 },
+    { id: "farm",   nama: "Peternakan (My Farm)",        labelSingkat: "🐄 My Farm",   doorX: 77, doorY: 43, exitX: 77, exitY: 53 },
+    { id: "garden", nama: "Kebun Sains (My Garden)",     labelSingkat: "🌱 My Garden", doorX: 50, doorY: 66, exitX: 50, exitY: 56 },
+    { id: "shop",   nama: "Toko Lahan (World Shop)",     labelSingkat: "🏪 Shop",      doorX: 74.5, doorY: 66, exitX: 69, exitY: 62 },
+    { id: "river",  nama: "Dermaga Sungai (Memancing)",  labelSingkat: "🎣 Memancing", doorX: 25,   doorY: 74, exitX: 31, exitY: 66 }
 ];
 
 window.MY_WORLD_VISIT_CONFIG = {
@@ -111,9 +114,24 @@ window.pastikanUIMyWorldAda = function() {
                             '<div class="world-door-glow"></div>' +
                         '</button>' +
 
+                        '<button type="button" id="world-zone-lab" class="world-zone-btn zone-lab" onclick="event.stopPropagation(); window.arahkanAvatarKeZona(\'lab\')" title="Arahkan avatar ke Laboratorium (My Lab)">' +
+                            '<div class="world-zone-tag">🧪 Lab • My Lab</div>' +
+                            '<div class="world-door-glow"></div>' +
+                        '</button>' +
+
                         '<button type="button" id="world-zone-garden" class="world-zone-btn zone-garden" onclick="event.stopPropagation(); window.arahkanAvatarKeZona(\'garden\')" title="Arahkan avatar ke Kebun (My Garden)">' +
                             '<span id="world-badge-garden" class="world-zone-alert" style="display:none;">!</span>' +
                             '<div class="world-zone-tag">🌱 Kebun • My Garden</div>' +
+                            '<div class="world-door-glow"></div>' +
+                        '</button>' +
+
+                        '<button type="button" id="world-zone-shop" class="world-zone-btn zone-shop" onclick="event.stopPropagation(); window.arahkanAvatarKeZona(\'shop\')" title="Arahkan avatar ke Toko Lahan (World Shop)">' +
+                            '<div class="world-zone-tag">🏪 Shop</div>' +
+                            '<div class="world-door-glow"></div>' +
+                        '</button>' +
+
+                        '<button type="button" id="world-zone-river" class="world-zone-btn zone-river" onclick="event.stopPropagation(); window.arahkanAvatarKeZona(\'river\')" title="Arahkan avatar ke Sungai untuk Memancing">' +
+                            '<div class="world-zone-tag">🎣 Sungai</div>' +
                             '<div class="world-door-glow"></div>' +
                         '</button>' +
 
@@ -139,6 +157,8 @@ window.pastikanUIMyWorldAda = function() {
                         '</div>' +
                     '</div>' +
                 '</div>' +
+                '<div id="myworld-shop-overlay" class="myworld-inner-overlay" style="display:none;" onclick="if(event.target===this) window.tutupWorldShop()"></div>' +
+                '<div id="myworld-fishing-overlay" class="myworld-inner-overlay" style="display:none;" onclick="if(event.target===this) window.tutupMiniGameMancing()"></div>' +
             '</div>';
 
         document.body.appendChild(modal);
@@ -171,8 +191,8 @@ window.bangunSVGPetaLahanUtama = function() {
         '<path d="M35,495 Q85,485 135,500 M120,530 Q165,522 205,535" stroke="#e0f2fe" stroke-width="3.5" fill="none" stroke-linecap="round" opacity="0.75"/>' +
         '<path d="M230,245 Q360,285 500,295 Q640,285 770,245" fill="none" stroke="#c89254" stroke-width="54" stroke-linecap="round"/>' +
         '<path d="M230,245 Q360,285 500,295 Q640,285 770,245" fill="none" stroke="#eac28a" stroke-width="40" stroke-linecap="round"/>' +
-        '<path d="M500,295 L500,380" fill="none" stroke="#c89254" stroke-width="54" stroke-linecap="round"/>' +
-        '<path d="M500,295 L500,380" fill="none" stroke="#eac28a" stroke-width="40" stroke-linecap="round"/>' +
+        '<path d="M500,192 L500,380" fill="none" stroke="#c89254" stroke-width="52" stroke-linecap="round"/>' +
+        '<path d="M500,192 L500,380" fill="none" stroke="#eac28a" stroke-width="38" stroke-linecap="round"/>' +
         '<ellipse cx="500" cy="292" rx="68" ry="38" fill="#d9a86c" stroke="#b07b3f" stroke-width="4"/>' +
         '<ellipse cx="500" cy="292" rx="52" ry="26" fill="#f3d6a7"/>' +
         '<g transform="translate(118, 42)">' +
@@ -221,10 +241,42 @@ window.bangunSVGPetaLahanUtama = function() {
             '<circle cx="944" cy="78" r="36" fill="#2e7d32" stroke="#1b5e20" stroke-width="4"/><circle cx="944" cy="60" r="24" fill="#43a047"/>' +
             '<circle cx="938" cy="312" r="38" fill="#2e7d32" stroke="#1b5e20" stroke-width="4"/><circle cx="938" cy="294" r="25" fill="#43a047"/>' +
             '<circle cx="888" cy="485" r="36" fill="#2e7d32" stroke="#1b5e20" stroke-width="4"/><circle cx="888" cy="468" r="24" fill="#43a047"/>' +
-            '<circle cx="496" cy="54" r="32" fill="#2e7d32" stroke="#1b5e20" stroke-width="4"/><circle cx="496" cy="38" r="20" fill="#43a047"/>' +
+            '<!-- ZONA 4 (TENGAH UTARA): GEDUNG LABORATORIUM SAINS (MY LAB) -->' +
+        '<g transform="translate(410, 26)">' +
+            '<ellipse cx="90" cy="148" rx="88" ry="18" fill="rgba(15,45,35,0.22)"/>' +
+            '<path d="M26,56 C26,14 154,14 154,56 Z" fill="#38bdf8" stroke="#0369a1" stroke-width="4.5"/>' +
+            '<path d="M44,54 C48,26 132,26 136,54" fill="#bae6fd" opacity="0.65"/>' +
+            '<rect x="16" y="54" width="148" height="90" rx="8" fill="#f8fafc" stroke="#0f766e" stroke-width="4.5"/>' +
+            '<rect x="16" y="54" width="148" height="16" rx="4" fill="#14b8a6"/>' +
+            '<rect x="28" y="82" width="32" height="32" rx="5" fill="#ccfbf1" stroke="#0f766e" stroke-width="3"/>' +
+            '<rect x="120" y="82" width="32" height="32" rx="5" fill="#ccfbf1" stroke="#0f766e" stroke-width="3"/>' +
+            '<path d="M70,144 L70,92 A20,20 0 0,1 110,92 L110,144 Z" fill="#0ea5e9" stroke="#0c4a6e" stroke-width="4"/>' +
+            '<line x1="90" y1="90" x2="90" y2="144" stroke="#e0f2fe" stroke-width="2.5"/>' +
+            '<polygon points="90,22 80,44 100,44" fill="#fef08a" stroke="#0c4a6e" stroke-width="2.5" stroke-linejoin="round"/>' +
+            '<rect x="66" y="145" width="48" height="12" rx="4" fill="#14b8a6" stroke="#0f766e" stroke-width="2.5"/>' +
+        '</g>' +
             '<circle cx="348" cy="204" r="6" fill="#f43f5e"/><circle cx="364" cy="212" r="5" fill="#facc15"/>' +
             '<circle cx="645" cy="206" r="6" fill="#ffffff"/><circle cx="660" cy="198" r="5" fill="#facc15"/>' +
             '<circle cx="745" cy="442" r="6" fill="#fb923c"/><circle cx="762" cy="452" r="5" fill="#fef08a"/>' +
+            '<!-- DERMAGA KAYU MEMANCING DI TEPI SUNGAI -->' +
+            '<g transform="translate(150, 412)">' +
+                '<rect x="18" y="14" width="66" height="24" rx="5" fill="#b45309" stroke="#5c2606" stroke-width="3.5"/>' +
+                '<line x1="34" y1="14" x2="34" y2="38" stroke="#78350f" stroke-width="2.5"/>' +
+                '<line x1="52" y1="14" x2="52" y2="38" stroke="#78350f" stroke-width="2.5"/>' +
+                '<line x1="70" y1="14" x2="70" y2="38" stroke="#78350f" stroke-width="2.5"/>' +
+                '<circle cx="22" cy="14" r="5" fill="#78350f"/><circle cx="80" cy="14" r="5" fill="#78350f"/>' +
+            '</g>' +
+            '<!-- KIOS TOKO LAHAN (WORLD SHOP) -->' +
+            '<g transform="translate(765, 302)">' +
+                '<ellipse cx="56" cy="96" rx="54" ry="12" fill="rgba(20,50,15,0.22)"/>' +
+                '<rect x="12" y="40" width="88" height="54" rx="6" fill="#fef3c7" stroke="#78350f" stroke-width="4"/>' +
+                '<rect x="20" y="54" width="72" height="26" rx="4" fill="#92400e" stroke="#451a03" stroke-width="2.5"/>' +
+                '<rect x="18" y="76" width="76" height="9" rx="3" fill="#d97706" stroke="#78350f" stroke-width="2"/>' +
+                '<path d="M4,42 L16,16 L96,16 L108,42 Z" fill="#0284c7" stroke="#0c4a6e" stroke-width="4" stroke-linejoin="round"/>' +
+                '<path d="M22,42 L29,16 L46,16 L42,42 Z" fill="#ffffff"/>' +
+                '<path d="M62,42 L65,16 L82,16 L88,42 Z" fill="#ffffff"/>' +
+                '<rect x="34" y="96" width="44" height="10" rx="4" fill="#f59e0b" stroke="#78350f" stroke-width="2"/>' +
+            '</g>' +
         '</g>' +
     '</svg>';
 };
@@ -880,6 +932,26 @@ window.masukKeZonaMyWorld = function(zoneId) {
     let ws = window.myWorldState;
     let targetVisitUser = window.modeKunjunganWorld;
 
+    if (zoneId === "shop" || zoneId === "river") {
+        ws.x = z.exitX;
+        ws.y = z.exitY;
+        ws.targetX = null;
+        ws.targetY = null;
+        ws.autoEnterZone = "";
+        ws.keys = { up: false, down: false, left: false, right: false };
+        ws.exitCooldownUntil = Date.now() + 1800;
+        window.renderPosisiAvatarMyWorld(false);
+        if (targetVisitUser) {
+            window.tampilkanCustomDialog("alert", "Fitur Toko Lahan dan Memancing hanya tersedia di lahan My World milik Anda sendiri.", null, function() {
+                window.pulihkanGerakSetelahOverlayWorld();
+            });
+            return;
+        }
+        if (zoneId === "shop") window.bukaWorldShop();
+        else window.bukaMiniGameMancing();
+        return;
+    }
+
     ws.openedFromHub = true;
     ws.x = z.exitX;
     ws.y = z.exitY;
@@ -898,6 +970,8 @@ window.masukKeZonaMyWorld = function(zoneId) {
             window.bukaModalMyGardenKunjungan(targetVisitUser);
         } else if (zoneId === "farm" && typeof window.bukaModalMyFarmKunjungan === "function") {
             window.bukaModalMyFarmKunjungan(targetVisitUser);
+        } else if (zoneId === "lab" && typeof window.bukaModalMyLabKunjungan === "function") {
+            window.bukaModalMyLabKunjungan(targetVisitUser);
         }
         return;
     }
@@ -908,6 +982,8 @@ window.masukKeZonaMyWorld = function(zoneId) {
         window.bukaModalMyGarden();
     } else if (zoneId === "farm" && typeof window.bukaModalMyFarm === "function") {
         window.bukaModalMyFarm();
+    } else if (zoneId === "lab" && typeof window.bukaModalMyLab === "function") {
+        window.bukaModalMyLab();
     }
 };
 
@@ -938,15 +1014,66 @@ window.renderPosisiAvatarMyWorld = function(isWalking) {
     }
 };
 
+// Batas area padat bangunan, pagar kebun, sungai, & pohon (dalam % peta 1000x560)
+window.MY_WORLD_OBSTACLES = [
+    { id: "rumah_pet",    x1: 11.8, x2: 34.2, y1: 0.0,  y2: 41.2 },
+    { id: "lumbung_farm", x1: 65.6, x2: 88.2, y1: 0.0,  y2: 41.2 },
+    { id: "lahan_kebun",  x1: 32.8, x2: 67.2, y1: 68.2, y2: 96.0 },
+    { id: "sungai_1",     x1: 0.0,  x2: 23.0, y1: 79.0, y2: 100.0 },
+    { id: "sungai_2",     x1: 0.0,  x2: 29.5, y1: 87.5, y2: 100.0 },
+    { id: "gedung_lab",   x1: 40.0, x2: 60.0, y1: 0.0,  y2: 32.5 },
+    { id: "kios_shop",    x1: 77.5, x2: 88.5, y1: 55.5, y2: 71.0 }
+];
+
+window.apakahPosisiMenabrakBangunan = function(x, y) {
+    let list = window.MY_WORLD_OBSTACLES || [];
+    for (let i = 0; i < list.length; i++) {
+        let ob = list[i];
+        if (x > ob.x1 && x < ob.x2 && y > ob.y1 && y < ob.y2) {
+            return true;
+        }
+    }
+    return false;
+};
+
+// Geser avatar per sumbu (X lalu Y) agar mulus menyusuri dinding/pagar dan tidak pernah menembus bangunan
+window.gerakkanAvatarDenganTabrakan = function(ws, dx, dy) {
+    let oldX = ws.x;
+    let oldY = ws.y;
+
+    let tryX = Math.max(7, Math.min(93, oldX + dx));
+    if (!window.apakahPosisiMenabrakBangunan(tryX, oldY)) {
+        ws.x = tryX;
+    }
+
+    let tryY = Math.max(15, Math.min(91, oldY + dy));
+    if (!window.apakahPosisiMenabrakBangunan(ws.x, tryY)) {
+        ws.y = tryY;
+    }
+
+    return Math.hypot(ws.x - oldX, ws.y - oldY);
+};
+
 window.mulaiLoopGerakMyWorld = function() {
     let ws = window.myWorldState;
     if (ws.rafId) cancelAnimationFrame(ws.rafId);
     ws.lastFrameMs = performance.now();
+    let stuckTimer = 0;
 
     function tick(nowMs) {
         if (!ws.isOpen) return;
         let dt = Math.min(0.05, Math.max(0.004, (nowMs - ws.lastFrameMs) / 1000));
         ws.lastFrameMs = nowMs;
+
+        if (typeof window.apakahOverlayDalamWorldTerbuka === "function" && window.apakahOverlayDalamWorldTerbuka()) {
+            ws.keys = { up: false, down: false, left: false, right: false };
+            ws.targetX = null;
+            ws.targetY = null;
+            ws.autoEnterZone = "";
+            window.renderPosisiAvatarMyWorld(false);
+            ws.rafId = requestAnimationFrame(tick);
+            return;
+        }
 
         let speed = 28;
         let vx = 0, vy = 0;
@@ -959,32 +1086,48 @@ window.mulaiLoopGerakMyWorld = function() {
         let moving = false;
 
         if (vx !== 0 || vy !== 0) {
+            stuckTimer = 0;
             let len = Math.hypot(vx, vy);
-            ws.x = Math.max(7, Math.min(93, ws.x + (vx / len) * speed * dt));
-            ws.y = Math.max(18, Math.min(90, ws.y + (vy / len) * speed * dt));
+            let movedDist = window.gerakkanAvatarDenganTabrakan(ws, (vx / len) * speed * dt, (vy / len) * speed * dt);
             if (vx !== 0) ws.facingRight = vx > 0;
-            moving = true;
+            moving = movedDist > 0.01;
         } else if (ws.targetX !== null && ws.targetY !== null) {
             let dx = ws.targetX - ws.x;
             let dy = ws.targetY - ws.y;
             let dist = Math.hypot(dx, dy);
             let step = speed * dt;
-            if (dist <= step + 0.6) {
-                ws.x = ws.targetX;
-                ws.y = ws.targetY;
+
+            if (dist <= step + 0.8) {
+                window.gerakkanAvatarDenganTabrakan(ws, dx, dy);
                 ws.targetX = null;
                 ws.targetY = null;
+                stuckTimer = 0;
                 if (ws.autoEnterZone) {
                     let targetZ = ws.autoEnterZone;
                     ws.autoEnterZone = "";
                     window.masukKeZonaMyWorld(targetZ);
+                    if (ws.isOpen) ws.rafId = requestAnimationFrame(tick);
                     return;
                 }
             } else {
-                ws.x += (dx / dist) * step;
-                ws.y += (dy / dist) * step;
+                let stepX = (dx / dist) * step;
+                let stepY = (dy / dist) * step;
+                let movedDist = window.gerakkanAvatarDenganTabrakan(ws, stepX, stepY);
                 if (Math.abs(dx) > 0.3) ws.facingRight = dx > 0;
-                moving = true;
+
+                if (movedDist < 0.03) {
+                    stuckTimer += dt;
+                    // Jika klik tepat di dalam bangunan/tembok dan mentok, hentikan otomatis agar tidak jalan di tempat
+                    if (stuckTimer > 0.25) {
+                        ws.targetX = null;
+                        ws.targetY = null;
+                        ws.autoEnterZone = "";
+                        stuckTimer = 0;
+                    }
+                } else {
+                    stuckTimer = 0;
+                    moving = true;
+                }
             }
         }
 
@@ -1001,8 +1144,9 @@ window.mulaiLoopGerakMyWorld = function() {
         });
 
         let nowWall = Date.now();
-        if (closestZone && closestDist < 6.2 && nowWall >= ws.exitCooldownUntil && moving) {
+        if (closestZone && closestDist < 6.4 && nowWall >= ws.exitCooldownUntil && moving) {
             window.masukKeZonaMyWorld(closestZone.id);
+            if (ws.isOpen) ws.rafId = requestAnimationFrame(tick);
             return;
         }
 
@@ -1129,6 +1273,19 @@ window.pasangHookKembaliKeMyWorld = function() {
             }
         };
         window.tutupModalMyFarm._worldHooked = true;
+    }
+
+    if (typeof window.tutupModalMyLab === "function" && !window.tutupModalMyLab._worldHooked) {
+        let origCloseLab = window.tutupModalMyLab;
+        window.tutupModalMyLab = function() {
+            origCloseLab();
+            if (window.myWorldState.openedFromHub) {
+                window.kembaliKeLahanUtamaDariZona();
+            } else {
+                window.perbaruiBadgeMyWorld();
+            }
+        };
+        window.tutupModalMyLab._worldHooked = true;
     }
 };
 
@@ -1305,3 +1462,733 @@ document.addEventListener("fullscreenchange", function() {
         setTimeout(window.perbaruiOrientasiTampilanMyWorld, 120);
     }
 });
+// =========================================================================
+// 8. SCROLL TOUCH HALUS UNTUK MODE PUTAR 90° (IPHONE) + ANTI MENU TEKAN LAMA
+// =========================================================================
+window._MYWORLD_GAME_MODAL_SELECTOR = "#modal-my-world, #modal-my-pet, #modal-my-garden, #modal-my-farm, #modal-my-lab, #modal-visit-quiz-20, #btn-floating-myworld";
+
+// Matikan menu klik kanan / tekan lama ("Salin, Cari Tahu, Terjemahkan") di seluruh area game
+document.addEventListener("contextmenu", function(e) {
+    if (!e.target || !e.target.closest) return;
+    let tag = e.target.tagName ? e.target.tagName.toUpperCase() : "";
+    if (tag === "INPUT" || tag === "TEXTAREA") return;
+    if (e.target.closest(window._MYWORLD_GAME_MODAL_SELECTOR)) {
+        e.preventDefault();
+    }
+}, true);
+
+document.addEventListener("selectstart", function(e) {
+    if (!e.target || !e.target.closest) return;
+    let tag = e.target.tagName ? e.target.tagName.toUpperCase() : "";
+    if (tag === "INPUT" || tag === "TEXTAREA") return;
+    if (e.target.closest(window._MYWORLD_GAME_MODAL_SELECTOR)) {
+        e.preventDefault();
+    }
+}, true);
+
+// Mesin Scroll Touch Khusus Mode Putar 90° (Memetakan sumbu X/Y fisik ke scrollTop/scrollLeft visual)
+(function pasangMesinScrollRotasi90() {
+    let scState = {
+        active: false,
+        vTarget: null,
+        hTarget: null,
+        startX: 0,
+        startY: 0,
+        lastX: 0,
+        lastY: 0,
+        velV: 0,
+        velH: 0,
+        moved: false,
+        momentumRaf: null
+    };
+
+    function cariTargetScroll(startEl, arah) {
+        let el = startEl;
+        while (el && el !== document.body && el !== document.documentElement) {
+            let st = window.getComputedStyle(el);
+            if (arah === "v") {
+                let oy = st.overflowY;
+                if ((oy === "auto" || oy === "scroll") && el.scrollHeight > el.clientHeight + 2) {
+                    return el;
+                }
+            } else {
+                let ox = st.overflowX;
+                if ((ox === "auto" || ox === "scroll") && el.scrollWidth > el.clientWidth + 2) {
+                    return el;
+                }
+            }
+            el = el.parentElement;
+        }
+        return null;
+    }
+
+    function stopMomentum() {
+        if (scState.momentumRaf) {
+            cancelAnimationFrame(scState.momentumRaf);
+            scState.momentumRaf = null;
+        }
+    }
+
+    document.addEventListener("touchstart", function(e) {
+        stopMomentum();
+        if (!document.body.classList.contains("world-force-rotated")) return;
+        if (!e.touches || e.touches.length !== 1) return;
+
+        let t = e.target;
+        if (!t || !t.closest) return;
+        if (!t.closest("#modal-my-pet, #modal-my-garden, #modal-my-farm, #modal-my-lab, #modal-visit-quiz-20, #modal-custom-dialog, #myworld-shop-overlay, #myworld-fishing-overlay")) return;
+        // Jangan ganggu slider, input ketikan, drag hewan di Habitat Pet, atau pengadukan sumur di My Lab
+        let tag = t.tagName ? t.tagName.toUpperCase() : "";
+        if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+        if (t.closest(".is-draggable-pet, .mypet-decor-drag-btn, .lab-glass-slide.is-stir-mode, .gen-dnd-chip, .lab-dnd-item")) return;
+
+        let vEl = cariTargetScroll(t, "v");
+        let hEl = cariTargetScroll(t, "h");
+        if (!vEl && !hEl) return;
+
+        let pt = e.touches[0];
+        scState.active = true;
+        scState.vTarget = vEl;
+        scState.hTarget = hEl;
+        scState.startX = pt.clientX;
+        scState.startY = pt.clientY;
+        scState.lastX = pt.clientX;
+        scState.lastY = pt.clientY;
+        scState.velV = 0;
+        scState.velH = 0;
+        scState.moved = false;
+    }, { passive: true });
+
+    document.addEventListener("touchmove", function(e) {
+        if (!scState.active || !e.touches || e.touches.length !== 1) return;
+        if (!document.body.classList.contains("world-force-rotated")) {
+            scState.active = false;
+            return;
+        }
+
+        let pt = e.touches[0];
+        let dx = pt.clientX - scState.lastX;
+        let dy = pt.clientY - scState.lastY;
+
+        if (!scState.moved) {
+            if (Math.hypot(pt.clientX - scState.startX, pt.clientY - scState.startY) < 6) return;
+            scState.moved = true;
+        }
+
+        e.preventDefault();
+
+        // Pada rotasi 90° searah jarum jam:
+        // - Geser jari visual ke ATAS = +X layar fisik -> menambah scrollTop
+        // - Geser jari visual ke KIRI = -Y layar fisik -> menambah scrollLeft
+        if (scState.vTarget) {
+            scState.vTarget.scrollTop += dx;
+            scState.velV = dx;
+        }
+        if (scState.hTarget) {
+            scState.hTarget.scrollLeft -= dy;
+            scState.velH = -dy;
+        }
+
+        scState.lastX = pt.clientX;
+        scState.lastY = pt.clientY;
+    }, { passive: false });
+
+    document.addEventListener("touchend", function() {
+        if (!scState.active) return;
+        let vEl = scState.vTarget;
+        let hEl = scState.hTarget;
+        let vv = scState.velV;
+        let vh = scState.velH;
+        let wasMoved = scState.moved;
+
+        scState.active = false;
+        scState.vTarget = null;
+        scState.hTarget = null;
+
+        if (!wasMoved) return;
+
+        // Luncuran halus (inertia) setelah jari dilepas
+        function glide() {
+            vv *= 0.92;
+            vh *= 0.92;
+            let lanjut = false;
+            if (vEl && Math.abs(vv) > 0.4) {
+                vEl.scrollTop += vv;
+                lanjut = true;
+            }
+            if (hEl && Math.abs(vh) > 0.4) {
+                hEl.scrollLeft += vh;
+                lanjut = true;
+            }
+            if (lanjut) {
+                scState.momentumRaf = requestAnimationFrame(glide);
+            } else {
+                scState.momentumRaf = null;
+            }
+        }
+        scState.momentumRaf = requestAnimationFrame(glide);
+    }, { passive: true });
+})();
+// =========================================================================
+// 9. TOKO LAHAN (WORLD SHOP) & MINI-GAME MEMANCING 4 SPESIES IKAN DI SUNGAI
+// =========================================================================
+window.MY_WORLD_SHOP_ITEMS = {
+    rod: {
+        id: "joran_pancing",
+        nama: "Joran Pancing Bambu",
+        harga: 150,
+        ikon: "🎣",
+        deskripsi: "Peralatan memancing permanen untuk menangkap ikan di sungai My World."
+    }
+};
+
+window.MY_WORLD_FISH_CATALOG = [
+    {
+        id: "ikan_mujair",
+        nama: "Ikan Mujair",
+        latin: "Oreochromis mossambicus",
+        rarity: "Common",
+        chance: 50,
+        coin: 30,
+        xp: 6,
+        zoneWidth: 34,
+        speed: 1.9,
+        primary: "#94a3b8",
+        belly: "#e2e8f0",
+        fin: "#475569"
+    },
+    {
+        id: "ikan_gurame",
+        nama: "Ikan Gurame",
+        latin: "Osphronemus goramy",
+        rarity: "Uncommon",
+        chance: 28,
+        coin: 75,
+        xp: 15,
+        zoneWidth: 26,
+        speed: 2.4,
+        primary: "#65a30d",
+        belly: "#d9f99d",
+        fin: "#365314"
+    },
+    {
+        id: "ikan_koi",
+        nama: "Ikan Koi Kohaku",
+        latin: "Cyprinus rubrofuscus",
+        rarity: "Rare",
+        chance: 15,
+        coin: 160,
+        xp: 30,
+        zoneWidth: 19,
+        speed: 3.0,
+        primary: "#ffffff",
+        belly: "#f8fafc",
+        fin: "#ef4444",
+        isKoi: true
+    },
+    {
+        id: "ikan_arwana",
+        nama: "Arwana Super Red",
+        latin: "Scleropages formosus",
+        rarity: "Legendary",
+        chance: 7,
+        coin: 400,
+        xp: 80,
+        zoneWidth: 13,
+        speed: 3.7,
+        primary: "#dc2626",
+        belly: "#fde047",
+        fin: "#f59e0b",
+        isArwana: true
+    }
+];
+
+window.activeWorldShopTab = "gear"; // 'gear' | 'sell'
+window._fishingState = null;
+window._fishingBiteTimer = null;
+window._fishingGaugeTimer = null;
+
+window.pastikanStrukturMyWorldData = function(uName) {
+    let lb = (typeof window.pastikanStrukturDualXPDanPet === "function")
+        ? window.pastikanStrukturDualXPDanPet(uName)
+        : null;
+    if (!lb) return null;
+
+    if (!lb.myWorldData || typeof lb.myWorldData !== "object") {
+        lb.myWorldData = {
+            hasFishingRod: false,
+            fishInventory: {},
+            totalFishCaught: 0,
+            totalFishSold: 0
+        };
+    } else {
+        if (!lb.myWorldData.fishInventory || typeof lb.myWorldData.fishInventory !== "object") {
+            lb.myWorldData.fishInventory = {};
+        }
+        lb.myWorldData.hasFishingRod = Boolean(lb.myWorldData.hasFishingRod);
+        lb.myWorldData.totalFishCaught = Number(lb.myWorldData.totalFishCaught) || 0;
+        lb.myWorldData.totalFishSold = Number(lb.myWorldData.totalFishSold) || 0;
+    }
+    return lb;
+};
+
+window.simpanDataWorldKeServer = function(lb) {
+    if (!lb) return;
+    let rawU = String(sessionStorage.getItem("username") || "").trim();
+    let cleanKey = (typeof window.normalisasiKeySiswaPet === "function")
+        ? window.normalisasiKeySiswaPet(rawU)
+        : rawU.toLowerCase();
+    let isAdmin = (typeof window.isAdminSession === "function" && window.isAdminSession()) ||
+                  sessionStorage.getItem("statusLogin") === "admin" ||
+                  cleanKey === "mahardika";
+    if (!isAdmin && cleanKey && typeof window.simpanLeaderboardSiswaKeDB === "function") {
+        window.simpanLeaderboardSiswaKeDB(cleanKey, lb);
+    }
+};
+
+window.bangunSVGIkanWorld = function(fishObj, sizePx) {
+    let sz = sizePx || 64;
+    let f = fishObj || window.MY_WORLD_FISH_CATALOG[0];
+    let spot = f.isKoi
+        ? '<ellipse cx="48" cy="36" rx="14" ry="8" fill="#ef4444"/><ellipse cx="76" cy="44" rx="10" ry="7" fill="#dc2626"/>'
+        : (f.isArwana ? '<path d="M26,48 L12,56 M28,50 L14,60" stroke="#f59e0b" stroke-width="3" stroke-linecap="round"/><path d="M36,34 L88,36 M38,44 L86,44 M40,54 L84,52" stroke="#fde047" stroke-width="2" opacity="0.65"/>' : '');
+
+    return '<svg viewBox="0 0 120 84" width="' + sz + '" height="' + Math.round(sz * 0.7) + '">' +
+        '<polygon points="88,42 114,22 108,42 114,62" fill="' + f.fin + '" stroke="#0f172a" stroke-width="2.5" stroke-linejoin="round"/>' +
+        '<path d="M44,24 Q64,6 82,28 Z" fill="' + f.fin + '" stroke="#0f172a" stroke-width="2.5" stroke-linejoin="round"/>' +
+        '<path d="M52,60 Q64,76 76,58 Z" fill="' + f.fin + '" stroke="#0f172a" stroke-width="2.5" stroke-linejoin="round"/>' +
+        '<ellipse cx="56" cy="42" rx="38" ry="20" fill="' + f.primary + '" stroke="#0f172a" stroke-width="3"/>' +
+        '<path d="M24,48 Q56,62 86,48 Q56,56 24,48 Z" fill="' + f.belly + '"/>' +
+        spot +
+        '<circle cx="31" cy="37" r="4.5" fill="#ffffff" stroke="#0f172a" stroke-width="2"/>' +
+        '<circle cx="30" cy="37" r="2.2" fill="#0f172a"/>' +
+        '<path d="M46,34 Q52,42 46,50" fill="none" stroke="#0f172a" stroke-width="2.5" stroke-linecap="round"/>' +
+    '</svg>';
+};
+
+// --- TOKO LAHAN (WORLD SHOP) ---
+window.bukaWorldShop = function(tabName) {
+    if (window.modeKunjunganWorld) {
+        return window.tampilkanCustomDialog("alert", "Toko Lahan hanya dapat diakses saat berada di My World milik Anda sendiri.", null, null);
+    }
+    let uName = sessionStorage.getItem("username");
+    window.pastikanStrukturMyWorldData(uName);
+    window.activeWorldShopTab = tabName || "gear";
+    window.renderWorldShopUI();
+    let ov = document.getElementById("myworld-shop-overlay");
+    if (ov) ov.style.display = "flex";
+};
+
+window.apakahOverlayDalamWorldTerbuka = function() {
+    let ids = ["myworld-shop-overlay", "myworld-fishing-overlay", "modal-custom-dialog"];
+    return ids.some(function(id) {
+        let el = document.getElementById(id);
+        return Boolean(el && el.style.display && el.style.display !== "none");
+    });
+};
+
+window.pulihkanGerakSetelahOverlayWorld = function() {
+    let ws = window.myWorldState;
+    if (!ws) return;
+    ws.keys = { up: false, down: false, left: false, right: false };
+    ws.targetX = null;
+    ws.targetY = null;
+    ws.autoEnterZone = "";
+    ws.exitCooldownUntil = Date.now() + 1400;
+    window.renderPosisiAvatarMyWorld(false);
+    if (ws.isOpen && !ws.rafId && typeof window.mulaiLoopGerakMyWorld === "function") {
+        window.mulaiLoopGerakMyWorld();
+    }
+};
+
+window.tutupWorldShop = function() {
+    let ov = document.getElementById("myworld-shop-overlay");
+    if (ov) ov.style.display = "none";
+    window.pulihkanGerakSetelahOverlayWorld();
+};
+
+window.gantiTabWorldShop = function(tabName) {
+    window.activeWorldShopTab = tabName || "gear";
+    window.renderWorldShopUI();
+};
+
+window.renderWorldShopUI = function() {
+    let ov = document.getElementById("myworld-shop-overlay");
+    if (!ov) return;
+    let uName = sessionStorage.getItem("username");
+    let lb = window.pastikanStrukturMyWorldData(uName);
+    if (!lb) return;
+
+    let wd = lb.myWorldData;
+    let inv = wd.fishInventory || {};
+    let totalIkanDiTas = 0;
+    let totalNilaiCoin = 0;
+    window.MY_WORLD_FISH_CATALOG.forEach(function(f) {
+        let q = Number(inv[f.id]) || 0;
+        totalIkanDiTas += q;
+        totalNilaiCoin += q * f.coin;
+    });
+
+    let bodyHtml = '';
+    if (window.activeWorldShopTab === "gear") {
+        let rod = window.MY_WORLD_SHOP_ITEMS.rod;
+        bodyHtml =
+            '<div class="ws-gear-grid">' +
+                '<div class="ws-item-card">' +
+                    '<div class="cozy-card-top-row"><span class="cozy-tag green">Peralatan Permanen</span><span class="cozy-stock-lbl">' + (wd.hasFishingRod ? '✓ Dimiliki' : 'Belum Dimiliki') + '</span></div>' +
+                    '<div style="font-size:46px; margin:8px 0;">' + rod.ikon + '</div>' +
+                    '<div class="cozy-item-name">' + rod.nama + '</div>' +
+                    '<div class="cozy-item-sub">' + rod.deskripsi + '</div>' +
+                    (wd.hasFishingRod
+                        ? '<button type="button" class="mypet-gray-cta sm" disabled>✓ Sudah Dimiliki — Berjalan ke Sungai untuk Memancing</button>'
+                        : '<button type="button" class="mypet-amber-cta sm" onclick="window.beliPancingWorldShop()">🪙 Beli (' + rod.harga.toLocaleString("id-ID") + ' Coin)</button>') +
+                '</div>' +
+                '<div class="ws-item-card is-info-fish">' +
+                    '<div class="cozy-card-top-row"><span class="cozy-tag amber">Panduan Ikan Sungai</span><span class="cozy-stock-lbl">4 Spesies</span></div>' +
+                    '<div class="ws-fish-guide-list">' +
+                        window.MY_WORLD_FISH_CATALOG.map(function(f) {
+                            return '<div class="ws-fish-mini-row"><span class="ws-rar-dot rar-' + f.rarity.toLowerCase() + '">' + f.rarity + '</span><b>' + f.nama + '</b><span>🪙 ' + f.coin + '</span></div>';
+                        }).join('') +
+                    '</div>' +
+                '</div>' +
+            '</div>';
+    } else {
+        let cardsHtml = '';
+        window.MY_WORLD_FISH_CATALOG.forEach(function(f) {
+            let qty = Number(inv[f.id]) || 0;
+            let rarSlug = f.rarity.toLowerCase();
+            cardsHtml +=
+                '<div class="ws-item-card rar-' + rarSlug + '">' +
+                    '<div class="cozy-card-top-row"><span class="cozy-tag neutral">' + f.rarity + '</span><span class="cozy-stock-lbl">Tas: <b>x' + qty + '</b></span></div>' +
+                    '<div style="margin:6px 0;">' + window.bangunSVGIkanWorld(f, 76) + '</div>' +
+                    '<div class="cozy-item-name">' + f.nama + '</div>' +
+                    '<div class="garden-latin-name"><i>' + f.latin + '</i></div>' +
+                    '<div class="garden-shop-meta">🪙 ' + f.coin + ' Coin • ⭐ +' + f.xp + ' XP / ekor</div>' +
+                    '<button type="button" class="' + (qty > 0 ? 'mypet-green-cta sm' : 'mypet-gray-cta sm') + '" ' + (qty > 0 ? '' : 'disabled') + ' onclick="window.jualSatuIkanWorld(\'' + f.id + '\')">' + (qty > 0 ? ('💰 Jual 1 (+🪙 ' + f.coin + ')') : 'Kosong') + '</button>' +
+                '</div>';
+        });
+
+        bodyHtml =
+            (totalIkanDiTas > 0
+                ? '<div class="ws-sell-all-bar"><span>🐟 Total di Tas: <b>' + totalIkanDiTas + ' ekor</b> (Estimasi <b>🪙 ' + totalNilaiCoin.toLocaleString("id-ID") + ' Coin</b>)</span><button type="button" class="mypet-amber-cta sm" style="width:auto; padding:6px 14px;" onclick="window.jualSemuaIkanWorld()">💰 Jual Semua Ikan</button></div>'
+                : '') +
+            '<div class="ws-fish-sell-grid">' + cardsHtml + '</div>';
+    }
+
+    ov.innerHTML =
+        '<div class="ws-modal-card">' +
+            '<div class="ws-modal-head">' +
+                '<div><strong>🏪 Toko Lahan (World Shop)</strong><small>Beli peralatan memancing dan jual hasil tangkapan ikan sungai.</small></div>' +
+                '<button type="button" class="mypet-hud-close-btn" onclick="window.tutupWorldShop()">✕</button>' +
+            '</div>' +
+            '<div class="ws-tabs-row">' +
+                '<button type="button" class="ws-tab-btn' + (window.activeWorldShopTab === "gear" ? ' active' : '') + '" onclick="window.gantiTabWorldShop(\'gear\')">🎣 Perlengkapan</button>' +
+                '<button type="button" class="ws-tab-btn' + (window.activeWorldShopTab === "sell" ? ' active' : '') + '" onclick="window.gantiTabWorldShop(\'sell\')">🐟 Jual Ikan (' + totalIkanDiTas + ')</button>' +
+            '</div>' +
+            '<div class="world-shop-body">' + bodyHtml + '</div>' +
+        '</div>';
+};
+
+window.beliPancingWorldShop = function() {
+    let uName = sessionStorage.getItem("username");
+    let lb = window.pastikanStrukturMyWorldData(uName);
+    let rod = window.MY_WORLD_SHOP_ITEMS.rod;
+    if (!lb || lb.myWorldData.hasFishingRod) return;
+
+    let saldo = (typeof window.ambilCoinSiswa === "function") ? window.ambilCoinSiswa(uName) : 0;
+    if (saldo < rod.harga) {
+        return window.tampilkanCustomDialog("alert", "Saldo Coin belum mencukupi untuk membeli " + rod.nama + " (" + rod.harga + " Coin).", null, null);
+    }
+
+    if (typeof window.gunakanCoinSiswa === "function" && window.gunakanCoinSiswa(rod.harga, "beli_pancing_world", true)) {
+        lb.myWorldData.hasFishingRod = true;
+        window.simpanDataWorldKeServer(lb);
+        window.perbaruiBadgeMyWorld();
+        window.renderWorldShopUI();
+        window.tampilkanCustomDialog("alert", "🎣 Berhasil membeli " + rod.nama + "! Arahkan avatar ke Dermaga Sungai (pojok kiri bawah peta) untuk mulai memancing.", null, null);
+    }
+};
+
+window.jualSatuIkanWorld = function(fishId) {
+    let uName = sessionStorage.getItem("username");
+    let lb = window.pastikanStrukturMyWorldData(uName);
+    let f = window.MY_WORLD_FISH_CATALOG.find(function(x) { return x.id === fishId; });
+    if (!lb || !f) return;
+
+    let stok = Number(lb.myWorldData.fishInventory[fishId]) || 0;
+    if (stok <= 0) return;
+
+    lb.myWorldData.fishInventory[fishId] = stok - 1;
+    if (lb.myWorldData.fishInventory[fishId] <= 0) delete lb.myWorldData.fishInventory[fishId];
+    lb.myWorldData.totalFishSold++;
+
+    lb.coin = (Number(lb.coin !== undefined ? lb.coin : lb.xpTersedia) || 0) + f.coin;
+    lb.xpTersedia = lb.coin;
+    lb.xpTotal = (Number(lb.xpTotal !== undefined ? lb.xpTotal : lb.xp) || 0) + f.xp;
+    lb.xp = lb.xpTotal;
+
+    window.simpanDataWorldKeServer(lb);
+    if (typeof window.perbaruiTampilanSaldoXPPet === "function") window.perbaruiTampilanSaldoXPPet();
+    if (typeof window.perbaruiUIHeaderProfilSiswa === "function") window.perbaruiUIHeaderProfilSiswa();
+    window.perbaruiBadgeMyWorld();
+    window.renderWorldShopUI();
+};
+
+window.jualSemuaIkanWorld = function() {
+    let uName = sessionStorage.getItem("username");
+    let lb = window.pastikanStrukturMyWorldData(uName);
+    if (!lb) return;
+
+    let inv = lb.myWorldData.fishInventory || {};
+    let totCoin = 0, totXp = 0, totEkor = 0;
+
+    window.MY_WORLD_FISH_CATALOG.forEach(function(f) {
+        let q = Number(inv[f.id]) || 0;
+        if (q > 0) {
+            totCoin += q * f.coin;
+            totXp += q * f.xp;
+            totEkor += q;
+            delete inv[f.id];
+        }
+    });
+    if (totEkor === 0) return;
+
+    lb.myWorldData.totalFishSold += totEkor;
+    lb.coin = (Number(lb.coin !== undefined ? lb.coin : lb.xpTersedia) || 0) + totCoin;
+    lb.xpTersedia = lb.coin;
+    lb.xpTotal = (Number(lb.xpTotal !== undefined ? lb.xpTotal : lb.xp) || 0) + totXp;
+    lb.xp = lb.xpTotal;
+
+    window.simpanDataWorldKeServer(lb);
+    if (typeof window.perbaruiTampilanSaldoXPPet === "function") window.perbaruiTampilanSaldoXPPet();
+    if (typeof window.perbaruiUIHeaderProfilSiswa === "function") window.perbaruiUIHeaderProfilSiswa();
+    window.perbaruiBadgeMyWorld();
+    window.renderWorldShopUI();
+};
+
+// --- MINI-GAME MEMANCING DI SUNGAI MY WORLD ---
+window.hentikanTimerMancingWorld = function() {
+    clearTimeout(window._fishingBiteTimer);
+    clearInterval(window._fishingGaugeTimer);
+    window._fishingBiteTimer = null;
+    window._fishingGaugeTimer = null;
+};
+
+window.acakSpesiesIkanSungai = function() {
+    let roll = Math.random() * 100;
+    let acc = 0;
+    for (let i = 0; i < window.MY_WORLD_FISH_CATALOG.length; i++) {
+        acc += window.MY_WORLD_FISH_CATALOG[i].chance;
+        if (roll <= acc) return window.MY_WORLD_FISH_CATALOG[i];
+    }
+    return window.MY_WORLD_FISH_CATALOG[0];
+};
+
+window.bukaMiniGameMancing = function() {
+    let uName = sessionStorage.getItem("username");
+    let lb = window.pastikanStrukturMyWorldData(uName);
+    if (!lb) return;
+
+    if (!lb.myWorldData.hasFishingRod) {
+        window.tampilkanCustomDialog("alert", "Anda belum memiliki Joran Pancing.\nSilakan berjalan menuju Toko Lahan (🏪 Shop) di sisi kanan peta untuk membelinya terlebih dahulu.", null, function() {
+            window.pulihkanGerakSetelahOverlayWorld();
+        });
+        return;
+    }
+
+    window.hentikanTimerMancingWorld();
+    window._fishingState = {
+        phase: "idle", // 'idle' | 'waiting' | 'biting' | 'caught' | 'missed'
+        targetFish: null,
+        needlePos: 0,
+        needleDir: 1,
+        zoneStart: 35,
+        zoneWidth: 28,
+        savedToBag: false,
+        soldDirect: false
+    };
+
+    window.renderMiniGameMancingUI();
+    let ov = document.getElementById("myworld-fishing-overlay");
+    if (ov) ov.style.display = "flex";
+};
+
+window.tutupMiniGameMancing = function() {
+    window.hentikanTimerMancingWorld();
+    window._fishingState = null;
+    let ov = document.getElementById("myworld-fishing-overlay");
+    if (ov) ov.style.display = "none";
+    window.pulihkanGerakSetelahOverlayWorld();
+};
+
+window.renderMiniGameMancingUI = function() {
+    let ov = document.getElementById("myworld-fishing-overlay");
+    let st = window._fishingState;
+    if (!ov || !st) return;
+
+    let stageHtml = '';
+    if (st.phase === "idle") {
+        stageHtml =
+            '<div class="fish-river-stage">' +
+                '<div class="fish-bobber-idle">🎣</div>' +
+                '<p class="fish-stage-msg">Dermaga Sungai My World — Lempar kail untuk memancing ikan!</p>' +
+            '</div>' +
+            '<button type="button" class="mypet-green-cta sm" style="max-width:220px;" onclick="window.lemparKailMancing()">🎣 Lempar Kail</button>';
+    } else if (st.phase === "waiting") {
+        stageHtml =
+            '<div class="fish-river-stage is-waiting">' +
+                '<div class="fish-bobber-float">🔴</div>' +
+                '<div class="fish-ripple-ring"></div>' +
+                '<p class="fish-stage-msg">Menunggu ikan menyambar umpan...</p>' +
+            '</div>' +
+            '<button type="button" class="mypet-gray-cta sm" style="max-width:200px; margin:0 auto;" disabled>⏳ Perhatikan Pelampung...</button>';
+    } else if (st.phase === "biting" && st.targetFish) {
+        let rarSlug = st.targetFish.rarity.toLowerCase();
+        stageHtml =
+            '<div class="fish-river-stage is-biting">' +
+                '<div class="fish-bite-alert">❗ IKAN MENYAMBAR! (' + st.targetFish.rarity + ')</div>' +
+                '<div class="fish-gauge-track">' +
+                    '<div class="fish-gauge-zone rar-' + rarSlug + '" style="left:' + st.zoneStart + '%; width:' + st.zoneWidth + '%;">TARIK!</div>' +
+                    '<div id="world-fish-needle" class="fish-gauge-needle" style="left:' + Math.round(st.needlePos) + '%;"></div>' +
+                '</div>' +
+            '</div>' +
+            '<button type="button" class="mypet-green-cta" style="max-width:260px; margin:0 auto;" onclick="window.tarikKailMancing()">🎣 TARIK KAIL SEKARANG!</button>';
+    } else if (st.phase === "caught" && st.targetFish) {
+        let f = st.targetFish;
+        let actionRow = !st.savedToBag
+            ? '<button type="button" class="mypet-green-cta sm" style="max-width:240px;" onclick="window.aksiHasilIkan(\'keep\')">🎒 Simpan ke Tas Ikan</button>'
+            : '<div class="garden-quiz-feedback ok" style="margin:4px 0; width:100%; box-sizing:border-box;">🎒 <b>' + f.nama + '</b> tersimpan di Tas Ikan. Berjalanlah ke <b>Toko Lahan (🏪 Shop)</b> untuk menjualnya.</div>' +
+              '<button type="button" class="mypet-green-cta sm" style="max-width:220px; margin:4px auto 0 auto;" onclick="window.lemparKailMancing()">🎣 Pancing Lagi</button>';
+
+        stageHtml =
+            '<div class="fish-catch-card rar-' + f.rarity.toLowerCase() + '">' +
+                '<span class="ws-rar-dot rar-' + f.rarity.toLowerCase() + '">' + f.rarity.toUpperCase() + '</span>' +
+                '<div style="margin:6px 0;">' + window.bangunSVGIkanWorld(f, 112) + '</div>' +
+                '<div style="font-size:16px; font-weight:900; color:#0f172a;">' + f.nama + '</div>' +
+                '<div style="font-size:11px; color:#64748b; font-style:italic; margin-bottom:8px;">' + f.latin + ' • Nilai: 🪙 ' + f.coin + ' Coin</div>' +
+                actionRow +
+            '</div>';
+    } else if (st.phase === "missed") {
+        stageHtml =
+            '<div class="fish-river-stage">' +
+                '<div style="font-size:40px;">💨🐟</div>' +
+                '<p class="fish-stage-msg">Ikan terlepas! Tarik kail tepat saat jarum berada di dalam zona target.</p>' +
+            '</div>' +
+            '<button type="button" class="mypet-amber-cta sm" style="max-width:220px; margin:0 auto;" onclick="window.lemparKailMancing()">🔄 Lempar Kail Lagi</button>';
+    }
+
+    ov.innerHTML =
+        '<div class="ws-modal-card fish-modal-card">' +
+            '<div class="ws-modal-head">' +
+                '<div><strong>🎣 Memancing di Sungai My World</strong><small>Tangkap ikan Common, Uncommon, Rare, hingga Legendary!</small></div>' +
+                '<button type="button" class="mypet-hud-close-btn" onclick="window.tutupMiniGameMancing()">✕</button>' +
+            '</div>' +
+            '<div class="world-shop-body" style="display:flex; flex-direction:column; gap:10px; align-items:center;">' + stageHtml + '</div>' +
+        '</div>';
+};
+
+window.lemparKailMancing = function() {
+    let st = window._fishingState;
+    if (!st) return;
+    window.hentikanTimerMancingWorld();
+
+    let fish = window.acakSpesiesIkanSungai();
+    st.phase = "waiting";
+    st.targetFish = fish;
+    st.savedToBag = false;
+    st.soldDirect = false;
+    st.needlePos = 4;
+    st.needleDir = 1;
+    st.zoneWidth = fish.zoneWidth;
+    st.zoneStart = Math.round(18 + Math.random() * (64 - fish.zoneWidth));
+
+    window.renderMiniGameMancingUI();
+
+    let waitMs = 1400 + Math.floor(Math.random() * 1900);
+    window._fishingBiteTimer = setTimeout(function() {
+        if (!window._fishingState || window._fishingState.phase !== "waiting") return;
+        window._fishingState.phase = "biting";
+        window.renderMiniGameMancingUI();
+
+        window._fishingGaugeTimer = setInterval(function() {
+            let cur = window._fishingState;
+            if (!cur || cur.phase !== "biting") { window.hentikanTimerMancingWorld(); return; }
+            cur.needlePos += cur.needleDir * cur.targetFish.speed;
+            if (cur.needlePos >= 98) { cur.needlePos = 98; cur.needleDir = -1; }
+            else if (cur.needlePos <= 2) { cur.needlePos = 2; cur.needleDir = 1; }
+            let nEl = document.getElementById("world-fish-needle");
+            if (nEl) nEl.style.left = Math.round(cur.needlePos) + "%";
+        }, 28);
+    }, waitMs);
+};
+
+window.tarikKailMancing = function() {
+    let st = window._fishingState;
+    if (!st || st.phase !== "biting" || !st.targetFish) return;
+    window.hentikanTimerMancingWorld();
+
+    let hit = (st.needlePos >= st.zoneStart && st.needlePos <= (st.zoneStart + st.zoneWidth));
+    if (hit) {
+        st.phase = "caught";
+        let uName = sessionStorage.getItem("username");
+        let lb = window.pastikanStrukturMyWorldData(uName);
+        if (lb) {
+            lb.myWorldData.totalFishCaught++;
+            window.simpanDataWorldKeServer(lb);
+        }
+    } else {
+        st.phase = "missed";
+    }
+    window.renderMiniGameMancingUI();
+};
+
+window.aksiHasilIkan = function(mode) {
+    let st = window._fishingState;
+    if (!st || st.phase !== "caught" || !st.targetFish || st.savedToBag || st.soldDirect) return;
+
+    let f = st.targetFish;
+    let uName = sessionStorage.getItem("username");
+    let lb = window.pastikanStrukturMyWorldData(uName);
+    if (!lb) return;
+
+    if (mode === "sell") {
+        st.soldDirect = true;
+        lb.myWorldData.totalFishSold++;
+        lb.coin = (Number(lb.coin !== undefined ? lb.coin : lb.xpTersedia) || 0) + f.coin;
+        lb.xpTersedia = lb.coin;
+        lb.xpTotal = (Number(lb.xpTotal !== undefined ? lb.xpTotal : lb.xp) || 0) + f.xp;
+        lb.xp = lb.xpTotal;
+    } else {
+        st.savedToBag = true;
+        lb.myWorldData.fishInventory[f.id] = (Number(lb.myWorldData.fishInventory[f.id]) || 0) + 1;
+    }
+
+    window.simpanDataWorldKeServer(lb);
+    if (typeof window.perbaruiTampilanSaldoXPPet === "function") window.perbaruiTampilanSaldoXPPet();
+    if (typeof window.perbaruiUIHeaderProfilSiswa === "function") window.perbaruiUIHeaderProfilSiswa();
+    window.perbaruiBadgeMyWorld();
+    window.renderMiniGameMancingUI();
+};
+
+// Pastikan tombol Shop HUD tersembunyi saat Mode Visit & timer mancing berhenti saat tutup My World
+(function pasangHookShopDanMancingWorld() {
+    if (typeof window.perbaruiBadgeMyWorld === "function" && !window.perbaruiBadgeMyWorld._shopHooked) {
+        let origB = window.perbaruiBadgeMyWorld;
+        window.perbaruiBadgeMyWorld = function() {
+            origB.apply(this, arguments);
+            let btnShop = document.getElementById("btn-myworld-shop");
+            if (btnShop) btnShop.style.display = window.modeKunjunganWorld ? "none" : "inline-flex";
+        };
+        window.perbaruiBadgeMyWorld._shopHooked = true;
+    }
+
+    if (typeof window.tutupModalMyWorld === "function" && !window.tutupModalMyWorld._fishCloseHooked) {
+        let origC = window.tutupModalMyWorld;
+        window.tutupModalMyWorld = function(fullExit) {
+            window.tutupWorldShop();
+            window.tutupMiniGameMancing();
+            origC.apply(this, arguments);
+        };
+        window.tutupModalMyWorld._fishCloseHooked = true;
+    }
+})();
