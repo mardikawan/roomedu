@@ -12478,3 +12478,1569 @@ body.world-force-rotated .world-shop-body { touch-action: none !important; }
     .lab-hist-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .ws-gear-grid, .ws-fish-sell-grid { grid-template-columns: 1fr; }
 }
+/* =========================================================================
+   SIKLUS SIANG–MALAM, CUACA LOKAL, KUSTOMISASI AVATAR, & MY KITCHEN
+   ========================================================================= */
+.world-zone-btn.zone-kitchen {
+    left: 14%;
+    top: 55%;
+    width: 15%;
+    height: 22%;
+}
+
+.world-env-pill {
+    background: rgba(255, 253, 245, 0.9);
+    border: 2px solid #8c5a2b;
+    color: #451a03;
+    padding: 3px 10px;
+    border-radius: 14px;
+    font-size: 11px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.myworld-env-fx {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 12;
+    overflow: hidden;
+    transition: background 0.6s ease;
+}
+
+.myworld-stage.time-pagi .myworld-env-fx  { background: linear-gradient(180deg, rgba(254, 240, 138, 0.14) 0%, transparent 65%); }
+.myworld-stage.time-sore .myworld-env-fx  { background: linear-gradient(180deg, rgba(249, 115, 22, 0.24) 0%, rgba(180, 83, 9, 0.14) 100%); }
+.myworld-stage.time-malam .myworld-env-fx { background: linear-gradient(180deg, rgba(15, 23, 42, 0.56) 0%, rgba(30, 41, 59, 0.44) 100%); }
+.myworld-stage.time-malam .world-door-glow { box-shadow: 0 0 18px rgba(254, 240, 138, 0.95); opacity: 0.95; }
+
+/* Bintang Malam */
+.mw-stars-layer {
+    position: absolute;
+    inset: 0;
+    background-image:
+        radial-gradient(2px 2px at 14% 12%, #ffffff, transparent),
+        radial-gradient(2px 2px at 36% 8%, #fef08a, transparent),
+        radial-gradient(2px 2px at 66% 11%, #ffffff, transparent),
+        radial-gradient(2px 2px at 88% 14%, #fef08a, transparent),
+        radial-gradient(1.5px 1.5px at 52% 18%, #ffffff, transparent);
+    opacity: 0.85;
+}
+
+/* Efek Hujan CSS Ringan */
+@keyframes mwRainFall {
+    0%   { background-position: 0 0; }
+    100% { background-position: -40px 160px; }
+}
+.mw-rain-layer {
+    position: absolute;
+    inset: 0;
+    background-image: repeating-linear-gradient(108deg, rgba(224, 242, 254, 0.45) 0 2px, transparent 2px 28px);
+    background-size: 60px 160px;
+    animation: mwRainFall 0.55s linear infinite;
+    background-color: rgba(15, 23, 42, 0.14);
+}
+
+/* Efek Awan & Angin */
+.mw-clouds-layer {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 25% 20%, rgba(255,255,255,0.22), transparent 55%),
+                radial-gradient(ellipse at 78% 30%, rgba(255,255,255,0.2), transparent 50%);
+}
+
+@keyframes mwLeafDrift {
+    0%   { transform: translate(-10vw, -10px) rotate(0deg); opacity: 0; }
+    20%  { opacity: 0.9; }
+    100% { transform: translate(105vw, 180px) rotate(320deg); opacity: 0; }
+}
+.mw-wind-layer span {
+    position: absolute;
+    top: 12%;
+    left: 0;
+    font-size: 16px;
+    animation: mwLeafDrift 6.5s linear infinite;
+}
+.mw-wind-layer span:nth-child(2) { top: 34%; animation-delay: 1.7s; }
+.mw-wind-layer span:nth-child(3) { top: 58%; animation-delay: 3.3s; }
+.mw-wind-layer span:nth-child(4) { top: 72%; animation-delay: 4.8s; }
+
+.myworld-toast-env {
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(15, 23, 42, 0.88);
+    color: #fef08a;
+    border: 2px solid #38bdf8;
+    border-radius: 20px;
+    padding: 5px 14px;
+    font-size: 11.5px;
+    font-weight: 800;
+    z-index: 60;
+    white-space: nowrap;
+}
+
+/* --- KUSTOMISASI AVATAR DI WORLD SHOP --- */
+.ws-avatar-layout {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: flex-start;
+}
+
+.ws-avatar-preview-box {
+    width: 145px;
+    background: radial-gradient(circle, #fef9c3 0%, #fde68a 100%);
+    border: 2.5px solid #b45309;
+    border-radius: 16px;
+    padding: 12px 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 0 auto;
+    flex-shrink: 0;
+}
+
+.ws-av-sec-title {
+    font-size: 11.5px;
+    font-weight: 900;
+    color: #5c3210;
+}
+
+.ws-av-items-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 6px;
+}
+
+.ws-av-chip {
+    background: #ffffff;
+    border: 2px solid #cbd5e1;
+    border-radius: 11px;
+    padding: 6px 5px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    cursor: pointer;
+    font-family: 'Quicksand', 'Poppins', sans-serif;
+}
+.ws-av-chip.is-equipped { background: #dcfce7; border-color: #16a34a; }
+.ws-av-chip b     { font-size: 10px; color: #0f172a; line-height: 1.2; }
+.ws-av-chip small { font-size: 9.5px; font-weight: 800; color: #b45309; }
+.ws-av-chip.is-equipped small { color: #15803d; }
+
+.ws-pantry-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+    gap: 8px;
+}
+
+/* --- MY KITCHEN / DAPUR GIZI & OLAHAN --- */
+.ws-modal-card.kit-modal-card {
+    max-width: 650px;
+    border-color: #c2410c;
+    position: relative;
+}
+
+.kit-pantry-bar {
+    background: #fff7ed;
+    border: 2px solid #fdba74;
+    border-radius: 12px;
+    padding: 8px 10px;
+    margin-bottom: 10px;
+}
+
+.kit-stock-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+.kit-stock-pill {
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    color: #64748b;
+    padding: 2px 7px;
+    border-radius: 8px;
+    font-size: 10px;
+    font-weight: 700;
+}
+.kit-stock-pill.has-stock { background: #dcfce7; border-color: #22c55e; color: #14532d; }
+
+.kit-reqs-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px;
+    margin: 4px 0;
+}
+
+.kit-req-chip {
+    font-size: 9.5px;
+    font-weight: 800;
+    padding: 2px 6px;
+    border-radius: 7px;
+}
+.kit-req-chip.ok   { background: #dcfce7; color: #15803d; border: 1px solid #22c55e; }
+.kit-req-chip.miss { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
+
+.kit-stove-box,
+.kit-case-box {
+    background: #ffffff;
+    border: 2.5px solid #fdba74;
+    border-radius: 14px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+.kit-case-box { align-items: stretch; text-align: left; }
+
+.kit-case-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(122px, 1fr));
+    gap: 6px;
+}
+
+.kit-case-chip {
+    background: #f8fafc;
+    border: 2px solid #cbd5e1;
+    border-radius: 10px;
+    padding: 6px 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-family: 'Quicksand', 'Poppins', sans-serif;
+    font-size: 11px;
+    color: #1e293b;
+}
+.kit-case-chip.is-picked { background: #dbeafe; border-color: #2563eb; color: #1e3a8a; }
+
+.kitchen-ref-cover {
+    position: absolute;
+    inset: 0;
+    z-index: 40;
+    background: rgba(15, 23, 42, 0.9);
+    backdrop-filter: blur(5px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px;
+    box-sizing: border-box;
+}
+
+.kitchen-ref-card {
+    width: 100%;
+    max-width: 520px;
+    max-height: 92%;
+    background: #ffffff;
+    border: 3px solid #0284c7;
+    border-radius: 16px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+/* =========================================================================
+   OPEN-WORLD 2400x1500: KAMERA, POHON, GERBANG, SERANGGA, HOTBAR, & PETA
+   ========================================================================= */
+.myworld-stage.is-open-world-viewport {
+    width: 100% !important;
+    height: 100% !important;
+    position: relative !important;
+    overflow: hidden !important;
+    background: #589e38;
+}
+
+.myworld-camera-world {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 2400px;
+    height: 1500px;
+    will-change: transform;
+    transform-origin: top left;
+}
+
+.myworld-open-svg {
+    position: absolute;
+    inset: 0;
+    width: 2400px;
+    height: 1500px;
+    pointer-events: none;
+}
+
+.myworld-entities-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 22;
+}
+
+/* Koordinat Zona Baru pada Open-World 2400x1500 (Kebun di Halaman Rumah!) */
+.myworld-camera-world .world-zone-btn.zone-pet     { left: 16.6%; top: 18.0%; width: 12%; height: 17%; }
+.myworld-camera-world .world-zone-btn.zone-garden  { left: 16.8%; top: 47.0%; width: 14%; height: 14%; }
+.myworld-camera-world .world-zone-btn.zone-kitchen { left: 33.3%; top: 19.0%; width: 10%; height: 14%; }
+.myworld-camera-world .world-zone-btn.zone-shop    { left: 52.5%; top: 24.5%; width: 11%; height: 14%; }
+.myworld-camera-world .world-zone-btn.zone-lab     { left: 77.3%; top: 16.5%; width: 12%; height: 16%; }
+.myworld-camera-world .world-zone-btn.zone-farm    { left: 82.1%; top: 46.5%; width: 13%; height: 16%; }
+.myworld-camera-world .world-zone-btn.zone-river   { left: 24.0%; top: 69.0%; width: 9%;  height: 9%;  }
+
+/* Pohon, Tunggul, & Barikade Buka Jalan */
+.ow-tree-actor {
+    position: absolute;
+    transform: translate(-50%, -82%);
+    background: transparent;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    pointer-events: auto;
+    transition: transform 0.12s;
+}
+.ow-tree-actor:hover { transform: translate(-50%, -84%) scale(1.06); }
+
+@keyframes owTreeShake {
+    0%, 100% { transform: translate(-50%, -82%) rotate(0deg); }
+    25%      { transform: translate(-50%, -82%) rotate(-9deg); }
+    75%      { transform: translate(-50%, -82%) rotate(9deg); }
+}
+.ow-tree-actor.is-chopped-shake { animation: owTreeShake 0.26s ease-in-out; }
+
+.ow-stump {
+    position: absolute;
+    transform: translate(-50%, -60%);
+    font-size: 20px;
+    opacity: 0.72;
+    pointer-events: none;
+}
+
+.ow-gate-actor {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    background: linear-gradient(180deg, #fef3c7 0%, #f59e0b 100%);
+    border: 3px solid #78350f;
+    border-radius: 14px;
+    padding: 5px 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    pointer-events: auto;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35);
+    font-family: 'Quicksand', 'Poppins', sans-serif;
+}
+.ow-gate-actor span  { font-size: 22px; line-height: 1.1; }
+.ow-gate-actor small { font-size: 10px; font-weight: 900; color: #451a03; white-space: nowrap; }
+
+.ow-built-bridge {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    width: 210px;
+    height: 92px;
+    background: repeating-linear-gradient(90deg, #b45309 0 18px, #92400e 18px 22px);
+    border: 4px solid #451a03;
+    border-radius: 8px;
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.3);
+    pointer-events: none;
+}
+
+/* Serangga Liar Berkeliaran */
+@keyframes owBugFlutter {
+    0%, 100% { transform: translate(-50%, -50%) translateY(0px) scale(1); }
+    50%      { transform: translate(-50%, -50%) translateY(-8px) scale(1.08); }
+}
+
+.ow-bug-actor {
+    position: absolute;
+    background: rgba(255, 255, 255, 0.85);
+    border: 2px solid #22c55e;
+    border-radius: 20px;
+    padding: 2px 7px;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    cursor: pointer;
+    pointer-events: auto;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.22);
+    animation: owBugFlutter 1.6s ease-in-out infinite;
+    font-family: 'Quicksand', 'Poppins', sans-serif;
+}
+.ow-bug-actor.rar-rare      { border-color: #2563eb; background: #eff6ff; }
+.ow-bug-actor.rar-legendary { border-color: #f59e0b; background: #fef9c3; box-shadow: 0 0 12px rgba(245, 158, 11, 0.75); }
+.ow-bug-ico { font-size: 18px; line-height: 1; }
+.ow-bug-tag { font-size: 8.5px; font-weight: 900; color: #0f172a; }
+
+.ow-bug-arena {
+    width: 100%;
+    min-height: 126px;
+    border-radius: 14px;
+    background: linear-gradient(180deg, #4ade80 0%, #15803d 100%);
+    border: 3px solid #052e16;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px;
+    box-sizing: border-box;
+}
+
+/* Tombol Peta HUD & Hotbar Alat Ala Stardew Valley */
+.world-map-hud-btn {
+    background: linear-gradient(180deg, #fef08a 0%, #f59e0b 100%);
+    border: 2px solid #78350f;
+    color: #451a03;
+    border-radius: 14px;
+    padding: 5px 12px;
+    font-family: 'Quicksand', 'Poppins', sans-serif;
+    font-size: 11.5px;
+    font-weight: 900;
+    cursor: pointer;
+    box-shadow: 0 3px 0 #78350f;
+    white-space: nowrap;
+}
+
+.myworld-hotbar {
+    position: absolute;
+    right: 12px;
+    bottom: 48px;
+    z-index: 44;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(120, 53, 15, 0.92);
+    border: 2.5px solid #fef08a;
+    border-radius: 14px;
+    padding: 4px 6px;
+    box-shadow: 0 5px 14px rgba(0, 0, 0, 0.35);
+}
+
+.ow-hotbar-slot {
+    background: #fffbeb;
+    border: 2px solid #b45309;
+    border-radius: 9px;
+    padding: 3px 6px;
+    min-width: 42px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    font-family: 'Quicksand', 'Poppins', sans-serif;
+}
+.ow-hotbar-slot span  { font-size: 15px; line-height: 1.1; }
+.ow-hotbar-slot small { font-size: 8.5px; font-weight: 900; color: #5c3210; }
+.ow-hotbar-slot.active { background: #86efac; border-color: #14532d; transform: translateY(-2px); }
+.ow-hotbar-slot.locked { opacity: 0.55; background: #e2e8f0; }
+
+.ow-wood-counter {
+    background: #451a03;
+    color: #fef08a;
+    border-radius: 9px;
+    padding: 5px 8px;
+    font-size: 11px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+/* Modal Peta Dunia (World Map Overview) */
+.ow-worldmap-canvas {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    background: linear-gradient(135deg, #86efac 0%, #65a30d 100%);
+    border: 3px solid #78350f;
+    border-radius: 14px;
+    overflow: hidden;
+}
+
+.ow-wm-river {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 26%;
+    height: 33%;
+    background: #0ea5e9;
+    border-top-right-radius: 18px;
+}
+
+.ow-wm-island {
+    position: absolute;
+    left: 2.5%;
+    bottom: 4%;
+    width: 14%;
+    height: 18%;
+    background: #74bd4b;
+    border: 2px solid #fde68a;
+    border-radius: 12px;
+}
+.ow-wm-island.is-locked { filter: grayscale(0.75) brightness(0.7); }
+
+.ow-wm-eastforest {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 33%;
+    height: 35%;
+    background: #3f6212;
+    border-top-left-radius: 18px;
+    opacity: 0.65;
+}
+.ow-wm-eastforest.is-locked { background: #334155; }
+
+.ow-minimap-pin {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    background: rgba(255, 253, 245, 0.94);
+    border: 1.5px solid #78350f;
+    color: #451a03;
+    font-size: 9.5px;
+    font-weight: 900;
+    padding: 2px 6px;
+    border-radius: 10px;
+    white-space: nowrap;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.22);
+}
+
+.ow-minimap-player {
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #ef4444;
+    border: 2.5px solid #ffffff;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 0 12px #ef4444;
+    animation: pulse-badge 0.9s infinite;
+    z-index: 5;
+}
+
+.ow-wm-legend {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #5c3210;
+}
+
+.ws-tools-3grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+}
+
+/* Optimasi Landscape HP & Auto-Rotate 90° */
+body.world-mobile-landscape .myworld-hotbar,
+body.world-force-rotated .myworld-hotbar {
+    bottom: 36px !important;
+    right: 8px !important;
+    padding: 3px 5px !important;
+}
+body.world-mobile-landscape .ow-hotbar-slot,
+body.world-force-rotated .ow-hotbar-slot {
+    min-width: 34px !important;
+    padding: 2px 4px !important;
+}
+body.world-mobile-landscape .ow-hotbar-slot span,
+body.world-force-rotated .ow-hotbar-slot span {
+    font-size: 13px !important;
+}
+
+@media (max-width: 768px) {
+    .ws-tools-3grid { grid-template-columns: 1fr; }
+}
+/* =========================================================================
+   MY WORLD STARDEW VALLEY UI/UX, MINIMAP (ML), ANALOG JOYSTICK, HUJAN HALUS,
+   SUMUR, TANDON, LEBAH, & DEKORASI PETA
+   ========================================================================= */
+
+/* 1. TEMA STARDEW VALLEY PENUH UNTUK MY WORLD */
+#modal-my-world.stardew-theme-active .myworld-modal-box {
+    border: 5px solid #5c2c0c !important;
+    box-shadow: 0 22px 54px rgba(32, 14, 2, 0.62), inset 0 0 0 2px #f6d594 !important;
+}
+
+#modal-my-world.stardew-theme-active .myworld-hud {
+    background: linear-gradient(180deg, #e7b978 0%, #c88b45 100%) !important;
+    border-bottom: 4px solid #5c2c0c !important;
+    box-shadow: inset 0 2px 0 rgba(255, 245, 214, 0.55);
+}
+
+#modal-my-world.stardew-theme-active .ws-modal-card {
+    background: #f9ecc9 !important;
+    border: 4px solid #6b3610 !important;
+    box-shadow: 0 18px 42px rgba(38, 16, 2, 0.55), inset 0 0 0 2px #fff7df !important;
+}
+
+#modal-my-world.stardew-theme-active .ws-modal-head {
+    background: linear-gradient(180deg, #d7964d 0%, #a56125 100%) !important;
+    border-bottom: 3.5px solid #5c2c0c !important;
+}
+
+#modal-my-world.stardew-theme-active .ws-modal-head strong {
+    color: #fffbeb !important;
+    text-shadow: 0 1.5px 0 #451a03;
+}
+
+#modal-my-world.stardew-theme-active .ws-modal-head small {
+    color: #fef08a !important;
+}
+
+#modal-my-world.stardew-theme-active .ws-tabs-row {
+    background: #edd49d !important;
+    border-bottom-color: #9c622b !important;
+}
+
+#modal-my-world.stardew-theme-active .ws-item-card {
+    background: #fff9ea !important;
+    border-color: #b57b3c !important;
+}
+
+#modal-my-world.stardew-theme-active .world-zone-tag {
+    background: linear-gradient(180deg, #faeccb 0%, #e4bd7d 100%) !important;
+    border: 2.5px solid #5c2c0c !important;
+    color: #3d1d06 !important;
+    box-shadow: 0 3px 0 #5c2c0c !important;
+}
+
+/* 2. MINIMAP PREVIEW KIRI ATAS (GAYA MOBILE LEGENDS) */
+.ow-ml-minimap {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    width: 146px;
+    height: 92px;
+    background: linear-gradient(135deg, #6bb946 0%, #4e9132 100%);
+    border: 3px solid #5c2c0c;
+    border-radius: 12px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.42), inset 0 0 0 1.5px #f6d594;
+    z-index: 48;
+    overflow: hidden;
+    cursor: pointer;
+    user-select: none;
+}
+
+.ow-ml-mm-river {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 26%;
+    height: 34%;
+    background: #0ea5e9;
+    border-top-right-radius: 8px;
+}
+
+.ow-ml-mm-island {
+    position: absolute;
+    left: 2.5%;
+    bottom: 4%;
+    width: 14%;
+    height: 18%;
+    background: #74bd4b;
+    border: 1px solid #fde68a;
+    border-radius: 5px;
+}
+
+.ow-ml-mm-east {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 34%;
+    height: 36%;
+    background: rgba(20, 83, 45, 0.52);
+    border-top-left-radius: 8px;
+}
+
+.ow-ml-dot {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    font-size: 9px;
+    line-height: 1;
+    pointer-events: none;
+    filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.6));
+}
+
+.ow-ml-viewport-rect {
+    position: absolute;
+    border: 1.5px solid rgba(255, 255, 255, 0.85);
+    background: rgba(255, 255, 255, 0.12);
+    pointer-events: none;
+    box-sizing: border-box;
+}
+
+.ow-ml-player-dot {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #ef4444;
+    border: 1.5px solid #ffffff;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 0 8px #ef4444;
+    z-index: 5;
+    pointer-events: none;
+}
+
+.ow-ml-mm-label {
+    position: absolute;
+    bottom: 2px;
+    right: 4px;
+    background: rgba(69, 26, 3, 0.78);
+    color: #fef08a;
+    font-size: 7.5px;
+    font-weight: 900;
+    padding: 1px 4px;
+    border-radius: 5px;
+    pointer-events: none;
+}
+
+/* 3. KOTAK JAM, CUACA, & STATUS AIR ALA STARDEW VALLEY (KANAN ATAS) */
+.ow-sdv-clock-box {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 48;
+    background: linear-gradient(180deg, #fae8be 0%, #e7c283 100%);
+    border: 3px solid #5c2c0c;
+    border-radius: 12px;
+    padding: 5px 10px;
+    min-width: 148px;
+    box-shadow: 0 5px 14px rgba(0, 0, 0, 0.32), inset 0 1.5px 0 #fff7df;
+    color: #3d1d06;
+    font-family: 'Quicksand', 'Poppins', sans-serif;
+}
+
+.sdv-clk-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 900;
+    border-bottom: 1.5px dashed #a56125;
+    padding-bottom: 3px;
+    margin-bottom: 3px;
+}
+
+.sdv-clk-water {
+    font-size: 10px;
+    font-weight: 800;
+    color: #0369a1;
+}
+
+/* 4. ANALOG JOYSTICK 360° (KIRI BAWAH) */
+.ow-joystick-zone {
+    position: absolute;
+    left: 16px;
+    bottom: 46px;
+    width: 108px;
+    height: 108px;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    touch-action: none !important;
+    user-select: none;
+}
+
+.ow-joystick-base {
+    position: relative;
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(250, 232, 190, 0.28) 0%, rgba(92, 44, 12, 0.56) 100%);
+    border: 3px solid rgba(254, 240, 138, 0.78);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35), inset 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.ow-joystick-knob {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    background: radial-gradient(circle at 35% 30%, #fef08a 0%, #d97706 70%, #78350f 100%);
+    border: 3px solid #fffbeb;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.45);
+    pointer-events: none;
+}
+
+/* 5. HOTBAR STARDEW VALLEY (TENGAH BAWAH DI ATAS PROMPT BAR) */
+#modal-my-world.stardew-theme-active .myworld-hotbar {
+    left: 50%;
+    right: auto;
+    bottom: 46px;
+    transform: translateX(-50%);
+    background: linear-gradient(180deg, #b97538 0%, #7a4218 100%);
+    border: 3px solid #451a03;
+    border-radius: 14px;
+    padding: 4px 7px;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4), inset 0 1.5px 0 #f6d594;
+}
+
+#modal-my-world.stardew-theme-active .ow-hotbar-slot {
+    position: relative;
+    background: linear-gradient(180deg, #faeccb 0%, #e8c78b 100%);
+    border: 2px solid #78350f;
+}
+
+#modal-my-world.stardew-theme-active .ow-hotbar-slot.active {
+    background: linear-gradient(180deg, #fef08a 0%, #f59e0b 100%);
+    border-color: #dc2626;
+    box-shadow: 0 0 0 2px #fef08a;
+}
+
+.ow-slot-qty {
+    position: absolute;
+    top: -6px;
+    right: -5px;
+    background: #0f172a;
+    color: #fef08a;
+    font-size: 8px;
+    font-weight: 900;
+    padding: 1px 4px;
+    border-radius: 6px;
+    line-height: 1.1;
+}
+
+/* 6. HUJAN RINGAN & HALUS (TIDAK BERLEBIHAN) */
+.mw-rain-layer {
+    background-image: repeating-linear-gradient(106deg, rgba(224, 242, 254, 0.24) 0 1.2px, transparent 1.2px 46px) !important;
+    background-size: 96px 190px !important;
+    animation: mwRainFall 0.95s linear infinite !important;
+    background-color: rgba(15, 23, 42, 0.05) !important;
+    opacity: 0.72;
+}
+
+/* 7. IKON SERANGGA BERSIH TANPA TEKS RARITY + FASILITAS & DEKORASI PETA */
+.ow-bug-actor.is-clean-bug {
+    background: rgba(255, 255, 255, 0.82) !important;
+    border: 2px solid #16a34a !important;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2) !important;
+}
+
+.ow-fac-btn {
+    pointer-events: auto;
+    justify-content: flex-start !important;
+    gap: 2px;
+}
+
+.ow-decor-placed {
+    position: absolute;
+    transform: translate(-50%, -65%);
+    background: transparent;
+    border: 2px dashed transparent;
+    border-radius: 12px;
+    padding: 2px;
+    font-size: 36px;
+    line-height: 1;
+    cursor: default;
+    pointer-events: none;
+    filter: drop-shadow(0 4px 5px rgba(0, 0, 0, 0.28));
+}
+
+.ow-decor-placed.is-editable {
+    pointer-events: auto;
+    cursor: pointer;
+    border-color: #facc15;
+    background: rgba(254, 240, 138, 0.25);
+}
+
+.ow-decor-placed small {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    background: #dc2626;
+    color: #ffffff;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ow-decor-toolbar {
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    max-width: 90%;
+    z-index: 55;
+    background: rgba(92, 44, 12, 0.94);
+    border: 2.5px solid #fef08a;
+    border-radius: 14px;
+    padding: 6px 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.42);
+}
+
+.ow-dec-pick {
+    background: #fffbeb;
+    border: 2px solid #b45309;
+    color: #451a03;
+    border-radius: 10px;
+    padding: 3px 8px;
+    font-family: 'Quicksand', 'Poppins', sans-serif;
+    font-size: 10.5px;
+    font-weight: 800;
+    cursor: pointer;
+}
+.ow-dec-pick.active { background: #86efac; border-color: #14532d; }
+
+.sdv-stat-strip {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+    background: #fef3c7;
+    border: 2px solid #d97706;
+    border-radius: 12px;
+    padding: 6px 14px;
+    font-size: 12px;
+    color: #451a03;
+}
+
+/* Optimasi Landscape HP & Auto-Rotate 90° */
+body.world-mobile-landscape .ow-ml-minimap,
+body.world-force-rotated .ow-ml-minimap {
+    width: 112px !important;
+    height: 70px !important;
+    top: 6px !important;
+    left: 6px !important;
+}
+
+body.world-mobile-landscape .ow-sdv-clock-box,
+body.world-force-rotated .ow-sdv-clock-box {
+    top: 6px !important;
+    right: 6px !important;
+    padding: 3px 7px !important;
+    min-width: 122px !important;
+}
+
+body.world-mobile-landscape .ow-joystick-zone,
+body.world-force-rotated .ow-joystick-zone {
+    width: 86px !important;
+    height: 86px !important;
+    left: 10px !important;
+    bottom: 34px !important;
+}
+
+body.world-mobile-landscape .ow-joystick-base,
+body.world-force-rotated .ow-joystick-base {
+    width: 78px !important;
+    height: 78px !important;
+}
+
+body.world-mobile-landscape .ow-joystick-knob,
+body.world-force-rotated .ow-joystick-knob {
+    width: 34px !important;
+    height: 34px !important;
+}
+
+body.world-mobile-landscape #modal-my-world.stardew-theme-active .myworld-hotbar,
+body.world-force-rotated #modal-my-world.stardew-theme-active .myworld-hotbar {
+    bottom: 34px !important;
+    left: 54% !important;
+}
+/* =========================================================================
+   MY ARCADE — BALAI 10 GAME SANTAI (DESKTOP, ANDROID LANDSCAPE, IPHONE 90°)
+   ========================================================================= */
+#modal-my-arcade,
+#modal-my-arcade * {
+    -webkit-user-select: none !important;
+    user-select: none !important;
+    -webkit-touch-callout: none !important;
+    -webkit-tap-highlight-color: transparent !important;
+}
+
+.modal-box.myarcade-modal-box {
+    width: 920px !important;
+    max-width: 96vw !important;
+    height: 90vh !important;
+    max-height: 90dvh !important;
+    background: #1e1b4b !important;
+    border: 4px solid #7c3aed !important;
+    border-radius: 22px !important;
+    box-shadow: 0 22px 54px rgba(30, 27, 75, 0.58) !important;
+    font-family: 'Quicksand', 'Poppins', sans-serif !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+}
+
+.myarcade-hud {
+    background: linear-gradient(180deg, #4c1d95 0%, #312e81 100%);
+    border-bottom: 4px solid #a855f7;
+    padding: 8px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+}
+
+.myarcade-hud-left,
+.myarcade-hud-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+.myarcade-wood-sign {
+    background: linear-gradient(180deg, #7c3aed 0%, #5b21b6 100%);
+    border: 2.5px solid #fef08a;
+    border-radius: 14px;
+    padding: 4px 12px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    cursor: pointer;
+    box-shadow: 0 3px 0 #2e1065;
+}
+.arc-sign-top  { font-size: 9px; font-weight: 800; color: #fef08a; line-height: 1; text-transform: uppercase; }
+.arc-sign-main { font-size: 14px; font-weight: 900; color: #ffffff; line-height: 1.05; }
+
+.myarcade-hud-btn {
+    background: linear-gradient(180deg, #fef08a 0%, #f59e0b 100%);
+    border: 2px solid #78350f;
+    border-radius: 12px;
+    padding: 4px 10px;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    box-shadow: 0 3px 0 #78350f;
+    font-family: 'Quicksand', 'Poppins', sans-serif;
+}
+.myarcade-hud-btn .hud-ico { font-size: 14px; line-height: 1.1; }
+.myarcade-hud-btn .hud-lbl { font-size: 9.5px; font-weight: 900; color: #451a03; }
+
+.myarcade-body {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior: contain !important;
+    padding: 12px 14px !important;
+    background: linear-gradient(180deg, #eef2ff 0%, #e0e7ff 100%) !important;
+}
+
+.myarcade-toast-box {
+    position: sticky;
+    top: 4px;
+    margin: 0 auto 8px auto;
+    width: fit-content;
+    max-width: 94%;
+    background: #1e1b4b;
+    color: #fef08a;
+    border: 2px solid #f59e0b;
+    border-radius: 20px;
+    padding: 6px 15px;
+    font-size: 12px;
+    font-weight: 800;
+    text-align: center;
+    z-index: 40;
+}
+
+.arc-lobby-banner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    background: #ffffff;
+    border: 2.5px solid #8b5cf6;
+    border-radius: 16px;
+    padding: 10px 14px;
+    margin-bottom: 12px;
+}
+.arc-lobby-banner h3 { margin: 0 0 2px 0; font-size: 15.5px; font-weight: 900; color: #4c1d95; }
+.arc-lobby-banner p  { margin: 0; font-size: 11.5px; color: #475569; }
+.arc-plays-pill      { background: #ede9fe; border: 2px solid #8b5cf6; color: #4c1d95; padding: 5px 12px; border-radius: 16px; font-size: 12px; font-weight: 900; }
+
+.arc-games-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(225px, 1fr));
+    gap: 10px;
+}
+
+.arc-game-card {
+    background: #ffffff;
+    border: 2.5px solid #c4b5fd;
+    border-radius: 15px;
+    padding: 11px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    box-shadow: 0 4px 12px rgba(76, 29, 149, 0.08);
+}
+
+.arc-card-top  { display: flex; align-items: center; gap: 8px; }
+.arc-game-ico  { width: 42px; height: 42px; border-radius: 11px; background: #ede9fe; border: 2px solid #a78bfa; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
+.arc-game-name { font-size: 13.5px; font-weight: 900; color: #1e1b4b; }
+.arc-game-sub  { font-size: 10px; font-weight: 700; color: #64748b; }
+.arc-cat-pill  { background: #fef3c7; color: #92400e; font-size: 9px; font-weight: 900; padding: 2px 7px; border-radius: 8px; flex-shrink: 0; }
+.arc-best-row  { display: flex; justify-content: space-between; font-size: 11px; color: #4c1d95; background: #f5f3ff; padding: 4px 9px; border-radius: 8px; }
+
+/* Stage Permainan */
+.arc-stage-wrap { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+
+.arc-game-topbar {
+    width: 100%;
+    max-width: 560px;
+    background: #ffffff;
+    border: 2px solid #c4b5fd;
+    border-radius: 12px;
+    padding: 7px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    box-sizing: border-box;
+    font-size: 13px;
+    color: #1e1b4b;
+}
+
+.arc-hud-stats { display: flex; gap: 10px; font-size: 12px; color: #4c1d95; }
+.arc-hud-pill  { background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 12px; padding: 4px 10px; font-size: 11.5px; color: #1e293b; }
+
+.arc-mini-btn {
+    background: #f1f5f9;
+    border: 2px solid #cbd5e1;
+    border-radius: 9px;
+    padding: 4px 10px;
+    font-family: 'Quicksand', 'Poppins', sans-serif;
+    font-size: 11px;
+    font-weight: 800;
+    color: #334155;
+    cursor: pointer;
+}
+.arc-mini-btn.active { background: #6d28d9; border-color: #4c1d95; color: #ffffff; }
+
+.arc-canvas {
+    border: 3.5px solid #4c1d95;
+    border-radius: 12px;
+    background: #0f172a;
+    max-width: 100%;
+    height: auto;
+    display: block;
+    box-shadow: 0 8px 20px rgba(30, 27, 75, 0.25);
+}
+
+.arc-touch-bar { display: flex; gap: 10px; justify-content: center; width: 100%; max-width: 380px; }
+
+.arc-ctrl-btn {
+    background: linear-gradient(180deg, #ffffff 0%, #e0e7ff 100%);
+    border: 2.5px solid #4c1d95;
+    border-radius: 12px;
+    padding: 8px 14px;
+    font-family: 'Quicksand', 'Poppins', sans-serif;
+    font-size: 13px;
+    font-weight: 900;
+    color: #1e1b4b;
+    cursor: pointer;
+    box-shadow: 0 3px 0 #312e81;
+    touch-action: manipulation;
+}
+.arc-ctrl-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #312e81; }
+.arc-ctrl-btn.wide   { flex: 1; }
+.arc-ctrl-btn.is-accent { background: linear-gradient(180deg, #fde047, #f59e0b); border-color: #78350f; color: #451a03; }
+
+.arc-tet-wrap { display: flex; gap: 14px; align-items: center; justify-content: center; flex-wrap: wrap; }
+.arc-tet-controls { display: flex; flex-direction: column; gap: 8px; }
+.arc-dpad-pad { display: grid; grid-template-columns: repeat(3, 48px); grid-template-rows: repeat(3, 44px); gap: 4px; }
+
+/* Sudoku */
+.arc-sud-layout { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; }
+.arc-sud-grid { display: grid; background: #1e1b4b; border: 3px solid #1e1b4b; gap: 1px; border-radius: 8px; overflow: hidden; }
+.arc-sud-cell {
+    width: 34px; height: 34px;
+    background: #ffffff; border: none; font-family: 'Quicksand', 'Poppins', sans-serif;
+    font-size: 15px; font-weight: 900; color: #2563eb; cursor: pointer; padding: 0;
+}
+.arc-sud-grid.size-4 .arc-sud-cell { width: 52px; height: 52px; font-size: 20px; }
+.arc-sud-grid.size-6 .arc-sud-cell { width: 42px; height: 42px; font-size: 17px; }
+.arc-sud-cell.is-fixed { background: #f1f5f9; color: #0f172a; }
+.arc-sud-cell.is-sel   { background: #fef08a !important; }
+.arc-sud-cell.is-err   { background: #fee2e2 !important; color: #dc2626 !important; }
+.arc-sud-cell.box-r    { border-right: 2.5px solid #1e1b4b; }
+.arc-sud-cell.box-b    { border-bottom: 2.5px solid #1e1b4b; }
+
+.arc-sud-pad { display: flex; gap: 5px; flex-wrap: wrap; justify-content: center; }
+.arc-num-btn { width: 38px; height: 38px; border-radius: 10px; background: #ffffff; border: 2px solid #4c1d95; font-weight: 900; font-size: 15px; color: #1e1b4b; cursor: pointer; }
+.arc-num-btn.is-del { background: #fee2e2; border-color: #dc2626; color: #b91c1c; }
+
+/* Tic-Tac-Toe */
+.arc-ttt-msg  { font-size: 13px; font-weight: 900; color: #4c1d95; }
+.arc-ttt-grid { display: grid; grid-template-columns: repeat(3, 76px); gap: 8px; }
+.arc-ttt-cell { width: 76px; height: 76px; border-radius: 14px; background: #ffffff; border: 3px solid #6d28d9; font-size: 32px; font-weight: 900; cursor: pointer; }
+.arc-ttt-cell.is-x { color: #dc2626; }
+.arc-ttt-cell.is-o { color: #0284c7; }
+
+/* 2048 */
+.arc-2048-grid { display: grid; grid-template-columns: repeat(4, 58px); gap: 6px; background: #94a3b8; padding: 7px; border-radius: 12px; }
+.arc-2048-cell { width: 58px; height: 58px; border-radius: 8px; background: #e2e8f0; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 900; color: #1e293b; }
+.arc-2048-cell.v-2    { background: #fef9c3; }
+.arc-2048-cell.v-4    { background: #fde68a; }
+.arc-2048-cell.v-8    { background: #fdba74; color: #ffffff; }
+.arc-2048-cell.v-16   { background: #fb923c; color: #ffffff; }
+.arc-2048-cell.v-32   { background: #f87171; color: #ffffff; }
+.arc-2048-cell.v-64   { background: #ef4444; color: #ffffff; }
+.arc-2048-cell.v-128, .arc-2048-cell.v-256, .arc-2048-cell.v-512 { background: #eab308; color: #ffffff; }
+.arc-2048-cell.v-1024, .arc-2048-cell.v-2048 { background: #7c3aed; color: #fef08a; font-size: 15px; }
+
+/* Minesweeper */
+.arc-ms-grid { display: grid; gap: 3px; background: #475569; padding: 5px; border-radius: 10px; }
+.arc-ms-cell { width: 30px; height: 30px; border-radius: 5px; border: none; background: #cbd5e1; font-size: 13px; font-weight: 900; cursor: pointer; padding: 0; }
+.arc-ms-cell.is-open { background: #f8fafc; color: #1e293b; }
+.arc-ms-cell.is-boom { background: #ef4444 !important; }
+.arc-ms-cell.n-1 { color: #2563eb; } .arc-ms-cell.n-2 { color: #16a34a; } .arc-ms-cell.n-3 { color: #dc2626; }
+
+/* Connect Four */
+.arc-c4-board { display: grid; grid-template-columns: repeat(7, 38px); gap: 5px; background: #1d4ed8; padding: 8px; border-radius: 14px; border: 3px solid #1e3a8a; }
+.arc-c4-slot  { width: 38px; height: 38px; border: none; background: transparent; padding: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.arc-c4-disc  { width: 32px; height: 32px; border-radius: 50%; background: #e0f2fe; box-shadow: inset 0 2px 4px rgba(0,0,0,0.3); }
+.arc-c4-disc.p1 { background: radial-gradient(circle at 35% 30%, #f87171, #dc2626); }
+.arc-c4-disc.p2 { background: radial-gradient(circle at 35% 30%, #fef08a, #eab308); }
+
+/* Dukungan Mode Landscape HP & Auto-Rotate 90° iPhone untuk My Arcade */
+body.world-mobile-landscape #modal-my-arcade,
+body.world-force-rotated #modal-my-arcade { padding: 0 !important; overflow: hidden !important; }
+
+body.world-mobile-landscape #modal-my-arcade .myarcade-modal-box {
+    width: var(--mw-vp-w) !important; max-width: var(--mw-vp-w) !important;
+    height: var(--mw-vp-h) !important; max-height: var(--mw-vp-h) !important;
+    border-radius: 0 !important; border-width: 2px !important;
+}
+
+body.world-force-rotated #modal-my-arcade .myarcade-modal-box {
+    position: fixed !important; top: 50% !important; left: 50% !important;
+    width: var(--mw-vp-h) !important; max-width: var(--mw-vp-h) !important;
+    height: var(--mw-vp-w) !important; max-height: var(--mw-vp-w) !important;
+    transform: translate(-50%, -50%) rotate(90deg) !important;
+    transform-origin: center center !important;
+    border-radius: 0 !important; border-width: 2px !important;
+}
+
+body.world-force-rotated #modal-my-arcade .myarcade-body { touch-action: none !important; }
+body.world-mobile-landscape .myarcade-hud,
+body.world-force-rotated .myarcade-hud { padding: 4px 10px !important; flex-wrap: nowrap !important; }
+body.world-mobile-landscape .myarcade-hud-btn,
+body.world-force-rotated .myarcade-hud-btn { flex-direction: row !important; gap: 4px !important; padding: 4px 8px !important; }
+body.world-mobile-landscape .arc-sud-grid.size-9 .arc-sud-cell,
+body.world-force-rotated .arc-sud-grid.size-9 .arc-sud-cell { width: 25px !important; height: 25px !important; font-size: 12px !important; }
+body.world-mobile-landscape .arc-games-grid,
+body.world-force-rotated .arc-games-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 7px !important; }
+/* =========================================================================
+   MY WORLD EXPANSION V9: BIO-DEX, STAMINA + BMI/BMR/TDEE, MUSIM,
+   FORAGING JAMUR, MUSEUM BIOLOGI, & 3 NPC EDUKATIF
+   ========================================================================= */
+.world-biodex-hud-btn,
+.world-sound-hud-btn {
+    background: linear-gradient(180deg, #dcfce7 0%, #22c55e 100%);
+    border: 2px solid #14532d;
+    color: #052e16;
+    border-radius: 14px;
+    padding: 4px 10px;
+    font-family: 'Quicksand', 'Poppins', sans-serif;
+    font-size: 11px;
+    font-weight: 900;
+    cursor: pointer;
+    box-shadow: 0 3px 0 #14532d;
+    white-space: nowrap;
+}
+.world-sound-hud-btn {
+    background: linear-gradient(180deg, #fffdf5 0%, #e7c283 100%);
+    border-color: #5c2c0c;
+    box-shadow: 0 3px 0 #5c2c0c;
+    padding: 4px 8px;
+    font-size: 13px;
+}
+
+/* Bilah Stamina Bar Kanan Atas (Di bawah Jam Stardew) */
+.ow-stamina-hud {
+    position: absolute;
+    top: 66px;
+    right: 10px;
+    z-index: 48;
+    width: 170px;
+    background: linear-gradient(180deg, #fae8be 0%, #e7c283 100%);
+    border: 3px solid #5c2c0c;
+    border-radius: 12px;
+    padding: 5px 9px;
+    box-shadow: 0 5px 14px rgba(0, 0, 0, 0.32), inset 0 1.5px 0 #fff7df;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    font-family: 'Quicksand', 'Poppins', sans-serif;
+    box-sizing: border-box;
+}
+.ow-stamina-hud:hover { transform: scale(1.03); }
+.ow-st-top { display: flex; justify-content: space-between; font-size: 10px; font-weight: 900; color: #3d1d06; }
+.ow-st-track { width: 100%; height: 9px; background: #451a03; border-radius: 6px; overflow: hidden; padding: 1px; box-sizing: border-box; }
+.ow-st-fill  { height: 100%; border-radius: 5px; transition: width 0.25s ease; }
+
+/* Siklus Musim Mingguan pada Peta */
+.myworld-stage.season-kemarau .myworld-open-svg { filter: saturate(1.12) sepia(0.14); }
+.myworld-stage.season-gugur .myworld-open-svg   { filter: sepia(0.32) hue-rotate(-18deg) saturate(1.15); }
+.myworld-stage.season-hujan .myworld-open-svg   { filter: saturate(0.95) brightness(0.96); }
+
+/* Aktor Foraging & 3 NPC Edukatif */
+.ow-forage-actor {
+    position: absolute;
+    transform: translate(-50%, -65%);
+    background: rgba(255, 253, 245, 0.86);
+    border: 2px solid #8c5a2b;
+    border-radius: 50%;
+    width: 34px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    cursor: pointer;
+    pointer-events: auto;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25);
+}
+.ow-forage-actor.is-redcap { border-color: #dc2626; background: #fee2e2; }
+
+@keyframes owNpcBob {
+    0%, 100% { transform: translate(-50%, -78%) translateY(0px); }
+    50%      { transform: translate(-50%, -78%) translateY(-4px); }
+}
+
+.ow-npc-actor {
+    position: absolute;
+    background: transparent;
+    border: none;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    pointer-events: auto;
+    animation: owNpcBob 2.2s ease-in-out infinite;
+    font-family: 'Quicksand', 'Poppins', sans-serif;
+}
+.ow-npc-ico  { font-size: 32px; filter: drop-shadow(0 4px 4px rgba(0, 0, 0, 0.32)); line-height: 1; }
+.ow-npc-name { background: #451a03; color: #fef08a; border: 1.5px solid #f6d594; font-size: 9.5px; font-weight: 900; padding: 1px 7px; border-radius: 8px; white-space: nowrap; }
+.ow-npc-quest-mark {
+    position: absolute;
+    top: -12px;
+    right: -4px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #f59e0b;
+    color: #ffffff;
+    border: 2px solid #ffffff;
+    font-size: 12px;
+    font-weight: 900;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: pulse-badge 0.9s infinite;
+}
+
+/* Panel Stamina + BMI/BMR/TDEE, Bio-Dex, Museum, & NPC */
+.exp-card-box {
+    background: #ffffff;
+    border: 2px solid #c99b62;
+    border-radius: 14px;
+    padding: 10px 12px;
+}
+
+.exp-empty-note { font-size: 11.5px; color: #64748b; text-align: center; padding: 8px; }
+
+.exp-food-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    background: #f8fafc;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 6px 10px;
+    font-size: 12px;
+    color: #0f172a;
+    margin-bottom: 6px;
+}
+
+.exp-bmi-inputs {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+    margin-bottom: 8px;
+}
+.exp-bmi-inputs label,
+.exp-act-label {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    font-size: 10.5px;
+    font-weight: 800;
+    color: #475569;
+}
+.exp-bmi-inputs input,
+.exp-bmi-inputs select,
+.exp-act-label select {
+    padding: 5px 6px;
+    border: 1.5px solid #cbd5e1;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 800;
+    color: #0f172a;
+    background: #f8fafc;
+}
+
+.exp-met-cards {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 7px;
+    margin: 9px 0;
+}
+.exp-met-pill {
+    background: #f8fafc;
+    border: 2px solid #cbd5e1;
+    border-radius: 11px;
+    padding: 7px 6px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.exp-met-pill.is-tdee { background: #f0fdf4; border-color: #22c55e; }
+.exp-met-pill small { font-size: 9.5px; font-weight: 800; color: #64748b; }
+.exp-met-pill b     { font-size: 15px; font-weight: 900; color: #0b3954; }
+.exp-met-pill span  { font-size: 9px; font-weight: 700; color: #475569; }
+.exp-met-note       { font-size: 10.5px; color: #334155; background: #fef9c3; border: 1.5px solid #eab308; border-radius: 10px; padding: 7px 9px; line-height: 1.45; }
+
+/* Bio-Dex */
+.exp-mile-bar {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+    padding: 8px 12px;
+    background: #fef3c7;
+    border-bottom: 2px solid #d6b68d;
+    flex-shrink: 0;
+}
+.exp-mile-btn {
+    background: #ffffff;
+    border: 2px solid #cbd5e1;
+    border-radius: 10px;
+    padding: 5px 4px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-family: inherit;
+    cursor: default;
+}
+.exp-mile-btn.is-ready { background: #dcfce7; border-color: #16a34a; cursor: pointer; animation: pulse-badge 1.1s infinite; }
+.exp-mile-btn.is-done  { background: #e2e8f0; border-color: #94a3b8; opacity: 0.72; }
+.exp-mile-btn b     { font-size: 12px; color: #0f172a; }
+.exp-mile-btn small { font-size: 9.5px; font-weight: 800; color: #15803d; }
+
+.exp-dex-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.exp-dex-card { background: #ffffff; border: 2px solid #cbd5e1; border-radius: 12px; padding: 8px 10px; display: flex; gap: 9px; align-items: flex-start; }
+.exp-dex-card.is-found   { background: #f0fdf4; border-color: #22c55e; }
+.exp-dex-card.is-unknown { background: #f1f5f9; opacity: 0.7; }
+.exp-dex-ico   { width: 38px; height: 38px; border-radius: 10px; background: #ffffff; border: 1.5px solid #cbd5e1; display: flex; align-items: center; justify-content: center; font-size: 21px; flex-shrink: 0; }
+.exp-dex-name  { font-size: 12px; font-weight: 900; color: #0f172a; }
+.exp-dex-latin { font-size: 10px; color: #0f766e; }
+.exp-dex-info  { font-size: 10px; color: #475569; margin-top: 3px; line-height: 1.35; }
+
+/* Museum & NPC */
+.exp-mus-case { background: #ffffff; border: 2px solid #cbd5e1; border-radius: 13px; padding: 9px 7px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 4px; }
+.exp-mus-case.is-donated { background: #f0fdfa; border-color: #0d9488; box-shadow: 0 3px 10px rgba(13, 148, 136, 0.14); }
+.exp-mus-glass { width: 58px; height: 58px; border-radius: 12px; background: radial-gradient(circle, #e0f2fe 0%, #bae6fd 100%); border: 2px solid #38bdf8; display: flex; align-items: center; justify-content: center; font-size: 30px; }
+.exp-npc-bubble { background: #fef9c3; border: 2px solid #eab308; border-radius: 12px; padding: 9px 12px; font-size: 12px; font-weight: 700; color: #451a03; line-height: 1.45; }
+
+/* Optimasi Landscape HP & Auto-Rotate 90° */
+body.world-mobile-landscape .ow-stamina-hud,
+body.world-force-rotated .ow-stamina-hud {
+    top: 48px !important;
+    right: 6px !important;
+    width: 136px !important;
+    padding: 3px 6px !important;
+}
+
+@media (max-width: 768px) {
+    .exp-bmi-inputs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .exp-met-cards,
+    .exp-dex-grid { grid-template-columns: 1fr; }
+}
+/* =========================================================================
+   EKSPANSI V10: TIKET ARCADE, LABEL SERANGGA TANPA EMOJI, & DEKORASI NATAL
+   ========================================================================= */
+.arc-fee-chip {
+    background: #fee2e2;
+    color: #991b1b;
+    border: 1.5px solid #fca5a5;
+    padding: 1px 7px;
+    border-radius: 8px;
+    font-size: 10.5px;
+    font-weight: 900;
+}
+
+/* Label Serangga Bersih Tanpa Emoji di Peta My World */
+.ow-bug-actor.is-text-only-bug {
+    background: linear-gradient(180deg, #fef9c3 0%, #fde047 100%) !important;
+    border: 2px solid #854d0e !important;
+    border-radius: 14px !important;
+    padding: 3px 9px !important;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.28) !important;
+}
+
+.ow-bug-only-text {
+    font-size: 10.5px;
+    font-weight: 900;
+    color: #451a03;
+    letter-spacing: 0.2px;
+    white-space: nowrap;
+}
+
+/* Dekorasi Edisi Natal di World Shop */
+.ws-item-card.is-xmas-decor-card {
+    background: linear-gradient(180deg, #fff1f2 0%, #f0fdf4 100%) !important;
+    border-color: #dc2626 !important;
+}
+
+.cozy-tag.xmas-tag {
+    background: #dc2626 !important;
+    color: #fef08a !important;
+}
+/* =========================================================================
+   FIX DRAG-AND-DROP DEKORASI DI HABITAT MY PET (DESKTOP, IPAD, & IPHONE 90°)
+   ========================================================================= */
+.mypet-decor-svg-item.is-draggable-decor {
+    cursor: grab;
+    touch-action: none !important;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.mypet-decor-svg-item.is-draggable-decor svg {
+    pointer-events: none;
+}
+
+.mypet-decor-svg-item.is-focused-decor {
+    filter: drop-shadow(0 0 6px rgba(245, 158, 11, 0.75));
+}
+
+.mypet-decor-svg-item.is-dragging-decor {
+    cursor: grabbing !important;
+    filter: drop-shadow(0 12px 16px rgba(0, 0, 0, 0.35));
+    opacity: 0.92;
+}

@@ -858,6 +858,7 @@ window.renderMyFarmUI = function() {
                     '<span class="farm-sup-pill">🌾 Dedak: <b>x' + (Number(sup.pakan_dedak) || 0) + '</b></span>' +
                     '<span class="farm-sup-pill">🌿 Rumput: <b>x' + (Number(sup.pakan_rumput) || 0) + '</b></span>' +
                     '<span class="farm-sup-pill">💊 Obat: <b>x' + (Number(sup.obat_ternak) || 0) + '</b></span>' +
+                    '<span class="farm-sup-pill" style="background:#e0f2fe; border-color:#0284c7; color:#0c4a6e;">💧 Air: <b>' + ((typeof window.ambilStokAirFarmWorld === "function") ? window.ambilStokAirFarmWorld() : 5) + ' L</b></span>' +
                 '</div>' +
                 '<div class="farm-quick-btns">' +
                     (siapPanen > 0 ? '<button type="button" class="farm-mini-cta green" onclick="window.jualSemuaHasilTernak()">🥚🥛 Panen Semua (' + siapPanen + ')</button>' : '') +
@@ -976,8 +977,9 @@ window.bangunKartuDetailHewanFarm = function(fData, ctx) {
             cleanBtn +
             '<div style="display:flex; gap:6px; width:100%;">' +
                 '<button type="button" class="mypet-green-cta sm" onclick="window.beriPakanTernakFarm(\'' + safeUid + '\')">' + feedIkon + ' Pakan (x' + stokFeed + ')</button>' +
-                '<button type="button" class="mypet-amber-cta sm" onclick="window.jualDagingTernakFarm(\'' + safeUid + '\')" title="Jual hewan ini menjadi daging">🥩 Jual (🪙' + info.hargaDagingAktif.toLocaleString("id-ID") + ')</button>' +
+                '<button type="button" class="mypet-green-cta sm" style="background:linear-gradient(180deg,#38bdf8,#0284c7); border-color:#0c4a6e;" onclick="window.beriMinumTernakFarm(\'' + safeUid + '\')" title="Gunakan 1 L Air dari Tandon (mempercepat produksi 3 menit)">💧 Minum</button>' +
             '</div>' +
+            '<button type="button" class="mypet-amber-cta sm" onclick="window.jualDagingTernakFarm(\'' + safeUid + '\')" title="Jual hewan ini menjadi daging">🥩 Jual Daging (🪙 ' + info.hargaDagingAktif.toLocaleString("id-ID") + ')</button>' +
             '<p class="garden-detail-desc">' + c.deskripsi + '</p>' +
         '</div>'
     );
@@ -1262,11 +1264,16 @@ window.jualHasilTernak = function(uid) {
     lb.xpTotal = (Number(lb.xpTotal !== undefined ? lb.xpTotal : lb.xp) || 0) + gainXp;
     lb.xp = lb.xpTotal;
 
+    let ingFarmKey = (c.pen === "poultry") ? "telur" : "susu";
+    if (typeof window.tambahBahanDapurWorld === "function") {
+        window.tambahBahanDapurWorld(lb, ingFarmKey, 1);
+    }
+
     window.simpanDataFarmKeServer(lb);
     if (typeof window.perbaruiTampilanSaldoXPPet === "function") window.perbaruiTampilanSaldoXPPet();
     if (typeof window.perbaruiUIHeaderProfilSiswa === "function") window.perbaruiUIHeaderProfilSiswa();
     window.renderMyFarmUI();
-    window.tampilkanToastFarm(c.prodIkon + " Terjual <b>" + c.prodQty + " " + c.prodNama + "</b>! +🪙 " + gainCoin + " Coin & +⭐ " + gainXp + " XP!");
+    window.tampilkanToastFarm(c.prodIkon + " Terjual <b>" + c.prodQty + " " + c.prodNama + "</b>! +🪙 " + gainCoin + " Coin, +⭐ " + gainXp + " XP, & +1 " + (ingFarmKey === "telur" ? "Telur" : "Susu") + " masuk Dapur!");
 };
 
 window.jualSemuaHasilTernak = function() {
@@ -1290,6 +1297,9 @@ window.jualSemuaHasilTernak = function() {
             obj.hasWaste = true;
             obj.lastUpdate = Date.now();
             fData.totalProductsSold = (Number(fData.totalProductsSold) || 0) + c.prodQty;
+            if (typeof window.tambahBahanDapurWorld === "function") {
+                window.tambahBahanDapurWorld(lb, (c.pen === "poultry" ? "telur" : "susu"), 1);
+            }
         }
     });
 
@@ -1646,4 +1656,35 @@ window.tutupKuisFarm = function() {
     window._activeFarmQuizState = null;
     let ov = document.getElementById("myfarm-quiz-overlay");
     if (ov) ov.style.display = "none";
+};
+// =========================================================================
+// 10. BERI MINUM TERNAK MENGGUNAKAN AIR DARI TANDON MY WORLD
+// =========================================================================
+window.beriMinumTernakFarm = function(uid) {
+    let uName = sessionStorage.getItem("username");
+    let lb = window.pastikanStrukturMyFarm(uName);
+    if (!lb || !lb.myFarmData.animals[uid]) return;
+
+    if (typeof window.pakaiAirFarmWorld === "function" && !window.pakaiAirFarmWorld(1)) {
+        window.tampilkanToastFarm("⚠️ Stok air minum ternak habis! Keluar ke <b>My World</b>, ambil air dari <b>🛢️ Tandon Air</b> (isi Tandon dari <b>🪣 Sumur</b>).");
+        return;
+    }
+
+    let obj = lb.myFarmData.animals[uid];
+    let info = window.hitungStatusHewanFarm(obj);
+    if (!info) return;
+
+    obj.hunger = Math.min(100, (Number(obj.hunger) || 0) + 18);
+    let now = Date.now();
+    if (info.isAdult) {
+        obj.nextProduceAt = Math.max(now, (Number(obj.nextProduceAt) || now) - 180000);
+    } else {
+        obj.adultAt = Math.max(now, (Number(obj.adultAt) || now) - 180000);
+        obj.nextProduceAt = obj.adultAt + (info.cfg.prodDetik * 1000);
+    }
+    obj.lastUpdate = now;
+
+    window.simpanDataFarmKeServer(lb);
+    window.renderMyFarmUI();
+    window.tampilkanToastFarm("💧 <b>" + info.cfg.nama + "</b> diberi minum air segar! (+18 Segar &amp; lebih cepat 3 menit)");
 };

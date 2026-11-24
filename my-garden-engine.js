@@ -15,7 +15,13 @@ window.MY_GARDEN_CATALOG = {
     quizRewardCoin: 5,
     quizPenaltyCoin: 5,
     plants: [
+        { id: "bayam",         nama: "Bayam Hijau",            latin: "Amaranthus tricolor",      rarity: "Common",    harga: 30,   panenCoin: 70,   panenXp: 8,   durasiDetik: 1200,   durasiLabel: "20 mnt", deskripsi: "Sayuran daun hijau kaya zat besi (Fe), asam folat, dan vitamin A untuk mencegah anemia." },
         { id: "wortel",        nama: "Wortel",                 latin: "Daucus carota",            rarity: "Common",    harga: 40,   panenCoin: 90,   panenXp: 10,  durasiDetik: 1800,   durasiLabel: "30 mnt", deskripsi: "Umbi akar kaya beta-karoten yang cepat tumbuh di tanah gembur." },
+        { id: "padi",          nama: "Padi Sawah",             latin: "Oryza sativa",             rarity: "Common",    harga: 55,   panenCoin: 120,  panenXp: 12,  durasiDetik: 2700,   durasiLabel: "45 mnt", deskripsi: "Tanaman pangan serelia Poaceae penghasil karbohidrat amilum utama masyarakat Indonesia." },
+        { id: "jagung",        nama: "Jagung Manis",           latin: "Zea mays",                 rarity: "Uncommon",  harga: 105,  panenCoin: 230,  panenXp: 16,  durasiDetik: 5400,   durasiLabel: "1,5 jam",deskripsi: "Tumbuhan C4 monokotil penghasil karbohidrat kompleks dan serat pangan tinggi." },
+        { id: "kedelai",       nama: "Kedelai Kuning",         latin: "Glycine max",              rarity: "Uncommon",  harga: 120,  panenCoin: 265,  panenXp: 18,  durasiDetik: 9000,   durasiLabel: "2,5 jam",deskripsi: "Polong-polongan Fabaceae bersimbiosis dengan Rhizobium, sumber protein nabati lengkap." },
+        { id: "brokoli",       nama: "Brokoli Segar",          latin: "Brassica oleracea",        rarity: "Rare",      harga: 280,  panenCoin: 620,  panenXp: 30,  durasiDetik: 14400,  durasiLabel: "4 jam",  deskripsi: "Bunga hijau padat antioksidan, vitamin C, vitamin K, dan serat tinggi." },
+        { id: "alpukat",       nama: "Alpukat Mentega",        latin: "Persea americana",         rarity: "Rare",      harga: 410,  panenCoin: 910,  panenXp: 42,  durasiDetik: 25200,  durasiLabel: "7 jam",  deskripsi: "Buah kaya lemak tak jenuh tunggal (Omega-9) yang menyehatkan jantung dan pembuluh darah." },
         { id: "daisy",         nama: "Bunga Daisy",            latin: "Bellis perennis",          rarity: "Common",    harga: 60,   panenCoin: 130,  panenXp: 12,  durasiDetik: 3600,   durasiLabel: "1 jam",  deskripsi: "Bunga majemuk Asteraceae berwarna putih dengan cakram kuning cerah." },
         { id: "tulip",         nama: "Tulip Merah",            latin: "Tulipa gesneriana",        rarity: "Common",    harga: 90,   panenCoin: 195,  panenXp: 15,  durasiDetik: 7200,   durasiLabel: "2 jam",  deskripsi: "Tumbuhan monokotil berbunga merah cerah yang berkembang biak dengan umbi lapis." },
         { id: "tomat",         nama: "Tomat Ceri",             latin: "Solanum lycopersicum",     rarity: "Uncommon",  harga: 130,  panenCoin: 280,  panenXp: 18,  durasiDetik: 10800,  durasiLabel: "3 jam",  deskripsi: "Buah buni merah segar anggota Solanaceae yang kaya likopen dan vitamin C." },
@@ -31,6 +37,8 @@ window.MY_GARDEN_CATALOG = {
         { id: "bunga_bangkai", nama: "Bunga Bangkai Raksasa",  latin: "Amorphophallus titanum",   rarity: "Legendary", harga: 2200, panenCoin: 5200, panenXp: 175, durasiDetik: 129600, durasiLabel: "36 jam", deskripsi: "Flora endemik Sumatra dengan perbungaan majemuk (spadiks) tertinggi di dunia." },
         { id: "rafflesia",     nama: "Rafflesia arnoldii",     latin: "Rafflesia arnoldii",       rarity: "Legendary", harga: 3000, panenCoin: 7200, panenXp: 230, durasiDetik: 172800, durasiLabel: "48 jam", deskripsi: "Puspa Langka Indonesia asal Bengkulu, holoparasit tanpa klorofil dengan bunga tunggal terbesar." },
         { id: "anggrek_hitam", nama: "Anggrek Hitam Kaltim",   latin: "Coelogyne pandurata",      rarity: "Legendary", harga: 4000, panenCoin: 9800, panenXp: 300, durasiDetik: 216000, durasiLabel: "60 jam", deskripsi: "Maskot flora Kalimantan Timur yang memiliki lidah bunga (labellum) hitam pekat." },
+        { id: "ercis",         nama: "Kacang Ercis",           latin: "Pisum sativum",            rarity: "Uncommon",  harga: 140,  panenCoin: 310,  panenXp: 19,  durasiDetik: 7200,   durasiLabel: "2 jam",  deskripsi: "Tanaman percobaan klasik Gregor Mendel dengan variasi bunga ungu/putih dan polong hijau." },
+        { id: "mawar",         nama: "Bunga Mawar",            latin: "Rosa hybrida",             rarity: "Rare",      harga: 380,  panenCoin: 840,  panenXp: 38,  durasiDetik: 18000,  durasiLabel: "5 jam",  deskripsi: "Tanaman hias dikotil berbatang berduri dengan variasi warna mahkota merah, merah muda, dan putih." },
         { id: "kristal",       nama: "Bunga Kristal",          latin: "Flora Sains Mitologis",    rarity: "Legendary", harga: 5500, panenCoin: 14000,panenXp: 420, durasiDetik: 259200, durasiLabel: "72 jam", deskripsi: "Flora legendaris berkilau permata yang hanya mekar setelah kesabaran penuh 3 hari." }
     ],
     fertilizers: [
@@ -42,6 +50,36 @@ window.MY_GARDEN_CATALOG = {
 // BANK SOAL BIOLOGI WAJIB SAAT MEMBELI BIBIT (DIPUTAR PER TANAMAN)
 // =========================================================================
 window.MY_GARDEN_PLANT_QUIZ = {
+    bayam: [
+        { q: "Mineral mikro utama pada daun bayam hijau yang berperan penting dalam pembentukan hemoglobin sel darah merah adalah...", opts: ["Zat besi (Fe)", "Natrium (Na)", "Yodium (I)", "Silikon (Si)"], ans: 0, info: "Zat besi (Fe) adalah inti gugus heme pada hemoglobin pengangkut oksigen." },
+        { q: "Pigmen hijau pada daun bayam yang menangkap energi cahaya matahari untuk reaksi fotosintesis adalah...", opts: ["Klorofil", "Likopen", "Melanin", "Hemoglobin"], ans: 0, info: "Klorofil a dan b di dalam kloroplas menyerap spektrum cahaya merah dan biru." },
+        { q: "Kekurangan asupan zat besi dan asam folat dari sayuran hijau seperti bayam dapat memicu gangguan darah berupa...", opts: ["Anemia defisiensi besi", "Hipertensi kronis", "Diabetes insipidus", "Osteoporosis"], ans: 0, info: "Kekurangan Fe menurunkan produksi hemoglobin sehingga suplai oksigen ke jaringan berkurang." }
+    ],
+    padi: [
+        { q: "Tumbuhan padi (Oryza sativa) termasuk kelompok monokotil famili Poaceae. Ciri sistem perakaran tanaman padi adalah...", opts: ["Akar serabut", "Akar tunggang berkambium", "Akar haustorium", "Akar napas mangrove"], ans: 0, info: "Semua tumbuhan monokotil termasuk padi memiliki sistem perakaran serabut." },
+        { q: "Cadangan makanan utama pada endosperma butir beras (padi) yang menjadi sumber energi utama manusia adalah...", opts: ["Amilum (pati)", "Selulosa murni", "Keratin", "Kitin"], ans: 0, info: "Amilum adalah polisakarida yang dipecah enzim amilase menjadi maltosa dan glukosa." },
+        { q: "Bunga padi berukuran kecil tanpa mahkota mencolok serta serbuk sari ringan sehingga penyerbukannya dibantu oleh...", opts: ["Angin (anemogami)", "Kelelawar (kiropterogami)", "Siput (malakogami)", "Burung (ornitogami)"], ans: 0, info: "Anemogami merupakan penyerbukan alami melalui perantara angin." }
+    ],
+    jagung: [
+        { q: "Jagung (Zea mays) memiliki efisiensi fotosintesis tinggi di daerah panas karena menggunakan jalur fiksasi karbon...", opts: ["Jalur C4", "Jalur C3 murni", "Kemosintesis sulfur", "Fermentasi laktat"], ans: 0, info: "Tumbuhan C4 meminimalkan fotorespirasi dengan memisahkan fiksasi CO2 di sel mesofil dan seludang berkas." },
+        { q: "Pada tanaman jagung, bunga jantan (malai) berada di pucuk batang sedangkan bunga betina (tongkol) di ketiak daun pada satu individu. Sifat ini disebut...", opts: ["Berumah satu (monoesis)", "Berumah dua (diesis)", "Apomiksis", "Partenogenesis"], ans: 0, info: "Tumbuhan monoesis memiliki bunga jantan dan bunga betina terpisah namun pada satu pohon." },
+        { q: "Struktur akar tambahan yang tumbuh dari buku-buku batang bawah jagung untuk menopang batang agar tidak roboh disebut...", opts: ["Akar tunjang / akar sokong", "Akar gantung", "Akar pengisap", "Rizoid"], ans: 0, info: "Akar adventif penunjang memperkuat posisi tegak batang jagung." }
+    ],
+    kedelai: [
+        { q: "Bintil akar tanaman kedelai (Glycine max) dihuni bakteri pengikat nitrogen udara (N2) menjadi amonia yang bersimbiosis mutualisme, yaitu...", opts: ["Rhizobium sp.", "Escherichia coli", "Vibrio cholerae", "Mycobacterium tuberculosis"], ans: 0, info: "Bakteri Rhizobium membantu menyuburkan tanah dengan fiksasi nitrogen biologis." },
+        { q: "Biji kedelai menjadi bahan baku utama tempe dan tahu karena kandungan makronutriennya yang sangat tinggi akan...", opts: ["Protein nabati", "Garam mineral natrium", "Asam klorida", "Laktosa"], ans: 0, info: "Kacang-kacangan famili Fabaceae kaya akan protein nabati dan asam amino esensial." },
+        { q: "Sebagai anggota tumbuhan dikotil famili Fabaceae, tipe pertulangan daun tanaman kedelai adalah...", opts: ["Menyirip", "Sejajar", "Lurus tunggal", "Melengkung seperti pita"], ans: 0, info: "Tumbuhan dikotil umumnya berakar tunggang dan bertulang daun menyirip atau menjari." }
+    ],
+    brokoli: [
+        { q: "Bagian hijau padat pada tanaman brokoli (Brassica oleracea) yang dikonsumsi manusia merupakan modifikasi dari organ...", opts: ["Kuncup bunga majemuk", "Umbi akar", "Umbi lapis", "Rimpang bawah tanah"], ans: 0, info: "Kepala brokoli tersusun atas ratusan kuncup bunga muda yang belum mekar." },
+        { q: "Vitamin larut air pada brokoli yang berperan sebagai antioksidan sekaligus membantu penyerapan zat besi di usus adalah...", opts: ["Vitamin C (asam askorbat)", "Vitamin D", "Vitamin K", "Vitamin E"], ans: 0, info: "Vitamin C larut air dan meningkatkan bioavailabilitas penyerapan zat besi non-heme." },
+        { q: "Serat selulosa tinggi pada brokoli tidak dicerna oleh enzim manusia, namun sangat penting di usus besar untuk...", opts: ["Memperlancar gerak peristaltik dan mencegah konstipasi (sembelit)", "Menghentikan aliran darah", "Menggantikan fungsi asam lambung", "Menghancurkan vili usus halus"], ans: 0, info: "Serat pangan menambah massa feses dan menjaga kesehatan mikrobiota usus." }
+    ],
+    alpukat: [
+        { q: "Buah alpukat terkenal menyehatkan sistem kardiovaskular karena kaya akan lemak baik berupa...", opts: ["Asam lemak tak jenuh tunggal (Omega-9 / asam oleat)", "Lemak trans sintetis", "Kolesterol LDL tinggi", "Lilin parafin"], ans: 0, info: "Lemak tak jenuh tunggal membantu menurunkan kolesterol LDL dan menjaga elastisitas pembuluh darah." },
+        { q: "Enzim pencernaan utama yang disekresikan pankreas untuk menghidrolisis lemak alpukat menjadi asam lemak dan gliserol di usus halus adalah...", opts: ["Lipase", "Ptialin (amilase)", "Pepsin", "Renin"], ans: 0, info: "Garam empedu mengemulsikan lemak terlebih dahulu, lalu enzim lipase mencernanya." },
+        { q: "Secara botani, buah alpukat yang berdaging lembut dan memiliki satu biji besar berkulit keras di tengahnya digolongkan sebagai...", opts: ["Buah buni berbiji tunggal", "Buah polong kering", "Buah semu majemuk", "Buah agregat"], ans: 0, info: "Alpukat berkembang dari satu bakal buah tunggal dengan perikarp berdaging." }
+    ],
     wortel: [
         { q: "Bagian wortel yang biasa dikonsumsi manusia merupakan hasil modifikasi dari organ...", opts: ["Umbi batang", "Umbi akar", "Umbi lapis", "Rimpang (rizoma)"], ans: 1, info: "Wortel adalah umbi akar (radix tuberosa) yang menyimpan cadangan makanan." },
         { q: "Pigmen dominan yang memberi warna jingga cerah pada umbi wortel dan menjadi prekursor vitamin A adalah...", opts: ["Klorofil a", "Antosianin", "Beta-karoten", "Fikosianin"], ans: 2, info: "Beta-karoten adalah pigmen karotenoid yang diubah tubuh menjadi vitamin A." },
@@ -121,6 +159,16 @@ window.MY_GARDEN_PLANT_QUIZ = {
         { q: "Anggrek Hitam (Coelogyne pandurata) merupakan flora maskot kebanggaan dari provinsi...", opts: ["Kalimantan Timur", "Jawa Tengah", "Sumatra Barat", "Lampung"], ans: 0, info: "Anggrek Hitam (Coelogyne pandurata) adalah flora identitas Provinsi Kalimantan Timur." },
         { q: "Bagian bunga Anggrek Hitam yang sebenarnya berwarna hitam pekat adalah...", opts: ["Seluruh daunnya", "Lidah bunga (labellum)", "Batang semunya", "Akarnya"], ans: 1, info: "Mahkota luarnya hijau kekuningan, sedangkan lidah bunga (labellum)-nya berwarna hitam pekat." },
         { q: "Pelestarian Anggrek Hitam di habitat aslinya (seperti Cagar Alam Kersik Luway) disebut konservasi...", opts: ["In situ", "Ex situ", "Kultur jaringan", "Domestikasi"], ans: 0, info: "Konservasi in situ berarti melindungi spesies langsung di habitat alaminya." }
+    ],
+    ercis: [
+        { q: "Alasan utama Gregor Mendel memilih Kacang Ercis (Pisum sativum) sebagai objek percobaan genetika adalah...", opts: ["Memiliki banyak sifat beda yang kontras, daur hidup singkat, dan mudah disilangkan maupun menyerbuk sendiri", "Hanya dapat tumbuh di daerah kutub bersalju", "Memiliki masa panen lebih dari 10 tahun", "Tidak menghasilkan biji maupun bunga"], ans: 0, info: "Pisum sativum cepat berbuah, punya 7 pasang sifat kontras tegas, dan menghasilkan banyak keturunan." },
+        { q: "Tanaman Kacang Ercis termasuk famili polong-polongan (Fabaceae) yang bijinya tersusun atas dua keping lembaga, sehingga termasuk...", opts: ["Tumbuhan dikotil", "Tumbuhan monokotil", "Tumbuhan lumut", "Tumbuhan paku"], ans: 0, info: "Kacang-kacangan Fabaceae adalah tumbuhan berbiji belah (dikotil)." },
+        { q: "Warna ungu pada bunga Pisum sativum bersifat dominan penuh terhadap warna putih. Jika individu Pp disilangkan sesamanya, rasio fenotipe keturunannya adalah...", opts: ["3 Ungu : 1 Putih", "1 Ungu : 1 Putih", "100% Putih", "9 : 3 : 3 : 1"], ans: 0, info: "Persilangan monohibrid heterozigot dominan penuh menghasilkan rasio fenotipe 3 : 1." }
+    ],
+    mawar: [
+        { q: "Duri tempel (spina/akuleus) pada batang mawar secara morfologi berfungsi utama untuk...", opts: ["Melindungi batang dan bunga dari hewan herbivora", "Menyerap gas nitrogen dari udara", "Melakukan pembelahan meiosis", "Menghasilkan klorofil utama"], ans: 0, info: "Duri tempel merupakan penonjolan jaringan epidermis/korteks sebagai alat pertahanan fisik." },
+        { q: "Perbanyakan vegetatif buatan yang paling umum dilakukan petani untuk mempertahankan warna bunga mawar yang identik dengan induknya adalah...", opts: ["Stek batang dan okulasi (menempel)", "Pembentukan spora", "Fragmentasi akar serabut", "Konjugasi"], ans: 0, info: "Stek batang dan okulasi menghasilkan anakan klonal yang sifat genetiknya sama persis dengan induk." },
+        { q: "Pigmen yang memberikan warna merah dan merah muda pada kelopak mahkota bunga mawar adalah...", opts: ["Antosianin", "Klorofil a", "Hemoglobin", "Melanin"], ans: 0, info: "Antosianin larut air di vakuola sel mahkota bunga dan menentukan spektrum warna merah hingga ungu." }
     ],
     kristal: [
         { q: "Jaringan pembuluh tumbuhan yang bertugas mengangkut air dan mineral dari akar menuju daun adalah...", opts: ["Floem", "Xilem", "Kolenkim", "Sklerenkim"], ans: 1, info: "Xilem mengangkut air dan unsur hara dari akar ke daun, sedangkan floem mengangkut hasil fotosintesis." },
@@ -458,6 +506,56 @@ window.bangunSVGTanamanKebun = function(plantId, status, sizePx, geneCode) {
     }
 
     let innerMap = {
+        bayam:
+            '<ellipse cx="60" cy="100" rx="34" ry="9" fill="#4a2810" opacity="0.4"/>' +
+            '<path d="M60,98 L60,48 M60,92 L38,60 M60,92 L82,60" stroke="#15803d" stroke-width="5" stroke-linecap="round"/>' +
+            '<ellipse cx="38" cy="54" rx="18" ry="24" transform="rotate(-24 38 54)" fill="#22c55e" stroke="#14532d" stroke-width="3"/>' +
+            '<ellipse cx="82" cy="54" rx="18" ry="24" transform="rotate(24 82 54)" fill="#16a34a" stroke="#14532d" stroke-width="3"/>' +
+            '<ellipse cx="60" cy="40" rx="19" ry="26" fill="#4ade80" stroke="#14532d" stroke-width="3"/>' +
+            '<path d="M60,60 L60,22 M38,66 L32,42 M82,66 L88,42" stroke="#15803d" stroke-width="2.2" stroke-linecap="round"/>',
+
+        padi:
+            '<ellipse cx="60" cy="102" rx="34" ry="9" fill="#4a2810" opacity="0.4"/>' +
+            '<path d="M56,100 Q46,62 28,36 M60,100 Q60,56 64,22 M64,100 Q76,62 94,40" fill="none" stroke="#65a30d" stroke-width="5" stroke-linecap="round"/>' +
+            '<g fill="#facc15" stroke="#a16207" stroke-width="2">' +
+                '<ellipse cx="26" cy="36" rx="5" ry="9" transform="rotate(-40 26 36)"/><ellipse cx="34" cy="44" rx="5" ry="9" transform="rotate(-35 34 44)"/><ellipse cx="42" cy="54" rx="5" ry="9" transform="rotate(-25 42 54)"/>' +
+                '<ellipse cx="64" cy="22" rx="5" ry="9"/><ellipse cx="61" cy="34" rx="5" ry="9"/><ellipse cx="66" cy="46" rx="5" ry="9"/>' +
+                '<ellipse cx="94" cy="40" rx="5" ry="9" transform="rotate(40 94 40)"/><ellipse cx="86" cy="48" rx="5" ry="9" transform="rotate(35 86 48)"/><ellipse cx="78" cy="58" rx="5" ry="9" transform="rotate(25 78 58)"/>' +
+            '</g>',
+
+        jagung:
+            '<ellipse cx="60" cy="102" rx="34" ry="9" fill="#4a2810" opacity="0.4"/>' +
+            '<ellipse cx="60" cy="56" rx="18" ry="38" fill="#facc15" stroke="#a16207" stroke-width="3"/>' +
+            '<path d="M46,38 L74,38 M44,50 L76,50 M44,62 L76,62 M46,74 L74,74 M54,22 L54,84 M66,22 L66,84" stroke="#d97706" stroke-width="2"/>' +
+            '<path d="M56,96 C26,88 22,56 36,42 C46,56 50,76 56,96 Z" fill="#22c55e" stroke="#14532d" stroke-width="3"/>' +
+            '<path d="M64,96 C94,88 98,56 84,42 C74,56 70,76 64,96 Z" fill="#16a34a" stroke="#14532d" stroke-width="3"/>',
+
+        kedelai:
+            '<ellipse cx="60" cy="100" rx="36" ry="9" fill="#4a2810" opacity="0.4"/>' +
+            '<path d="M60,98 L60,44" stroke="#15803d" stroke-width="5.5" stroke-linecap="round"/>' +
+            '<circle cx="42" cy="44" r="16" fill="#22c55e" stroke="#14532d" stroke-width="3"/>' +
+            '<circle cx="78" cy="44" r="16" fill="#16a34a" stroke="#14532d" stroke-width="3"/>' +
+            '<path d="M26,70 Q42,60 56,74 Q42,92 26,82 Z" fill="#bef264" stroke="#3f6212" stroke-width="3"/>' +
+            '<circle cx="35" cy="76" r="5" fill="#facc15"/><circle cx="46" cy="76" r="5" fill="#facc15"/>' +
+            '<path d="M64,74 Q78,60 94,70 Q94,82 78,92 Z" fill="#a3e635" stroke="#3f6212" stroke-width="3"/>' +
+            '<circle cx="74" cy="76" r="5" fill="#facc15"/><circle cx="85" cy="74" r="5" fill="#facc15"/>',
+
+        brokoli:
+            '<ellipse cx="60" cy="100" rx="34" ry="9" fill="#4a2810" opacity="0.4"/>' +
+            '<path d="M48,98 L52,58 L68,58 L72,98 Z" fill="#86efac" stroke="#15803d" stroke-width="3.5" stroke-linejoin="round"/>' +
+            '<circle cx="36" cy="52" r="20" fill="#15803d" stroke="#052e16" stroke-width="3"/>' +
+            '<circle cx="84" cy="52" r="20" fill="#166534" stroke="#052e16" stroke-width="3"/>' +
+            '<circle cx="60" cy="36" r="24" fill="#22c55e" stroke="#052e16" stroke-width="3"/>' +
+            '<circle cx="48" cy="48" r="16" fill="#16a34a"/><circle cx="72" cy="48" r="16" fill="#15803d"/>' +
+            '<circle cx="54" cy="30" r="4" fill="#4ade80"/><circle cx="68" cy="34" r="4" fill="#4ade80"/><circle cx="34" cy="48" r="3.5" fill="#4ade80"/>',
+
+        alpukat:
+            '<ellipse cx="60" cy="100" rx="34" ry="9" fill="#4a2810" opacity="0.4"/>' +
+            '<path d="M60,18 C78,18 90,48 90,70 C90,90 76,100 60,100 C44,100 30,90 30,70 C30,48 42,18 60,18 Z" fill="#166534" stroke="#052e16" stroke-width="3.5"/>' +
+            '<path d="M60,26 C73,26 82,50 82,70 C82,84 72,92 60,92 C48,92 38,84 38,70 C38,50 47,26 60,26 Z" fill="#bef264"/>' +
+            '<circle cx="60" cy="70" r="16" fill="#92400e" stroke="#451a03" stroke-width="3"/>' +
+            '<ellipse cx="55" cy="64" rx="5" ry="3" transform="rotate(-25 55 64)" fill="#d97706" opacity="0.7"/>',
+
         wortel:
             '<ellipse cx="60" cy="96" rx="34" ry="10" fill="#4a2810" opacity="0.4"/>' +
             '<path d="M60,50 C42,38 30,22 42,16 C50,14 58,30 60,48 Z" fill="#22c55e" stroke="#14532d" stroke-width="3"/>' +
@@ -647,6 +745,31 @@ window.bangunSVGTanamanKebun = function(plantId, status, sizePx, geneCode) {
                 '<path d="M-5,2 L0,10 L5,2" fill="none" stroke="#84cc16" stroke-width="2"/>' +
             '</g>',
 
+        ercis: (function() {
+            let pCol = gVar ? gVar.primary : "#9333ea";
+            let sCol = gVar ? gVar.secondary : "#d8b4fe";
+            let stCol = gVar ? gVar.stroke : "#581c87";
+            return '<ellipse cx="60" cy="100" rx="36" ry="9" fill="#4a2810" opacity="0.4"/>' +
+                '<path d="M60,98 L60,36 M60,72 Q42,60 32,70 M60,64 Q78,52 88,62" fill="none" stroke="#15803d" stroke-width="5" stroke-linecap="round"/>' +
+                '<path d="M30,72 Q44,64 56,78 Q42,96 28,84 Z" fill="#4ade80" stroke="#14532d" stroke-width="2.5"/>' +
+                '<circle cx="38" cy="79" r="4" fill="#15803d"/><circle cx="47" cy="77" r="4" fill="#15803d"/>' +
+                '<g transform="translate(60,36)"><ellipse cx="-11" cy="2" rx="11" ry="13" fill="' + pCol + '" stroke="' + stCol + '" stroke-width="2"/><ellipse cx="11" cy="2" rx="11" ry="13" fill="' + pCol + '" stroke="' + stCol + '" stroke-width="2"/><ellipse cx="0" cy="-7" rx="12" ry="11" fill="' + sCol + '" stroke="' + stCol + '" stroke-width="2"/></g>' +
+                '<g transform="translate(84,56) scale(0.72)"><ellipse cx="-10" cy="2" rx="11" ry="13" fill="' + pCol + '" stroke="' + stCol + '" stroke-width="2"/><ellipse cx="10" cy="2" rx="11" ry="13" fill="' + pCol + '" stroke="' + stCol + '" stroke-width="2"/><ellipse cx="0" cy="-6" rx="11" ry="10" fill="' + sCol + '" stroke="' + stCol + '" stroke-width="2"/></g>';
+        })(),
+
+        mawar: (function() {
+            let pCol = gVar ? gVar.primary : "#dc2626";
+            let sCol = gVar ? gVar.secondary : "#f87171";
+            let stCol = gVar ? gVar.stroke : "#7f1d1d";
+            return '<ellipse cx="60" cy="100" rx="34" ry="9" fill="#4a2810" opacity="0.4"/>' +
+                '<path d="M60,98 L60,50" stroke="#15803d" stroke-width="6" stroke-linecap="round"/>' +
+                '<path d="M58,82 C34,80 28,64 40,60 C50,58 58,72 58,82 Z" fill="#22c55e" stroke="#14532d" stroke-width="2.5"/>' +
+                '<path d="M62,76 C86,74 92,58 80,54 C70,52 62,66 62,76 Z" fill="#16a34a" stroke="#14532d" stroke-width="2.5"/>' +
+                '<circle cx="60" cy="38" r="24" fill="' + pCol + '" stroke="' + stCol + '" stroke-width="3"/>' +
+                '<circle cx="60" cy="38" r="16" fill="' + sCol + '" stroke="' + stCol + '" stroke-width="2.5"/>' +
+                '<path d="M52,38 A8,8 0 1,1 66,42 A5,5 0 1,1 57,36" fill="none" stroke="' + stCol + '" stroke-width="2.5" stroke-linecap="round"/>';
+        })(),
+
         kristal:
             '<ellipse cx="60" cy="98" rx="38" ry="10" fill="#38bdf8" opacity="0.38"/>' +
             '<polygon points="60,12 74,48 68,94 52,94 46,48" fill="#38bdf8" stroke="#0369a1" stroke-width="3" stroke-linejoin="round"/>' +
@@ -814,12 +937,19 @@ window.bukaModalMyGarden = function() {
     let uName = sessionStorage.getItem("username");
     window.pastikanStrukturMyGarden(uName);
 
+    let jmlHujanSiram = (typeof window.terapkanHujanSiramOtomatisGarden === "function")
+        ? window.terapkanHujanSiramOtomatisGarden(uName)
+        : 0;
+
     window.activeGardenView = "kebun";
     window.activeGardenTool = "select";
     window.isMyGardenModalOpen = true;
 
     window.perbaruiSaldoHUDGarden();
     window.renderMyGardenUI();
+    if (jmlHujanSiram > 0) {
+        window.tampilkanToastGarden("🌧️ Cuaca Hujan menyiram otomatis <b>" + jmlHujanSiram + " tanaman</b> di kebunmu (−15% waktu panen)!");
+    }
 
     if (typeof window.bukaModal === "function") {
         window.bukaModal("modal-my-garden");
@@ -1024,6 +1154,7 @@ window.renderMyGardenUI = function() {
               '<div class="garden-stat-line"><span>🔓</span><div><small>Lahan Aktif:</small><b>' + unlockedTotal + ' / ' + totalPlots + '</b></div></div>' +
               '<div class="garden-stat-line"><span>🟫</span><div><small>Terisi:</small><b>' + plantedCount + ' / ' + unlockedTotal + '</b></div></div>' +
               '<div class="garden-stat-line"><span>⏱️</span><div><small>Next Panen:</small><b id="garden-next-panen-val">' + nextPanenStr + '</b></div></div>' +
+              '<div class="garden-stat-line"><span>💧</span><div><small>Air Siram:</small><b>' + ((typeof window.ambilStokAirKebunWorld === "function") ? window.ambilStokAirKebunWorld() : 5) + ' L</b></div></div>' +
               '<div class="garden-stat-line"><span>🧪</span><div><small>Pupuk NPK:</small><b>x' + npkStok + '</b></div></div>' +
               '<button type="button" class="garden-mini-shop-btn" onclick="window.gantiViewMyGarden(\'toko\')">🏪 Toko Bibit</button>' +
           '</div>';
@@ -1556,6 +1687,11 @@ window.siramPetakKebun = function(plotIdx) {
         return;
     }
 
+    if (typeof window.pakaiAirKebunWorld === "function" && !window.pakaiAirKebunWorld(1)) {
+        window.tampilkanToastGarden("⚠️ Air siram kebun habis! Keluar ke <b>My World</b>, ambil air dari <b>🛢️ Tandon Air</b> (isi Tandon dengan menimba di <b>🪣 Sumur</b>).");
+        return;
+    }
+
     let potonganMs = Math.round(info.remainingMs * 0.15);
     plotObj.readyAt = Math.max(Date.now(), plotObj.readyAt - potonganMs);
     plotObj.watered = true;
@@ -1624,12 +1760,17 @@ window.panenSatuPetak = function(plotIdx) {
     lb.xpTotal = (Number(lb.xpTotal !== undefined ? lb.xpTotal : lb.xp) || 0) + plant.panenXp;
     lb.xp = lb.xpTotal;
 
+    let masukDapur = false;
+    if (typeof window.tambahBahanDapurWorld === "function") {
+        masukDapur = window.tambahBahanDapurWorld(lb, plant.id, 1);
+    }
+
     window.simpanDataKebunKeServer(lb);
     if (typeof window.perbaruiTampilanSaldoXPPet === "function") window.perbaruiTampilanSaldoXPPet();
     if (typeof window.perbaruiUIHeaderProfilSiswa === "function") window.perbaruiUIHeaderProfilSiswa();
 
     window.renderMyGardenUI();
-    window.tampilkanToastGarden("🎉 Panen <b>" + plant.nama + (vInfo ? " (" + vInfo.label + ")" : "") + "</b>! +🪙 " + gainCoin.toLocaleString("id-ID") + " Coin & +⭐ " + plant.panenXp + " XP! Jangan lupa buang sisa tanaman layunya.");
+    window.tampilkanToastGarden("🎉 Panen <b>" + plant.nama + (vInfo ? " (" + vInfo.label + ")" : "") + "</b>! +🪙 " + gainCoin.toLocaleString("id-ID") + " Coin & +⭐ " + plant.panenXp + " XP!" + (masukDapur ? " (+1 bahan segar masuk Dapur Gizi!)" : ""));
 };
 
 window.panenSemuaTanamanSiap = function() {
@@ -1650,6 +1791,9 @@ window.panenSemuaTanamanSiap = function() {
             totalCoin += (vInfo ? Math.round(info.plant.panenCoin * vInfo.bonusMult) : info.plant.panenCoin);
             totalXp += info.plant.panenXp;
             jumlah++;
+            if (typeof window.tambahBahanDapurWorld === "function") {
+                window.tambahBahanDapurWorld(lb, info.plant.id, 1);
+            }
             gData.plots[k] = {
                 plantId: info.plant.id,
                 geneCode: pObj.geneCode || "",
@@ -1738,3 +1882,19 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     }, 1500);
 });
+
+// Tambahan Varian Warna Genetik untuk Kacang Ercis & Bunga Mawar
+if (window.MY_GARDEN_GENE_VARIANTS) {
+    window.MY_GARDEN_GENE_VARIANTS.ercis = {
+        MM: { label: "Ungu Dominan",    primary: "#9333ea", secondary: "#d8b4fe", stroke: "#581c87", bonusMult: 1.08 },
+        Mm: { label: "Ungu Hibrida",    primary: "#7e22ce", secondary: "#c084fc", stroke: "#4c1d95", bonusMult: 1.15 },
+        Mp: { label: "Lavender Muda",   primary: "#c084fc", secondary: "#f3e8ff", stroke: "#6b21a8", bonusMult: 1.25 },
+        mm: { label: "Putih Resesif",   primary: "#ffffff", secondary: "#f1f5f9", stroke: "#64748b", bonusMult: 1.32 }
+    };
+    window.MY_GARDEN_GENE_VARIANTS.mawar = {
+        MM: { label: "Merah Dominan",   primary: "#dc2626", secondary: "#f87171", stroke: "#7f1d1d", bonusMult: 1.08 },
+        Mm: { label: "Merah Hibrida",   primary: "#b91c1c", secondary: "#ef4444", stroke: "#7f1d1d", bonusMult: 1.15 },
+        Mp: { label: "Merah Muda",      primary: "#f472b6", secondary: "#fbcfe8", stroke: "#be185d", bonusMult: 1.28 },
+        mm: { label: "Putih Murni",     primary: "#ffffff", secondary: "#f1f5f9", stroke: "#64748b", bonusMult: 1.35 }
+    };
+}

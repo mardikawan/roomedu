@@ -10612,3 +10612,38 @@ window.mulaiInkubasiRealTimeFerm = function() {
         return r ? { expId: "microscope_lab", status: "Selesai", stars: r.stars, score: r.score, coinGain: r.coin, xpGain: r.xp, catatan: "Preparat " + window.labMicroscopeSession.specId } : null;
     });
 })();
+// =========================================================================
+// 19. EKSPANSI VARIASI GENETIKA (6 SPESIES + BANK SOAL LENGKAP 6 POLA)
+// =========================================================================
+(function perluasVariasiGenetikaLab() {
+    window.MY_LAB_GEN_SPECIES = [
+        { id: "tulip",       nama: "Tulip",              latin: "Tulipa gesneriana",     domLabel: "Merah",  midLabel: "Merah Muda",    recLabel: "Putih"  },
+        { id: "pukul_empat", nama: "Bunga Pukul Empat",  latin: "Mirabilis jalapa",      domLabel: "Merah",  midLabel: "Pink",          recLabel: "Putih"  },
+        { id: "daisy",       nama: "Bunga Daisy",        latin: "Bellis perennis",       domLabel: "Putih",  midLabel: "Pink Pastel",   recLabel: "Biru"   },
+        { id: "ercis",       nama: "Kacang Ercis",       latin: "Pisum sativum",         domLabel: "Ungu",   midLabel: "Lavender Muda", recLabel: "Putih"  },
+        { id: "anggrek",     nama: "Anggrek Bulan",      latin: "Phalaenopsis amabilis", domLabel: "Putih",  midLabel: "Ungu Lavender", recLabel: "Kuning" },
+        { id: "mawar",       nama: "Bunga Mawar",        latin: "Rosa hybrida",          domLabel: "Merah",  midLabel: "Merah Muda",    recLabel: "Putih"  }
+    ];
+
+    if (window.MY_LAB_GEN_QUIZ_BY_MODE) {
+        window.MY_LAB_GEN_QUIZ_BY_MODE.monohibrid.push(
+            { q: "Apabila individu homozigot dominan (MM) disilangkan dengan heterozigot (Mm) pada sifat dominan penuh, berapakah persentase fenotipe dominan pada keturunannya?", opts: ["100% berfenotipe dominan (50% MM dan 50% Mm)", "75% dominan dan 25% resesif", "50% dominan dan 50% resesif", "100% berfenotipe resesif"], ans: 0 }
+        );
+        window.MY_LAB_GEN_QUIZ_BY_MODE.intermediet.push(
+            { q: "Jika Bunga Mawar Merah Muda (Mm) disilangkan dengan Mawar Putih (mm) pada sifat intermediet, perbandingan fenotipe keturunannya adalah...", opts: ["1 Merah Muda : 1 Putih (50% : 50%)", "3 Merah : 1 Putih", "100% Merah Muda", "1 Merah : 2 Merah Muda : 1 Putih"], ans: 0 }
+        );
+        window.MY_LAB_GEN_QUIZ_BY_MODE.dihibrid.push(
+            { q: "Pada persilangan dihibrid MmBb × MmBb (dominan penuh), berapa proporsi keturunan yang memiliki kedua sifat resesif sekaligus (mmbb)?", opts: ["1/16 (6,25%)", "3/16 (18,75%)", "9/16 (56,25%)", "4/16 (25%)"], ans: 0 },
+            { q: "Berapakah jumlah macam gamet yang dibentuk oleh individu bergenotipe MMBb menurut Hukum Mendel II (Asortasi Bebas)?", opts: ["2 macam gamet (MB dan Mb)", "1 macam gamet saja", "4 macam gamet", "8 macam gamet"], ans: 0 }
+        );
+        window.MY_LAB_GEN_QUIZ_BY_MODE.resiprok.push(
+            { q: "Pada lalat buah Drosophila melanogaster, persilangan betina mata putih (XmXm) dengan jantan mata merah (XMY) menghasilkan seluruh keturunan jantan bermata...", opts: ["Putih (XmY), karena jantan mewarisi kromosom X dari induk betina", "Merah (XMY), karena jantan mewarisi kromosom X dari induk jantan", "Merah muda intermediet", "50% merah dan 50% putih"], ans: 0 }
+        );
+        window.MY_LAB_GEN_QUIZ_BY_MODE.testcross.push(
+            { q: "Jika uji silang (Testcross) antara tanaman Kacang Ercis bunga ungu (M?) dan bunga putih (mm) menghasilkan 120 tanaman bunga ungu tanpa satu pun bunga putih, maka genotipe induk uji tersebut adalah...", opts: ["MM (homozigot dominan murni)", "Mm (heterozigot)", "mm (homozigot resesif)", "Tidak dapat ditentukan"], ans: 0 }
+        );
+        window.MY_LAB_GEN_QUIZ_BY_MODE.backcross.push(
+            { q: "Jika F1 heterozigot (Mm) disilangkan balik (Backcross) dengan induk homozigot dominan (MM), bagaimanakah rasio genotipe keturunannya?", opts: ["1 MM : 1 Mm (50% galur murni dominan, 50% heterozigot)", "1 Mm : 1 mm", "1 MM : 2 Mm : 1 mm", "100% mm"], ans: 0 }
+        );
+    }
+})();

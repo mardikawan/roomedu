@@ -1532,62 +1532,108 @@ window.mainkanEfekVisualInteraksiPet = function(ikonUtama, subIkon) {
 };
 
 window.fokusDekorasiIdx = -1;
+window._justDraggedDecorIdx = -1;
 
 window.fokusDekorasiHabitat = function(idx, e) {
     if (e) { e.stopPropagation(); e.preventDefault(); }
-    window.fokusDekorasiIdx = idx;
+    if (window._justDraggedDecorIdx === idx) {
+        window._justDraggedDecorIdx = -1;
+        return;
+    }
+    if (window.modeKunjunganPet) return;
+    window.fokusDekorasiIdx = (window.fokusDekorasiIdx === idx) ? -1 : idx;
     window.renderTabHabitatMyPet();
 };
 
 window.lepasDekorasiHabitat = function(idx, e) {
     if (e) { e.stopPropagation(); e.preventDefault(); }
     let uName = window.modeKunjunganPet || sessionStorage.getItem("username");
-    let lb = window.modeKunjunganPet ? window.leaderboardSiswaData[uName] : window.pastikanStrukturDualXPDanPet(uName);
-    if (!lb || !lb.myPetData) return;
+    let cleanKey = window.normalisasiKeySiswaPet ? window.normalisasiKeySiswaPet(uName) : uName;
+    let lb = window.modeKunjunganPet ? window.leaderboardSiswaData[uName] : window.pastikanStrukturDualXPDanPet(cleanKey);
+    if (!lb || !lb.myPetData || !Array.isArray(lb.myPetData.activeDecorations)) return;
     lb.myPetData.activeDecorations.splice(idx, 1);
     window.fokusDekorasiIdx = -1;
-    if (!window.modeKunjunganPet && typeof window.simpanLeaderboardSiswaKeDB === "function") window.simpanLeaderboardSiswaKeDB(uName, lb);
+    if (!window.modeKunjunganPet && typeof window.simpanLeaderboardSiswaKeDB === "function") {
+        window.simpanLeaderboardSiswaKeDB(cleanKey, lb);
+    }
     window.renderTabHabitatMyPet();
 };
 
 window.mulaiDragDekorasi = function(e, idx) {
     if (window.modeKunjunganPet) return;
-    e.stopPropagation(); e.preventDefault();
+    if (e.button !== undefined && e.button !== 0) return;
+    if (e.target && e.target.closest && e.target.closest('.mypet-decor-del-btn')) return;
+
+    e.stopPropagation();
+
     let uName = sessionStorage.getItem("username");
-    let lb = window.pastikanStrukturDualXPDanPet(uName);
-    if (!lb || !lb.myPetData || !lb.myPetData.activeDecorations[idx]) return;
+    let cleanKey = window.normalisasiKeySiswaPet ? window.normalisasiKeySiswaPet(uName) : uName;
+    let lb = window.pastikanStrukturDualXPDanPet(cleanKey);
+    if (!lb || !lb.myPetData || !lb.myPetData.activeDecorations || !lb.myPetData.activeDecorations[idx]) return;
 
     let el = document.getElementById('mypet-decor-item-' + idx);
     let stage = document.getElementById('mypet-habitat-stage');
-    let sRect = stage.getBoundingClientRect();
-    
-    let startX = e.clientX, startY = e.clientY;
-    let decObj = lb.myPetData.activeDecorations[idx];
-    let initLeft = parseFloat(decObj.left) || 50;
-    let initBottom = parseFloat(decObj.bottom) || 20;
+    if (!el || !stage) return;
 
-    e.target.setPointerCapture(e.pointerId);
+    let decObj = lb.myPetData.activeDecorations[idx];
+    if (typeof decObj === "string") {
+        decObj = { id: decObj, left: "50%", bottom: "20%" };
+        lb.myPetData.activeDecorations[idx] = decObj;
+    }
+
+    let sRect = stage.getBoundingClientRect();
+    let startX = e.clientX;
+    let startY = e.clientY;
+    let initLeft = parseFloat(el.style.left) || parseFloat(decObj.left) || 50;
+    let initBottom = parseFloat(el.style.bottom) || parseFloat(decObj.bottom) || 20;
+    let moved = false;
 
     function move(ev) {
-        let dxPct = ((ev.clientX - startX) / sRect.width) * 100;
-        let dyPct = (-(ev.clientY - startY) / sRect.height) * 100;
-        
-        let nL = Math.max(0, Math.min(100, initLeft + dxPct));
-        let nB = Math.max(0, Math.min(100, initBottom + dyPct));
-        
-        el.style.left = nL + '%';
-        el.style.bottom = nB + '%';
+        let dxPx = ev.clientX - startX;
+        let dyPx = ev.clientY - startY;
+        if (!moved && Math.hypot(dxPx, dyPx) < 5) return;
+
+        if (!moved) {
+            moved = true;
+            el.classList.add('is-dragging-decor');
+            el.style.zIndex = '35';
+        }
+        ev.preventDefault();
+
+        let isRot90 = document.body.classList.contains("world-force-rotated");
+        let localDx = isRot90 ? dyPx : dxPx;
+        let localDy = isRot90 ? -dxPx : dyPx;
+        let stageW = Math.max(1, isRot90 ? sRect.height : sRect.width);
+        let stageH = Math.max(1, isRot90 ? sRect.width : sRect.height);
+
+        let nL = Math.max(5, Math.min(95, initLeft + (localDx / stageW) * 100));
+        let nB = Math.max(4, Math.min(78, initBottom - (localDy / stageH) * 100));
+
+        el.style.left = nL.toFixed(1) + '%';
+        el.style.bottom = nB.toFixed(1) + '%';
         decObj.left = nL.toFixed(1) + '%';
         decObj.bottom = nB.toFixed(1) + '%';
     }
-    function up(ev) {
-        e.target.releasePointerCapture(e.pointerId);
+
+    function up() {
         document.removeEventListener('pointermove', move);
         document.removeEventListener('pointerup', up);
-        if (typeof window.simpanLeaderboardSiswaKeDB === "function") window.simpanLeaderboardSiswaKeDB(uName, lb);
+        document.removeEventListener('pointercancel', up);
+        el.classList.remove('is-dragging-decor');
+        el.style.zIndex = (window.fokusDekorasiIdx === idx) ? '24' : '4';
+
+        if (moved) {
+            window._justDraggedDecorIdx = idx;
+            setTimeout(function() { window._justDraggedDecorIdx = -1; }, 160);
+            if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
+                window.simpanLeaderboardSiswaKeDB(cleanKey, lb);
+            }
+        }
     }
-    document.addEventListener('pointermove', move);
+
+    document.addEventListener('pointermove', move, { passive: false });
     document.addEventListener('pointerup', up);
+    document.addEventListener('pointercancel', up);
 };
 
 window.bangunSVGTemaHabitat = function(themeId) {
@@ -1745,18 +1791,22 @@ window.renderTabHabitatMyPet = function() {
     let decorHtml = '';
     let activeDecs = Array.isArray(petData.activeDecorations) ? petData.activeDecorations : [];
     activeDecs.forEach(function(decObj, idx) {
-        if (typeof decObj === "string") decObj = { id: decObj, left: "50%", bottom: "20%" };
+        if (typeof decObj === "string") {
+            decObj = { id: decObj, left: "50%", bottom: "20%" };
+            activeDecs[idx] = decObj;
+        }
         let decCfg = window.MY_PET_CATALOG.decorations.find(function(d) { return d.id === decObj.id; });
         if (decCfg) {
             let svgDec = window.bangunSVGDeKorasiHabitat(decObj.id);
             let isFokus = (window.fokusDekorasiIdx === idx) && !isVisitMode;
             let dragBtn = isFokus
-                ? '<div class="mypet-decor-drag-btn" style="position:absolute; top:-30px; left:50%; transform:translateX(-50%); background:#f59e0b; color:white; padding:4px 12px; border-radius:12px; font-size:11px; font-weight:bold; cursor:grab; z-index:10; white-space:nowrap; box-shadow:0 2px 5px rgba(0,0,0,0.2);" onpointerdown="window.mulaiDragDekorasi(event, ' + idx + ')">✥ Drag</div>' +
-                  '<button class="mypet-decor-del-btn" style="position:absolute; top:-30px; right:-25px; background:#ef4444; color:white; border:none; border-radius:50%; width:24px; height:24px; font-size:11px; font-weight:bold; cursor:pointer; z-index:10; box-shadow:0 2px 5px rgba(0,0,0,0.2);" onclick="window.lepasDekorasiHabitat(' + idx + ', event)">✕</button>'
+                ? '<div class="mypet-decor-drag-btn" style="position:absolute; top:-28px; left:50%; transform:translateX(-50%); background:#f59e0b; color:white; padding:3px 10px; border-radius:12px; font-size:10.5px; font-weight:bold; cursor:grab; z-index:5; white-space:nowrap; box-shadow:0 2px 6px rgba(0,0,0,0.25);">✥ Geser</div>' +
+                  '<button type="button" class="mypet-decor-del-btn" style="position:absolute; top:-28px; right:-24px; background:#ef4444; color:white; border:2px solid #fff; border-radius:50%; width:24px; height:24px; font-size:11px; font-weight:bold; cursor:pointer; z-index:6; box-shadow:0 2px 6px rgba(0,0,0,0.25);" onclick="window.lepasDekorasiHabitat(' + idx + ', event)" title="Lepas Dekorasi">✕</button>'
                 : '';
 
+            let dragAttr = !isVisitMode ? (' onpointerdown="window.mulaiDragDekorasi(event, ' + idx + ')"') : '';
             decorHtml +=
-                '<div class="mypet-decor-svg-item" id="mypet-decor-item-' + idx + '" style="position:absolute; left:' + decObj.left + '; bottom:' + decObj.bottom + '; z-index:3; transform:translate(-50%, 10%); cursor:pointer;" onclick="window.fokusDekorasiHabitat(' + idx + ', event)" title="' + decCfg.nama + '">' +
+                '<div class="mypet-decor-svg-item' + (!isVisitMode ? ' is-draggable-decor' : '') + (isFokus ? ' is-focused-decor' : '') + '" id="mypet-decor-item-' + idx + '" style="position:absolute; left:' + decObj.left + '; bottom:' + decObj.bottom + '; z-index:' + (isFokus ? 24 : 4) + '; transform:translate(-50%, 10%);"' + dragAttr + ' onclick="window.fokusDekorasiHabitat(' + idx + ', event)" title="' + decCfg.nama + (!isVisitMode ? ' (Tahan & geser untuk memindahkan, klik untuk melepas)' : '') + '">' +
                     dragBtn +
                     (svgDec || '<span style="font-size:40px;">' + decCfg.ikon + '</span>') +
                 '</div>';
