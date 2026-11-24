@@ -171,6 +171,9 @@ window.bukaModalMasukUjianSiswa = function() {
     if (typeof window.pastikanListenerBankUjianAktif === "function") {
         window.pastikanListenerBankUjianAktif();
     }
+    if (typeof window.muatDataEkskulDariServer === "function") {
+        window.muatDataEkskulDariServer(false);
+    }
     window.bukaModal('modal-enter-ujian');
     window.renderDropdownKelasUjian();
 };
@@ -585,19 +588,45 @@ window.verifikasiMasukUjian = function() {
     if (!kode) return alert("Masukkan Kode Ujian!");
 
     let ujianAktif = window.adminUjianAktifData ? window.adminUjianAktifData[kode] : null;
+    let isEkskulExam = false;
+    let ekskulMeta = null;
+
+    if (!ujianAktif && typeof window.cariUjianAktifEkskulByKode === "function") {
+        let foundEk = window.cariUjianAktifEkskulByKode(kode);
+        if (foundEk) {
+            isEkskulExam = true;
+            ekskulMeta = foundEk;
+            ujianAktif = foundEk.ujian;
+        }
+    }
+
     if (!ujianAktif) return alert("❌ Kode Ujian tidak valid atau ujian belum diaktifkan oleh guru!");
 
-    if (ujianAktif.kelas && ujianAktif.kelas !== kelas && kelas !== "Umum") {
+    if (isEkskulExam && ekskulMeta && statLogin !== "admin") {
+        if (typeof window.apakahSiswaAnggotaEkskul === "function" && !window.apakahSiswaAnggotaEkskul(ekskulMeta.ekskul, kelas, namaLengkap)) {
+            return alert('🔒 Akses Ditolak!\n\nKode ujian ini khusus untuk anggota Ekstrakurikuler "' + ekskulMeta.ekskul.nama + '". Nama Anda belum terdaftar sebagai anggota ekskul tersebut.');
+        }
+    }
+
+    if (!isEkskulExam && ujianAktif.kelas && ujianAktif.kelas !== kelas && kelas !== "Umum") {
         return alert("⚠️ Kode ujian ini dikhususkan untuk kelas " + ujianAktif.kelas + "!");
     }
 
     let namaPaket = ujianAktif.paket;
-    let isRemedialExam = Boolean(ujianAktif.isRemedial);
+    let isRemedialExam = !isEkskulExam && Boolean(ujianAktif.isRemedial);
     let maxScoreRemedial = Number(ujianAktif.maxScore) || 0;
     let isResumeMode = false;
     let prevPelanggaran = 0;
 
     let safePaketLM = window.sanitasiKeyRekapFirebase(namaPaket);
+
+    if (isEkskulExam && ekskulMeta && statLogin !== "admin") {
+        let angKeyCek = window.buatKeyAnggotaEkskul(kelas, namaLengkap);
+        let rekapEk = (ekskulMeta.ekskul.rekapNilai && ekskulMeta.ekskul.rekapNilai[safePaketLM]) ? ekskulMeta.ekskul.rekapNilai[safePaketLM] : null;
+        if (rekapEk && rekapEk[angKeyCek]) {
+            return alert('✅ Anda sudah menyelesaikan ujian Ekstrakurikuler "' + namaPaket + '" (Nilai: ' + rekapEk[angKeyCek].nilaiAkhir + ').');
+        }
+    }
 
     if (isRemedialExam) {
         let rekapPaketCek = window.ambilObjekRekapPaket(kelas, namaPaket);
@@ -608,9 +637,11 @@ window.verifikasiMasukUjian = function() {
         }
     }
 
-    let monitorPaketKey = (typeof window.buatKeyPaketLiveMonitor === "function")
-        ? window.buatKeyPaketLiveMonitor(namaPaket, isRemedialExam)
-        : (isRemedialExam ? (namaPaket + " (Remedial)") : namaPaket);
+    let monitorPaketKey = isEkskulExam
+        ? ("[Ekskul: " + ekskulMeta.ekskul.nama + "] " + namaPaket)
+        : ((typeof window.buatKeyPaketLiveMonitor === "function")
+            ? window.buatKeyPaketLiveMonitor(namaPaket, isRemedialExam)
+            : (isRemedialExam ? (namaPaket + " (Remedial)") : namaPaket));
 
     let dataMonitorSiswa = window.ambilDataMonitorSiswaSinkron(monitorPaketKey, kelas, namaLengkap);
 
@@ -667,7 +698,10 @@ window.verifikasiMasukUjian = function() {
         isResumeMode: isResumeMode,
         prevPelanggaran: prevPelanggaran,
         isRemedial: isRemedialExam,
-        maxScore: maxScoreRemedial
+        maxScore: maxScoreRemedial,
+        isEkskul: isEkskulExam,
+        ekskulId: ekskulMeta ? ekskulMeta.ekskulId : '',
+        ekskulNama: ekskulMeta ? ekskulMeta.ekskul.nama : ''
     };
 
     window.tutupModal('modal-enter-ujian');
@@ -1374,11 +1408,18 @@ window.kumpulkanUjianSiswa = function(isForce, isKicked) {
             }
         }
 
-        let pathRekap = "admin_rekap_nilai/" + safeKelas + "/" + safePaket + "/" + safeNama;
+        let isEkskulSubmit = Boolean(pkt.isEkskul && pkt.ekskulId);
+        let pathRekap = isEkskulSubmit
+            ? ("admin_ekskul_data/" + pkt.ekskulId + "/rekapNilai/" + safePaket + "/" + (typeof window.buatKeyAnggotaEkskul === "function" ? window.buatKeyAnggotaEkskul(pkt.kelas, pkt.nama) : (safeKelas + "__" + safeNama)))
+            : ("admin_rekap_nilai/" + safeKelas + "/" + safePaket + "/" + safeNama);
+
         let payloadRekap = {
             namaAsli: pkt.nama,
             kelasAsli: pkt.kelas,
             paketAsli: pkt.paket,
+            ekskulId: pkt.ekskulId || "",
+            ekskulNama: pkt.ekskulNama || "",
+            isEkskul: isEkskulSubmit,
             usernameSiswa: sessionStorage.getItem("username") || "",
             nilaiAkhir: nilaiAkhir,
             xpSudahDiberikan: totalXPUjian,
@@ -1390,10 +1431,21 @@ window.kumpulkanUjianSiswa = function(isForce, isKicked) {
             detail: hasilDetail
         };
 
-        if (!window.adminRekapNilaiData) window.adminRekapNilaiData = {};
-        if (!window.adminRekapNilaiData[safeKelas]) window.adminRekapNilaiData[safeKelas] = {};
-        if (!window.adminRekapNilaiData[safeKelas][safePaket]) window.adminRekapNilaiData[safeKelas][safePaket] = {};
-        window.adminRekapNilaiData[safeKelas][safePaket][safeNama] = payloadRekap;
+        // Nilai ujian Ekstrakurikuler disimpan terpisah di adminEkskulData, TIDAK masuk ke Rekap Nilai kelas reguler
+        if (isEkskulSubmit) {
+            if (window.adminEkskulData && window.adminEkskulData[pkt.ekskulId]) {
+                let ekTarget = window.adminEkskulData[pkt.ekskulId];
+                let angKeySub = (typeof window.buatKeyAnggotaEkskul === "function") ? window.buatKeyAnggotaEkskul(pkt.kelas, pkt.nama) : (safeKelas + "__" + safeNama);
+                if (!ekTarget.rekapNilai) ekTarget.rekapNilai = {};
+                if (!ekTarget.rekapNilai[safePaket]) ekTarget.rekapNilai[safePaket] = {};
+                ekTarget.rekapNilai[safePaket][angKeySub] = payloadRekap;
+            }
+        } else {
+            if (!window.adminRekapNilaiData) window.adminRekapNilaiData = {};
+            if (!window.adminRekapNilaiData[safeKelas]) window.adminRekapNilaiData[safeKelas] = {};
+            if (!window.adminRekapNilaiData[safeKelas][safePaket]) window.adminRekapNilaiData[safeKelas][safePaket] = {};
+            window.adminRekapNilaiData[safeKelas][safePaket][safeNama] = payloadRekap;
+        }
 
         function selesaikanKeluarRuangUjian() {
             let loadingKumpul = document.getElementById("loading-kumpul-ujian");
@@ -3058,477 +3110,7 @@ window.simpanNilaiManual = function(kelas, paket, nama, nilaiRaw, inputId) {
 
 window._ljkPreviewPhotoMap = window._ljkPreviewPhotoMap || {};
 
-window.triggerUploadLJK = function(kelas, paket, nama) {
-    window.targetUploadLJK = { kelas: kelas, paket: paket, nama: nama };
-    let inputLJK = document.getElementById('input-file-ljk');
-    if (inputLJK) inputLJK.click();
-};
-
-// --- MESIN PENGOLAH CITRA & OMR LOKAL KHUSUS LEMBAR KUNCI JAWABAN ---
-window.buatIntegralImageGray = function(gray, w, h) {
-    let stride = w + 1;
-    let sat = new Int32Array(stride * (h + 1));
-    for (let y = 0; y < h; y++) {
-        let rowSum = 0;
-        let yOff = y * w;
-        let satRow = (y + 1) * stride;
-        let satPrev = y * stride;
-        for (let x = 0; x < w; x++) {
-            rowSum += gray[yOff + x];
-            sat[satRow + x + 1] = sat[satPrev + x + 1] + rowSum;
-        }
-    }
-    return sat;
-};
-
-window.binarisasiAdaptifLJK = function(gray, sat, w, h, radius, offsetC) {
-    let stride = w + 1;
-    let bin = new Uint8Array(w * h);
-    let r = radius || 18;
-    let c = offsetC || 16;
-
-    for (let y = 0; y < h; y++) {
-        let y1 = y - r; if (y1 < 0) y1 = 0;
-        let y2 = y + r; if (y2 >= h) y2 = h - 1;
-        let rowY1 = y1 * stride;
-        let rowY2 = (y2 + 1) * stride;
-        let dy = y2 - y1 + 1;
-        let outRow = y * w;
-
-        for (let x = 0; x < w; x++) {
-            let x1 = x - r; if (x1 < 0) x1 = 0;
-            let x2 = x + r; if (x2 >= w) x2 = w - 1;
-            let sum = sat[rowY2 + x2 + 1] - sat[rowY1 + x2 + 1] - sat[rowY2 + x1] + sat[rowY1 + x1];
-            let mean = sum / (dy * (x2 - x1 + 1));
-            bin[outRow + x] = (gray[outRow + x] < (mean - c)) ? 1 : 0;
-        }
-    }
-    return bin;
-};
-
-window.cariPuncakProyeksi = function(arr, startIdx, endIdx, threshold, minGap) {
-    let peaks = [];
-    let s = Math.max(0, startIdx);
-    let e = Math.min(arr.length - 1, endIdx);
-    let i = s;
-    while (i <= e) {
-        if (arr[i] >= threshold) {
-            let bestIdx = i;
-            let bestVal = arr[i];
-            let j = i + 1;
-            while (j <= e && (j - bestIdx) <= minGap) {
-                if (arr[j] > bestVal) {
-                    bestVal = arr[j];
-                    bestIdx = j;
-                }
-                j++;
-            }
-            peaks.push({ idx: bestIdx, val: bestVal });
-            i = bestIdx + minGap;
-        } else {
-            i++;
-        }
-    }
-    return peaks;
-};
-
-window.snapGarisKePuncak = function(peaks, expected, tol) {
-    let best = expected;
-    let bestScore = -1;
-    for (let i = 0; i < peaks.length; i++) {
-        let dist = Math.abs(peaks[i].idx - expected);
-        if (dist <= tol && peaks[i].val > bestScore) {
-            bestScore = peaks[i].val;
-            best = peaks[i].idx;
-        }
-    }
-    return Math.round(best);
-};
-
-window.deteksiGridLJK = function(bin, w, h) {
-    let yBand1 = Math.round(h * 0.22);
-    let yBand2 = Math.round(h * 0.84);
-    let bandH = Math.max(1, yBand2 - yBand1);
-
-    // Proyeksi vertikal keseluruhan pada area tengah-vertikal halaman
-    let vProj = new Float32Array(w);
-    for (let x = 0; x < w; x++) {
-        let cnt = 0;
-        for (let y = yBand1; y < yBand2; y++) {
-            if (bin[y * w + x]) cnt++;
-        }
-        vProj[x] = cnt / bandH;
-    }
-
-    // --- 1. DETEKSI TABEL KIRI: PILIHAN GANDA (40 BARIS x 6 KOLOM) ---
-    let pgPeaksV = window.cariPuncakProyeksi(vProj, Math.round(w * 0.015), Math.round(w * 0.46), 0.34, Math.max(6, Math.round(w * 0.012)));
-    let pgLeft = Math.round(w * 0.06);
-    let pgRight = Math.round(w * 0.40);
-
-    if (pgPeaksV.length >= 2) {
-        let validL = pgPeaksV.filter(function(p) { return p.idx >= w * 0.02 && p.idx <= w * 0.44; });
-        if (validL.length >= 2) {
-            let candL = validL[0].idx;
-            let candR = validL[validL.length - 1].idx;
-            if ((candR - candL) >= w * 0.24 && (candR - candL) <= w * 0.43) {
-                pgLeft = candL;
-                pgRight = candR;
-            }
-        }
-    }
-
-    let pgW = Math.max(60, pgRight - pgLeft);
-    // Rasio 7 garis vertikal PG: [kiri, batas NO|A, A|B, B|C, C|D, D|E, kanan]
-    let pgColFrac = [0, 0.142, 0.314, 0.486, 0.657, 0.829, 1.0];
-    let pgColX = pgColFrac.map(function(fr) {
-        return window.snapGarisKePuncak(pgPeaksV, pgLeft + fr * pgW, pgW * 0.065);
-    });
-
-    // Hitung kemiringan horizontal (slant) tabel PG antara sepertiga atas & bawah
-    let cariBatasKiriRentang = function(yA, yB, xCenter) {
-        let bestX = xCenter, bestV = -1;
-        let rX = Math.max(8, Math.round(w * 0.025));
-        for (let x = Math.max(0, xCenter - rX); x <= Math.min(w - 1, xCenter + rX); x++) {
-            let c = 0;
-            for (let y = yA; y < yB; y++) if (bin[y * w + x]) c++;
-            if (c > bestV) { bestV = c; bestX = x; }
-        }
-        return bestX;
-    };
-    let pgTopX = cariBatasKiriRentang(Math.round(h * 0.20), Math.round(h * 0.40), pgColX[0]);
-    let pgBotX = cariBatasKiriRentang(Math.round(h * 0.65), Math.round(h * 0.85), pgColX[0]);
-    let pgSlantPerY = (pgBotX - pgTopX) / Math.max(1, h * 0.45);
-    if (Math.abs(pgSlantPerY) > 0.08) pgSlantPerY = 0;
-    let pgRefY = h * 0.52;
-
-    // Proyeksi horizontal dalam tabel PG untuk mencari batas atas (pgTop) & bawah (pgBottom)
-    let hProjPG = new Float32Array(h);
-    for (let y = Math.round(h * 0.08); y < Math.round(h * 0.98); y++) {
-        let shift = Math.round((y - pgRefY) * pgSlantPerY);
-        let x1 = Math.max(0, pgLeft + shift + 4);
-        let x2 = Math.min(w - 1, pgRight + shift - 4);
-        let cnt = 0;
-        for (let x = x1; x <= x2; x++) if (bin[y * w + x]) cnt++;
-        hProjPG[y] = cnt / Math.max(1, x2 - x1);
-    }
-
-    let pgPeaksH = window.cariPuncakProyeksi(hProjPG, Math.round(h * 0.09), Math.round(h * 0.97), 0.46, Math.max(5, Math.round(h * 0.008)));
-    let pgTop = Math.round(h * 0.14);
-    let pgBottom = Math.round(h * 0.92);
-    if (pgPeaksH.length >= 10) {
-        pgTop = pgPeaksH[0].idx;
-        pgBottom = pgPeaksH[pgPeaksH.length - 1].idx;
-    }
-
-    // Cek apakah tabel PG punya 40 baris standar (tanpa header di dalam tabel)
-    let pgRowY = [];
-    let pgStep = (pgBottom - pgTop) / 40;
-    for (let r = 0; r <= 40; r++) {
-        pgRowY.push(window.snapGarisKePuncak(pgPeaksH, pgTop + r * pgStep, pgStep * 0.30));
-    }
-
-    // --- 2. DETEKSI TABEL KANAN: ISIAN (HEADER + 40 BARIS) ---
-    let isSearchLeft = Math.min(w - 40, pgRight + Math.round(w * 0.015));
-    let isPeaksV = window.cariPuncakProyeksi(vProj, isSearchLeft, Math.round(w * 0.985), 0.32, Math.max(6, Math.round(w * 0.012)));
-
-    let isLeft = Math.min(w - 100, pgRight + Math.round(w * 0.03));
-    let isRight = Math.round(w * 0.94);
-    if (isPeaksV.length >= 2) {
-        let candIL = isPeaksV[0].idx;
-        let candIR = isPeaksV[isPeaksV.length - 1].idx;
-        if ((candIR - candIL) >= w * 0.35) {
-            isLeft = candIL;
-            isRight = candIR;
-        }
-    }
-    let isW = Math.max(120, isRight - isLeft);
-    // Garis pemisah kolom NO | JAWABAN berada di sekitar 8% - 13% lebar tabel isian
-    let isColSplit = window.snapGarisKePuncak(isPeaksV, isLeft + isW * 0.10, isW * 0.06);
-
-    let isTopX = cariBatasKiriRentang(Math.round(h * 0.20), Math.round(h * 0.40), isLeft);
-    let isBotX = cariBatasKiriRentang(Math.round(h * 0.65), Math.round(h * 0.85), isLeft);
-    let isSlantPerY = (isBotX - isTopX) / Math.max(1, h * 0.45);
-    if (Math.abs(isSlantPerY) > 0.08) isSlantPerY = pgSlantPerY;
-
-    let hProjIS = new Float32Array(h);
-    for (let y = Math.round(h * 0.08); y < Math.round(h * 0.98); y++) {
-        let shift = Math.round((y - pgRefY) * isSlantPerY);
-        let x1 = Math.max(0, isLeft + shift + 4);
-        let x2 = Math.min(w - 1, isRight + shift - 4);
-        let cnt = 0;
-        for (let x = x1; x <= x2; x++) if (bin[y * w + x]) cnt++;
-        hProjIS[y] = cnt / Math.max(1, x2 - x1);
-    }
-
-    let isPeaksH = window.cariPuncakProyeksi(hProjIS, Math.round(h * 0.09), Math.round(h * 0.975), 0.46, Math.max(5, Math.round(h * 0.008)));
-    let isTop = pgTop;
-    let isBottom = Math.min(h - 4, Math.round(pgBottom + pgStep * 1.1));
-    if (isPeaksH.length >= 10) {
-        isTop = isPeaksH[0].idx;
-        isBottom = isPeaksH[isPeaksH.length - 1].idx;
-    }
-
-    // Lewati baris header "NO | JAWABAN" (baris paling atas tabel kanan)
-    let isRow1Top = isTop + (isBottom - isTop) / 41.3;
-    if (isPeaksH.length >= 2) {
-        let firstGap = isPeaksH[1].idx - isPeaksH[0].idx;
-        let expectedH = (isBottom - isTop) / 41;
-        if (firstGap >= expectedH * 0.7 && firstGap <= expectedH * 2.1) {
-            isRow1Top = isPeaksH[1].idx;
-        }
-    }
-
-    let isRowY = [];
-    let isStep = (isBottom - isRow1Top) / 40;
-    for (let r = 0; r <= 40; r++) {
-        isRowY.push(window.snapGarisKePuncak(isPeaksH, isRow1Top + r * isStep, isStep * 0.30));
-    }
-
-    return {
-        pgColX: pgColX,
-        pgRowY: pgRowY,
-        pgSlantPerY: pgSlantPerY,
-        pgRefY: pgRefY,
-        isLeft: isLeft,
-        isColSplit: isColSplit,
-        isRight: isRight,
-        isRowY: isRowY,
-        isSlantPerY: isSlantPerY
-    };
-};
-
-// Deteksi tanda silang (X) di 5 kotak A-E sekaligus mengabaikan kotak yang diarsir rapat/batal
-window.deteksiSilangPGRow = function(bin, w, h, grid, rowIdx, isPGK) {
-    if (rowIdx < 0 || rowIdx >= 40) return isPGK ? [] : "-";
-    let y0 = grid.pgRowY[rowIdx];
-    let y1 = grid.pgRowY[rowIdx + 1];
-    let rowH = Math.max(8, y1 - y0);
-    let yMid = (y0 + y1) / 2;
-    let slantShift = Math.round((yMid - grid.pgRefY) * grid.pgSlantPerY);
-
-    let padY = Math.max(2, Math.round(rowH * 0.16));
-    let cy1 = Math.max(0, y0 + padY);
-    let cy2 = Math.min(h - 1, y1 - padY);
-    let huruf = ["A", "B", "C", "D", "E"];
-    let stats = [];
-
-    for (let c = 0; c < 5; c++) {
-        let x0 = grid.pgColX[c + 1] + slantShift;
-        let x1 = grid.pgColX[c + 2] + slantShift;
-        let colW = Math.max(10, x1 - x0);
-        let padX = Math.max(2, Math.round(colW * 0.12));
-        let cx1 = Math.max(0, x0 + padX);
-        let cx2 = Math.min(w - 1, x1 - padX);
-
-        let innerW = Math.max(1, cx2 - cx1 + 1);
-        let innerH = Math.max(1, cy2 - cy1 + 1);
-        let centerX1 = cx1 + Math.round(innerW * 0.33);
-        let centerX2 = cx1 + Math.round(innerW * 0.67);
-        let centerY1 = cy1 + Math.round(innerH * 0.16);
-        let centerY2 = cy1 + Math.round(innerH * 0.84);
-
-        let totalPx = 0, totalDark = 0;
-        let outerPx = 0, outerDark = 0;
-
-        for (let y = cy1; y <= cy2; y++) {
-            let yOff = y * w;
-            let inCenterY = (y >= centerY1 && y <= centerY2);
-            for (let x = cx1; x <= cx2; x++) {
-                totalPx++;
-                let isDark = bin[yOff + x];
-                if (isDark) totalDark++;
-                if (!(inCenterY && x >= centerX1 && x <= centerX2)) {
-                    outerPx++;
-                    if (isDark) outerDark++;
-                }
-            }
-        }
-
-        stats.push({
-            label: huruf[c],
-            cx1: cx1, cy1: cy1, cx2: cx2, cy2: cy2,
-            totalInk: totalDark / Math.max(1, totalPx),
-            outerInk: outerDark / Math.max(1, outerPx)
-        });
-    }
-
-    let sortedTotal = stats.map(function(s) { return s.totalInk; }).sort(function(a, b) { return a - b; });
-    let sortedOuter = stats.map(function(s) { return s.outerInk; }).sort(function(a, b) { return a - b; });
-    // Gunakan kuartil bawah/median dari 5 kotak sebagai baseline huruf cetak polos
-    let baseTotal = (sortedTotal[1] + sortedTotal[2]) / 2;
-    let baseOuter = (sortedOuter[1] + sortedOuter[2]) / 2;
-
-    stats.forEach(function(s) {
-        s.excessTotal = Math.max(0, s.totalInk - baseTotal);
-        s.excessOuter = Math.max(0, s.outerInk - baseOuter);
-        s.score = s.excessTotal + (1.35 * s.excessOuter);
-    });
-
-    let kandidat = stats.filter(function(s) {
-        return s.score >= 0.032 && (s.excessTotal >= 0.022 || s.excessOuter >= 0.022);
-    }).sort(function(a, b) { return b.score - a.score; });
-
-    if (kandidat.length === 0) {
-        return { jawaban: isPGK ? [] : "-", boxes: [] };
-    }
-
-    // Jika ada kotak diarsir penuh (ralat/batal, misal totalInk > 0.36) dan ada kotak silang X yang bersih -> abaikan yang diarsir penuh
-    if (kandidat.length >= 2) {
-        let nonScribble = kandidat.filter(function(s) { return s.totalInk <= 0.36; });
-        let heavyScribble = kandidat.filter(function(s) { return s.totalInk > 0.36; });
-        if (heavyScribble.length > 0 && nonScribble.length > 0) {
-            kandidat = nonScribble;
-        }
-    }
-
-    if (isPGK) {
-        let dipilih = kandidat.filter(function(s) { return s.score >= 0.038; });
-        let labels = dipilih.map(function(s) { return s.label; }).sort();
-        return { jawaban: labels, boxes: dipilih };
-    }
-
-    return { jawaban: kandidat[0].label, boxes: [kandidat[0]] };
-};
-
-// Siapkan potongan gambar 1 baris isian: deteksi kosong, hapus coretan ralat, & perbesar 2.5x untuk Tesseract
-window.siapkanKanvasBarisIsian = function(gray, bin, w, h, grid, rowIdx) {
-    if (rowIdx < 0 || rowIdx >= 40) return { kosong: true };
-    let y0 = grid.isRowY[rowIdx];
-    let y1 = grid.isRowY[rowIdx + 1];
-    let rowH = Math.max(10, y1 - y0);
-    let yMid = (y0 + y1) / 2;
-    let slantShift = Math.round((yMid - grid.pgRefY) * grid.isSlantPerY);
-
-    let xStart = Math.max(0, grid.isColSplit + slantShift + 6);
-    let xRightBorder = grid.isRight + slantShift;
-    // Perluas sedikit ke kanan (3%) untuk tulisan siswa yang keluar garis tepi kanan
-    let xEnd = Math.min(w - 2, xRightBorder + Math.round(w * 0.03));
-    let yStart = Math.max(0, y0 + Math.max(2, Math.round(rowH * 0.12)));
-    let yEnd = Math.min(h - 1, y1 - Math.max(2, Math.round(rowH * 0.12)));
-
-    let cw = xEnd - xStart + 1;
-    let ch = yEnd - yStart + 1;
-    if (cw < 20 || ch < 8) return { kosong: true };
-
-    // Salin biner lokal dan hapus garis vertikal kanan tabel jika ikut terpotong
-    let localBin = new Uint8Array(cw * ch);
-    let localBorderX = xRightBorder - xStart;
-
-    for (let y = 0; y < ch; y++) {
-        let srcRow = (yStart + y) * w;
-        let dstRow = y * cw;
-        for (let x = 0; x < cw; x++) {
-            if (Math.abs(x - localBorderX) <= 2) {
-                localBin[dstRow + x] = 0;
-            } else {
-                localBin[dstRow + x] = bin[srcRow + xStart + x];
-            }
-        }
-    }
-
-    // Hapus blok coretan ralat yang pekat (misal kata dicoret tebal di kiri lalu ditulis ulang di kanan)
-    let colDensity = new Float32Array(cw);
-    for (let x = 0; x < cw; x++) {
-        let c = 0;
-        for (let y = 0; y < ch; y++) if (localBin[y * cw + x]) c++;
-        colDensity[x] = c / ch;
-    }
-
-    let runStart = -1;
-    let denseRanges = [];
-    for (let x = 0; x < cw; x++) {
-        if (colDensity[x] >= 0.46) {
-            if (runStart === -1) runStart = x;
-        } else {
-            if (runStart !== -1 && (x - runStart) >= Math.max(16, Math.round(ch * 0.85))) {
-                denseRanges.push([runStart, x - 1]);
-            }
-            runStart = -1;
-        }
-    }
-    if (runStart !== -1 && (cw - runStart) >= Math.max(16, Math.round(ch * 0.85))) {
-        denseRanges.push([runStart, cw - 1]);
-    }
-
-    // Hanya hapus blok coretan jika masih ada tulisan normal di bagian lain baris tersebut
-    if (denseRanges.length > 0) {
-        let nonDenseDark = 0;
-        for (let x = 0; x < cw; x++) {
-            let inDense = denseRanges.some(function(rg) { return x >= rg[0] - 2 && x <= rg[1] + 2; });
-            if (!inDense) {
-                for (let y = 0; y < ch; y++) if (localBin[y * cw + x]) nonDenseDark++;
-            }
-        }
-        if (nonDenseDark >= 24) {
-            denseRanges.forEach(function(rg) {
-                let a = Math.max(0, rg[0] - 2);
-                let b = Math.min(cw - 1, rg[1] + 2);
-                for (let y = 0; y < ch; y++) {
-                    for (let x = a; x <= b; x++) localBin[y * cw + x] = 0;
-                }
-            });
-        }
-    }
-
-    // Hitung jumlah tinta & bounding box teks
-    let darkCount = 0;
-    let minX = cw, maxX = -1, minY = ch, maxY = -1;
-    for (let y = 1; y < ch - 1; y++) {
-        for (let x = 1; x < cw - 1; x++) {
-            if (localBin[y * cw + x]) {
-                darkCount++;
-                if (x < minX) minX = x;
-                if (x > maxX) maxX = x;
-                if (y < minY) minY = y;
-                if (y > maxY) maxY = y;
-            }
-        }
-    }
-
-    if (darkCount < 24 || (maxX - minX) < 8 || (maxY - minY) < 4) {
-        return { kosong: true, box: { x1: xStart, y1: yStart, x2: xRightBorder, y2: yEnd } };
-    }
-
-    let cropW = maxX - minX + 1;
-    let cropH = maxY - minY + 1;
-
-    // Render teks biner bersih lalu upscale 2.4x + padding putih agar Tesseract PSM 7 optimal
-    let rawCanv = document.createElement('canvas');
-    rawCanv.width = cropW;
-    rawCanv.height = cropH;
-    let rCtx = rawCanv.getContext('2d');
-    let imgData = rCtx.createImageData(cropW, cropH);
-    for (let y = 0; y < cropH; y++) {
-        for (let x = 0; x < cropW; x++) {
-            let v = localBin[(minY + y) * cw + (minX + x)] ? 15 : 255;
-            let p = (y * cropW + x) * 4;
-            imgData.data[p] = v;
-            imgData.data[p + 1] = v;
-            imgData.data[p + 2] = v;
-            imgData.data[p + 3] = 255;
-        }
-    }
-    rCtx.putImageData(imgData, 0, 0);
-
-    let scale = Math.min(3.0, Math.max(1.8, 56 / Math.max(10, cropH)));
-    let pad = 22;
-    let outCanv = document.createElement('canvas');
-    outCanv.width = Math.round(cropW * scale) + pad * 2;
-    outCanv.height = Math.round(cropH * scale) + pad * 2;
-    let oCtx = outCanv.getContext('2d');
-    oCtx.fillStyle = '#ffffff';
-    oCtx.fillRect(0, 0, outCanv.width, outCanv.height);
-    oCtx.imageSmoothingEnabled = true;
-    oCtx.drawImage(rawCanv, pad, pad, Math.round(cropW * scale), Math.round(cropH * scale));
-
-    return {
-        kosong: false,
-        canvas: outCanv,
-        box: { x1: xStart, y1: yStart, x2: xRightBorder, y2: yEnd }
-    };
-};
-
-// Jarak Levenshtein untuk toleransi typo ringan istilah Biologi pada IS
+// Tetap dipertahankan untuk pengecekan otomatis saat edit manual Isian di Modal Koreksi
 window.hitungJarakLevenshtein = function(a, b) {
     let s1 = String(a || '').toLowerCase();
     let s2 = String(b || '').toLowerCase();
@@ -3580,273 +3162,1396 @@ window.cocokkanJawabanIsianLJK = function(ansSiswa, kunciArr) {
     return false;
 };
 
-// Saring teks OCR agar tulisan yang tidak terbaca jelas langsung dikosongkan ("")
-window.bersihkanDanValidasiTeksOCRLJK = function(rawText, confidence, kunciArr) {
-    let cleaned = String(rawText || '')
-        .replace(/[\r\n]+/g, ' ')
-        .replace(/[|_~=`{}\[\]<>\\^]+/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-
-    // Hapus tanda baca liar di awal & akhir kalimat
-    while (cleaned.length > 0 && /^[\.\-\:\;\,\!\?\'\"]/.test(cleaned)) {
-        cleaned = cleaned.slice(1).trim();
-    }
-    while (cleaned.length > 0 && /[\-\:\;\,\'\"]$/.test(cleaned.slice(-1))) {
-        cleaned = cleaned.slice(0, -1).trim();
-    }
-
-    if (!cleaned) return '';
-
-    let nonSpace = cleaned.replace(/\s+/g, '');
-    let alnumOnly = cleaned.replace(/[^a-zA-Z0-9]/g, '');
-    if (alnumOnly.length === 0) return '';
-
-    let alphaRatio = alnumOnly.length / Math.max(1, nonSpace.length);
-    let cocokKunci = window.cocokkanJawabanIsianLJK(cleaned, kunciArr);
-
-    // Jika cocok dekat dengan kunci soal, langsung loloskan
-    if (cocokKunci) return cleaned;
-
-    // Jika terlalu pendek (1 huruf bukan angka), terlalu banyak simbol aneh, atau confidence rendah -> kosongkan!
-    let hanyaSatuHurufBukanAngka = (alnumOnly.length < 2 && !/^\d$/.test(alnumOnly));
-    if (hanyaSatuHurufBukanAngka || alphaRatio < 0.65 || (Number(confidence) || 0) < 42) {
-        return '';
-    }
-
-    return cleaned;
+/* =========================================================================
+   MESIN SCANNER OMR LOKAL AUTO-DETECT ZERO-DRAG (KHUSUS PILIHAN GANDA)
+   Kunci jawaban & batas nomor baca mengikuti paket Rekap Nilai yang dipilih
+   ========================================================================= */
+window._omrState = {
+    kelas: '',
+    paket: '',
+    nama: '',
+    soalArr: [],
+    pgItems: [],
+    bobot: {},
+    baseCanvas: null,
+    corners: null,
+    snappedColFrac: null,
+    snappedRowFrac: null,
+    autoDetected: false,
+    manualEditMode: false,
+    totalRowsCetak: 40,
+    sensitivitas: 3,
+    detectedAns: {},
+    dragIdx: -1
 };
 
-window.prosesUploadLJK = async function(inputElem) {
-    let file = inputElem.files[0];
+window._OMR_PG_COL_FRAC = [0.0, 0.155, 0.324, 0.493, 0.662, 0.831, 1.0];
+
+window.ambilPaketDanKunciRekapOMR = function(kelas, paket) {
+    let safePkt = window.sanitasiKeyRekapFirebase(paket);
+    let bankMap = window.adminBankUjianData || {};
+    let paketData = bankMap[paket] || bankMap[safePkt] || null;
+
+    if (!paketData) {
+        let targetLow = String(paket || '').trim().toLowerCase();
+        let safeLow = safePkt.toLowerCase();
+        let foundKey = Object.keys(bankMap).find(function(k) {
+            return k.trim().toLowerCase() === targetLow || window.sanitasiKeyRekapFirebase(k).toLowerCase() === safeLow;
+        });
+        if (foundKey) paketData = bankMap[foundKey];
+    }
+
+    if (!paketData || !paketData.soal || paketData.soal.length === 0) {
+        let rekapPaket = window.ambilObjekRekapPaket(kelas, paket);
+        let siswaList = Object.values(rekapPaket || {});
+        let refDetail = [];
+        let paketAsliRef = '';
+
+        for (let i = 0; i < siswaList.length; i++) {
+            let s = siswaList[i];
+            if (!s) continue;
+            if (!paketAsliRef && s.paketAsli) paketAsliRef = s.paketAsli;
+            let det = Array.isArray(s.detail) ? s.detail : (Array.isArray(s.rincian) ? s.rincian : []);
+            if (det.length > refDetail.length) refDetail = det;
+        }
+
+        if (paketAsliRef && bankMap[paketAsliRef] && bankMap[paketAsliRef].soal) {
+            paketData = bankMap[paketAsliRef];
+        } else if (refDetail.length > 0) {
+            let urut = refDetail.slice().sort(function(a, b) {
+                return (Number(a.nomor) || 0) - (Number(b.nomor) || 0);
+            });
+            let bobotRef = { PG: 0, PGK: 0, IS: 0, Essay: 0 };
+            let soalRef = urut.map(function(item, idx) {
+                let tRaw = String(item.tipe || item.type || 'PG').toUpperCase();
+                let tNorm = (tRaw === 'PGK') ? 'PGK' : ((tRaw === 'IS' || tRaw === 'ISIAN' || tRaw === 'SHORT_ANSWER') ? 'IS' : ((tRaw === 'ESSAY' || tRaw === 'ESAI') ? 'Essay' : 'PG'));
+                if (Number(item.maxPoin) > 0 && !bobotRef[tNorm]) bobotRef[tNorm] = Number(item.maxPoin);
+                return {
+                    originalIndex: idx,
+                    question: item.soal || ('Soal ' + (idx + 1)),
+                    type: tNorm,
+                    options: ['A', 'B', 'C', 'D', 'E'].map(function(l) { return { label: l, text: '' }; }),
+                    correct: Array.isArray(item.kunci) ? item.kunci : [item.kunci || ''],
+                    explanation: item.pembahasan || ''
+                };
+            });
+            paketData = { soal: soalRef, bobot: bobotRef };
+        }
+    }
+
+    if (!paketData || !paketData.soal) return null;
+
+    let soalArr = window.normalisasiSoalUjianCBT(paketData.soal);
+    let bobot = window.hitungBobotIdealUjian(paketData, soalArr);
+    let hurufValid = ['A', 'B', 'C', 'D', 'E'];
+    let pgItemsRaw = [];
+
+    soalArr.forEach(function(q, idx) {
+        if (q.type === 'PG' || q.type === 'PGK') {
+            let kunciValid = window.normalisasiKunciPGK(q.correct, q.options).filter(function(k) {
+                return hurufValid.indexOf(String(k || '').toUpperCase().trim()) !== -1;
+            });
+            pgItemsRaw.push({
+                soalIdx: idx,
+                nomorPG: pgItemsRaw.length + 1,
+                nomorAsli: idx + 1,
+                type: q.type,
+                question: q.question || '',
+                kunci: kunciValid,
+                maxPoin: bobot[q.type] || 0
+            });
+        }
+    });
+
+    // Batasi baca tepat sampai nomor PG terakhir yang memiliki kunci A-E
+    let lastKeyedIdx = -1;
+    for (let i = pgItemsRaw.length - 1; i >= 0; i--) {
+        if (pgItemsRaw[i].kunci && pgItemsRaw[i].kunci.length > 0) {
+            lastKeyedIdx = i;
+            break;
+        }
+    }
+    let pgItems = (lastKeyedIdx >= 0) ? pgItemsRaw.slice(0, lastKeyedIdx + 1) : [];
+
+    return { soalArr: soalArr, pgItems: pgItems, bobot: bobot };
+};
+
+window.pastikanModalScannerOMRAda = function() {
+    let modal = document.getElementById('modal-scanner-omr');
+    if (modal) return modal;
+
+    modal = document.createElement('div');
+    modal.id = 'modal-scanner-omr';
+    modal.className = 'modal-overlay';
+    modal.onclick = function(e) {
+        if (e.target === modal) window.tutupModal('modal-scanner-omr');
+    };
+
+    modal.innerHTML =
+        '<div class="modal-box omr-modal-box">' +
+            '<div class="modal-header omr-modal-header">' +
+                '<div>' +
+                    '<h3 style="margin:0;">📷 Scanner OMR Pilihan Ganda (Otomatis)</h3>' +
+                    '<div id="omr-subtitle-paket" class="omr-subtitle">Kunci otomatis mengikuti paket Rekap Nilai yang sedang dipilih</div>' +
+                '</div>' +
+                '<button type="button" class="close-btn" onclick="window.tutupModal(\'modal-scanner-omr\')">✕</button>' +
+            '</div>' +
+            '<div class="modal-body omr-modal-body">' +
+                '<div class="omr-toolbar">' +
+                    '<div class="omr-tool-group">' +
+                        '<label for="omr-select-siswa">👤 Siswa:</label>' +
+                        '<select id="omr-select-siswa" class="input-box omr-input-sm" style="min-width:190px;" onchange="window.ubahSiswaScannerOMR(this.value)"></select>' +
+                        '<button type="button" class="aws-quick-btn is-primary" onclick="document.getElementById(\'input-file-ljk\').click()">📁 Pilih / Ganti Foto</button>' +
+                    '</div>' +
+                    '<div class="omr-tool-group">' +
+                        '<label for="omr-input-rows">Baris LJK:</label>' +
+                        '<input type="number" id="omr-input-rows" class="input-box omr-input-sm" style="width:62px; text-align:center;" min="5" max="60" value="40" onchange="window.ubahPengaturanOMR()">' +
+                        '<label for="omr-input-sens">Sensitivitas:</label>' +
+                        '<input type="range" id="omr-input-sens" min="1" max="5" step="1" value="3" style="width:82px; accent-color:#2370A1;" oninput="window.ubahPengaturanOMR()">' +
+                        '<button type="button" class="aws-quick-btn" onclick="window.putarFotoOMR()" title="Putar Foto 90 Derajat">🔄 Putar</button>' +
+                        '<button type="button" id="btn-omr-toggle-manual" class="aws-quick-btn" onclick="window.toggleModeSudutManualOMR()" title="Geser 4 titik sudut manual jika deteksi otomatis kurang pas">🔧 Sesuaikan Sudut</button>' +
+                    '</div>' +
+                '</div>' +
+
+                '<div class="omr-split-grid">' +
+                    '<div class="omr-canvas-pane">' +
+                        '<div id="omr-canvas-hint" class="omr-canvas-hint">✨ Unggah foto LJK — sistem akan otomatis mendeteksi tabel <b>PILIHAN GANDA</b> dan langsung membaca jawabannya tanpa perlu tarik manual.</div>' +
+                        '<div id="omr-canvas-stage" class="omr-canvas-stage">' +
+                            '<div id="omr-empty-photo" class="omr-empty-photo">' +
+                                '<div style="font-size:40px; margin-bottom:8px;">📷</div>' +
+                                '<strong>Belum ada foto lembar jawaban</strong>' +
+                                '<p>Pilih nama siswa di atas lalu unggah foto lembar jawaban (khusus Pilihan Ganda, bagian Isian diabaikan).</p>' +
+                                '<button type="button" class="aws-quick-btn is-primary" onclick="document.getElementById(\'input-file-ljk\').click()">📁 Pilih Foto LJK</button>' +
+                            '</div>' +
+                            '<canvas id="omr-photo-canvas" class="omr-photo-canvas" style="display:none;"></canvas>' +
+                        '</div>' +
+                    '</div>' +
+
+                    '<div class="omr-result-pane">' +
+                        '<div class="omr-score-summary">' +
+                            '<div class="omr-stat-card"><span>Terbaca</span><b id="omr-stat-terbaca">0/0</b></div>' +
+                            '<div class="omr-stat-card is-ok"><span>Benar</span><b id="omr-stat-benar">0</b></div>' +
+                            '<div class="omr-stat-card is-err"><span>Salah</span><b id="omr-stat-salah">0</b></div>' +
+                            '<div class="omr-stat-card is-score"><span>Skor PG</span><b id="omr-stat-skor">0</b></div>' +
+                        '</div>' +
+                        '<div id="omr-result-list" class="omr-result-list"></div>' +
+                        '<div class="omr-result-footer">' +
+                            '<button type="button" class="aws-quick-btn" onclick="window.resetSudutOMR()">🔍 Deteksi Ulang</button>' +
+                            '<button type="button" id="btn-simpan-omr-rekap" class="aws-quick-btn is-primary" style="flex:1; justify-content:center;" onclick="window.simpanHasilOMRKeRekap()">💾 Simpan ke Rekap Nilai</button>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>' +
+            '</div>' +
+        '</div>';
+
+    document.body.appendChild(modal);
+    window.pasangEventDragSudutOMR();
+    return modal;
+};
+
+window.perbaruiInfoBatasBacaOMR = function() {
+    let st = window._omrState;
+    let subEl = document.getElementById('omr-subtitle-paket');
+    let hintEl = document.getElementById('omr-canvas-hint');
+    let btnMan = document.getElementById('btn-omr-toggle-manual');
+    let jmlAktif = (st.pgItems && st.pgItems.length) ? st.pgItems.length : 0;
+    let totalBaris = Math.max(jmlAktif, Number(st.totalRowsCetak) || 40);
+
+    let infoAbai = (totalBaris > jmlAktif)
+        ? (' • No. ' + (jmlAktif + 1) + '–' + totalBaris + ' & Isian diabaikan')
+        : ' • Bagian Isian diabaikan';
+
+    if (subEl) {
+        subEl.innerText = '🏫 ' + st.kelas + ' • 📝 ' + st.paket + ' • Baca PG No. 1–' + jmlAktif + infoAbai;
+    }
+
+    if (btnMan) {
+        btnMan.style.background = st.manualEditMode ? '#060608' : '';
+        btnMan.style.color = st.manualEditMode ? '#00E1FF' : '';
+        btnMan.innerText = st.manualEditMode ? '🔒 Kunci Sudut' : '🔧 Sesuaikan Sudut';
+    }
+
+    if (hintEl) {
+        if (!st.baseCanvas) {
+            hintEl.innerHTML = '✨ Unggah foto LJK — mesin otomatis mendeteksi tabel <b>PILIHAN GANDA</b> dan membaca <b>No. 1–' + jmlAktif + '</b> sesuai kunci paket.';
+        } else if (st.manualEditMode) {
+            hintEl.innerHTML = '🔧 <b>Mode Penyesuaian:</b> Geser 4 titik (TL, TR, BR, BL) ke 4 sudut tabel cetak <b>PILIHAN GANDA (1–' + totalBaris + ')</b>. Sistem otomatis hanya membaca <b>No. 1–' + jmlAktif + '</b>.';
+        } else if (st.autoDetected) {
+            hintEl.innerHTML = '✅ <b>Tabel PG Terdeteksi Otomatis!</b> Membaca <b>No. 1–' + jmlAktif + '</b> (baris sisa &amp; Isian diabaikan). Klik <b>🔧 Sesuaikan Sudut</b> hanya jika posisi garis perlu digeser.';
+        } else {
+            hintEl.innerHTML = '⚠️ Foto agak gelap/terpotong — silakan geser 4 titik sudut ke ujung tabel <b>PILIHAN GANDA</b> agar pembacaan akurat.';
+        }
+    }
+};
+
+window.toggleModeSudutManualOMR = function(forceVal) {
+    let st = window._omrState;
+    st.manualEditMode = (typeof forceVal === 'boolean') ? forceVal : !st.manualEditMode;
+    window.perbaruiInfoBatasBacaOMR();
+    if (st.baseCanvas) window.gambarKanvasOMR();
+};
+
+window.bukaModalScannerOMR = function(kelasParam, paketParam, namaParam, autoTriggerFile) {
+    let selKls = document.getElementById('filter-rekap-kelas');
+    let selPkt = document.getElementById('filter-rekap-paket');
+
+    let kelas = kelasParam || (selKls ? selKls.value : '');
+    let paket = paketParam || (selPkt ? selPkt.value : '');
+
+    if (!kelas || !paket) {
+        return alert("⚠️ Pilih Kelas dan Spesifik 1 Paket Ujian di Rekap Nilai terlebih dahulu agar kunci jawaban sesuai!");
+    }
+
+    let dataKunci = window.ambilPaketDanKunciRekapOMR(kelas, paket);
+    if (!dataKunci || dataKunci.pgItems.length === 0) {
+        return alert("⚠️ Tidak ditemukan soal Pilihan Ganda atau kunci jawaban untuk paket \"" + paket + "\".");
+    }
+
+    window.pastikanModalScannerOMRAda();
+
+    let st = window._omrState;
+    let paketBerubah = (st.kelas !== kelas || st.paket !== paket);
+    st.kelas = kelas;
+    st.paket = paket;
+    st.soalArr = dataKunci.soalArr;
+    st.pgItems = dataKunci.pgItems;
+    st.bobot = dataKunci.bobot;
+
+    let defaultRows = Math.max(40, st.pgItems.length);
+    if (paketBerubah || !st.totalRowsCetak) {
+        st.totalRowsCetak = defaultRows;
+    }
+    let inpRows = document.getElementById('omr-input-rows');
+    if (inpRows) inpRows.value = String(st.totalRowsCetak);
+
+    let selSiswa = document.getElementById('omr-select-siswa');
+    let daftarSiswa = (window.adminData && Array.isArray(window.adminData[kelas])) ? window.adminData[kelas].slice().sort() : [];
+    let rekapPaketObj = window.ambilObjekRekapPaket(kelas, paket);
+
+    if (namaParam && daftarSiswa.indexOf(namaParam) === -1) {
+        daftarSiswa.unshift(namaParam);
+    }
+
+    let targetNama = namaParam || st.nama || '';
+    if (!targetNama && daftarSiswa.length > 0) {
+        let belum = daftarSiswa.find(function(n) { return !window.ambilDataSiswaDiObjekRekap(rekapPaketObj, n); });
+        targetNama = belum || daftarSiswa[0];
+    }
+    st.nama = targetNama;
+
+    if (selSiswa) {
+        let htmlS = '';
+        daftarSiswa.forEach(function(n) {
+            let sudah = Boolean(window.ambilDataSiswaDiObjekRekap(rekapPaketObj, n));
+            let selAttr = (n === targetNama) ? ' selected' : '';
+            htmlS += '<option value="' + n.replace(/"/g, '&quot;') + '"' + selAttr + '>' + n + (sudah ? ' (Sudah Ada Nilai)' : '') + '</option>';
+        });
+        selSiswa.innerHTML = htmlS || '<option value="">-- Tidak ada siswa --</option>';
+    }
+
+    window.targetUploadLJK = { kelas: kelas, paket: paket, nama: targetNama };
+    window.perbaruiInfoBatasBacaOMR();
+    window.bukaModal('modal-scanner-omr');
+    window.renderDaftarHasilOMR();
+
+    if (st.baseCanvas) {
+        window.gambarKanvasOMR();
+    }
+
+    if (autoTriggerFile) {
+        let inputLJK = document.getElementById('input-file-ljk');
+        if (inputLJK) inputLJK.click();
+    }
+};
+
+window.triggerUploadLJK = function(kelas, paket, nama) {
+    let st = window._omrState;
+    st.baseCanvas = null;
+    st.corners = null;
+    st.snappedColFrac = null;
+    st.snappedRowFrac = null;
+    st.detectedAns = {};
+    st.autoDetected = false;
+    st.manualEditMode = false;
+
+    let emptyEl = document.getElementById('omr-empty-photo');
+    let canvEl = document.getElementById('omr-photo-canvas');
+    if (emptyEl) emptyEl.style.display = 'flex';
+    if (canvEl) canvEl.style.display = 'none';
+
+    window.bukaModalScannerOMR(kelas, paket, nama, true);
+};
+
+window.ubahSiswaScannerOMR = function(namaBaru) {
+    window._omrState.nama = namaBaru;
+    window.targetUploadLJK = {
+        kelas: window._omrState.kelas,
+        paket: window._omrState.paket,
+        nama: namaBaru
+    };
+};
+
+window.ubahPengaturanOMR = function() {
+    let inpRows = document.getElementById('omr-input-rows');
+    let inpSens = document.getElementById('omr-input-sens');
+    let rVal = inpRows ? parseInt(inpRows.value, 10) : 40;
+    if (isNaN(rVal) || rVal < 5) rVal = 40;
+    if (rVal > 60) rVal = 60;
+    window._omrState.totalRowsCetak = rVal;
+    window._omrState.sensitivitas = inpSens ? (parseInt(inpSens.value, 10) || 3) : 3;
+    window.perbaruiInfoBatasBacaOMR();
+
+    if (window._omrState.baseCanvas) {
+        window.jalankanScanOMRPilihanGanda();
+    }
+};
+
+window.hitungHomografiUnitKeQuad = function(pts) {
+    let x0 = pts[0].x, y0 = pts[0].y;
+    let x1 = pts[1].x, y1 = pts[1].y;
+    let x2 = pts[2].x, y2 = pts[2].y;
+    let x3 = pts[3].x, y3 = pts[3].y;
+
+    let dx1 = x1 - x2, dy1 = y1 - y2;
+    let dx2 = x3 - x2, dy2 = y3 - y2;
+    let sx = x0 - x1 + x2 - x3;
+    let sy = y0 - y1 + y2 - y3;
+    let det = dx1 * dy2 - dx2 * dy1;
+    let g = 0, h = 0;
+    if (Math.abs(det) > 1e-6) {
+        g = (sx * dy2 - dx2 * sy) / det;
+        h = (dx1 * sy - sx * dy1) / det;
+    }
+
+    return {
+        a: x1 - x0 + g * x1,
+        b: x3 - x0 + h * x3,
+        c: x0,
+        d: y1 - y0 + g * y1,
+        e: y3 - y0 + h * y3,
+        f: y0,
+        g: g,
+        h: h
+    };
+};
+
+window.terapkanHomografiUV = function(H, u, v) {
+    let denom = (H.g * u) + (H.h * v) + 1;
+    if (Math.abs(denom) < 1e-6) denom = 1;
+    return {
+        x: (H.a * u + H.b * v + H.c) / denom,
+        y: (H.d * u + H.e * v + H.f) / denom
+    };
+};
+
+// DETEKSI OTOMATIS 4 SUDUT TABEL PG (TAHAN BAYANGAN & KEMIRINGAN — CONNECTED COMPONENT ANALYSIS)
+window.deteksiOtomatisTabelPG = function(canvas) {
+    let w = canvas.width;
+    let h = canvas.height;
+    let sw = 480;
+    let sh = Math.max(240, Math.round((h / w) * sw));
+
+    try {
+        let tmp = document.createElement('canvas');
+        tmp.width = sw;
+        tmp.height = sh;
+        let tCtx = tmp.getContext('2d', { willReadFrequently: true });
+        tCtx.drawImage(canvas, 0, 0, sw, sh);
+        let rgba = tCtx.getImageData(0, 0, sw, sh).data;
+
+        // 1. Grayscale & Integral Image
+        let gray = new Uint8Array(sw * sh);
+        let stride = sw + 1;
+        let sat = new Int32Array(stride * (sh + 1));
+
+        for (let y = 0; y < sh; y++) {
+            let rs = 0;
+            let yOff = y * sw;
+            let sCur = (y + 1) * stride;
+            let sPrv = y * stride;
+            for (let x = 0; x < sw; x++) {
+                let p = (yOff + x) * 4;
+                let gVal = Math.round(0.299 * rgba[p] + 0.587 * rgba[p + 1] + 0.114 * rgba[p + 2]);
+                gray[yOff + x] = gVal;
+                rs += gVal;
+                sat[sCur + x + 1] = sat[sPrv + x + 1] + rs;
+            }
+        }
+
+        // 2. Binarisasi Adaptif (menghilangkan bayangan gelap di kertas)
+        let rad = 11;
+        let offC = 11;
+        let bin = new Uint8Array(sw * sh);
+        for (let y = 0; y < sh; y++) {
+            let y1 = y - rad; if (y1 < 0) y1 = 0;
+            let y2 = y + rad; if (y2 >= sh) y2 = sh - 1;
+            let dy = y2 - y1 + 1;
+            let r1 = y1 * stride;
+            let r2 = (y2 + 1) * stride;
+            let yOff = y * sw;
+            for (let x = 0; x < sw; x++) {
+                let x1 = x - rad; if (x1 < 0) x1 = 0;
+                let x2 = x + rad; if (x2 >= sw) x2 = sw - 1;
+                let sum = sat[r2 + x2 + 1] - sat[r1 + x2 + 1] - sat[r2 + x1] + sat[r1 + x1];
+                bin[yOff + x] = (gray[yOff + x] < (sum / (dy * (x2 - x1 + 1))) - offC) ? 1 : 0;
+            }
+        }
+
+        // 3. Dilasi 1 piksel (3x3) agar seluruh garis tabel PG menyatu jadi 1 komponen utuh
+        let dil = new Uint8Array(sw * sh);
+        for (let y = 1; y < sh - 1; y++) {
+            let rPrev = (y - 1) * sw;
+            let rCurr = y * sw;
+            let rNext = (y + 1) * sw;
+            for (let x = 1; x < sw - 1; x++) {
+                if (
+                    bin[rCurr + x] || bin[rCurr + x - 1] || bin[rCurr + x + 1] ||
+                    bin[rPrev + x] || bin[rNext + x] ||
+                    bin[rPrev + x - 1] || bin[rPrev + x + 1] ||
+                    bin[rNext + x - 1] || bin[rNext + x + 1]
+                ) {
+                    dil[rCurr + x] = 1;
+                }
+            }
+        }
+
+        // 4. Connected Component Analysis (BFS) + Ekstraksi 4 Sudut Miring (x+y dan x-y)
+        let visited = new Uint8Array(sw * sh);
+        let queue = new Int32Array(sw * sh);
+        let bestCand = null;
+        let bestScore = -1;
+
+        for (let startIdx = 0; startIdx < sw * sh; startIdx++) {
+            if (!dil[startIdx] || visited[startIdx]) continue;
+
+            let head = 0, tail = 0;
+            queue[tail++] = startIdx;
+            visited[startIdx] = 1;
+
+            let count = 0;
+            let minX = sw, maxX = 0, minY = sh, maxY = 0;
+            let minSum = 999999, maxSum = -999999;
+            let maxDiff = -999999, minDiff = 999999;
+            let tlX = 0, tlY = 0, trX = 0, trY = 0, brX = 0, brY = 0, blX = 0, blY = 0;
+            let touchesEdge = false;
+
+            while (head < tail) {
+                let cur = queue[head++];
+                let cx = cur % sw;
+                let cy = (cur - cx) / sw;
+                count++;
+
+                if (cx < minX) minX = cx;
+                if (cx > maxX) maxX = cx;
+                if (cy < minY) minY = cy;
+                if (cy > maxY) maxY = cy;
+                if (cx <= 2 || cx >= sw - 3 || cy <= 2 || cy >= sh - 3) touchesEdge = true;
+
+                let s = cx + cy;
+                let d = cx - cy;
+                if (s < minSum) { minSum = s; tlX = cx; tlY = cy; }
+                if (s > maxSum) { maxSum = s; brX = cx; brY = cy; }
+                if (d > maxDiff) { maxDiff = d; trX = cx; trY = cy; }
+                if (d < minDiff) { minDiff = d; blX = cx; blY = cy; }
+
+                if (cx > 0) {
+                    let nL = cur - 1;
+                    if (dil[nL] && !visited[nL]) { visited[nL] = 1; queue[tail++] = nL; }
+                }
+                if (cx < sw - 1) {
+                    let nR = cur + 1;
+                    if (dil[nR] && !visited[nR]) { visited[nR] = 1; queue[tail++] = nR; }
+                }
+                if (cy > 0) {
+                    let nU = cur - sw;
+                    if (dil[nU] && !visited[nU]) { visited[nU] = 1; queue[tail++] = nU; }
+                }
+                if (cy < sh - 1) {
+                    let nD = cur + sw;
+                    if (dil[nD] && !visited[nD]) { visited[nD] = 1; queue[tail++] = nD; }
+                }
+            }
+
+            let bw = maxX - minX;
+            let bh = maxY - minY;
+            if (bw < sw * 0.16 || bh < sh * 0.36) continue;
+
+            let area = bw * bh;
+            let fillRatio = count / Math.max(1, area);
+            if (fillRatio < 0.05 || fillRatio > 0.72) continue;
+
+            let aspect = bh / Math.max(1, bw);
+            if (aspect < 1.2 || aspect > 4.2) continue;
+
+            let centerXNorm = (minX + maxX) / (2 * sw);
+            let widthNorm = bw / sw;
+            let score = (area / (sw * sh)) * 100;
+
+            // Prioritaskan kuat tabel PILIHAN GANDA di sisi kiri halaman (beda jauh dari tabel ISIAN di kanan)
+            if (!touchesEdge) score += 600;
+            if (centerXNorm >= 0.08 && centerXNorm <= 0.47 && widthNorm <= 0.48) score += 1200;
+            if (aspect >= 1.65 && aspect <= 3.15) score += 350;
+            if (widthNorm >= 0.22 && widthNorm <= 0.44) score += 200;
+
+            if (score > bestScore) {
+                bestScore = score;
+                bestCand = {
+                    tl: { x: tlX, y: tlY },
+                    tr: { x: trX, y: trY },
+                    br: { x: brX, y: brY },
+                    bl: { x: blX, y: blY }
+                };
+            }
+        }
+
+        if (bestCand) {
+            // Tarik 1px ke dalam untuk mengompensasi dilasi 3x3
+            let midX = (bestCand.tl.x + bestCand.tr.x + bestCand.br.x + bestCand.bl.x) / 4;
+            let midY = (bestCand.tl.y + bestCand.tr.y + bestCand.br.y + bestCand.bl.y) / 4;
+            let shrink = function(pt) {
+                let dx = midX - pt.x;
+                let dy = midY - pt.y;
+                let len = Math.sqrt(dx * dx + dy * dy) || 1;
+                return {
+                    x: Math.max(0.005, Math.min(0.995, (pt.x + (dx / len)) / sw)),
+                    y: Math.max(0.005, Math.min(0.995, (pt.y + (dy / len)) / sh))
+                };
+            };
+            return [
+                shrink(bestCand.tl),
+                shrink(bestCand.tr),
+                shrink(bestCand.br),
+                shrink(bestCand.bl)
+            ];
+        }
+    } catch (e) {
+        console.warn('Auto-detect tabel PG fallback:', e);
+    }
+    return null;
+};
+
+window.estimasiSudutAwalTabelPG = function() {
+    return [
+        { x: 0.085, y: 0.215 },
+        { x: 0.415, y: 0.215 },
+        { x: 0.415, y: 0.900 },
+        { x: 0.085, y: 0.900 }
+    ];
+};
+
+window.resetSudutOMR = function() {
+    let st = window._omrState;
+    if (!st.baseCanvas) return;
+    let found = window.deteksiOtomatisTabelPG(st.baseCanvas);
+    if (found) {
+        st.corners = found;
+        st.autoDetected = true;
+        st.manualEditMode = false;
+    } else {
+        st.corners = window.estimasiSudutAwalTabelPG();
+        st.autoDetected = false;
+        st.manualEditMode = true;
+    }
+    window.perbaruiInfoBatasBacaOMR();
+    window.jalankanScanOMRPilihanGanda();
+};
+
+window.putarFotoOMR = function() {
+    let st = window._omrState;
+    if (!st.baseCanvas) return;
+    let oldC = st.baseCanvas;
+    let rotC = document.createElement('canvas');
+    rotC.width = oldC.height;
+    rotC.height = oldC.width;
+    let rCtx = rotC.getContext('2d', { willReadFrequently: true });
+    rCtx.translate(rotC.width / 2, rotC.height / 2);
+    rCtx.rotate(Math.PI / 2);
+    rCtx.drawImage(oldC, -oldC.width / 2, -oldC.height / 2);
+
+    st.baseCanvas = rotC;
+    window.resetSudutOMR();
+};
+
+window.prosesUploadLJK = function(inputElem) {
+    let file = inputElem && inputElem.files ? inputElem.files[0] : null;
+    if (inputElem) inputElem.value = "";
     if (!file) return;
 
-    let t = window.targetUploadLJK;
-    inputElem.value = "";
-    if (!t) return;
+    let st = window._omrState;
+    if (!st.kelas || !st.paket) {
+        let t = window.targetUploadLJK || {};
+        window.bukaModalScannerOMR(t.kelas, t.paket, t.nama, false);
+    }
 
-    let toast = document.createElement('div');
-    toast.style.cssText = "position:fixed; top:20px; left:50%; transform:translateX(-50%); background:#e67e22; color:white; padding:12px 24px; border-radius:26px; font-family:'Poppins', sans-serif; font-size:13px; font-weight:bold; box-shadow:0 6px 20px rgba(0,0,0,0.28); z-index:9999999; text-align:center; max-width:92vw;";
-    toast.innerHTML = "⏳ Menyiapkan Mesin Scanner Lokal...<br><span style='font-size:11px; font-weight:normal;'>Memindai LJK: " + t.nama + "</span>";
-    document.body.appendChild(toast);
+    let reader = new FileReader();
+    reader.onload = function(ev) {
+        let img = new Image();
+        img.onload = function() {
+            let maxDim = 1500;
+            let scale = Math.max(img.naturalWidth, img.naturalHeight) > maxDim
+                ? (maxDim / Math.max(img.naturalWidth, img.naturalHeight))
+                : 1;
+            let cw = Math.max(300, Math.round(img.naturalWidth * scale));
+            let ch = Math.max(300, Math.round(img.naturalHeight * scale));
 
-    let worker = null;
-    try {
-        let safeKelas = window.sanitasiKeyRekapFirebase(t.kelas);
-        let safePaket = window.sanitasiKeyRekapFirebase(t.paket);
-        let safeNama = window.sanitasiKeyRekapFirebase(t.nama);
+            let baseC = document.createElement('canvas');
+            baseC.width = cw;
+            baseC.height = ch;
+            baseC.getContext('2d', { willReadFrequently: true }).drawImage(img, 0, 0, cw, ch);
 
-        let paketData = (window.adminBankUjianData && (window.adminBankUjianData[t.paket] || window.adminBankUjianData[safePaket])) || null;
-        if (!paketData || !paketData.soal) throw new Error("Data bank soal tidak ditemukan untuk paket ini.");
+            st.baseCanvas = baseC;
 
-        let soalArr = window.normalisasiSoalUjianCBT(paketData.soal);
-        let bobot = window.hitungBobotIdealUjian(paketData, soalArr);
-
-        // 1. Muat gambar ke kanvas lokal (maks. lebar 1500px untuk keseimbangan akurasi & kecepatan)
-        toast.innerHTML = "🖼️ Menganalisis Garis Tabel & Pencahayaan...<br><span style='font-size:11px; font-weight:normal;'>Mendeteksi kolom PG & Isian</span>";
-        let imgObj = await new Promise(function(resolve, reject) {
-            let reader = new FileReader();
-            reader.onload = function(ev) {
-                let im = new Image();
-                im.onload = function() { resolve(im); };
-                im.onerror = function() { reject(new Error("Gagal membaca file gambar.")); };
-                im.src = ev.target.result;
-            };
-            reader.onerror = function() { reject(new Error("Gagal membuka file.")); };
-            reader.readAsDataURL(file);
-        });
-
-        let maxW = 1500;
-        let scaleImg = imgObj.naturalWidth > maxW ? (maxW / imgObj.naturalWidth) : 1;
-        let cw = Math.max(400, Math.round(imgObj.naturalWidth * scaleImg));
-        let ch = Math.max(400, Math.round(imgObj.naturalHeight * scaleImg));
-
-        let mainCanv = document.createElement('canvas');
-        mainCanv.width = cw;
-        mainCanv.height = ch;
-        let mCtx = mainCanv.getContext('2d');
-        mCtx.drawImage(imgObj, 0, 0, cw, ch);
-
-        let rawRGBA = mCtx.getImageData(0, 0, cw, ch).data;
-        let gray = new Uint8Array(cw * ch);
-        for (let i = 0, p = 0; i < gray.length; i++, p += 4) {
-            gray[i] = Math.round(0.299 * rawRGBA[p] + 0.587 * rawRGBA[p + 1] + 0.114 * rawRGBA[p + 2]);
-        }
-
-        let sat = window.buatIntegralImageGray(gray, cw, ch);
-        let bin = window.binarisasiAdaptifLJK(gray, sat, cw, ch, Math.max(14, Math.round(cw * 0.014)), 15);
-        let grid = window.deteksiGridLJK(bin, cw, ch);
-
-        // Siapkan kanvas pratinjau beranotasi agar guru bisa mengecek deteksi langsung di modal Koreksi
-        let annotCanv = document.createElement('canvas');
-        annotCanv.width = cw;
-        annotCanv.height = ch;
-        let aCtx = annotCanv.getContext('2d');
-        aCtx.drawImage(mainCanv, 0, 0);
-
-        // 2. Pastikan Tesseract lokal siap hanya jika paket memiliki soal IS / Essay
-        let adaIsianAtauEssay = soalArr.some(function(q) { return q.type === 'IS' || q.type === 'Essay'; });
-        if (adaIsianAtauEssay) {
-            if (!window.Tesseract && typeof window.pastikanMesinDokumenSiap === 'function') {
-                toast.innerHTML = "⏳ Memuat Mesin Tesseract Lokal...<br><span style='font-size:11px; font-weight:normal;'>Hanya sekali muat pada sesi ini</span>";
-                await window.pastikanMesinDokumenSiap('ocr');
-            }
-            if (window.Tesseract) {
-                worker = await window.Tesseract.createWorker('ind');
-                if (typeof worker.setParameters === 'function') {
-                    await worker.setParameters({ tessedit_pageseg_mode: '7' });
-                }
-            }
-        }
-
-        let totalNilai = 0;
-        let totalMax = 0;
-        let hasilDetail = [];
-        let pgRowCursor = 0;
-        let isRowCursor = 0;
-        let totalISCount = soalArr.filter(function(q) { return q.type === 'IS' || q.type === 'Essay'; }).length;
-        let isDiproses = 0;
-
-        for (let idx = 0; idx < soalArr.length; idx++) {
-            let q = soalArr[idx];
-            let noSoal = idx + 1;
-            let ansSiswa = "";
-            let poin = 0;
-            let maxP = bobot[q.type] || 0;
-            let status = "Salah";
-
-            if (q.type === 'PG' || q.type === 'PGK') {
-                let det = window.deteksiSilangPGRow(bin, cw, ch, grid, pgRowCursor, q.type === 'PGK');
-                pgRowCursor++;
-
-                // Gambar kotak hijau di foto anotasi pada opsi yang terdeteksi
-                aCtx.strokeStyle = '#16a34a';
-                aCtx.lineWidth = 3;
-                (det.boxes || []).forEach(function(bx) {
-                    aCtx.strokeRect(bx.cx1, bx.cy1, bx.cx2 - bx.cx1, bx.cy2 - bx.cy1);
-                });
-
-                if (q.type === 'PG') {
-                    ansSiswa = det.jawaban || "-";
-                    let normKey = window.normalisasiKunciPGK(q.correct, q.options);
-                    if (ansSiswa !== "-" && normKey.length > 0 && ansSiswa === normKey[0]) {
-                        poin = maxP;
-                        status = "Benar";
-                    }
-                } else {
-                    let ansArr = Array.isArray(det.jawaban) ? det.jawaban : [];
-                    ansSiswa = ansArr.length > 0 ? ansArr.join(", ") : "-";
-                    if (window.apakahJawabanPGKBenar(ansArr, q.correct, q.options)) {
-                        poin = maxP;
-                        status = "Benar Sempurna";
-                    }
-                }
+            let autoCorners = window.deteksiOtomatisTabelPG(baseC);
+            if (autoCorners) {
+                st.corners = autoCorners;
+                st.autoDetected = true;
+                st.manualEditMode = false;
             } else {
-                isDiproses++;
-                toast.innerHTML = "🔍 Membaca Tulisan Tangan (" + isDiproses + "/" + totalISCount + ")...<br><span style='font-size:11px; font-weight:normal;'>Baris Isian #" + (isRowCursor + 1) + " • Yang buram otomatis dikosongkan</span>";
-                let prep = window.siapkanKanvasBarisIsian(gray, bin, cw, ch, grid, isRowCursor);
-                isRowCursor++;
+                st.corners = window.estimasiSudutAwalTabelPG();
+                st.autoDetected = false;
+                st.manualEditMode = true;
+            }
 
-                if (prep.box) {
-                    aCtx.strokeStyle = prep.kosong ? 'rgba(148,163,184,0.45)' : '#f59e0b';
-                    aCtx.lineWidth = 2;
-                    aCtx.strokeRect(prep.box.x1, prep.box.y1, prep.box.x2 - prep.box.x1, prep.box.y2 - prep.box.y1);
-                }
+            let emptyEl = document.getElementById('omr-empty-photo');
+            let canvEl = document.getElementById('omr-photo-canvas');
+            if (emptyEl) emptyEl.style.display = 'none';
+            if (canvEl) canvEl.style.display = 'block';
 
-                if (prep.kosong || !worker) {
-                    ansSiswa = "";
-                } else {
-                    let ocrRes = await worker.recognize(prep.canvas);
-                    let rawTxt = (ocrRes && ocrRes.data && ocrRes.data.text) ? ocrRes.data.text : "";
-                    let conf = (ocrRes && ocrRes.data && typeof ocrRes.data.confidence === 'number') ? ocrRes.data.confidence : 0;
-                    ansSiswa = window.bersihkanDanValidasiTeksOCRLJK(rawTxt, conf, q.correct);
-                }
+            window.perbaruiInfoBatasBacaOMR();
+            window.jalankanScanOMRPilihanGanda();
+        };
+        img.onerror = function() {
+            alert("❌ Gagal membaca file gambar foto LJK.");
+        };
+        img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+};
 
-                if (q.type === 'IS') {
-                    if (ansSiswa && window.cocokkanJawabanIsianLJK(ansSiswa, q.correct)) {
-                        poin = maxP;
-                        status = "Benar";
-                    } else {
-                        poin = 0;
-                        status = ansSiswa ? "Salah" : "Menunggu Guru";
+// MESIN INTI: Perspective Warp -> Line-Snap Per Baris & Kolom (Anti Kertas Melengkung) -> Baca Silang PG (1..N)
+window.jalankanScanOMRPilihanGanda = function() {
+    let st = window._omrState;
+    if (!st.baseCanvas || !st.corners || !st.pgItems) return;
+
+    let srcC = st.baseCanvas;
+    let sw = srcC.width;
+    let sh = srcC.height;
+    let srcData = srcC.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, sw, sh).data;
+
+    let ptsPx = st.corners.map(function(p) {
+        return { x: p.x * sw, y: p.y * sh };
+    });
+    let H = window.hitungHomografiUnitKeQuad(ptsPx);
+
+    let totalRows = Math.max(st.pgItems.length, Number(st.totalRowsCetak) || 40);
+    let warpW = 480;
+    let rowH = 36;
+    let warpH = totalRows * rowH;
+
+    // 1. Perspective Warp tabel PG menjadi persegi panjang lurus
+    let gray = new Uint8Array(warpW * warpH);
+    for (let y = 0; y < warpH; y++) {
+        let v = (y + 0.5) / warpH;
+        let rowOff = y * warpW;
+        for (let x = 0; x < warpW; x++) {
+            let u = (x + 0.5) / warpW;
+            let pt = window.terapkanHomografiUV(H, u, v);
+            let sx = Math.round(pt.x);
+            let sy = Math.round(pt.y);
+            if (sx >= 0 && sx < sw && sy >= 0 && sy < sh) {
+                let pIdx = (sy * sw + sx) * 4;
+                gray[rowOff + x] = Math.round(0.299 * srcData[pIdx] + 0.587 * srcData[pIdx + 1] + 0.114 * srcData[pIdx + 2]);
+            } else {
+                gray[rowOff + x] = 255;
+            }
+        }
+    }
+
+    // 2. Integral Image & Binarisasi Adaptif pada gambar datar
+    let stride = warpW + 1;
+    let sat = new Int32Array(stride * (warpH + 1));
+    for (let y = 0; y < warpH; y++) {
+        let rSum = 0;
+        let gOff = y * warpW;
+        let sCur = (y + 1) * stride;
+        let sPrv = y * stride;
+        for (let x = 0; x < warpW; x++) {
+            rSum += gray[gOff + x];
+            sat[sCur + x + 1] = sat[sPrv + x + 1] + rSum;
+        }
+    }
+
+    let sens = Number(st.sensitivitas) || 3;
+    let offsetC = 21 - (sens * 3);
+    let rad = 14;
+    let bin = new Uint8Array(warpW * warpH);
+
+    for (let y = 0; y < warpH; y++) {
+        let y1 = y - rad; if (y1 < 0) y1 = 0;
+        let y2 = y + rad; if (y2 >= warpH) y2 = warpH - 1;
+        let dy = y2 - y1 + 1;
+        let r1 = y1 * stride;
+        let r2 = (y2 + 1) * stride;
+        let outRow = y * warpW;
+        for (let x = 0; x < warpW; x++) {
+            let x1 = x - rad; if (x1 < 0) x1 = 0;
+            let x2 = x + rad; if (x2 >= warpW) x2 = warpW - 1;
+            let sum = sat[r2 + x2 + 1] - sat[r1 + x2 + 1] - sat[r2 + x1] + sat[r1 + x1];
+            let mean = sum / (dy * (x2 - x1 + 1));
+            bin[outRow + x] = (gray[outRow + x] < (mean - offsetC)) ? 1 : 0;
+        }
+    }
+
+    // 3. Kunci Otomatis Garis Kolom (NO | A | B | C | D | E) & Garis Baris (anti kertas melengkung)
+    let vProj = new Float32Array(warpW);
+    for (let x = 0; x < warpW; x++) {
+        let cnt = 0;
+        for (let y = 0; y < warpH; y += 2) {
+            if (bin[y * warpW + x]) cnt++;
+        }
+        vProj[x] = cnt / (warpH / 2);
+    }
+
+    let baseColFrac = window._OMR_PG_COL_FRAC;
+    let colX = [0];
+    let colTol = Math.round(warpW * 0.055);
+    for (let c = 1; c < 6; c++) {
+        let expX = Math.round(baseColFrac[c] * warpW);
+        let bestX = expX;
+        let bestVal = -1;
+        let xA = Math.max(colX[c - 1] + 24, expX - colTol);
+        let xB = Math.min(warpW - 24, expX + colTol);
+        for (let x = xA; x <= xB; x++) {
+            let vScore = vProj[x] + 0.5 * (vProj[Math.max(0, x - 1)] + vProj[Math.min(warpW - 1, x + 1)]);
+            if (vProj[x] >= 0.34 && vScore > bestVal) {
+                bestVal = vScore;
+                bestX = x;
+            }
+        }
+        colX.push(bestX);
+    }
+    colX.push(warpW);
+    st.snappedColFrac = colX.map(function(x) { return x / warpW; });
+
+    let hProj = new Float32Array(warpH);
+    for (let y = 0; y < warpH; y++) {
+        let cnt = 0;
+        let rOff = y * warpW;
+        for (let x = 4; x < warpW - 4; x += 2) {
+            if (bin[rOff + x]) cnt++;
+        }
+        hProj[y] = cnt / ((warpW - 8) / 2);
+    }
+
+    let rowY = [0];
+    let rowTol = Math.round(rowH * 0.34);
+    for (let r = 1; r < totalRows; r++) {
+        let expY = Math.round(r * rowH);
+        let bestY = expY;
+        let bestVal = -1;
+        let yA = Math.max(rowY[r - 1] + Math.round(rowH * 0.55), expY - rowTol);
+        let yB = Math.min(warpH - Math.round(rowH * 0.55), expY + rowTol);
+        for (let y = yA; y <= yB; y++) {
+            let hScore = hProj[y] + 0.5 * (hProj[Math.max(0, y - 1)] + hProj[Math.min(warpH - 1, y + 1)]);
+            if (hProj[y] >= 0.40 && hScore > bestVal) {
+                bestVal = hScore;
+                bestY = y;
+            }
+        }
+        rowY.push(bestY);
+    }
+    rowY.push(warpH);
+    st.snappedRowFrac = rowY.map(function(y) { return y / warpH; });
+
+    // 4. Evaluasi Tanda Silang (X) HANYA untuk Nomor PG 1..N (yang memiliki kunci)
+    let huruf = ['A', 'B', 'C', 'D', 'E'];
+    let thresholdScore = 0.092 - (sens * 0.013);
+    st.detectedAns = {};
+
+    st.pgItems.forEach(function(item, rowIdx) {
+        if (rowIdx >= totalRows || !item.kunci || item.kunci.length === 0) {
+            st.detectedAns[rowIdx] = (item.type === 'PGK') ? [] : '-';
+            return;
+        }
+
+        let y0 = rowY[rowIdx];
+        let y1 = rowY[rowIdx + 1];
+        let cellH = Math.max(10, y1 - y0);
+        let padY = Math.max(3, Math.round(cellH * 0.17));
+        let cy1 = y0 + padY;
+        let cy2 = y1 - padY;
+        let innerH = Math.max(1, cy2 - cy1 + 1);
+
+        let stats = [];
+        for (let c = 0; c < 5; c++) {
+            let x0 = colX[c + 1];
+            let x1 = colX[c + 2];
+            let cellW = Math.max(12, x1 - x0);
+            let padX = Math.max(3, Math.round(cellW * 0.13));
+            let cx1 = x0 + padX;
+            let cx2 = x1 - padX;
+            let innerW = Math.max(1, cx2 - cx1 + 1);
+
+            let totalPx = 0, totalDark = 0;
+            let outerPx = 0, outerDark = 0;
+
+            for (let y = cy1; y <= cy2; y++) {
+                let ny = (y - cy1) / innerH;
+                let inCoreY = (ny >= 0.24 && ny <= 0.76);
+                let rowOff = y * warpW;
+                for (let x = cx1; x <= cx2; x++) {
+                    let nx = (x - cx1) / innerW;
+                    let isDark = bin[rowOff + x];
+                    totalPx++;
+                    if (isDark) totalDark++;
+
+                    let inCoreLetter = (inCoreY && nx >= 0.37 && nx <= 0.63);
+                    if (!inCoreLetter) {
+                        outerPx++;
+                        if (isDark) outerDark++;
                     }
-                } else {
-                    poin = 0;
-                    status = "Menunggu Guru";
                 }
             }
 
-            totalNilai += poin;
-            totalMax += maxP;
-            hasilDetail.push({
-                nomor: noSoal,
-                soal: q.question || "",
-                tipe: q.type,
-                kunci: q.correct || [],
-                jawabSiswa: ansSiswa,
-                jawabanSiswa: ansSiswa,
-                pembahasan: q.explanation || "Tidak ada pembahasan.",
-                poin: poin,
-                poinDidapat: poin,
-                maxPoin: maxP,
-                status: status
+            stats.push({
+                label: huruf[c],
+                totalInk: totalDark / Math.max(1, totalPx),
+                outerInk: outerDark / Math.max(1, outerPx)
             });
         }
 
-        if (worker) {
-            await worker.terminate();
-            worker = null;
-        }
+        let sTot = stats.map(function(s) { return s.totalInk; }).sort(function(a, b) { return a - b; });
+        let sOut = stats.map(function(s) { return s.outerInk; }).sort(function(a, b) { return a - b; });
+        let baseTot = (sTot[0] + sTot[1]) / 2;
+        let baseOut = (sOut[0] + sOut[1]) / 2;
 
-        // Simpan pratinjau foto LJK beranotasi di memori sesi agar guru bisa melihatnya saat koreksi
-        let previewKey = safeKelas + "__" + safePaket + "__" + safeNama;
-        try {
-            window._ljkPreviewPhotoMap[previewKey] = annotCanv.toDataURL('image/jpeg', 0.72);
-        } catch (e) {}
-
-        let nilaiAkhirSkala = totalMax > 0 ? ((totalNilai / totalMax) * 100) : totalNilai;
-        let payload = {
-            namaAsli: t.nama,
-            kelasAsli: t.kelas,
-            paketAsli: t.paket,
-            nilaiAkhir: parseFloat(nilaiAkhirSkala.toFixed(2)),
-            waktuKumpul: new Date().toISOString(),
-            detail: hasilDetail,
-            rincian: hasilDetail,
-            pelanggaran: 0,
-            sudahDikoreksi: false
-        };
-
-        let pathDB = 'admin_rekap_nilai/' + safeKelas + '/' + safePaket + '/' + safeNama;
-        window.kirimNilaiUjianAmanKeDB(pathDB, payload, function() {
-            if (!window.adminRekapNilaiData[safeKelas]) window.adminRekapNilaiData[safeKelas] = {};
-            if (!window.adminRekapNilaiData[safeKelas][safePaket]) window.adminRekapNilaiData[safeKelas][safePaket] = {};
-            window.adminRekapNilaiData[safeKelas][safePaket][safeNama] = payload;
-
-            window.renderRekapNilai();
-            if (typeof window.renderLedgerSiswa === "function") window.renderLedgerSiswa();
-            if (typeof window.renderRemedialTabAdmin === "function") window.renderRemedialTabAdmin();
-
-            toast.style.background = "#27ae60";
-            toast.innerHTML = "✅ LJK Selesai Dipindai! Nilai Sementara: <b>" + payload.nilaiAkhir + "</b><br><span style='font-size:11px; font-weight:normal;'>Membuka Detail & Koreksi agar Anda bisa memeriksa/mengedit...</span>";
-            setTimeout(function() { toast.remove(); }, 3200);
-
-            // Langsung buka jendela koreksi agar guru bisa melengkapi IS/Essay yang kosong atau mengedit PG/PGK
-            window.tempKoreksiTarget = { kelas: t.kelas, paket: t.paket };
-            window.modeTampilanKoreksiPG = false;
-            window.muatDataKoreksi(safeNama);
-        }, function(err) {
-            throw new Error(err ? err.message : "Gagal menyimpan hasil scan ke server.");
+        stats.forEach(function(s) {
+            let exTot = Math.max(0, s.totalInk - baseTot);
+            let exOut = Math.max(0, s.outerInk - baseOut);
+            s.score = (exTot * 1.4) + (exOut * 1.4);
         });
 
-    } catch (err) {
-        if (worker) {
-            try { await worker.terminate(); } catch (e) {}
+        let kandidat = stats.filter(function(s) {
+            return s.score >= thresholdScore;
+        }).sort(function(a, b) { return b.score - a.score; });
+
+        // Abaikan kotak yang dicoret/diarsir pekat (ralat batal) jika ada kotak silang bersih lainnya
+        if (kandidat.length >= 2) {
+            let bukanArsir = kandidat.filter(function(s) { return s.totalInk <= 0.38; });
+            let arsirPenuh = kandidat.filter(function(s) { return s.totalInk > 0.38; });
+            if (arsirPenuh.length > 0 && bukanArsir.length > 0) {
+                kandidat = bukanArsir;
+            }
         }
-        console.error(err);
-        toast.style.background = "#c0392b";
-        toast.innerHTML = "❌ Gagal memindai LJK: " + (err ? err.message : "Error");
-        setTimeout(function() { toast.remove(); }, 4200);
+
+        if (item.type === 'PGK') {
+            st.detectedAns[rowIdx] = kandidat.map(function(k) { return k.label; }).sort();
+        } else {
+            st.detectedAns[rowIdx] = kandidat.length > 0 ? kandidat[0].label : '-';
+        }
+    });
+
+    window.gambarKanvasOMR();
+    window.renderDaftarHasilOMR();
+};
+
+// Menggambar Foto LJK + Kisi Terkunci (No. 1..N) + Area Diabaikan (N+1..40) + Titik Sudut (Jika Mode Manual)
+window.gambarKanvasOMR = function() {
+    let st = window._omrState;
+    let canv = document.getElementById('omr-photo-canvas');
+    if (!canv || !st.baseCanvas || !st.corners) return;
+
+    let srcC = st.baseCanvas;
+    let w = srcC.width;
+    let h = srcC.height;
+    if (canv.width !== w || canv.height !== h) {
+        canv.width = w;
+        canv.height = h;
+    }
+
+    let ctx = canv.getContext('2d');
+    ctx.clearRect(0, 0, w, h);
+    ctx.drawImage(srcC, 0, 0);
+
+    let pts = st.corners.map(function(p) { return { x: p.x * w, y: p.y * h }; });
+    let H = window.hitungHomografiUnitKeQuad(pts);
+    let activeRows = st.pgItems ? st.pgItems.length : 0;
+    let totalRows = Math.max(activeRows, Number(st.totalRowsCetak) || 40);
+    let colFrac = (st.snappedColFrac && st.snappedColFrac.length === 7) ? st.snappedColFrac : window._OMR_PG_COL_FRAC;
+    let rowFrac = (st.snappedRowFrac && st.snappedRowFrac.length === totalRows + 1) ? st.snappedRowFrac : null;
+    let getRowV = function(r) { return rowFrac ? rowFrac[r] : (r / totalRows); };
+    let vCut = Math.min(1, getRowV(activeRows));
+    let huruf = ['A', 'B', 'C', 'D', 'E'];
+
+    // 1. Sorot kotak jawaban terdeteksi (Hijau = Benar, Merah = Salah) HANYA 1..activeRows
+    st.pgItems.forEach(function(item, rowIdx) {
+        if (rowIdx >= activeRows || !item.kunci || item.kunci.length === 0) return;
+        let ans = st.detectedAns[rowIdx];
+        let pickedList = Array.isArray(ans) ? ans : ((ans && ans !== '-') ? [ans] : []);
+        if (pickedList.length === 0) return;
+
+        let isBenar = (item.type === 'PGK')
+            ? window.apakahJawabanPGKBenar(pickedList, item.kunci, [])
+            : (item.kunci.length > 0 && pickedList[0] === item.kunci[0]);
+
+        let v0 = getRowV(rowIdx);
+        let v1 = getRowV(rowIdx + 1);
+
+        pickedList.forEach(function(lbl) {
+            let cIdx = huruf.indexOf(lbl);
+            if (cIdx === -1) return;
+            let u0 = colFrac[cIdx + 1];
+            let u1 = colFrac[cIdx + 2];
+
+            let p0 = window.terapkanHomografiUV(H, u0, v0);
+            let p1 = window.terapkanHomografiUV(H, u1, v0);
+            let p2 = window.terapkanHomografiUV(H, u1, v1);
+            let p3 = window.terapkanHomografiUV(H, u0, v1);
+
+            ctx.beginPath();
+            ctx.moveTo(p0.x, p0.y);
+            ctx.lineTo(p1.x, p1.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.lineTo(p3.x, p3.y);
+            ctx.closePath();
+            ctx.fillStyle = isBenar ? 'rgba(34, 197, 94, 0.36)' : 'rgba(239, 68, 68, 0.36)';
+            ctx.fill();
+            ctx.strokeStyle = isBenar ? '#16a34a' : '#dc2626';
+            ctx.lineWidth = Math.max(2, w * 0.0025);
+            ctx.stroke();
+        });
+    });
+
+    // 2. Garis kisi aktif di zona berkunci (0..vCut)
+    ctx.strokeStyle = 'rgba(0, 225, 255, 0.65)';
+    ctx.lineWidth = Math.max(1.2, w * 0.0014);
+    for (let c = 1; c < colFrac.length - 1; c++) {
+        let pTop = window.terapkanHomografiUV(H, colFrac[c], 0);
+        let pCut = window.terapkanHomografiUV(H, colFrac[c], vCut);
+        ctx.beginPath();
+        ctx.moveTo(pTop.x, pTop.y);
+        ctx.lineTo(pCut.x, pCut.y);
+        ctx.stroke();
+    }
+
+    ctx.strokeStyle = 'rgba(35, 112, 161, 0.45)';
+    ctx.lineWidth = Math.max(1, w * 0.0011);
+    for (let r = 1; r < activeRows; r++) {
+        let v = getRowV(r);
+        let pL = window.terapkanHomografiUV(H, 0, v);
+        let pR = window.terapkanHomografiUV(H, 1, v);
+        ctx.beginPath();
+        ctx.moveTo(pL.x, pL.y);
+        ctx.lineTo(pR.x, pR.y);
+        ctx.stroke();
+    }
+
+    // 3. Masker gelap area diabaikan (No. activeRows+1 .. totalRows)
+    let pCutL = window.terapkanHomografiUV(H, 0, vCut);
+    let pCutR = window.terapkanHomografiUV(H, 1, vCut);
+
+    if (activeRows < totalRows) {
+        ctx.beginPath();
+        ctx.moveTo(pCutL.x, pCutL.y);
+        ctx.lineTo(pCutR.x, pCutR.y);
+        ctx.lineTo(pts[2].x, pts[2].y);
+        ctx.lineTo(pts[3].x, pts[3].y);
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(6, 6, 8, 0.56)';
+        ctx.fill();
+
+        ctx.save();
+        ctx.setLineDash([10, 6]);
+        ctx.strokeStyle = '#facc15';
+        ctx.lineWidth = Math.max(2.5, w * 0.003);
+        ctx.beginPath();
+        ctx.moveTo(pCutL.x, pCutL.y);
+        ctx.lineTo(pCutR.x, pCutR.y);
+        ctx.stroke();
+        ctx.restore();
+
+        let pCenter = window.terapkanHomografiUV(H, 0.5, (vCut + 1) / 2);
+        let labelAbai = '⛔ DIABAIKAN (No. ' + (activeRows + 1) + '–' + totalRows + ')';
+        let fontSz = Math.max(12, Math.round(w * 0.015));
+        ctx.font = 'bold ' + fontSz + 'px Poppins, sans-serif';
+        let txtW = ctx.measureText(labelAbai).width;
+        let padX = Math.round(fontSz * 0.7);
+        let boxH = Math.round(fontSz * 1.9);
+
+        ctx.fillStyle = 'rgba(6, 6, 8, 0.86)';
+        ctx.fillRect(pCenter.x - (txtW / 2) - padX, pCenter.y - (boxH / 2), txtW + padX * 2, boxH);
+        ctx.strokeStyle = '#facc15';
+        ctx.lineWidth = Math.max(1.5, w * 0.0018);
+        ctx.strokeRect(pCenter.x - (txtW / 2) - padX, pCenter.y - (boxH / 2), txtW + padX * 2, boxH);
+
+        ctx.fillStyle = '#fef08a';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(labelAbai, pCenter.x, pCenter.y);
+    }
+
+    // 4. Bingkai zona aktif
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    ctx.lineTo(pts[1].x, pts[1].y);
+    ctx.lineTo(pCutR.x, pCutR.y);
+    ctx.lineTo(pCutL.x, pCutL.y);
+    ctx.closePath();
+    ctx.strokeStyle = '#00E1FF';
+    ctx.lineWidth = Math.max(2.5, w * 0.003);
+    ctx.stroke();
+
+    // 5. Hanya tampilkan 4 titik sudut drag jika Mode Penyesuaian Manual diaktifkan
+    if (st.manualEditMode) {
+        let labels = ['TL', 'TR', 'BR', 'BL'];
+        let handleR = Math.max(14, Math.round(w * 0.017));
+        pts.forEach(function(pt, i) {
+            ctx.beginPath();
+            ctx.arc(pt.x, pt.y, handleR, 0, Math.PI * 2);
+            ctx.fillStyle = (st.dragIdx === i) ? '#060608' : '#00E1FF';
+            ctx.fill();
+            ctx.lineWidth = Math.max(2.5, w * 0.003);
+            ctx.strokeStyle = '#ffffff';
+            ctx.stroke();
+
+            ctx.fillStyle = (st.dragIdx === i) ? '#00E1FF' : '#060608';
+            ctx.font = 'bold ' + Math.round(handleR * 0.85) + 'px Poppins, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(labels[i], pt.x, pt.y);
+        });
+    }
+};
+
+window.pasangEventDragSudutOMR = function() {
+    let canv = document.getElementById('omr-photo-canvas');
+    if (!canv || canv.getAttribute('data-omr-bound') === '1') return;
+    canv.setAttribute('data-omr-bound', '1');
+
+    function ambilNormXY(ev) {
+        let rect = canv.getBoundingClientRect();
+        let nx = (ev.clientX - rect.left) / Math.max(1, rect.width);
+        let ny = (ev.clientY - rect.top) / Math.max(1, rect.height);
+        return {
+            x: Math.max(0.005, Math.min(0.995, nx)),
+            y: Math.max(0.005, Math.min(0.995, ny)),
+            rectW: rect.width,
+            rectH: rect.height
+        };
+    }
+
+    canv.addEventListener('pointerdown', function(ev) {
+        let st = window._omrState;
+        if (!st.corners || !st.manualEditMode) return;
+        let pt = ambilNormXY(ev);
+        let bestIdx = -1;
+        let bestDist = 9999;
+
+        st.corners.forEach(function(c, i) {
+            let dx = (c.x - pt.x) * pt.rectW;
+            let dy = (c.y - pt.y) * pt.rectH;
+            let d = Math.sqrt(dx * dx + dy * dy);
+            if (d < 36 && d < bestDist) {
+                bestDist = d;
+                bestIdx = i;
+            }
+        });
+
+        if (bestIdx !== -1) {
+            ev.preventDefault();
+            st.dragIdx = bestIdx;
+            try { canv.setPointerCapture(ev.pointerId); } catch (e) {}
+            window.gambarKanvasOMR();
+        }
+    });
+
+    canv.addEventListener('pointermove', function(ev) {
+        let st = window._omrState;
+        if (st.dragIdx === -1 || !st.corners) return;
+        ev.preventDefault();
+        let pt = ambilNormXY(ev);
+        st.corners[st.dragIdx].x = pt.x;
+        st.corners[st.dragIdx].y = pt.y;
+        window.gambarKanvasOMR();
+    });
+
+    function selesaiDrag(ev) {
+        let st = window._omrState;
+        if (st.dragIdx === -1) return;
+        st.dragIdx = -1;
+        try { canv.releasePointerCapture(ev.pointerId); } catch (e) {}
+        window.jalankanScanOMRPilihanGanda();
+    }
+
+    canv.addEventListener('pointerup', selesaiDrag);
+    canv.addEventListener('pointercancel', selesaiDrag);
+};
+
+window.koreksiManualSatuOMR = function(rowIdx, hurufBaru) {
+    let st = window._omrState;
+    if (!st.pgItems || !st.pgItems[rowIdx]) return;
+    let item = st.pgItems[rowIdx];
+
+    if (item.type === 'PGK') {
+        let cur = Array.isArray(st.detectedAns[rowIdx]) ? st.detectedAns[rowIdx].slice() : [];
+        if (hurufBaru === '-') {
+            cur = [];
+        } else {
+            let pos = cur.indexOf(hurufBaru);
+            if (pos === -1) cur.push(hurufBaru);
+            else cur.splice(pos, 1);
+            cur.sort();
+        }
+        st.detectedAns[rowIdx] = cur;
+    } else {
+        st.detectedAns[rowIdx] = hurufBaru;
+    }
+
+    window.gambarKanvasOMR();
+    window.renderDaftarHasilOMR();
+};
+
+window.renderDaftarHasilOMR = function() {
+    let st = window._omrState;
+    let listEl = document.getElementById('omr-result-list');
+    if (!listEl) return;
+
+    let totalPG = st.pgItems.length;
+    let terbaca = 0;
+    let benar = 0;
+    let salah = 0;
+    let poinPG = 0;
+    let maxTotalSemua = 0;
+
+    st.soalArr.forEach(function(q) {
+        maxTotalSemua += (st.bobot[q.type] || 0);
+    });
+
+    let html = '';
+    let opsiList = ['A', 'B', 'C', 'D', 'E', '-'];
+
+    st.pgItems.forEach(function(item, idx) {
+        let ans = st.detectedAns[idx];
+        let isPGK = (item.type === 'PGK');
+        let ansList = isPGK ? (Array.isArray(ans) ? ans : []) : ((ans && ans !== '-') ? [ans] : []);
+        let adaJawab = ansList.length > 0;
+        if (adaJawab) terbaca++;
+
+        let isBenar = isPGK
+            ? window.apakahJawabanPGKBenar(ansList, item.kunci, [])
+            : (adaJawab && item.kunci.length > 0 && ansList[0] === item.kunci[0]);
+
+        if (isBenar) {
+            benar++;
+            poinPG += item.maxPoin;
+        } else {
+            salah++;
+        }
+
+        let kunciStr = item.kunci.length > 0 ? item.kunci.join(',') : '-';
+        let btnsHtml = opsiList.map(function(opt) {
+            let isPicked = (opt === '-') ? !adaJawab : (ansList.indexOf(opt) !== -1);
+            let cls = 'omr-opt-btn';
+            if (isPicked) cls += (opt === '-') ? ' is-empty-pick' : (isBenar ? ' is-right' : ' is-wrong');
+            return '<button type="button" class="' + cls + '" onclick="window.koreksiManualSatuOMR(' + idx + ', \'' + opt + '\')">' + opt + '</button>';
+        }).join('');
+
+        html +=
+            '<div class="omr-row-item ' + (isBenar ? 'is-ok' : (adaJawab ? 'is-err' : 'is-blank')) + '">' +
+                '<div class="omr-row-no">' + item.nomorPG + '</div>' +
+                '<div class="omr-row-opts">' + btnsHtml + '</div>' +
+                '<div class="omr-row-key" title="Kunci Rekap Nilai">🔑 ' + kunciStr + '</div>' +
+                '<div class="omr-row-stat">' + (isBenar ? '✅' : '❌') + '</div>' +
+            '</div>';
+    });
+
+    listEl.innerHTML = html || '<div style="text-align:center; padding:24px; color:#64748b;">Tidak ada soal Pilihan Ganda pada paket ini.</div>';
+
+    let skorPGSkala = maxTotalSemua > 0 ? ((poinPG / maxTotalSemua) * 100) : 0;
+    let elTerbaca = document.getElementById('omr-stat-terbaca');
+    let elBenar = document.getElementById('omr-stat-benar');
+    let elSalah = document.getElementById('omr-stat-salah');
+    let elSkor = document.getElementById('omr-stat-skor');
+
+    if (elTerbaca) elTerbaca.innerText = terbaca + '/' + totalPG;
+    if (elBenar) elBenar.innerText = String(benar);
+    if (elSalah) elSalah.innerText = String(salah);
+    if (elSkor) elSkor.innerText = skorPGSkala.toFixed(1);
+};
+
+window.simpanHasilOMRKeRekap = function() {
+    let st = window._omrState;
+    if (!st.kelas || !st.paket || !st.nama) {
+        return alert("⚠️ Pilih nama siswa terlebih dahulu!");
+    }
+    if (!st.pgItems || st.pgItems.length === 0) {
+        return alert("⚠️ Tidak ada soal Pilihan Ganda untuk disimpan.");
+    }
+
+    let safeKelas = window.sanitasiKeyRekapFirebase(st.kelas);
+    let safePaket = window.sanitasiKeyRekapFirebase(st.paket);
+    let safeNama = window.sanitasiKeyRekapFirebase(st.nama);
+
+    let rekapPaketObj = window.ambilObjekRekapPaket(st.kelas, st.paket);
+    let dataLama = window.ambilDataSiswaDiObjekRekap(rekapPaketObj, st.nama);
+    let detailLamaMap = {};
+    if (dataLama && (Array.isArray(dataLama.detail) || Array.isArray(dataLama.rincian))) {
+        let arrL = Array.isArray(dataLama.detail) ? dataLama.detail : dataLama.rincian;
+        arrL.forEach(function(item, i) {
+            if (item) detailLamaMap[Number(item.nomor) || (i + 1)] = item;
+        });
+    }
+
+    let totalNilai = 0;
+    let totalMax = 0;
+    let hasilDetail = [];
+    let pgCursor = 0;
+
+    st.soalArr.forEach(function(q, idx) {
+        let noSoal = idx + 1;
+        let maxP = st.bobot[q.type] || 0;
+        let poin = 0;
+        let ansStr = '';
+        let status = 'Salah';
+
+        if (q.type === 'PG' || q.type === 'PGK') {
+            let detVal = st.detectedAns[pgCursor];
+            let pgMeta = st.pgItems[pgCursor];
+            pgCursor++;
+
+            if (q.type === 'PG') {
+                ansStr = (detVal && detVal !== '-') ? String(detVal) : '-';
+                if (ansStr !== '-' && pgMeta && pgMeta.kunci.length > 0 && ansStr === pgMeta.kunci[0]) {
+                    poin = maxP;
+                    status = 'Benar';
+                }
+            } else {
+                let arrAns = Array.isArray(detVal) ? detVal : [];
+                ansStr = arrAns.length > 0 ? arrAns.join(', ') : '-';
+                if (pgMeta && window.apakahJawabanPGKBenar(arrAns, pgMeta.kunci, q.options)) {
+                    poin = maxP;
+                    status = 'Benar Sempurna';
+                }
+            }
+        } else {
+            let lama = detailLamaMap[noSoal];
+            if (lama) {
+                ansStr = lama.jawabSiswa !== undefined ? lama.jawabSiswa : (lama.jawabanSiswa || '');
+                poin = Number(lama.poinDidapat !== undefined ? lama.poinDidapat : (lama.poin || 0)) || 0;
+                status = lama.status || 'Menunggu Guru';
+            } else {
+                ansStr = '';
+                poin = 0;
+                status = 'Menunggu Guru';
+            }
+        }
+
+        totalNilai += poin;
+        totalMax += maxP;
+
+        hasilDetail.push({
+            nomor: noSoal,
+            soal: q.question || '',
+            tipe: q.type,
+            kunci: q.correct || [],
+            jawabSiswa: ansStr,
+            jawabanSiswa: ansStr,
+            pembahasan: q.explanation || 'Tidak ada pembahasan.',
+            poin: poin,
+            poinDidapat: poin,
+            maxPoin: maxP,
+            status: status
+        });
+    });
+
+    let canv = document.getElementById('omr-photo-canvas');
+    if (canv && st.baseCanvas) {
+        try {
+            let previewKey = safeKelas + '__' + safePaket + '__' + safeNama;
+            window._ljkPreviewPhotoMap[previewKey] = canv.toDataURL('image/jpeg', 0.72);
+        } catch (e) {}
+    }
+
+    let nilaiSkala = totalMax > 0 ? ((totalNilai / totalMax) * 100) : 0;
+    let adaISEssay = st.soalArr.some(function(q) { return q.type === 'IS' || q.type === 'Essay'; });
+    let sampelPaket = Object.values(rekapPaketObj || {})[0];
+    let paketAsliLabel = (sampelPaket && sampelPaket.paketAsli) ? sampelPaket.paketAsli : st.paket;
+
+    let payload = {
+        namaAsli: st.nama,
+        kelasAsli: st.kelas,
+        paketAsli: paketAsliLabel,
+        nilaiAkhir: parseFloat(nilaiSkala.toFixed(2)),
+        waktuKumpul: new Date().toISOString(),
+        detail: hasilDetail,
+        rincian: hasilDetail,
+        pelanggaran: (dataLama && dataLama.pelanggaran) ? dataLama.pelanggaran : 0,
+        sudahDikoreksi: !adaISEssay
+    };
+
+    let btnSimpan = document.getElementById('btn-simpan-omr-rekap');
+    let oldTxt = btnSimpan ? btnSimpan.innerHTML : '💾 Simpan ke Rekap Nilai';
+    if (btnSimpan) {
+        btnSimpan.disabled = true;
+        btnSimpan.innerHTML = '⏳ Menyimpan...';
+    }
+
+    let pathDB = 'admin_rekap_nilai/' + safeKelas + '/' + safePaket + '/' + safeNama;
+
+    let selesaiSimpan = function() {
+        if (!window.adminRekapNilaiData[safeKelas]) window.adminRekapNilaiData[safeKelas] = {};
+        if (!window.adminRekapNilaiData[safeKelas][safePaket]) window.adminRekapNilaiData[safeKelas][safePaket] = {};
+        window.adminRekapNilaiData[safeKelas][safePaket][safeNama] = payload;
+
+        if (btnSimpan) {
+            btnSimpan.disabled = false;
+            btnSimpan.innerHTML = oldTxt;
+        }
+
+        window.renderRekapNilai();
+        if (typeof window.renderLedgerSiswa === 'function') window.renderLedgerSiswa();
+        if (typeof window.renderRemedialTabAdmin === 'function') window.renderRemedialTabAdmin();
+
+        let daftarSiswa = (window.adminData && Array.isArray(window.adminData[st.kelas])) ? window.adminData[st.kelas].slice().sort() : [];
+        let rekapTerbaru = window.ambilObjekRekapPaket(st.kelas, st.paket);
+        let siswaBerikut = daftarSiswa.find(function(n) {
+            return n !== st.nama && !window.ambilDataSiswaDiObjekRekap(rekapTerbaru, n);
+        });
+
+        let toast = document.createElement('div');
+        toast.innerText = '✅ Skor PG ' + st.nama + ' (' + payload.nilaiAkhir + ') tersimpan ke Rekap Nilai!';
+        toast.style.cssText = "position:fixed; top:20px; left:50%; transform:translateX(-50%); background:#060608; color:#00E1FF; border:1.5px solid #00E1FF; padding:10px 20px; border-radius:30px; font-family:'Poppins', sans-serif; font-size:12.5px; font-weight:700; box-shadow:0 6px 20px rgba(0,0,0,0.28); z-index:9999999;";
+        document.body.appendChild(toast);
+        setTimeout(function() { toast.remove(); }, 2400);
+
+        if (siswaBerikut) {
+            st.baseCanvas = null;
+            st.corners = null;
+            st.snappedColFrac = null;
+            st.snappedRowFrac = null;
+            st.detectedAns = {};
+            st.autoDetected = false;
+            st.manualEditMode = false;
+            let emptyEl = document.getElementById('omr-empty-photo');
+            let canvEl = document.getElementById('omr-photo-canvas');
+            if (emptyEl) emptyEl.style.display = 'flex';
+            if (canvEl) canvEl.style.display = 'none';
+            window.bukaModalScannerOMR(st.kelas, st.paket, siswaBerikut, false);
+        } else {
+            window.tutupModal('modal-scanner-omr');
+        }
+    };
+
+    if (typeof window.kirimNilaiUjianAmanKeDB === 'function') {
+        window.kirimNilaiUjianAmanKeDB(pathDB, payload, selesaiSimpan, function(err) {
+            if (btnSimpan) {
+                btnSimpan.disabled = false;
+                btnSimpan.innerHTML = oldTxt;
+            }
+            alert('❌ Gagal menyimpan hasil scan OMR: ' + (err ? err.message : 'Periksa koneksi internet.'));
+        });
+    } else {
+        selesaiSimpan();
     }
 };
 

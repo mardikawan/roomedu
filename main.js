@@ -413,9 +413,34 @@ window.addEventListener('popstate', function(e) {
     if(activeLink) activeLink.classList.add('active');
 });
 
-// 5. Render Toolbar Utama (Navbar) dengan Sub-Room hingga 10 Tingkat
+// 5. Render Sidebar Kiri Ruang Belajar (Drawer 3 Garis + Accordion hingga 10 Tingkat)
 window._navTreeRootNodes = [];
 window._navNodeBySlug = {};
+window._drawerExpandedSlugs = new Set();
+
+window.toggleMainSidebarNav = function(forceOpen) {
+    let nav = document.getElementById('main-nav');
+    let bd = document.getElementById('main-nav-backdrop');
+    let btn = document.getElementById('btn-toggle-main-sidebar');
+    if (!nav) return;
+
+    let willOpen = (typeof forceOpen === 'boolean') ? forceOpen : !nav.classList.contains('is-open');
+    nav.classList.toggle('is-open', willOpen);
+    if (bd) bd.classList.toggle('is-open', willOpen);
+    if (btn) btn.classList.toggle('is-open', willOpen);
+
+    if (willOpen && typeof window.tutupMenuHeaderMore === 'function') {
+        window.tutupMenuHeaderMore();
+    }
+};
+
+window.closeDropdowns = function() {
+    window.toggleMainSidebarNav(false);
+    let portal = document.getElementById('mobile-nav-dropdown-portal');
+    let backdrop = document.getElementById('mobile-nav-dropdown-backdrop');
+    if (portal) portal.style.display = 'none';
+    if (backdrop) backdrop.style.display = 'none';
+};
 
 window.ambilAnakVisibleNav = function(node) {
     if (!node || !Array.isArray(node.children)) return [];
@@ -425,6 +450,16 @@ window.ambilAnakVisibleNav = function(node) {
     });
 };
 
+window.apakahCabangMemuatSlugAktif = function(node, targetSlug) {
+    if (!node || !targetSlug) return false;
+    if (node.slug === targetSlug) return true;
+    let kids = node.children || [];
+    for (let i = 0; i < kids.length; i++) {
+        if (window.apakahCabangMemuatSlugAktif(kids[i], targetSlug)) return true;
+    }
+    return false;
+};
+
 window.renderDynamicNavbar = function() {
     window.pastikanRoomHiddenTerkunci();
 
@@ -432,20 +467,12 @@ window.renderDynamicNavbar = function() {
     let navUl = document.getElementById("dynamic-navbar");
     if (!container || !navUl) return;
 
-    let staticHomeLink = navUl.querySelector(':scope > li > a[href="index.html?bab=home"]');
+    let staticHomeLink = navUl.querySelector('li.is-home-fallback > a');
     let hasDynamicHome = window.pagesData.some(function(p) { return p.slug === "home"; });
     if (staticHomeLink && staticHomeLink.parentElement) {
         staticHomeLink.parentElement.style.display = hasDynamicHome ? "none" : "";
         staticHomeLink.onclick = function(e) { window.klikMenuNavbar(e, 'home', staticHomeLink); };
     }
-
-    navUl.querySelectorAll(':scope > li > a').forEach(function(a) {
-        let href = a.getAttribute('href');
-        if (href && href.indexOf('index.html?bab=') === 0 && href !== 'index.html?bab=home') {
-            let slug = href.split('=')[1];
-            a.onclick = function(ev) { window.klikMenuNavbar(ev, slug, a); };
-        }
-    });
 
     let rootNodes = [];
     let stack = [];
@@ -453,8 +480,13 @@ window.renderDynamicNavbar = function() {
 
     window.pagesData.forEach(function(page, idx) {
         let node = {
-            title: page.title, slug: page.slug, level: page.level, hidden: Boolean(page.hidden),
-            isLockedHidden: Boolean(page.isLockedHidden), index: idx, children: [],
+            title: page.title,
+            slug: page.slug,
+            level: page.level,
+            hidden: Boolean(page.hidden),
+            isLockedHidden: Boolean(page.isLockedHidden),
+            index: idx,
+            children: [],
             effectiveHidden: Boolean(page.hidden) || Boolean(page.isLockedHidden)
         };
         nodeMap[node.slug] = node;
@@ -474,329 +506,94 @@ window.renderDynamicNavbar = function() {
     window._navTreeRootNodes = rootNodes;
     window._navNodeBySlug = nodeMap;
 
-    function cetakMenuHTML(nodes, isSubMenu) {
+    let aktifSlug = window.babAktif || babAktif || "home";
+
+    function cetakMenuHTML(nodes) {
         let html = "";
         nodes.forEach(function(node) {
             let visibleChildren = window.ambilAnakVisibleNav(node);
             let hasChildren = visibleChildren.length > 0;
-            let liClasses = [];
+            let isActive = (node.slug === aktifSlug);
+            let containsActive = hasChildren && !isActive && window.apakahCabangMemuatSlugAktif(node, aktifSlug);
+            let isExpanded = hasChildren && (window._drawerExpandedSlugs.has(node.slug) || containsActive);
+
+            let liClasses = ["drawer-nav-item"];
             if (node.effectiveHidden) liClasses.push("hidden-nav-item");
             if (hasChildren) liClasses.push("has-sub");
+            if (isExpanded) liClasses.push("is-expanded");
             if (node.isLockedHidden) liClasses.push("locked-hidden-nav-item");
 
-            let aClasses = [];
+            let aClasses = ["drawer-nav-link"];
             if (node.effectiveHidden) aClasses.push("hidden-nav-link");
-            if (node.slug === babAktif) aClasses.push("active");
+            if (isActive) aClasses.push("active");
 
             let labelTitle = node.title;
             if (node.level === 0 && node.slug === "home" && labelTitle.indexOf("🏠") === -1) labelTitle = "🏠 " + labelTitle;
             else if (node.isLockedHidden && labelTitle.indexOf("🔒") === -1) labelTitle = "🔒 " + labelTitle;
 
-            let arrowHTML = hasChildren ? (isSubMenu ? ' <span class="sub-arrow-ind" style="font-size:11px; margin-left:8px;">▸</span>' : ' <span class="sub-arrow-ind" style="font-size:10px; margin-left:4px;">▾</span>') : "";
             let safeSlug = String(node.slug || "").replace(/'/g, "\\'");
 
             html += '<li class="' + liClasses.join(" ") + '" data-level="' + node.level + '" data-slug="' + safeSlug + '">';
-            html += '<a href="index.html?bab=' + encodeURIComponent(node.slug) + '" class="' + aClasses.join(" ") + '" onclick="window.klikMenuNavbar(event, \'' + safeSlug + '\', this)">';
-            html += '<span>' + labelTitle + '</span>' + arrowHTML;
-            html += '</a>';
+            html += '  <div class="drawer-item-row">';
+            html += '    <a href="index.html?bab=' + encodeURIComponent(node.slug) + '" class="' + aClasses.join(" ") + '" onclick="window.klikMenuNavbar(event, \'' + safeSlug + '\', this)">';
+            html += '      <span class="drawer-link-txt">' + labelTitle + '</span>';
+            html += '    </a>';
+            if (hasChildren) {
+                html += '    <button type="button" class="drawer-expand-btn" onclick="window.toggleSubMenuSidebar(event, \'' + safeSlug + '\', this)" title="Buka / Tutup Sub-Ruang" aria-expanded="' + (isExpanded ? 'true' : 'false') + '">' + (isExpanded ? '▾' : '▸') + '</button>';
+            }
+            html += '  </div>';
 
             if (hasChildren) {
-                html += '<ul class="sub-menu-nav" data-sub-level="' + (node.level + 1) + '">';
-                html += cetakMenuHTML(node.children, true);
-                html += '</ul>';
+                html += '  <ul class="sub-menu-nav' + (isExpanded ? ' open-sub' : '') + '" data-sub-level="' + (node.level + 1) + '">';
+                html += cetakMenuHTML(node.children);
+                html += '  </ul>';
             }
             html += '</li>';
         });
         return html;
     }
 
-    container.innerHTML = cetakMenuHTML(rootNodes, false);
+    container.innerHTML = cetakMenuHTML(rootNodes);
 };
 
-// 6. Logika Buka-Tutup Sub-Menu 10 Tingkat (Hover Desktop & Portal Dropdown HP 1x/2x Tekan)
-let navCloseTimer = null;
-window._mobileOpenTopSlug = null;
-window._mobileExpandedSubSlugs = new Set();
-
-window.closeDropdowns = function() {
-    document.querySelectorAll("#dynamic-navbar ul.sub-menu-nav.open-sub").forEach(function(ul) {
-        ul.classList.remove("open-sub", "flyout-left", "align-right-edge");
-        ul.style.position = ''; ul.style.top = ''; ul.style.left = ''; ul.style.right = '';
-    });
-
-    window._mobileOpenTopSlug = null;
-    window._mobileExpandedSubSlugs = new Set();
-
-    document.querySelectorAll('#dynamic-navbar a.mobile-nav-opened').forEach(function(el) {
-        el.classList.remove('mobile-nav-opened');
-    });
-
-    let portal = document.getElementById('mobile-nav-dropdown-portal');
-    let backdrop = document.getElementById('mobile-nav-dropdown-backdrop');
-    if (portal) portal.style.display = 'none';
-    if (backdrop) backdrop.style.display = 'none';
-};
-
-window.pastikanPortalDropdownMobileAda = function() {
-    let backdrop = document.getElementById('mobile-nav-dropdown-backdrop');
-    if (!backdrop) {
-        backdrop = document.createElement('div');
-        backdrop.id = 'mobile-nav-dropdown-backdrop';
-        backdrop.className = 'mobile-nav-dropdown-backdrop';
-        backdrop.onclick = function() { window.closeDropdowns(); };
-        document.body.appendChild(backdrop);
-    }
-
-    let portal = document.getElementById('mobile-nav-dropdown-portal');
-    if (!portal) {
-        portal = document.createElement('div');
-        portal.id = 'mobile-nav-dropdown-portal';
-        portal.className = 'mobile-nav-dropdown-portal';
-        document.body.appendChild(portal);
-    }
-    return { portal: portal, backdrop: backdrop };
-};
-
-window.bangunHTMLDaftarMobileSub = function(nodes, depth) {
-    let html = '';
-    let isEdit = document.body.classList.contains('mode-edit-aktif') || document.documentElement.classList.contains('force-edit-mode');
-
-    nodes.forEach(function(node) {
-        if (!isEdit && node.effectiveHidden) return;
-
-        let visibleChildren = window.ambilAnakVisibleNav(node);
-        let hasSub = visibleChildren.length > 0;
-        let isExpanded = hasSub && window._mobileExpandedSubSlugs.has(node.slug);
-        let isActiveRoom = (node.slug === (window.babAktif || babAktif));
-        let safeSlug = String(node.slug || "").replace(/'/g, "\\'");
-
-        let padLeft = 16 + (depth * 16);
-        let itemClasses = 'mobile-dd-item';
-        if (isExpanded) itemClasses += ' is-expanded';
-        if (isActiveRoom) itemClasses += ' is-active-room';
-        if (depth > 0) itemClasses += ' is-nested';
-
-        let arrowHtml = hasSub
-            ? '<span class="mobile-dd-arrow">' + (isExpanded ? '▾' : '▸') + '</span>'
-            : '';
-
-        let hintHtml = isExpanded
-            ? '<span class="mobile-dd-tap-hint">Tap lagi ➔ Masuk</span>'
-            : '';
-
-        html +=
-            '<button type="button" class="' + itemClasses + '" style="padding-left:' + padLeft + 'px;" onclick="window.klikSubMenuMobile(event, \'' + safeSlug + '\')">' +
-                '<span class="mobile-dd-label">' + node.title + '</span>' +
-                '<span class="mobile-dd-right">' + hintHtml + arrowHtml + '</span>' +
-            '</button>';
-
-        if (hasSub && isExpanded) {
-            html += '<div class="mobile-dd-children">' + window.bangunHTMLDaftarMobileSub(visibleChildren, depth + 1) + '</div>';
-        }
-    });
-
-    return html;
-};
-
-window.renderPortalDropdownMobile = function(topSlug, triggerAnchorEl) {
-    let topNode = window._navNodeBySlug ? window._navNodeBySlug[topSlug] : null;
-    if (!topNode) return;
-
-    let visibleChildren = window.ambilAnakVisibleNav(topNode);
-    if (visibleChildren.length === 0) return;
-
-    let els = window.pastikanPortalDropdownMobileAda();
-    let oldScrollEl = els.portal.querySelector('.mobile-dd-scroll');
-    let prevScrollTop = oldScrollEl ? oldScrollEl.scrollTop : 0;
-
-    let navEl = document.getElementById('main-nav');
-    let navRect = navEl ? navEl.getBoundingClientRect() : { bottom: 96 };
-    let topPos = Math.max(40, Math.round(navRect.bottom));
-
-    els.backdrop.style.top = topPos + 'px';
-    els.backdrop.style.display = 'block';
-
-    let safeTopSlug = String(topNode.slug || "").replace(/'/g, "\\'");
-    let headerHTML =
-        '<div class="mobile-dd-header" onclick="window.navigasiHalaman(event, \'' + safeTopSlug + '\')">' +
-            '<span>📂 ' + topNode.title + '</span>' +
-            '<span class="mobile-dd-enter-pill">Masuk Room ➔</span>' +
-        '</div>';
-
-    let listHTML = '<div class="mobile-dd-scroll">' + window.bangunHTMLDaftarMobileSub(visibleChildren, 0) + '</div>';
-
-    els.portal.innerHTML = headerHTML + listHTML;
-    els.portal.style.top = topPos + 'px';
-    els.portal.style.maxHeight = 'calc(100dvh - ' + (topPos + 54) + 'px)';
-    els.portal.style.display = 'flex';
-
-    let newScrollEl = els.portal.querySelector('.mobile-dd-scroll');
-    if (newScrollEl && prevScrollTop > 0) {
-        newScrollEl.scrollTop = prevScrollTop;
-    }
-
-    document.querySelectorAll('#dynamic-navbar a.mobile-nav-opened').forEach(function(el) {
-        el.classList.remove('mobile-nav-opened');
-    });
-    if (triggerAnchorEl) {
-        triggerAnchorEl.classList.add('mobile-nav-opened');
-    } else {
-        let aFound = document.querySelector('#dynamic-navbar li[data-slug="' + safeTopSlug + '"] > a');
-        if (aFound) aFound.classList.add('mobile-nav-opened');
-    }
-};
-
-// Klik Menu Utama Navbar (HP: 1x Buka Dropdown, 2x Masuk Room | Tanpa Anak: 1x Langsung Masuk)
-window.klikMenuNavbar = function(e, slug, anchorEl) {
+// Klik Nama Ruang di Sidebar Kiri: Langsung Buka Halamannya & Tutup Drawer
+window.klikMenuNavbar = function(e, slug) {
     if (e) e.preventDefault();
-
-    let isMobile = window.innerWidth <= 768;
-    let node = window._navNodeBySlug ? window._navNodeBySlug[slug] : null;
-
-    if (!isMobile || !node) {
-        window.navigasiHalaman(e, slug);
-        return;
-    }
-
-    let visibleChildren = window.ambilAnakVisibleNav(node);
-
-    if (visibleChildren.length === 0) {
-        window.closeDropdowns();
-        window.navigasiHalaman(e, slug);
-        return;
-    }
-
-    if (window._mobileOpenTopSlug === slug) {
-        window.closeDropdowns();
-        window.navigasiHalaman(e, slug);
-        return;
-    }
-
-    if (e) e.stopPropagation();
-    window._mobileOpenTopSlug = slug;
-    window._mobileExpandedSubSlugs = new Set();
-    window.renderPortalDropdownMobile(slug, anchorEl);
+    window.navigasiHalaman(e, slug);
+    window.toggleMainSidebarNav(false);
 };
 
-// Klik Sub-Room di Dalam Dropdown HP (Tanpa Sub-Sub: 1x Masuk | Punya Sub-Sub: 1x Buka, 2x Masuk)
-window.klikSubMenuMobile = function(e, slug) {
+// Klik Panah Sub-Ruang di Sidebar Kiri: Buka/Tutup Cabang (Accordion) Tanpa Menutup Drawer
+window.toggleSubMenuSidebar = function(e, slug, btnEl) {
     if (e) {
         e.preventDefault();
         e.stopPropagation();
     }
+    let li = btnEl ? btnEl.closest('li.drawer-nav-item') : null;
+    if (!li) return;
+    let subUl = li.querySelector(':scope > ul.sub-menu-nav');
+    let willExpand = !li.classList.contains('is-expanded');
 
-    let node = window._navNodeBySlug ? window._navNodeBySlug[slug] : null;
-    if (!node) {
-        window.closeDropdowns();
-        window.navigasiHalaman(e, slug);
-        return;
+    li.classList.toggle('is-expanded', willExpand);
+    if (subUl) subUl.classList.toggle('open-sub', willExpand);
+    if (btnEl) {
+        btnEl.innerText = willExpand ? '▾' : '▸';
+        btnEl.setAttribute('aria-expanded', willExpand ? 'true' : 'false');
     }
 
-    let visibleChildren = window.ambilAnakVisibleNav(node);
-
-    if (visibleChildren.length === 0) {
-        window.closeDropdowns();
-        window.navigasiHalaman(e, slug);
-        return;
-    }
-
-    if (window._mobileExpandedSubSlugs.has(slug)) {
-        window.closeDropdowns();
-        window.navigasiHalaman(e, slug);
-        return;
-    }
-
-    window._mobileExpandedSubSlugs.add(slug);
-    window.renderPortalDropdownMobile(window._mobileOpenTopSlug, null);
+    if (willExpand) window._drawerExpandedSlugs.add(slug);
+    else window._drawerExpandedSlugs.delete(slug);
 };
 
-function aturPosisiSubMenu(ulElement) {
-    if (!ulElement || window.innerWidth <= 768) return;
-    ulElement.classList.add("open-sub");
-    let parentLi = ulElement.parentElement;
-    let rect = parentLi.getBoundingClientRect();
-    let isTopLevelDropdown = parentLi && parentLi.parentElement && (parentLi.parentElement.id === "dynamic-pages-container" || parentLi.parentElement.id === "dynamic-navbar");
-
-    if (isTopLevelDropdown) {
-        ulElement.style.position = 'fixed';
-        ulElement.style.zIndex = '4800';
-        ulElement.style.top = rect.bottom + 'px';
-        ulElement.style.left = rect.left + 'px';
-        ulElement.style.right = 'auto';
-
-        if (rect.left + 220 > window.innerWidth) {
-            ulElement.style.left = 'auto';
-            ulElement.style.right = '10px';
-        }
-    } else {
-        ulElement.style.position = '';
-        ulElement.style.top = '';
-        ulElement.style.left = '';
-        ulElement.style.right = '';
-
-        if (rect.right + 220 > window.innerWidth) {
-            ulElement.classList.add("flyout-left");
-        } else {
-            ulElement.classList.remove("flyout-left");
-        }
-    }
-}
-
-function bukaJalurSubMenu(liElement) {
-    if (!liElement || window.innerWidth <= 768) return;
-    let activeUls = new Set();
-    let curr = liElement;
-    while (curr && curr.id !== "dynamic-navbar") {
-        if (curr.tagName === "UL" && curr.classList.contains("sub-menu-nav")) activeUls.add(curr);
-        curr = curr.parentElement;
-    }
-    let directSubUl = liElement.querySelector(":scope > ul.sub-menu-nav");
-    if (directSubUl) {
-        activeUls.add(directSubUl);
-    }
-
-    document.querySelectorAll("#dynamic-navbar ul.sub-menu-nav.open-sub").forEach(function(ul) {
-        if (!activeUls.has(ul)) {
-            ul.classList.remove("open-sub", "flyout-left", "align-right-edge");
-            ul.style.position = ''; ul.style.top = ''; ul.style.left = ''; ul.style.right = '';
-        }
-    });
-
-    activeUls.forEach(function(ul) {
-        aturPosisiSubMenu(ul);
-    });
-}
-
-document.addEventListener("mouseover", function(e) {
-    if (window.innerWidth > 768) {
-        let li = e.target.closest("#dynamic-navbar li");
-        if (li) { clearTimeout(navCloseTimer); bukaJalurSubMenu(li); }
-        else if (!e.target.closest("#dynamic-navbar")) { clearTimeout(navCloseTimer); navCloseTimer = setTimeout(window.closeDropdowns, 220); }
-    }
-});
-
-document.addEventListener("click", function(e) {
-    if (window.innerWidth <= 768 && window._mobileOpenTopSlug) {
-        if (!e.target.closest("#dynamic-navbar") && !e.target.closest("#mobile-nav-dropdown-portal")) {
-            window.closeDropdowns();
+// Tutup Drawer Sidebar Kiri Saat Tekan Tombol ESC
+document.addEventListener("keydown", function(e) {
+    if (e.key === "Escape") {
+        let nav = document.getElementById("main-nav");
+        if (nav && nav.classList.contains("is-open")) {
+            window.toggleMainSidebarNav(false);
         }
     }
 });
-
-window.addEventListener("scroll", function() {
-    if (window.innerWidth <= 768 && window._mobileOpenTopSlug) {
-        let navEl = document.getElementById('main-nav');
-        let portal = document.getElementById('mobile-nav-dropdown-portal');
-        let backdrop = document.getElementById('mobile-nav-dropdown-backdrop');
-        if (navEl && portal && portal.style.display === 'flex') {
-            let navRect = navEl.getBoundingClientRect();
-            let topPos = Math.max(0, Math.round(navRect.bottom));
-            portal.style.top = topPos + 'px';
-            portal.style.maxHeight = 'calc(100dvh - ' + (topPos + 54) + 'px)';
-            if (backdrop) backdrop.style.top = topPos + 'px';
-        }
-    }
-}, { passive: true });
 
 // 7. Render & Operasi di Dalam Modal "⚙️ Pages"
 let dragSourcePageIndex = null;
@@ -2786,9 +2583,410 @@ window.sinkronkanKunciScrollModal = function() {
     }
 };
 
+window._adminWsActive = false;
+window._adminWsCurrentMenu = 'administrasi';
+window._isSyncingAdminWS = false;
+window._isClosingAdminWS = false;
+
+window._ADMIN_WS_MAP = {
+    'administrasi':    { modalId: 'modal-administrasi',    icon: '📁', title: 'Administrasi Kelas' },
+    'manajer-soal':    { modalId: 'modal-manajer-soal',    icon: '🗂️', title: 'Manajer Latihan' },
+    'manajer-ujian':   { modalId: 'modal-manajer-ujian',   icon: '🎯', title: 'Manajer Ujian' },
+    'rekap-nilai':     { modalId: 'modal-rekap-nilai',     icon: '📊', title: 'Rekap Nilai' },
+    'ekstrakurikuler': { modalId: 'modal-ekstrakurikuler', icon: '🏕️', title: 'Ekstrakurikuler' }
+};
+
+window.cariKeyMenuAdminWSByModalId = function(modalId) {
+    let keys = Object.keys(window._ADMIN_WS_MAP);
+    for (let i = 0; i < keys.length; i++) {
+        if (window._ADMIN_WS_MAP[keys[i]].modalId === modalId) return keys[i];
+    }
+    return null;
+};
+
+window.pastikanModulTerpasangDiAdminWS = function() {
+    let stage = document.getElementById('admin-ws-stage');
+    if (!stage) return;
+    Object.keys(window._ADMIN_WS_MAP).forEach(function(key) {
+        let mId = window._ADMIN_WS_MAP[key].modalId;
+        let el = document.getElementById(mId);
+        if (el && el.parentElement !== stage) {
+            stage.appendChild(el);
+        }
+        if (el) {
+            el.classList.add('admin-ws-docked');
+        }
+    });
+};
+
+window.sinkronkanSubTabsTopbarWS = function(menuKey) {
+    let host = document.getElementById('admin-ws-topbar-tabs');
+    if (!host) return;
+
+    let tabAdmin  = document.getElementById('aws-admin-subtabs');
+    let tabUjian  = document.getElementById('aws-ujian-subtabs');
+    let tabEkskul = document.getElementById('aws-ekskul-subtabs');
+
+    if (tabAdmin  && tabAdmin.parentElement  !== host) host.appendChild(tabAdmin);
+    if (tabUjian  && tabUjian.parentElement  !== host) host.appendChild(tabUjian);
+    if (tabEkskul && tabEkskul.parentElement !== host) host.appendChild(tabEkskul);
+
+    if (tabAdmin)  tabAdmin.style.display  = (menuKey === 'administrasi')    ? 'flex' : 'none';
+    if (tabUjian)  tabUjian.style.display  = (menuKey === 'manajer-ujian')   ? 'flex' : 'none';
+    if (tabEkskul) tabEkskul.style.display = (menuKey === 'ekstrakurikuler') ? 'flex' : 'none';
+
+    let hasSub = (menuKey === 'administrasi' || menuKey === 'manajer-ujian' || menuKey === 'ekstrakurikuler');
+    host.style.display = hasSub ? 'flex' : 'none';
+};
+
+window.perbaruiHeaderAdminWS = function(menuKey) {
+    let cfg = window._ADMIN_WS_MAP[menuKey] || window._ADMIN_WS_MAP['administrasi'];
+    let icoEl = document.getElementById('ws-topbar-icon');
+    let ttlEl = document.getElementById('ws-topbar-title');
+    let subEl = document.getElementById('ws-topbar-subtitle');
+
+    if (icoEl) icoEl.innerText = cfg.icon;
+    if (ttlEl) ttlEl.innerText = cfg.title;
+
+    let tglStr = '';
+    try {
+        tglStr = new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' });
+    } catch (e) {
+        tglStr = '';
+    }
+    if (subEl) subEl.innerText = 'Mardikawan Room Edu' + (tglStr ? ' • ' + tglStr : '');
+
+    document.querySelectorAll('#admin-ws-sidebar .admin-ws-nav-item[data-ws-menu]').forEach(function(btn) {
+        btn.classList.toggle('active', btn.getAttribute('data-ws-menu') === menuKey);
+    });
+
+    window.sinkronkanSubTabsTopbarWS(menuKey);
+
+    if (typeof window.sinkronkanBadgeUjianSidebarWS === 'function') {
+        window.sinkronkanBadgeUjianSidebarWS();
+    }
+};
+
+window.toggleSidebarAdminWS = function(forceState) {
+    let sb = document.getElementById('admin-ws-sidebar');
+    let bd = document.getElementById('admin-ws-sidebar-backdrop');
+    if (!sb) return;
+    let willOpen = (typeof forceState === 'boolean') ? forceState : !sb.classList.contains('is-open');
+    sb.classList.toggle('is-open', willOpen);
+    if (bd) bd.classList.toggle('is-open', willOpen);
+};
+
+window.bukaModeAdministrasiPenuh = function(defaultMenu) {
+    let shell = document.getElementById('admin-workspace-shell');
+    if (!shell) {
+        if (typeof window.bukaModalAdministrasi === 'function') window.bukaModalAdministrasi();
+        return;
+    }
+
+    window.pastikanModulTerpasangDiAdminWS();
+    window._adminWsActive = true;
+    shell.style.display = 'flex';
+    document.body.classList.add('admin-ws-mode-active');
+
+    let targetMenu = (defaultMenu && window._ADMIN_WS_MAP[defaultMenu]) ? defaultMenu : 'administrasi';
+    window.pindahMenuAdminWS(targetMenu);
+};
+
+window.pindahMenuAdminWS = function(menuKey) {
+    if (!window._ADMIN_WS_MAP[menuKey]) menuKey = 'administrasi';
+    window.pastikanModulTerpasangDiAdminWS();
+    window._adminWsCurrentMenu = menuKey;
+    window.perbaruiHeaderAdminWS(menuKey);
+    window.toggleSidebarAdminWS(false);
+
+    let targetModalId = window._ADMIN_WS_MAP[menuKey].modalId;
+
+    // Sembunyikan 3 modul lain agar hanya 1 modul aktif yang tampil bersih
+    Object.keys(window._ADMIN_WS_MAP).forEach(function(k) {
+        let mId = window._ADMIN_WS_MAP[k].modalId;
+        let el = document.getElementById(mId);
+        if (!el) return;
+        if (mId !== targetModalId) {
+            el.style.display = 'none';
+            el.classList.remove('admin-ws-active-view');
+        } else {
+            el.classList.add('admin-ws-active-view');
+        }
+    });
+
+    // Jalankan pembuka asli masing-masing modul agar seluruh data & observer tetap 100% aktif
+    window._isSyncingAdminWS = true;
+    try {
+        if (menuKey === 'administrasi' && typeof window.bukaModalAdministrasi === 'function') {
+            window.bukaModalAdministrasi();
+        } else if (menuKey === 'ekstrakurikuler') {
+            window.bukaModal(targetModalId);
+            if (typeof window.bukaRuangEkstrakurikuler === 'function') {
+                window.bukaRuangEkstrakurikuler();
+            }
+        } else {
+            window.bukaModal(targetModalId);
+        }
+    } finally {
+        window._isSyncingAdminWS = false;
+    }
+
+    // Pastikan tampilan selalu mulai dari paling atas saat pindah modul
+    let stage = document.getElementById('admin-ws-stage');
+    if (stage) stage.scrollTop = 0;
+};
+
+window.tutupModeAdministrasiPenuh = function() {
+    let shell = document.getElementById('admin-workspace-shell');
+    window._isClosingAdminWS = true;
+    window._adminWsActive = false;
+
+    Object.keys(window._ADMIN_WS_MAP).forEach(function(k) {
+        let el = document.getElementById(window._ADMIN_WS_MAP[k].modalId);
+        if (el) {
+            el.style.display = 'none';
+            el.classList.remove('admin-ws-active-view');
+        }
+    });
+
+    window.toggleSidebarAdminWS(false);
+    if (shell) shell.style.display = 'none';
+    document.body.classList.remove('admin-ws-mode-active');
+
+    window._isClosingAdminWS = false;
+    window.sinkronkanKunciScrollModal();
+};
+
+window.perbaruiPillStatusKelasWS = function() {
+    let pill = document.getElementById('ws-status-pill');
+    if (!pill) return;
+
+    let menu = window._adminWsCurrentMenu || 'administrasi';
+    if (menu === 'administrasi') {
+        let sel = document.getElementById('admin-select-kelas');
+        let kls = (sel && sel.value) ? sel.value : (window.kelasAktifAdmin || '');
+        pill.innerText = kls ? ('🏫 Kelas Aktif: ' + kls) : '● Mode Administrasi Aktif';
+    } else if (menu === 'manajer-soal') {
+        let selLat = document.getElementById('filter-manajer-kelas');
+        let klsLat = (selLat && selLat.value) ? selLat.value : 'Semua';
+        pill.innerText = '🗂️ Filter Latihan: ' + klsLat;
+    } else if (menu === 'manajer-ujian') {
+        let aktifEl = document.getElementById('info-total-ujian-aktif');
+        let jmlAktif = aktifEl ? (aktifEl.innerText || '0') : '0';
+        pill.innerText = '🎯 Ujian Aktif: ' + jmlAktif;
+    } else if (menu === 'rekap-nilai') {
+        let selRek = document.getElementById('filter-rekap-kelas');
+        let klsRek = (selRek && selRek.value) ? selRek.value : 'Semua';
+        pill.innerText = '📊 Rekap Kelas: ' + klsRek;
+    } else {
+        pill.innerText = '● Mode Administrasi Aktif';
+    }
+};
+
+window.sinkronkanBadgeUjianSidebarWS = function() {
+    let srcBadge = document.getElementById('badge-notif');
+    let dstBadge = document.getElementById('ws-badge-ujian-notif');
+    if (!srcBadge || !dstBadge) return;
+    let isVis = (srcBadge.style.display && srcBadge.style.display !== 'none');
+    dstBadge.style.display = isVis ? 'inline-flex' : 'none';
+    dstBadge.innerText = srcBadge.innerText || '!';
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+    // 1. Jaga status aktif pada sub-tab Administrasi Kelas
+    let subTabs = document.getElementById('aws-admin-subtabs');
+    if (subTabs) {
+        subTabs.addEventListener('click', function(e) {
+            let btn = e.target.closest ? e.target.closest('.tab-admin-btn') : null;
+            if (!btn) return;
+            subTabs.querySelectorAll('.tab-admin-btn').forEach(function(b) {
+                b.classList.remove('active');
+            });
+            btn.classList.add('active');
+        });
+    }
+
+    // 2. Jaga status aktif pada sub-tab Manajer Ujian
+    let ujianTabs = document.getElementById('aws-ujian-subtabs');
+    if (ujianTabs) {
+        ujianTabs.addEventListener('click', function(e) {
+            let btn = e.target.closest ? e.target.closest('.tab-ujian-btn') : null;
+            if (!btn) return;
+            ujianTabs.querySelectorAll('.tab-ujian-btn').forEach(function(b) {
+                b.classList.remove('active');
+            });
+            btn.classList.add('active');
+        });
+    }
+
+    // 3. Pantau perubahan filter untuk memperbarui pill status di topbar
+    ['admin-select-kelas', 'filter-manajer-kelas', 'filter-rekap-kelas', 'filter-rekap-paket'].forEach(function(idSel) {
+        let el = document.getElementById(idSel);
+        if (!el) return;
+        el.addEventListener('change', function() {
+            setTimeout(window.perbaruiPillStatusKelasWS, 60);
+        });
+        let obs = new MutationObserver(function() {
+            window.perbaruiPillStatusKelasWS();
+        });
+        obs.observe(el, { childList: true });
+    });
+
+    // 4. Sinkronkan badge Live Monitor ke sidebar kiri secara real-time
+    let srcNotif = document.getElementById('badge-notif');
+    if (srcNotif) {
+        let obsNotif = new MutationObserver(window.sinkronkanBadgeUjianSidebarWS);
+        obsNotif.observe(srcNotif, { attributes: true, childList: true, characterData: true, subtree: true });
+    }
+
+    // 5. Perbarui pill status setiap kali jumlah ujian aktif berubah
+    // 5. Perbarui pill status setiap kali jumlah ujian aktif berubah
+    let infoAktif = document.getElementById('info-total-ujian-aktif');
+    if (infoAktif) {
+        let obsAktif = new MutationObserver(window.perbaruiPillStatusKelasWS);
+        obsAktif.observe(infoAktif, { childList: true, characterData: true, subtree: true });
+    }
+
+    // 6. Tombol ESC: Tutup sub-modal paling atas atau sidebar mobile tanpa keluar dari Mode Administrasi
+    document.addEventListener('keydown', function(e) {
+        if (e.key !== 'Escape' || !window._adminWsActive) return;
+
+        // Jangan tutup paksa jika dialog konfirmasi/alert sedang terbuka
+        let dlg = document.getElementById('modal-custom-dialog');
+        if (dlg && dlg.style.display === 'flex') {
+            window.tutupCustomDialog(false);
+            return;
+        }
+
+        // Cari sub-modal yang terbuka di atas Mode Administrasi (non-docked)
+        let subModals = Array.from(document.querySelectorAll('.modal-overlay:not(.admin-ws-docked)')).filter(function(m) {
+            return m.id !== 'modal-custom-dialog' && window.getComputedStyle(m).display !== 'none';
+        });
+
+        if (subModals.length > 0) {
+            subModals.sort(function(a, b) {
+                let za = parseInt(window.getComputedStyle(a).zIndex, 10) || 0;
+                let zb = parseInt(window.getComputedStyle(b).zIndex, 10) || 0;
+                return zb - za;
+            });
+            window.tutupModal(subModals[0].id);
+            return;
+        }
+
+        // Jika tidak ada sub-modal, tutup sidebar drawer di layar tablet/HP jika sedang terbuka
+        let sb = document.getElementById('admin-ws-sidebar');
+        if (sb && sb.classList.contains('is-open')) {
+            window.toggleSidebarAdminWS(false);
+        }
+    });
+
+    // 7. Tutup otomatis backdrop sidebar mobile saat jendela diperbesar ke mode desktop
+    window.addEventListener('resize', function() {
+        if (window.innerWidth > 960) {
+            window.toggleSidebarAdminWS(false);
+        }
+    });
+
+    // 8. Sinkronisasi tampilan kosong & isi Daftar Soal di Tab Bank Soal Ujian
+    let prevWrap = document.getElementById('preview-bank-ujian-wrapper');
+    let prevList = document.getElementById('preview-bank-ujian-list');
+    if (prevWrap) {
+        let obsPrev = new MutationObserver(function() {
+            if (typeof window.sinkronkanEmptyPreviewBankUjianWS === 'function') {
+                window.sinkronkanEmptyPreviewBankUjianWS();
+            }
+        });
+        obsPrev.observe(prevWrap, { attributes: true, attributeFilter: ['style'] });
+        if (prevList) {
+            obsPrev.observe(prevList, { childList: true });
+        }
+        if (typeof window.sinkronkanEmptyPreviewBankUjianWS === 'function') {
+            window.sinkronkanEmptyPreviewBankUjianWS();
+        }
+    }
+});
+
+window.sinkronkanEmptyPreviewBankUjianWS = function() {
+    let wrap = document.getElementById('preview-bank-ujian-wrapper');
+    let empty = document.getElementById('aws-bu-preview-empty');
+    if (!wrap || !empty) return;
+    let adaIsi = (wrap.style.display !== 'none');
+    empty.style.display = adaIsi ? 'none' : 'flex';
+};
+
+window.gantiModeBankUjianWS = function(mode) {
+    let panePrev = document.getElementById('aws-bu-pane-preview');
+    let paneEdit = document.getElementById('aws-bu-pane-editor');
+    let btnPrev  = document.getElementById('btn-bu-mode-preview');
+    let btnEdit  = document.getElementById('btn-bu-mode-editor');
+
+    let isPreview = (mode === 'preview');
+    if (panePrev) panePrev.style.display = isPreview ? 'flex' : 'none';
+    if (paneEdit) paneEdit.style.display = isPreview ? 'none' : 'flex';
+    if (btnPrev) btnPrev.classList.toggle('active', isPreview);
+    if (btnEdit) btnEdit.classList.toggle('active', !isPreview);
+
+    if (isPreview) {
+        window.sinkronkanEmptyPreviewBankUjianWS();
+    } else {
+        let ta = document.getElementById('admin-bu-text');
+        if (ta) setTimeout(function() { ta.focus(); }, 60);
+    }
+};
+
+window.onUbahBankUjianWS = function(val) {
+    if (val && String(val).trim() !== '') {
+        window.gantiModeBankUjianWS('preview');
+    } else {
+        window.gantiModeBankUjianWS('editor');
+    }
+};
+
+window.buatPaketUjianBaruWS = function() {
+    let sel = document.getElementById('select-bank-ujian-tersimpan');
+    let inpNama = document.getElementById('admin-bu-nama');
+    let ta = document.getElementById('admin-bu-text');
+
+    if (sel) sel.value = '';
+    if (typeof window.pilihBankUjianTersimpan === 'function') {
+        window.pilihBankUjianTersimpan('');
+    }
+    if (inpNama) inpNama.value = '';
+    if (ta) ta.value = '';
+    if (typeof window.analisisSoalOtomatis === 'function') {
+        window.analisisSoalOtomatis();
+    }
+    window.gantiModeBankUjianWS('editor');
+    if (inpNama) setTimeout(function() { inpNama.focus(); }, 60);
+};
+
 window.bukaModal = function(id) {
     let el = document.getElementById(id);
     if (!el) return;
+
+    // Jika salah satu dari 4 modul Administrasi dipanggil saat Mode Layar Penuh aktif, sinkronkan ke Sidebar
+    let wsMenuKey = window.cariKeyMenuAdminWSByModalId(id);
+    if (wsMenuKey && window._adminWsActive) {
+        if (!window._isSyncingAdminWS) {
+            window._adminWsCurrentMenu = wsMenuKey;
+            window.perbaruiHeaderAdminWS(wsMenuKey);
+            Object.keys(window._ADMIN_WS_MAP).forEach(function(k) {
+                let mId = window._ADMIN_WS_MAP[k].modalId;
+                let otherEl = document.getElementById(mId);
+                if (!otherEl) return;
+                if (mId !== id) {
+                    otherEl.style.display = 'none';
+                    otherEl.classList.remove('admin-ws-active-view');
+                } else {
+                    otherEl.classList.add('admin-ws-active-view');
+                }
+            });
+        }
+        el.style.display = 'flex';
+        el.style.zIndex = '1';
+        window.sinkronkanKunciScrollModal();
+        return;
+    }
 
     let sudahTerbuka = (el.style.display === 'flex');
     window._lastModalOpenTime = Date.now();
@@ -2811,6 +3009,10 @@ window.bukaModal = function(id) {
 
 window.tutupModal = function(id) {
     let el = document.getElementById(id);
+    // Cegah klik tidak sengaja menutup panel utama yang sedang terpasang di Mode Administrasi
+    if (el && el.classList.contains('admin-ws-docked') && window._adminWsActive && !window._isClosingAdminWS) {
+        return;
+    }
     if (el) el.style.display = 'none';
 
     if (id === 'modal-my-pet') {
@@ -2828,7 +3030,7 @@ window.tutupModalHasilQuiz = function() {
 // Blokir scroll latar belakang di Laptop (wheel/trackpad) saat ada modal terbuka
 document.addEventListener('wheel', function(e) {
     if (!window.apakahAdaModalOverlayTerbuka()) return;
-    let inModalBox = e.target && e.target.closest ? e.target.closest('.modal-box, .popup-welcome-box, .floating-cg') : null;
+    let inModalBox = e.target && e.target.closest ? e.target.closest('.modal-box, .popup-welcome-box, .floating-cg, #admin-workspace-shell') : null;
     if (!inModalBox) {
         e.preventDefault();
     }
@@ -2885,7 +3087,7 @@ document.addEventListener('touchmove', function(e) {
     if (!e.touches || e.touches.length !== 1) return;
 
     let target = e.target;
-    let modalRoot = (target && target.closest) ? target.closest('.modal-box, .popup-welcome-box, .floating-cg') : null;
+    let modalRoot = (target && target.closest) ? target.closest('.modal-box, .popup-welcome-box, .floating-cg, #admin-workspace-shell') : null;
 
     // Sentuhan di area gelap backdrop luar modal: blokir penuh
     if (!modalRoot) {
@@ -5189,22 +5391,186 @@ window.hapusSoalSistem = function(qIdx, mode, blockIdx) {
     }
 };
 
-window.simpanTema = function() {
-    let bgColor = document.getElementById("theme-color").value || "#0b3954";
-    let fontFamily = document.getElementById("theme-font").value || "'Quicksand', sans-serif";
-    let headerPad = document.getElementById("theme-header-padding").value || "20";
-    let webTitle = document.getElementById("web-title") ? document.getElementById("web-title").innerText : "Mahardika";
+window._tempThemeLogoUrl = "";
+
+window.ambilTemaTersimpanLokal = function() {
+    try {
+        let raw = localStorage.getItem("pref_theme_mahardika");
+        if (raw) return JSON.parse(raw);
+    } catch (e) {}
+    return {};
+};
+
+window.perbaruiTinggiTopbarCSS = function() {
+    let hw = document.getElementById("header-wrap");
+    if (!hw) return;
+    let h = Math.max(50, Math.round(hw.getBoundingClientRect().height || 62));
+    document.documentElement.style.setProperty("--topbar-height", h + "px");
+};
+
+window.terapkanTemaGlobal = function(cfg) {
+    if (!cfg || typeof cfg !== "object") return;
+    let bgColor = cfg.bgColor || "#060608";
+    let fontFamily = cfg.fontFamily || "'Quicksand', sans-serif";
+    let headerPad = parseInt(cfg.headerPad, 10);
+    if (isNaN(headerPad) || headerPad < 4) headerPad = 10;
+    if (headerPad > 48) headerPad = 48;
+
+    let logoSize = parseInt(cfg.logoSize, 10);
+    if (isNaN(logoSize) || logoSize < 24) logoSize = 40;
+    if (logoSize > 90) logoSize = 90;
+
+    let logoUrl = cfg.logoUrl || "./icon-192.png";
+    window._tempThemeLogoUrl = logoUrl;
 
     document.documentElement.style.setProperty("--primary-bg", bgColor);
     document.documentElement.style.setProperty("--main-font", fontFamily);
-    let headerWrap = document.querySelector(".header-wrapper");
-    if (headerWrap) headerWrap.style.padding = headerPad + "px 20px";
+    document.documentElement.style.setProperty("--header-pad-y", headerPad + "px");
+    document.documentElement.style.setProperty("--header-logo-size", logoSize + "px");
+
+    let headerWrap = document.getElementById("header-wrap");
+    if (headerWrap) {
+        headerWrap.style.backgroundColor = bgColor;
+        headerWrap.style.paddingTop = headerPad + "px";
+        headerWrap.style.paddingBottom = headerPad + "px";
+    }
+
+    let logoEl = document.getElementById("header-brand-logo");
+    if (logoEl) {
+        if (logoEl.getAttribute("src") !== logoUrl) logoEl.src = logoUrl;
+        logoEl.style.height = logoSize + "px";
+    }
+
+    let lblPad = document.getElementById("lbl-theme-header-pad");
+    let lblLogo = document.getElementById("lbl-theme-logo-size");
+    if (lblPad) lblPad.innerText = headerPad + "px";
+    if (lblLogo) lblLogo.innerText = logoSize + "px";
+
+    setTimeout(window.perbaruiTinggiTopbarCSS, 40);
+};
+
+window.sinkronkanFormModalTema = function() {
+    let saved = window.ambilTemaTersimpanLokal();
+    let cs = getComputedStyle(document.documentElement);
+    let curBg = saved.bgColor || cs.getPropertyValue("--primary-bg").trim() || "#060608";
+    if (curBg.indexOf("#") !== 0) curBg = "#060608";
+
+    let curFont = saved.fontFamily || cs.getPropertyValue("--main-font").trim() || "'Quicksand', sans-serif";
+    let curPad = parseInt(saved.headerPad !== undefined ? saved.headerPad : cs.getPropertyValue("--header-pad-y"), 10);
+    if (isNaN(curPad) || curPad < 4 || curPad > 48) curPad = 10;
+
+    let curLogoSz = parseInt(saved.logoSize !== undefined ? saved.logoSize : cs.getPropertyValue("--header-logo-size"), 10);
+    if (isNaN(curLogoSz) || curLogoSz < 24 || curLogoSz > 90) curLogoSz = 40;
+
+    let elCol = document.getElementById("theme-color");
+    let elFont = document.getElementById("theme-font");
+    let elPad = document.getElementById("theme-header-padding");
+    let elLogo = document.getElementById("theme-logo-size");
+
+    if (elCol) elCol.value = curBg;
+    if (elFont) elFont.value = curFont;
+    if (elPad) elPad.value = String(curPad);
+    if (elLogo) elLogo.value = String(curLogoSz);
+
+    let lblPad = document.getElementById("lbl-theme-header-pad");
+    let lblLogo = document.getElementById("lbl-theme-logo-size");
+    if (lblPad) lblPad.innerText = curPad + "px";
+    if (lblLogo) lblLogo.innerText = curLogoSz + "px";
+};
+
+window.previewTemaLive = function() {
+    let bgColor = document.getElementById("theme-color") ? document.getElementById("theme-color").value : "#060608";
+    let fontFamily = document.getElementById("theme-font") ? document.getElementById("theme-font").value : "'Quicksand', sans-serif";
+    let headerPad = document.getElementById("theme-header-padding") ? document.getElementById("theme-header-padding").value : "10";
+    let logoSize = document.getElementById("theme-logo-size") ? document.getElementById("theme-logo-size").value : "40";
+    let saved = window.ambilTemaTersimpanLokal();
+    let logoUrl = window._tempThemeLogoUrl || saved.logoUrl || "./icon-192.png";
+
+    window.terapkanTemaGlobal({
+        bgColor: bgColor,
+        fontFamily: fontFamily,
+        headerPad: headerPad,
+        logoSize: logoSize,
+        logoUrl: logoUrl
+    });
+};
+
+window.uploadLogoHeaderTema = function(input) {
+    let file = input && input.files ? input.files[0] : null;
+    if (input) input.value = "";
+    if (!file) return;
+
+    let reader = new FileReader();
+    reader.onload = function(ev) {
+        let img = new Image();
+        img.onload = function() {
+            let maxH = 220;
+            let scale = img.height > maxH ? (maxH / img.height) : 1;
+            let c = document.createElement("canvas");
+            c.width = Math.max(1, Math.round(img.width * scale));
+            c.height = Math.max(1, Math.round(img.height * scale));
+            c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+            window._tempThemeLogoUrl = c.toDataURL("image/png");
+            window.previewTemaLive();
+        };
+        img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+};
+
+window.resetLogoHeaderTema = function() {
+    window._tempThemeLogoUrl = "./icon-192.png";
+    window.previewTemaLive();
+};
+
+window.simpanTema = function() {
+    let bgColor = document.getElementById("theme-color") ? document.getElementById("theme-color").value : "#060608";
+    let fontFamily = document.getElementById("theme-font") ? document.getElementById("theme-font").value : "'Quicksand', sans-serif";
+    let headerPad = document.getElementById("theme-header-padding") ? document.getElementById("theme-header-padding").value : "10";
+    let logoSize = document.getElementById("theme-logo-size") ? document.getElementById("theme-logo-size").value : "40";
+    let webTitle = document.getElementById("web-title") ? document.getElementById("web-title").innerText : "Mardikawan";
+    let saved = window.ambilTemaTersimpanLokal();
+    let logoUrl = window._tempThemeLogoUrl || saved.logoUrl || "./icon-192.png";
+
+    let payload = {
+        bgColor: bgColor,
+        fontFamily: fontFamily,
+        headerPad: headerPad,
+        logoSize: logoSize,
+        logoUrl: logoUrl,
+        webTitle: webTitle
+    };
+
+    window.terapkanTemaGlobal(payload);
+    try {
+        localStorage.setItem("pref_theme_mahardika", JSON.stringify(payload));
+    } catch (e) {}
 
     if (typeof window.simpanTemaKeDB === "function") {
-        window.simpanTemaKeDB({ bgColor: bgColor, fontFamily: fontFamily, headerPad: headerPad, webTitle: webTitle });
+        window.simpanTemaKeDB(payload);
     }
     window.tutupModal("modal-theme");
 };
+
+document.addEventListener("DOMContentLoaded", function() {
+    let saved = window.ambilTemaTersimpanLokal();
+    if (saved && Object.keys(saved).length > 0) {
+        window.terapkanTemaGlobal(saved);
+    } else {
+        window.perbaruiTinggiTopbarCSS();
+    }
+
+    let modalTheme = document.getElementById("modal-theme");
+    if (modalTheme) {
+        let obsTheme = new MutationObserver(function() {
+            if (modalTheme.style.display === "flex") {
+                window.sinkronkanFormModalTema();
+            }
+        });
+        obsTheme.observe(modalTheme, { attributes: true, attributeFilter: ["style"] });
+    }
+    window.addEventListener("resize", window.perbaruiTinggiTopbarCSS);
+});
 
 window.simpanPopupPengumuman = function() {
     let box = document.getElementById('popup-content-box');
@@ -7557,25 +7923,84 @@ window.tambahXPSiswa = function(jumlahXP, aktivitas, arrSoalBenar) {
 
 // Catatan: Poin Baca Modul (+20 XP) telah dihapus sesuai pembaruan sistem.
 
+window.toggleMenuHeaderMore = function(e) {
+    if (e) e.stopPropagation();
+    let dd = document.getElementById('header-more-dropdown');
+    let btn = document.getElementById('btn-header-more');
+    if (!dd) return;
+
+    let willOpen = (dd.style.display === 'none' || !dd.style.display);
+    dd.style.display = willOpen ? 'flex' : 'none';
+    if (btn) btn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+    if (willOpen && typeof window.sinkronkanTitikMerahHeaderMore === 'function') {
+        window.sinkronkanTitikMerahHeaderMore();
+    }
+};
+
+window.tutupMenuHeaderMore = function() {
+    let dd = document.getElementById('header-more-dropdown');
+    let btn = document.getElementById('btn-header-more');
+    if (dd) dd.style.display = 'none';
+    if (btn) btn.setAttribute('aria-expanded', 'false');
+};
+
+window.sinkronkanTitikMerahHeaderMore = function() {
+    let badgeMisi = document.getElementById('badge-header-misi');
+    let dot = document.getElementById('badge-header-more-dot');
+    if (!dot) return;
+    let adaMisi = Boolean(badgeMisi && badgeMisi.style.display !== 'none' && parseInt(badgeMisi.innerText || '0', 10) > 0);
+    dot.style.display = adaMisi ? 'block' : 'none';
+};
+
+document.addEventListener('click', function(e) {
+    if (!e.target || !e.target.closest || !e.target.closest('.header-more-wrap')) {
+        window.tutupMenuHeaderMore();
+    }
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    let badgeMisi = document.getElementById('badge-header-misi');
+    if (badgeMisi) {
+        let obsMisi = new MutationObserver(window.sinkronkanTitikMerahHeaderMore);
+        obsMisi.observe(badgeMisi, { attributes: true, childList: true, characterData: true, subtree: true });
+        window.sinkronkanTitikMerahHeaderMore();
+    }
+    window.perbaruiUIHeaderProfilSiswa();
+});
+
 window.perbaruiUIHeaderProfilSiswa = function() {
     let stat = sessionStorage.getItem("statusLogin");
     let uName = sessionStorage.getItem("username");
-    
+
     let btnProfil = document.getElementById('btn-profil-utama');
     let btnLogin = document.getElementById('btn-login-utama');
-    
+    let moreLogoutWrap = document.getElementById('header-more-logout-wrap');
+
+    // Tombol LOGIN hanya tampil jika belum login sama sekali
+    if (btnLogin) {
+        btnLogin.style.display = stat ? 'none' : 'block';
+    }
+
+    // Khusus Admin/Tamu, sediakan tombol keluar di dalam menu titik tiga agar tidak terkunci
+    if (moreLogoutWrap) {
+        moreLogoutWrap.style.display = (stat === 'admin' || stat === 'tamu') ? 'block' : 'none';
+    }
+
     if (stat === "siswa" && uName) {
-        if(btnProfil) btnProfil.style.display = 'flex';
-        if(btnLogin) btnLogin.style.display = 'none';
-        
+        if (btnProfil) btnProfil.style.display = 'flex';
+
         let lb = (window.leaderboardSiswaData && window.leaderboardSiswaData[uName]) ? window.leaderboardSiswaData[uName] : null;
         if (lb) {
             let lencana = window.kalkulasiLencanaSains(lb.xp || 0);
             let namaTampil = lb.namaPanggilan || lb.namaLengkap.split(' ')[0];
-            
-            document.getElementById('header-profil-nama').innerText = namaTampil;
-            if (lb.foto) document.getElementById('header-profil-foto').src = lb.foto;
-            document.getElementById('header-profil-foto').style.borderColor = lencana.warna;
+
+            let namaEl = document.getElementById('header-profil-nama');
+            let fotoEl = document.getElementById('header-profil-foto');
+            if (namaEl) namaEl.innerText = namaTampil;
+            if (fotoEl) {
+                if (lb.foto) fotoEl.src = lb.foto;
+                fotoEl.style.borderColor = lencana.warna;
+            }
 
             if (!window._presensiSesiTercatat && typeof window.updatePresensiOnlineSiswa === "function") {
                 window._presensiSesiTercatat = true;
@@ -7583,10 +8008,10 @@ window.perbaruiUIHeaderProfilSiswa = function() {
             }
         }
     } else {
-        if(btnProfil) btnProfil.style.display = 'none';
-        if(btnLogin && stat !== "admin") btnLogin.style.display = 'block';
+        if (btnProfil) btnProfil.style.display = 'none';
     }
     window.hitungDanUpdateBadgeNotifikasi();
+    window.sinkronkanTitikMerahHeaderMore();
 };
 
 if (typeof window.perbaruiTombolCheckinUI === "function") {
@@ -8832,7 +9257,7 @@ window.klikInstallAplikasiPWA = async function() {
             "2. Ketuk ikon SHARE (Kotak dengan panah ke atas ⬆️ di bar Safari).\n" +
             "3. Geser ke bawah lalu pilih 'Tambahkan ke Layar Utama' (Add to Home Screen ➕).\n" +
             "4. Ketuk 'Tambah' di pojok kanan atas.\n\n" +
-            "Aplikasi Mahardika akan langsung muncul di layar utama Anda!"
+            "Aplikasi Mardikawan Room Edu akan langsung muncul di layar utama Anda!"
         );
     } else {
         alert("📲 Untuk memasang aplikasi di Laptop/PC, klik ikon 'Install' (komputer dengan panah ke bawah) di sisi kanan kolom URL browser Chrome/Edge Anda.");

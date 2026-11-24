@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-    <title>Sistem Belajar Mahardika</title>
+    <title>Mardikawan Room Edu</title>
 
     <!-- KONFIGURASI PWA (ANDROID, IPHONE, IPAD, WINDOWS, & MACBOOK) -->
     <link rel="manifest" href="./manifest.json">
-    <meta name="theme-color" content="#0b3954">
+    <meta name="theme-color" content="#060608">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Mahardika">
+    <meta name="apple-mobile-web-app-title" content="Mardikawan">
     <link rel="apple-touch-icon" href="./icon-192.png">
     <link rel="icon" type="image/png" href="./icon-192.png">
 
@@ -398,6 +398,11 @@
                         <button type="button" class="btn-action" style="background:#27ae60; flex:1; font-size:12px; padding:9px;" onclick="window.terapkanGantiKredensialProfil()">✅ 2. Simpan Username & Password</button>
                     </div>
                 </div>
+
+                <!-- Tombol Logout di Paling Bawah Menu Profil -->
+                <div style="margin-top:16px; padding-top:14px; border-top:1px dashed #cbd5e1;">
+                    <button type="button" class="btn-action" style="background:#c0392b; width:100%; font-size:13px; padding:11px; border-radius:10px; font-weight:800;" onclick="window.prosesLogoutSistem()">🚪 Keluar / Logout Akun</button>
+                </div>
             </div>
         </div>
     </div>
@@ -484,23 +489,30 @@
                 <button class="close-btn" onclick="tutupModal('modal-rekap-nilai')">✕</button>
             </div>
             <div class="modal-body" style="padding:15px; flex:1; overflow-y:auto; display:flex; flex-direction:column;">
-                <div style="display:flex; justify-content:space-between; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
-                    <div style="display:flex; gap:10px;">
-                        <select id="filter-rekap-kelas" class="input-box" style="margin:0; width:150px; cursor:pointer;" onchange="window.ubahKelasRekapNilai()"></select>
-                        <select id="filter-rekap-paket" class="input-box" style="margin:0; width:250px; cursor:pointer;" onchange="window.renderRekapNilai()">
-                            <option value="">-- History Semua Ujian --</option>
-                        </select>
+                <div class="aws-filter-bar">
+                    <div class="aws-filter-left">
+                        <div class="aws-select-group">
+                            <label for="filter-rekap-kelas">🏫 Kelas</label>
+                            <select id="filter-rekap-kelas" class="input-box aws-select-pill" style="width:155px !important;" onchange="window.ubahKelasRekapNilai()"></select>
+                        </div>
+                        <div class="aws-select-group">
+                            <label for="filter-rekap-paket">📝 Paket</label>
+                            <select id="filter-rekap-paket" class="input-box aws-select-pill" style="width:240px !important;" onchange="window.renderRekapNilai()">
+                                <option value="">-- History Semua Ujian --</option>
+                            </select>
+                        </div>
                     </div>
-                    <div style="display:flex; gap:8px;">
+                    <div class="aws-filter-right">
                         <input type="file" id="input-file-ljk" accept="image/*" style="display:none;" onchange="window.prosesUploadLJK(this)">
-                        <button class="btn-action" style="background:#e74c3c; width:auto; padding:8px 15px;" onclick="window.bukaModalRemedial()">🔥 Remedial</button>
-                        <button class="btn-action" style="background:#3498db; width:auto; padding:8px 15px;" onclick="window.bukaModalSpreadsheetNilai()">📊 Spreadsheet Nilai</button>
-                        <button class="btn-action" style="background:#27ae60; width:auto; padding:8px 15px;" onclick="window.exportExcelRekapNilai()">📥 Export Rekap (Skala 0-1)</button>
-                        <button id="btn-hapus-semua-rekap" class="btn-action" style="background:#c0392b; width:auto; padding:8px 15px; display:none;" onclick="window.hapusSemuaNilaiKelasUjian()">🗑️ Hapus Data Ujian Ini</button>
+                        <button type="button" class="aws-quick-btn is-omr-btn" onclick="window.bukaModalScannerOMR()">📷 Scan LJK (PG)</button>
+                        <button type="button" class="aws-quick-btn is-danger-soft" onclick="window.bukaModalRemedial()">🔥 Remedial</button>
+                        <button type="button" class="aws-quick-btn" onclick="window.bukaModalSpreadsheetNilai()">📊 Spreadsheet Nilai</button>
+                        <button type="button" class="aws-quick-btn is-primary" onclick="window.exportExcelRekapNilai()">📥 Export Rekap (0-1)</button>
+                        <button type="button" id="btn-hapus-semua-rekap" class="aws-quick-btn is-danger" style="display:none;" onclick="window.hapusSemuaNilaiKelasUjian()">🗑️ Hapus Data Ujian Ini</button>
                     </div>
                 </div>
 
-                <div style="overflow-x:auto; background:white; border:1px solid #e1e8ed; border-radius:8px; padding:1px; flex:1;">
+                <div class="aws-table-card">
                     <table class="excel-table" style="min-width:100%; text-align:center;">
                         <thead id="head-rekap-nilai">
                             <tr>
@@ -633,99 +645,140 @@
             </div>
             <div class="modal-body" style="padding: 15px; display: flex; flex-direction: column; flex: 1; overflow: hidden; background:#f4f6f6;">
                 
-                <!-- Baris Navigasi Tab Atas (Gaya Ruang Administrasi) -->
-                <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:15px; flex-wrap:wrap; border-bottom: 2px solid #ddd; padding-bottom: 10px;">
-                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                        <button id="tab-btn-ujian-bank" class="btn-action tab-ujian-btn active" style="background:#0b3954; color:white; width:auto; padding:8px 16px; font-size:12px;" onclick="window.bukaTabManajerUjian('tab-ujian-bank', this)">📥 Bank Soal & Analisis</button>
-                        <button id="tab-btn-ujian-kontrol" class="btn-action tab-ujian-btn" style="background:#ffffff; color:#333; border:1px solid #ccc; width:auto; padding:8px 16px; font-size:12px; box-shadow:none;" onclick="window.bukaTabManajerUjian('tab-ujian-kontrol', this)">📝 Kontrol Ujian</button>
-                        <button id="tab-btn-ujian-monitor" class="btn-action tab-ujian-btn" style="background:#ffffff; color:#333; border:1px solid #ccc; width:auto; padding:8px 16px; font-size:12px; box-shadow:none; display:flex; align-items:center; gap:6px;" onclick="window.bukaTabManajerUjian('tab-ujian-monitor', this)">
-                            📡 Live Monitor <span id="badge-notif" class="badge-notif-pulse" style="display:none; position:static; padding:1px 6px;">!</span>
-                        </button>
-                    </div>
-                    <div style="display:flex; align-items:center; gap:10px;">
-                        <input type="file" id="file-upload-lokal" accept=".pdf,.docx" style="display:none;" onchange="window.prosesUploadSoalLokal(this)">
-                        <button class="btn-action" style="background:#27ae60; width:auto; padding:6px 12px; font-size:11px;" onclick="document.getElementById('file-upload-lokal').click()">📄 Upload Soal (Docx/PDF)</button>
-                        <button class="btn-action" style="background:#8e44ad; width:auto; padding:6px 12px; font-size:11px;" onclick="window.bukaModalAmbilSoal()">📥 Ambil Soal (Latihan)</button>
-                        <button class="btn-action" style="background:#e67e22; width:auto; padding:6px 12px; font-size:11px;" onclick="window.bukaModalKisiKisi()">📋 Kisi-kisi Soal</button>
+                <!-- Sub-Tab Pill Bar Manajer Ujian -->
+                <div class="aws-subtabs-bar" id="aws-ujian-subtabs">
+                    <button type="button" id="tab-btn-ujian-bank" class="btn-action tab-ujian-btn active" onclick="window.bukaTabManajerUjian('tab-ujian-bank', this)">📥 Bank Soal &amp; Analisis</button>
+                    <button type="button" id="tab-btn-ujian-kontrol" class="btn-action tab-ujian-btn" onclick="window.bukaTabManajerUjian('tab-ujian-kontrol', this)">📝 Kontrol Ujian</button>
+                    <button type="button" id="tab-btn-ujian-monitor" class="btn-action tab-ujian-btn" onclick="window.bukaTabManajerUjian('tab-ujian-monitor', this)">
+                        📡 Live Monitor <span id="badge-notif" class="badge-notif-pulse aws-pill-counter" style="display:none; position:static;">!</span>
+                    </button>
+                </div>
 
-                        <div style="font-size:12px; color:#2c3e50; font-weight:bold; background:white; padding:6px 14px; border-radius:20px; border:1px solid #e1e8ed;">
-                            📦 <span id="info-total-bank-ujian" style="color:#e67e22;">0</span> Bank Ujian Tersimpan | 🔴 <span id="info-total-ujian-aktif" style="color:#c0392b;">0</span> Ujian Aktif
+                <!-- Bar Aksi Cepat & Statistik Bank Ujian -->
+                <div class="aws-filter-bar">
+                    <div class="aws-filter-left">
+                        <input type="file" id="file-upload-lokal" accept=".pdf,.docx" style="display:none;" onchange="window.prosesUploadSoalLokal(this)">
+                        <button type="button" class="aws-quick-btn is-primary" onclick="document.getElementById('file-upload-lokal').click()">📄 Upload Soal (Docx/PDF)</button>
+                        <button type="button" class="aws-quick-btn" onclick="window.bukaModalAmbilSoal()">📥 Ambil Soal (Latihan)</button>
+                        <button type="button" class="aws-quick-btn" onclick="window.bukaModalKisiKisi()">📋 Kisi-kisi Soal</button>
+                    </div>
+                    <div class="aws-filter-right">
+                        <div class="aws-stat-chips">
+                            <span class="aws-stat-chip">📦 <b id="info-total-bank-ujian">0</b> Bank Ujian</span>
+                            <span class="aws-stat-chip is-alert">🔴 <b id="info-total-ujian-aktif">0</b> Ujian Aktif</span>
                         </div>
                     </div>
                 </div>
 
                 <!-- Area Konten Utama -->
-                <div style="background:white; flex:1; border-radius:8px; padding:18px; box-shadow:0 2px 10px rgba(0,0,0,0.05); overflow:hidden; display:flex; flex-direction:column;">
+                <div class="aws-ujian-main-card">
                     
-                    <!-- TAB 1: BANK SOAL UJIAN & ANALISIS + SCROLL PREVIEW -->
-                    <div id="tab-ujian-bank" class="ujian-tab-content" style="display:flex; gap:18px; flex:1; overflow:hidden; flex-wrap:wrap;">
-                        
-                        <!-- Kiri: Input Teks Soal & Dropdown Pilih Bank Ujian Tersimpan -->
-                        <div style="flex:1.15; min-width:340px; display:flex; flex-direction:column; height:100%; overflow:hidden;">
-                            <input type="text" id="admin-bu-nama" class="input-box" placeholder="Nama Paket Ujian (Misal: UTS Biologi Kelas X)" style="font-weight:bold; font-size:14px; border:2px solid #e67e22; margin-bottom:8px;">
-                            <p style="font-size:11px; color:#7f8c8d; margin:0 0 8px 0; font-weight:bold;">Format didukung: PG, PG Kompleks (benar/salah), IS, & Essay. Pisahkan dengan Enter/garis (---).</p>
-                            <textarea id="admin-bu-text" class="input-box" placeholder="Paste soal di sini...&#10;&#10;Soal: Penemu sel?&#10;A. Hooke&#10;B. Darwin&#10;Kunci: A&#10;Pembahasan: Hooke penemunya" oninput="analisisSoalOtomatis()" style="font-family:monospace; font-size:12px; line-height:1.5; flex:1; margin-bottom:10px; resize:none; overflow-y:auto;"></textarea>
-                            
-                            <!-- Kotak Pilih Bank Ujian Tersimpan (Sesuai Gambar 1 & 2) -->
-                            <div style="background:#eaf2f8; border:2px solid #3498db; border-radius:8px; padding:10px 12px; display:flex; align-items:center; gap:10px; flex-shrink:0;">
-                                <label style="font-weight:bold; font-size:12px; color:#2c3e50; white-space:nowrap;">🗂️ Pilih Bank Ujian Tersimpan:</label>
-                                <select id="select-bank-ujian-tersimpan" class="input-box" style="margin:0; flex:1; font-weight:bold; background:white; border:1px solid #2980b9; color:#2c3e50; cursor:pointer; padding:7px 10px;" onchange="window.pilihBankUjianTersimpan(this.value)">
+                    <!-- TAB 1: BANK SOAL UJIAN & ANALISIS (LAYOUT EFISIEN TANPA DUPLIKASI) -->
+                    <div id="tab-ujian-bank" class="ujian-tab-content aws-bu-layout" style="display:flex;">
+
+                        <!-- BAR ATAS: DROPDOWN BANK TERSIMPAN + NAMA PAKET + SWITCH MODE -->
+                        <div class="aws-bu-topbar">
+                            <div class="aws-bu-select-wrap">
+                                <label for="select-bank-ujian-tersimpan">🗂️ Bank Ujian</label>
+                                <select id="select-bank-ujian-tersimpan" class="input-box aws-select-pill" onchange="window.pilihBankUjianTersimpan(this.value); window.onUbahBankUjianWS(this.value);">
                                     <option value="">-- Buat Paket Baru / Pilih Bank Ujian --</option>
                                 </select>
+                                <button type="button" class="aws-quick-btn" onclick="window.buatPaketUjianBaruWS()" title="Kosongkan editor untuk membuat paket soal baru">➕ Baru</button>
+                            </div>
+
+                            <div class="aws-bu-name-wrap">
+                                <input type="text" id="admin-bu-nama" class="input-box" placeholder="Nama Paket Ujian (Misal: UTS Biologi Kelas X)">
+                            </div>
+
+                            <div class="aws-bu-mode-switch" role="tablist">
+                                <button type="button" id="btn-bu-mode-preview" class="aws-bu-mode-btn" onclick="window.gantiModeBankUjianWS('preview')">👁️ Daftar Soal</button>
+                                <button type="button" id="btn-bu-mode-editor" class="aws-bu-mode-btn active" onclick="window.gantiModeBankUjianWS('editor')">✍️ Editor Teks</button>
                             </div>
                         </div>
 
-                        <!-- Kanan: Kalkulator Bobot Otomatis & Scroll ke Bawah untuk Preview Soal -->
-                        <div style="flex:1; min-width:320px; background:#fff; padding:16px; border:1px solid #e1e8ed; border-radius:8px; height:100%; overflow-y:auto; box-sizing:border-box;">
-                            <h4 style="margin-top:0; color:#2c3e50; border-bottom:2px solid #eee; padding-bottom:10px;">📊 Kalkulator Bobot Otomatis</h4>
-                            
-                            <div id="info-analisis-soal" style="font-size:12px; color:#c0392b; font-weight:bold; margin-bottom:15px; background:#fadbd8; padding:12px; border-radius:6px; text-align:center;">
-                                Ketik/paste soal di samping atau pilih Bank Ujian Tersimpan di kiri bawah untuk memunculkan analisis & preview soal.
-                            </div>
-                            
-                            <div id="box-bobot-soal" style="display:none; flex-direction:column; gap:10px;">
-                                <p style="font-size:11px; color:#7f8c8d; margin:0; font-weight:bold;">Isi poin untuk soal tertentu, biarkan kosong untuk dibagi rata dari sisa nilai (Maks: 100).</p>
-                                
-                                <div id="row-pg" style="display:none; justify-content:space-between; align-items:center; background:#f8f9fa; padding:8px 10px; border-radius:4px; border:1px solid #eee;">
-                                    <span style="font-weight:bold; color:#2c3e50; font-size:12px;">Pilihan Ganda (<span id="jml-pg" style="color:#2980b9;">0</span> soal)</span> 
-                                    <input type="number" id="bobot-pg" class="input-box" style="width:75px; margin:0; text-align:center; font-weight:bold; padding:6px;" oninput="kalkulasiBobotOtomatis()" min="0">
+                        <!-- AREA KONTEN 2 KOLOM: PANEL UTAMA LEBAR (KIRI) + KALKULATOR BOBOT (KANAN) -->
+                        <div class="aws-bu-split">
+
+                            <!-- PANEL UTAMA KIRI (HANYA TAMPIL 1 MODE: DAFTAR SOAL ATAU EDITOR TEKS) -->
+                            <div class="aws-bu-main-pane">
+
+                                <!-- MODE A: DAFTAR SOAL (PREVIEW JELAS & LEGA) -->
+                                <div id="aws-bu-pane-preview" class="aws-bu-pane" style="display:none;">
+                                    <div id="aws-bu-preview-empty" class="aws-bu-empty-state">
+                                        <div style="font-size:34px; margin-bottom:8px;">📋</div>
+                                        <strong>Belum ada soal untuk ditampilkan</strong>
+                                        <p>Pilih paket pada dropdown <b>Bank Ujian</b> di atas atau beralih ke <b>Editor Teks</b> untuk menempel/mengetik soal baru.</p>
+                                        <button type="button" class="aws-quick-btn is-primary" onclick="window.gantiModeBankUjianWS('editor')">✍️ Buka Editor Teks</button>
+                                    </div>
+
+                                    <div id="preview-bank-ujian-wrapper" class="aws-bu-preview-box" style="display:none;">
+                                        <div class="aws-bu-preview-head">
+                                            <div style="min-width:0;">
+                                                <div class="aws-bu-preview-title">👁️ <span id="preview-bu-title">Draft Baru</span></div>
+                                                <div id="preview-bu-summary" class="aws-bu-preview-summary">📊 Total: 0 Soal</div>
+                                            </div>
+                                            <div class="aws-bu-preview-actions">
+                                                <button type="button" class="aws-quick-btn" onclick="window.gantiModeBankUjianWS('editor')" title="Ubah teks mentah soal">✏️ Edit Teks</button>
+                                                <button type="button" class="aws-quick-btn" onclick="window.cetakPreviewBankUjian('pdf')">🖨️ PDF</button>
+                                                <button type="button" class="aws-quick-btn" onclick="window.cetakPreviewBankUjian('word')">📄 Word</button>
+                                                <button type="button" id="btn-hapus-bank-terpilih" class="aws-quick-btn is-danger" style="display:none;" onclick="window.hapusBankUjianTerpilih()">🗑️ Hapus Bank Ini</button>
+                                            </div>
+                                        </div>
+                                        <div id="preview-bank-ujian-list" class="aws-bu-question-list"></div>
+                                    </div>
                                 </div>
-                                <div id="row-pgk" style="display:none; justify-content:space-between; align-items:center; background:#f8f9fa; padding:8px 10px; border-radius:4px; border:1px solid #eee;">
-                                    <span style="font-weight:bold; color:#2c3e50; font-size:12px;">PG Kompleks (<span id="jml-pgk" style="color:#2980b9;">0</span> soal)</span> 
-                                    <input type="number" id="bobot-pgk" class="input-box" style="width:75px; margin:0; text-align:center; font-weight:bold; padding:6px;" oninput="kalkulasiBobotOtomatis()" min="0">
+
+                                <!-- MODE B: EDITOR TEKS SOAL MENTAH -->
+                                <div id="aws-bu-pane-editor" class="aws-bu-pane" style="display:flex;">
+                                    <div class="aws-bu-editor-hint">
+                                        <span>Format didukung: <b>PG</b>, <b>PG Kompleks (benar/salah)</b>, <b>IS</b>, &amp; <b>Essay</b>. Pisahkan antarsoal dengan Enter kosong atau <code>---</code>.</span>
+                                        <button type="button" class="aws-quick-btn" onclick="window.gantiModeBankUjianWS('preview')">👁️ Lihat Daftar Soal</button>
+                                    </div>
+                                    <textarea id="admin-bu-text" class="input-box aws-bu-textarea" placeholder="Paste soal di sini...&#10;&#10;Soal: Penemu sel?&#10;A. Hooke&#10;B. Darwin&#10;Kunci: A&#10;Pembahasan: Hooke penemunya" oninput="analisisSoalOtomatis()"></textarea>
                                 </div>
-                                <div id="row-is" style="display:none; justify-content:space-between; align-items:center; background:#f8f9fa; padding:8px 10px; border-radius:4px; border:1px solid #eee;">
-                                    <span style="font-weight:bold; color:#2c3e50; font-size:12px;">Isian Singkat (<span id="jml-is" style="color:#2980b9;">0</span> soal)</span> 
-                                    <input type="number" id="bobot-is" class="input-box" style="width:75px; margin:0; text-align:center; font-weight:bold; padding:6px;" oninput="kalkulasiBobotOtomatis()" min="0">
-                                </div>
-                                <div id="row-es" style="display:none; justify-content:space-between; align-items:center; background:#f8f9fa; padding:8px 10px; border-radius:4px; border:1px solid #eee;">
-                                    <span style="font-weight:bold; color:#2c3e50; font-size:12px;">Essay (<span id="jml-es" style="color:#2980b9;">0</span> soal)</span> 
-                                    <input type="number" id="bobot-es" class="input-box" style="width:75px; margin:0; text-align:center; font-weight:bold; padding:6px;" oninput="kalkulasiBobotOtomatis()" min="0">
-                                </div>
-                                
-                                <div style="margin-top:8px; padding:12px; background:#e8f8f5; border-radius:6px; text-align:center; border:2px solid #16a085;">
-                                    <div style="font-size:11px; font-weight:bold; color:#7f8c8d; margin-bottom:2px;">TOTAL AKUMULASI POIN</div>
-                                    <span id="total-poin-bobot" style="color:#16a085; font-size:32px; font-weight:900; font-family:'Bebas Neue', sans-serif;">0</span> 
-                                    <span style="color:#7f8c8d; font-size:16px; font-weight:bold;">/ 100</span>
-                                </div>
-                                <button class="btn-action" id="btn-simpan-bank-ujian" style="background:#bdc3c7; width:100%; margin-top:5px; cursor:not-allowed;" disabled onclick="simpanPaketUjianSistem()">Simpan Ke Bank Ujian 💾</button>
+
                             </div>
 
-                            <!-- Area Preview Soal (Scroll ke Bawah di Panel Kanan) -->
-                            <div id="preview-bank-ujian-wrapper" style="display:none; margin-top:22px; border-top:2px dashed #cbd5e1; padding-top:15px;">
-                                <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap; margin-bottom:12px; background:#f8fafc; padding:10px 12px; border-radius:8px; border:1px solid #e2e8f0;">
-                                    <div>
-                                        <div style="font-size:12px; font-weight:bold; color:#2c3e50;">👁️ Daftar Soal: <span id="preview-bu-title" style="color:#2980b9;">Draft Baru</span></div>
-                                        <div id="preview-bu-summary" style="font-size:11px; font-weight:bold; color:#16a085; margin-top:2px;">📊 Total: 0 Soal</div>
-                                    </div>
-                                    <div style="display:flex; gap:6px; flex-wrap:wrap;">
-                                        <button class="btn-action" style="background:#2c3e50; width:auto; padding:5px 10px; font-size:11px;" onclick="window.cetakPreviewBankUjian('pdf')">🖨️ PDF</button>
-                                        <button class="btn-action" style="background:#2980b9; width:auto; padding:5px 10px; font-size:11px;" onclick="window.cetakPreviewBankUjian('word')">📄 Word</button>
-                                        <button id="btn-hapus-bank-terpilih" class="btn-action" style="background:#e74c3c; width:auto; padding:5px 10px; font-size:11px; display:none;" onclick="window.hapusBankUjianTerpilih()">🗑️ Hapus Bank Ini</button>
-                                    </div>
+                            <!-- PANEL KANAN RINGKAS: KHUSUS KALKULATOR BOBOT OTOMATIS -->
+                            <div class="aws-bu-bobot-pane">
+                                <h4>📊 Kalkulator Bobot Otomatis</h4>
+
+                                <div id="info-analisis-soal" class="aws-bu-info-alert">
+                                    Pilih Bank Ujian di atas atau ketik/paste soal di Editor Teks untuk menganalisis bobot otomatis.
                                 </div>
-                                <div id="preview-bank-ujian-list" style="display:flex; flex-direction:column; gap:8px;"></div>
+
+                                <div id="box-bobot-soal" style="display:none; flex-direction:column; gap:10px;">
+                                    <p style="font-size:11px; color:#526a7d; margin:0; font-weight:600; line-height:1.45;">Isi poin untuk tipe tertentu, biarkan kosong untuk dibagi rata dari sisa nilai (Maks: 100).</p>
+
+                                    <div id="row-pg" class="aws-bobot-row" style="display:none;">
+                                        <span>Pilihan Ganda (<b id="jml-pg">0</b>)</span>
+                                        <input type="number" id="bobot-pg" class="input-box aws-bobot-input" oninput="kalkulasiBobotOtomatis()" min="0">
+                                    </div>
+                                    <div id="row-pgk" class="aws-bobot-row" style="display:none;">
+                                        <span>PG Kompleks (<b id="jml-pgk">0</b>)</span>
+                                        <input type="number" id="bobot-pgk" class="input-box aws-bobot-input" oninput="kalkulasiBobotOtomatis()" min="0">
+                                    </div>
+                                    <div id="row-is" class="aws-bobot-row" style="display:none;">
+                                        <span>Isian Singkat (<b id="jml-is">0</b>)</span>
+                                        <input type="number" id="bobot-is" class="input-box aws-bobot-input" oninput="kalkulasiBobotOtomatis()" min="0">
+                                    </div>
+                                    <div id="row-es" class="aws-bobot-row" style="display:none;">
+                                        <span>Essay (<b id="jml-es">0</b>)</span>
+                                        <input type="number" id="bobot-es" class="input-box aws-bobot-input" oninput="kalkulasiBobotOtomatis()" min="0">
+                                    </div>
+
+                                    <div class="aws-bobot-total-box">
+                                        <div class="aws-bobot-total-lbl">TOTAL AKUMULASI POIN</div>
+                                        <div>
+                                            <span id="total-poin-bobot" class="aws-bobot-total-num">0</span>
+                                            <span class="aws-bobot-total-max">/ 100</span>
+                                        </div>
+                                    </div>
+
+                                    <button type="button" class="btn-action" id="btn-simpan-bank-ujian" style="background:#bdc3c7; width:100%; margin-top:4px; cursor:not-allowed;" disabled onclick="simpanPaketUjianSistem()">Simpan Ke Bank Ujian 💾</button>
+                                </div>
                             </div>
+
                         </div>
 
                     </div>
@@ -962,13 +1015,22 @@
                 <button class="close-btn" onclick="tutupModal('modal-manajer-soal')">✕</button>
             </div>
             <div class="modal-body" style="padding:15px; flex:1; overflow-y:auto; display:flex; flex-direction:column;">
-                <div style="display:flex; gap:10px; margin-bottom:15px; justify-content:space-between; align-items:center; border-bottom:2px solid #eee; padding-bottom:10px;">
-                    <select id="filter-manajer-kelas" class="input-box" style="margin-bottom:0; width:200px; font-weight:bold; cursor:pointer;" onchange="window.renderManajerSoal()">
-                        <option value="Semua">Semua Kelas</option>
-                    </select>
-                    <button class="btn-action" style="background:#8e44ad; width:auto; padding:8px 12px; font-size:12px;" onclick="window.bukaModalBankLatihanBaru()">📥 Bank Latihan</button>
+                <div class="aws-filter-bar">
+                    <div class="aws-filter-left">
+                        <div class="aws-select-group">
+                            <label for="filter-manajer-kelas">🏫 Filter Kelas</label>
+                            <select id="filter-manajer-kelas" class="input-box aws-select-pill" onchange="window.renderManajerSoal()">
+                                <option value="Semua">Semua Kelas</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="aws-filter-right">
+                        <button type="button" class="aws-quick-btn is-primary" onclick="window.bukaModalBankLatihanBaru()">📥 + Tambah / Arsipkan Bank Latihan</button>
+                    </div>
                 </div>
-                <ul id="list-manajer-soal" class="soal-manager-list" style="flex:1;"></ul>
+                <div class="aws-module-card">
+                    <ul id="list-manajer-soal" class="soal-manager-list" style="flex:1;"></ul>
+                </div>
             </div>
         </div>
     </div>
@@ -1056,7 +1118,50 @@
         </div>
     </div>
     
-    <div id="modal-theme" class="modal-overlay" onclick="if(event.target===this)tutupModal('modal-theme')"><div class="modal-box" style="width:450px;"><div class="modal-header"><h3>🎨 Theme & Layout</h3><button class="close-btn" onclick="tutupModal('modal-theme')">✕</button></div><div class="modal-body"><label style="font-size:12px; font-weight:bold;">Warna Web:</label><input type="color" id="theme-color" class="input-box" style="height:40px;"><label style="font-size:12px; font-weight:bold;">Font Dasar:</label><select id="theme-font" class="input-box"><option value="'Quicksand', sans-serif">Quicksand</option><option value="'Montserrat', sans-serif">Montserrat</option></select><label style="font-size:12px; font-weight:bold; margin-top:10px;">Padding Header (Atas-Bawah):</label><input type="range" id="theme-header-padding" min="10" max="100" value="20" class="input-box" style="height:40px;"><button class="btn-action" style="background:#27ae60; margin-top:20px;" onclick="simpanTema()">Save Theme</button></div></div></div>
+    <div id="modal-theme" class="modal-overlay" onclick="if(event.target===this)tutupModal('modal-theme')">
+        <div class="modal-box" style="width:460px;">
+            <div class="modal-header">
+                <h3 style="margin:0;">🎨 Theme &amp; Layout</h3>
+                <button class="close-btn" onclick="tutupModal('modal-theme')">✕</button>
+            </div>
+            <div class="modal-body">
+                <label style="font-size:12px; font-weight:bold; display:block; margin-bottom:4px;">Warna Header / Web:</label>
+                <input type="color" id="theme-color" class="input-box" style="height:42px; padding:4px; cursor:pointer;" value="#060608" oninput="window.previewTemaLive()">
+
+                <label style="font-size:12px; font-weight:bold; display:block; margin-bottom:4px;">Font Dasar:</label>
+                <select id="theme-font" class="input-box" onchange="window.previewTemaLive()">
+                    <option value="'Quicksand', sans-serif">Quicksand</option>
+                    <option value="'Poppins', sans-serif">Poppins</option>
+                    <option value="'Montserrat', sans-serif">Montserrat</option>
+                    <option value="'Open Sans', sans-serif">Open Sans</option>
+                    <option value="'Roboto', sans-serif">Roboto</option>
+                </select>
+
+                <label style="font-size:12px; font-weight:bold; display:flex; justify-content:space-between; margin-top:6px;">
+                    <span>Padding Header (Atas-Bawah):</span>
+                    <span id="lbl-theme-header-pad" style="color:#2370A1;">10px</span>
+                </label>
+                <input type="range" id="theme-header-padding" min="4" max="48" value="10" class="input-box" style="height:34px; padding:0;" oninput="window.previewTemaLive()">
+
+                <label style="font-size:12px; font-weight:bold; display:flex; justify-content:space-between; margin-top:6px;">
+                    <span>Ukuran Logo Header:</span>
+                    <span id="lbl-theme-logo-size" style="color:#2370A1;">40px</span>
+                </label>
+                <input type="range" id="theme-logo-size" min="24" max="90" value="40" class="input-box" style="height:34px; padding:0;" oninput="window.previewTemaLive()">
+
+                <div style="background:#f8fafc; border:1px dashed #cbd5e1; border-radius:8px; padding:10px; margin-bottom:14px;">
+                    <label style="font-size:11.5px; font-weight:bold; display:block; margin-bottom:6px; color:#334155;">Gambar Logo Header (Opsional):</label>
+                    <input type="file" id="input-theme-logo-file" accept="image/*" style="display:none;" onchange="window.uploadLogoHeaderTema(this)">
+                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <button type="button" class="btn-action" style="background:#2370A1; flex:1; padding:7px 12px; font-size:12px;" onclick="document.getElementById('input-theme-logo-file').click()">🖼️ Ganti Gambar Logo</button>
+                        <button type="button" class="btn-action" style="background:#64748b; width:auto; padding:7px 12px; font-size:12px;" onclick="window.resetLogoHeaderTema()">↺ Default</button>
+                    </div>
+                </div>
+
+                <button type="button" class="btn-action" style="background:#27ae60; margin-top:4px;" onclick="window.simpanTema()">💾 Save Theme</button>
+            </div>
+        </div>
+    </div>
     
     <div id="modal-pages" class="modal-overlay" onclick="if(event.target===this)tutupModal('modal-pages')"><div class="modal-box"><div class="modal-header"><h3>⚙️ Pages</h3><button class="close-btn" onclick="tutupModal('modal-pages')">✕</button></div><div class="modal-body"><button class="btn-action" style="margin-bottom:20px;" onclick="tambahHalamanBaru(0)">⊕ Add Page</button><ul class="page-list" id="sortable-list"></ul></div></div></div>
     <div id="modal-link" class="modal-overlay" onclick="if(event.target===this)tutupModal('modal-link')"><div class="modal-box" style="width:400px;"><div class="modal-header"><h3>🔗 Link</h3><button class="close-btn" onclick="tutupModal('modal-link')">✕</button></div><div class="modal-body"><select id="link-internal-select" class="input-box"></select><input type="text" id="link-external-input" class="input-box"><button class="btn-action" onclick="terapkanHyperlink()">Apply Link</button></div></div></div>
@@ -1208,51 +1313,79 @@
         </div>
     </div>
 
-    <!-- HEADER NAVBAR (DENGAN LONCENG NOTIFIKASI, LEADERBOARD, & PROFIL) -->
-    <div class="header-wrapper" id="header-wrap">
-        <!-- Pojok Kiri Atas (Di Desktop) / Baris Pintasan Fitur (Di HP) -->
-        <div class="header-left-stack" onclick="event.stopPropagation();">
-            <div class="header-pill-row" style="display:flex; gap:6px; align-items:center;">
-                <button id="btn-header-notif" class="header-pill-btn" onclick="window.bukaModalNotifikasiSiswa()" title="Notifikasi Tugas & Ujian">
-                    🔔 <span>Notifikasi</span>
-                    <b id="badge-header-notif" class="header-notif-badge" style="display:none;">0</b>
-                </button>
-                <button id="btn-header-checkin" class="header-pill-btn" style="background:#f1c40f; color:#0b3954; border-color:#f39c12; font-weight:800;" onclick="window.bukaModalCheckinSiswa()" title="Check-in Keadaan Hari Ini (+100 Coin)">
-                    😊 <span>Check-in +100 Coin</span>
-                </button>
-            </div>
-            <div class="header-pill-row" style="display:flex; gap:6px; align-items:center;">
-                <button id="btn-header-leaderboard" class="header-pill-btn leaderboard-pill" onclick="window.bukaModalLeaderboard()" title="Papan Peringkat Sains">
-                    🏆 <span>Leaderboard</span>
-                </button>
-                <button id="btn-header-misi" class="header-pill-btn misi-pill" onclick="window.bukaModalMisiHarian()" title="Misi Harian & Login Streak">
-                    🔥 <span id="header-misi-label">Misi</span>
-                    <b id="badge-header-misi" class="header-notif-badge" style="display:none;">0</b>
-                </button>
-            </div>
-            <div class="header-pill-row" style="display:flex; gap:6px; align-items:center;">
-                <button id="btn-header-nilai-saya" class="header-pill-btn" style="background:rgba(39, 174, 96, 0.28); border-color:#2ecc71; color:#ffffff; font-weight:800;" onclick="window.bukaModalNilaiSaya()" title="Lihat Hasil & Detail Ujian Saya">
-                    📊 <span>Nilai Saya</span>
-                </button>
-                <button id="btn-header-install-pwa" class="header-pill-btn" style="display:none; background:linear-gradient(135deg, #e67e22, #d35400); border-color:#f1c40f; color:#ffffff; font-weight:800;" onclick="window.klikInstallAplikasiPWA()" title="Download & Pasang Aplikasi di Perangkat Ini">
-                    📲 <span>Install App</span>
-                </button>
-            </div>
+    <!-- HEADER NAVBAR MODERN (KIRI: 3 GARIS + MARDIKAWAN | KANAN: PROFIL/LOGIN + NOTIFIKASI + TITIK TIGA) -->
+    <header class="header-wrapper site-topbar" id="header-wrap">
+        <!-- Sisi Kiri: Tombol 3 Garis & Logo (Tanpa Teks Judul) -->
+        <div class="topbar-brand-left" onclick="event.stopPropagation();">
+            <button type="button" id="btn-toggle-main-sidebar" class="topbar-hamburger-btn" onclick="window.toggleMainSidebarNav()" title="Buka Menu Ruang Belajar" aria-label="Buka Menu Ruang Belajar">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+            <a href="index.html?bab=home" class="topbar-logo-link" onclick="window.navigasiHalaman(event, 'home')" title="Kembali ke Beranda">
+                <img id="header-brand-logo" class="topbar-brand-logo" src="./icon-192.png" alt="Logo">
+            </a>
+            <h1 class="header-title" id="web-title" style="display:none !important;" aria-hidden="true">Mardikawan</h1>
         </div>
 
-        <span class="header-settings-btn" onclick="bukaModal('modal-theme');event.stopPropagation();">⚙️</span>
-        <h1 class="header-title" id="web-title">Mahardika</h1>
+        <!-- Sisi Kanan: Setting (Admin), Profil/Login, Notifikasi Berdiri Sendiri, & Titik Tiga Paling Kanan -->
+        <div class="header-right-actions topbar-actions-right" onclick="event.stopPropagation();">
+            <span class="header-settings-btn" onclick="bukaModal('modal-theme');event.stopPropagation();" title="Pengaturan Tema">⚙️</span>
 
-        <!-- Pojok Kanan Atas: Profil Siswa & Tombol Login/Logout -->
-        <div class="header-right-actions" onclick="event.stopPropagation();">
-            <button id="btn-profil-utama" class="header-profile-btn" style="display:none;" onclick="window.bukaModalProfilSiswa()" title="Profil & Pencapaian Saya">
+            <button type="button" id="btn-profil-utama" class="header-profile-btn" style="display:none;" onclick="window.bukaModalProfilSiswa()" title="Profil, Pencapaian, & Logout">
                 <img id="header-profil-foto" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ffffff'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E" alt="Profil">
                 <span id="header-profil-nama">Profil</span>
             </button>
-            <button id="btn-login-utama" onclick="window.bukaModalLoginSistem()">LOGIN</button>
-            <button id="btn-logout-utama" onclick="window.prosesLogoutSistem()" style="display:none;">LOGOUT</button>
+            <button type="button" id="btn-login-utama" onclick="window.bukaModalLoginSistem()">LOGIN</button>
+
+            <button type="button" id="btn-header-notif" class="header-pill-btn" onclick="window.bukaModalNotifikasiSiswa()" title="Notifikasi Tugas & Ujian">
+                🔔 <span>Notifikasi</span>
+                <b id="badge-header-notif" class="header-notif-badge" style="display:none;">0</b>
+            </button>
+
+            <div class="header-more-wrap">
+                <button type="button" id="btn-header-more" class="header-pill-btn header-more-btn" onclick="window.toggleMenuHeaderMore(event)" title="Menu Fitur Lainnya" aria-expanded="false">
+                    <span class="header-more-dots">⋮</span>
+                    <span id="badge-header-more-dot" class="header-more-dot" style="display:none;"></span>
+                </button>
+
+                <div id="header-more-dropdown" class="header-more-dropdown" style="display:none;">
+                    <div class="header-more-group-lbl">Aktivitas Harian</div>
+                    <button type="button" id="btn-header-checkin" class="header-more-item is-checkin" onclick="window.tutupMenuHeaderMore(); window.bukaModalCheckinSiswa()">
+                        <span class="hm-ico">😊</span>
+                        <span class="hm-txt">Check-in +100 Coin</span>
+                    </button>
+                    <button type="button" id="btn-header-misi" class="header-more-item is-misi" onclick="window.tutupMenuHeaderMore(); window.bukaModalMisiHarian()">
+                        <span class="hm-ico">🔥</span>
+                        <span class="hm-txt" id="header-misi-label">Misi</span>
+                        <b id="badge-header-misi" class="header-notif-badge" style="display:none;">0</b>
+                    </button>
+
+                    <div class="header-more-group-lbl">Akademik &amp; Peringkat</div>
+                    <button type="button" id="btn-header-nilai-saya" class="header-more-item is-nilai" onclick="window.tutupMenuHeaderMore(); window.bukaModalNilaiSaya()">
+                        <span class="hm-ico">📊</span>
+                        <span class="hm-txt">Nilai Saya</span>
+                    </button>
+                    <button type="button" id="btn-header-leaderboard" class="header-more-item is-lb" onclick="window.tutupMenuHeaderMore(); window.bukaModalLeaderboard()">
+                        <span class="hm-ico">🏆</span>
+                        <span class="hm-txt">Leaderboard</span>
+                    </button>
+
+                    <button type="button" id="btn-header-install-pwa" class="header-more-item is-pwa" style="display:none;" onclick="window.tutupMenuHeaderMore(); window.klikInstallAplikasiPWA()">
+                        <span class="hm-ico">📲</span>
+                        <span class="hm-txt">Install App</span>
+                    </button>
+
+                    <div id="header-more-logout-wrap" style="display:none; border-top:1px solid #e2e8f0; margin-top:6px; padding-top:6px;">
+                        <button type="button" class="header-more-item is-logout" onclick="window.tutupMenuHeaderMore(); window.prosesLogoutSistem()">
+                            <span class="hm-ico">🚪</span>
+                            <span class="hm-txt">Keluar Akun</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
-    </div>
+    </header>
     
     <!-- MODAL CUSTOM PENGGANTI ALERT, CONFIRM, & PROMPT -->
     <div id="modal-custom-dialog" class="modal-overlay" style="z-index: 10000000;">
@@ -1273,31 +1406,187 @@
             </div>
         </div>
     </div>
-    <!-- NAVBAR UTAMA -->
-    <div class="navbar" id="main-nav">
-        <ul id="dynamic-navbar">
-            <!-- Menu Statis Permanen -->
-            <li><a href="javascript:void(0)" style="color:#f1c40f; font-weight:bold;" onclick="event.preventDefault(); window.bukaModal('modal-enter-latihan')">🚀 LATIHAN</a></li>
-            <li><a href="javascript:void(0)" style="color:#e74c3c; font-weight:bold;" onclick="event.preventDefault(); window.bukaModalMasukUjianSiswa()">🎯 UJIAN</a></li>
-            <li><a href="index.html?bab=home">🏠 HOME</a></li>
-            
-            <!-- Wadah untuk halaman dinamis dari database -->
-            <div id="dynamic-pages-container" style="display:contents;"></div>
-        </ul>
-    </div>
+    <!-- BACKDROP & SIDEBAR KIRI RUANG BELAJAR (DIBUKA DARI 3 GARIS KIRI ATAS) -->
+    <div id="main-nav-backdrop" class="main-nav-backdrop" onclick="window.toggleMainSidebarNav(false)"></div>
+    <aside class="navbar main-left-drawer" id="main-nav" aria-label="Navigasi Ruang Belajar">
+        <div class="main-drawer-header">
+            <div class="main-drawer-brand">
+                <div class="main-drawer-logo">M</div>
+                <div class="main-drawer-brand-text">
+                    <strong>Mardikawan</strong>
+                    <span>Daftar Ruang Belajar</span>
+                </div>
+            </div>
+            <button type="button" class="main-drawer-close" onclick="window.toggleMainSidebarNav(false)" title="Tutup Menu">✕</button>
+        </div>
+
+        <div class="main-drawer-scroll">
+            <div class="main-drawer-section-lbl">ARENA &amp; EVALUASI</div>
+            <ul id="dynamic-navbar">
+                <!-- Menu Statis Permanen -->
+                <li class="drawer-static-item is-latihan">
+                    <a href="javascript:void(0)" onclick="event.preventDefault(); window.toggleMainSidebarNav(false); window.bukaModal('modal-enter-latihan')">
+                        <span>🚀 LATIHAN</span>
+                    </a>
+                </li>
+                <li class="drawer-static-item is-ujian">
+                    <a href="javascript:void(0)" onclick="event.preventDefault(); window.toggleMainSidebarNav(false); window.bukaModalMasukUjianSiswa()">
+                        <span>🎯 UJIAN</span>
+                    </a>
+                </li>
+                <li class="drawer-static-item is-home-fallback">
+                    <a href="index.html?bab=home"><span>🏠 HOME</span></a>
+                </li>
+
+                <li class="main-drawer-divider" aria-hidden="true">RUANG MATERI</li>
+
+                <!-- Wadah untuk halaman dinamis dari database -->
+                <div id="dynamic-pages-container" style="display:contents;"></div>
+            </ul>
+        </div>
+    </aside>
     
     <!-- ADMIN MENU BAR -->
     <div id="admin-menu-bar" class="admin-menu-bar">
         <span onclick="window.bukaModal('modal-pages')">⚙️ Pages</span>
-        <span onclick="window.bukaModal('modal-manajer-soal')">🗂️ Manajer Latihan</span>
-        <span onclick="window.bukaModal('modal-manajer-ujian')">🗂️ Manajer Ujian</span>
-        <span onclick="window.bukaModalAdministrasi()" style="color:#2980b9; font-weight:900;">📁 Administrasi</span>
-        <span onclick="window.bukaModal('modal-rekap-nilai')">📊 Rekap Nilai</span>
+        <span id="btn-open-admin-ws" class="admin-ws-trigger-pill" onclick="window.bukaModeAdministrasiPenuh('administrasi')">📁 Administrasi</span>
         <span onclick="window.bukaModalPerkembanganSiswa()" style="color:#27ae60; font-weight:900;">📈 Perkembangan Siswa</span>
         <span onclick="window.bukaWelcomePopup()">📢 Popup</span>
         <span onclick="window.bukaModal('modal-jadwal-guru'); window.gantiTabJadwalGuru('excel');" style="color:#16a085; font-weight:900;">📅 Jadwal Pelajaran</span>
         <!-- TOMBOL BARU CATATAN GURU -->
         <span onclick="window.bukaCatatanGuru()" style="color:#e67e22; font-weight:900; border-left:2px solid #eee; padding-left:15px;">📝 Catatan Guru</span>
+    </div>
+
+    <!-- MODE LAYAR PENUH: PORTAL ADMINISTRASI TERPADU -->
+    <div id="admin-workspace-shell" class="admin-ws-shell" style="display:none;">
+        <div id="admin-ws-sidebar-backdrop" class="admin-ws-sidebar-backdrop" onclick="window.toggleSidebarAdminWS(false)"></div>
+
+        <!-- SIDEBAR KIRI GELAP (#060608) -->
+        <aside id="admin-ws-sidebar" class="admin-ws-sidebar">
+            <div class="admin-ws-brand">
+                <div class="admin-ws-logo">M</div>
+                <div class="admin-ws-brand-text">
+                    <strong>Mardikawan</strong>
+                    <span>Room Edu • Admin</span>
+                </div>
+            </div>
+
+            <div class="admin-ws-nav-scroll">
+                <div class="admin-ws-nav-label">MENU UTAMA</div>
+                <button type="button" class="admin-ws-nav-item active" data-ws-menu="administrasi" onclick="window.pindahMenuAdminWS('administrasi')">
+                    <span class="aws-nav-ico">📁</span>
+                    <span class="aws-nav-txt">Administrasi Kelas</span>
+                </button>
+                <button type="button" class="admin-ws-nav-item" data-ws-menu="manajer-soal" onclick="window.pindahMenuAdminWS('manajer-soal')">
+                    <span class="aws-nav-ico">🗂️</span>
+                    <span class="aws-nav-txt">Manajer Latihan</span>
+                </button>
+                <button type="button" class="admin-ws-nav-item" data-ws-menu="manajer-ujian" onclick="window.pindahMenuAdminWS('manajer-ujian')">
+                    <span class="aws-nav-ico">🎯</span>
+                    <span class="aws-nav-txt">Manajer Ujian</span>
+                    <span id="ws-badge-ujian-notif" class="aws-nav-badge" style="display:none;">!</span>
+                </button>
+                <button type="button" class="admin-ws-nav-item" data-ws-menu="rekap-nilai" onclick="window.pindahMenuAdminWS('rekap-nilai')">
+                    <span class="aws-nav-ico">📊</span>
+                    <span class="aws-nav-txt">Rekap Nilai</span>
+                </button>
+                <button type="button" class="admin-ws-nav-item" data-ws-menu="ekstrakurikuler" onclick="window.pindahMenuAdminWS('ekstrakurikuler')">
+                    <span class="aws-nav-ico">🏕️</span>
+                    <span class="aws-nav-txt">Ekstrakurikuler</span>
+                </button>
+
+                <div class="admin-ws-nav-label" style="margin-top:16px;">AKSES CEPAT</div>
+                <button type="button" class="admin-ws-nav-item is-shortcut" onclick="window.bukaCatatanGuru()">
+                    <span class="aws-nav-ico">📝</span>
+                    <span class="aws-nav-txt">Catatan Guru</span>
+                </button>
+                <button type="button" class="admin-ws-nav-item is-shortcut" onclick="window.bukaModalJadwalGuru()">
+                    <span class="aws-nav-ico">📅</span>
+                    <span class="aws-nav-txt">Jadwal &amp; Kalender</span>
+                </button>
+                <button type="button" class="admin-ws-nav-item is-shortcut" onclick="window.salinLinkSiswaGuru()">
+                    <span class="aws-nav-ico">🔗</span>
+                    <span class="aws-nav-txt">Salin Link Siswa</span>
+                </button>
+                <button type="button" class="admin-ws-nav-item is-shortcut" onclick="window.bukaModalKontrolBorderSeason()">
+                    <span class="aws-nav-ico">✨</span>
+                    <span class="aws-nav-txt">Shop Border Season</span>
+                </button>
+            </div>
+
+            <div class="admin-ws-sidebar-footer">
+                <button type="button" class="admin-ws-exit-btn" onclick="window.tutupModeAdministrasiPenuh()">
+                    ⬅️ Kembali ke Ruang Materi
+                </button>
+            </div>
+        </aside>
+
+        <!-- AREA KANAN: TOPBAR + PANGGUNG MODUL -->
+        <div class="admin-ws-main">
+            <header class="admin-ws-topbar">
+                <div class="admin-ws-topbar-left">
+                    <button type="button" class="admin-ws-burger" onclick="window.toggleSidebarAdminWS()" title="Menu Sidebar">☰</button>
+                    <div id="ws-topbar-icon" class="admin-ws-title-ico">📁</div>
+                    <div class="admin-ws-title-wrap">
+                        <h2 id="ws-topbar-title">Administrasi Kelas</h2>
+                        <div id="ws-topbar-subtitle">Mardikawan Room Edu</div>
+                    </div>
+                </div>
+
+                <div class="admin-ws-topbar-right">
+                    <div id="admin-ws-topbar-tabs" class="admin-ws-topbar-tabs"></div>
+                    <button type="button" class="admin-ws-close-x" onclick="window.tutupModeAdministrasiPenuh()" title="Tutup Mode Administrasi">✕</button>
+                </div>
+            </header>
+
+            <main id="admin-ws-stage" class="admin-ws-stage"></main>
+        </div>
+    </div>
+
+    <!-- MODAL RUANG EKSTRAKURIKULER (TERPASANG DI MODE ADMINISTRASI) -->
+    <div id="modal-ekstrakurikuler" class="modal-overlay" onclick="if(event.target===this)tutupModal('modal-ekstrakurikuler')">
+        <div class="modal-box" style="width:95vw; height:95vh; max-height:95vh; display:flex; flex-direction:column;">
+            <div class="modal-header" style="background:#060608; color:white;">
+                <h3 style="margin:0;">🏕️ Ruang Ekstrakurikuler</h3>
+                <button class="close-btn" style="color:white;" onclick="tutupModal('modal-ekstrakurikuler')">✕</button>
+            </div>
+            <div class="modal-body" style="padding:15px; flex:1; overflow:hidden; display:flex; flex-direction:column; gap:12px;">
+                <!-- Sub-Tab Pill Bar Ekstrakurikuler (Otomatis Pindah ke Topbar Kanan Atas) -->
+                <div class="aws-subtabs-bar" id="aws-ekskul-subtabs">
+                    <button type="button" class="btn-action tab-ekskul-btn active" onclick="window.bukaTabEkskul('tab-ekskul-rencana', this)">📋 Rencana Mingguan</button>
+                    <button type="button" class="btn-action tab-ekskul-btn" onclick="window.bukaTabEkskul('tab-ekskul-anggota', this)">👥 Anggota <span id="badge-ekskul-anggota" class="aws-pill-counter">0</span></button>
+                    <button type="button" class="btn-action tab-ekskul-btn" onclick="window.bukaTabEkskul('tab-ekskul-absensi', this)">✅ Kehadiran</button>
+                    <button type="button" class="btn-action tab-ekskul-btn" onclick="window.bukaTabEkskul('tab-ekskul-ujian', this)">🎯 Ujian &amp; Nilai Ekskul</button>
+                </div>
+
+                <!-- Bar Pilih & Kelola Ekstrakurikuler -->
+                <div class="aws-filter-bar">
+                    <div class="aws-filter-left">
+                        <div class="aws-select-group">
+                            <label for="ekskul-select-aktif">🏕️ Ekstrakurikuler</label>
+                            <select id="ekskul-select-aktif" class="input-box aws-select-pill" onchange="window.pilihEkskulAktif(this.value)"></select>
+                        </div>
+                        <div class="aws-stat-chips">
+                            <span class="aws-stat-chip">👥 <b id="ekskul-info-anggota">0</b> Anggota</span>
+                            <span class="aws-stat-chip">📋 <b id="ekskul-info-rencana">0</b> Rencana</span>
+                        </div>
+                    </div>
+                    <div class="aws-filter-right">
+                        <button type="button" class="aws-quick-btn is-primary" onclick="window.tambahEkskulBaru()">➕ Tambah Ekskul</button>
+                        <button type="button" class="aws-quick-btn" onclick="window.ubahNamaEkskulAktif()">✏️ Ubah Nama</button>
+                        <button type="button" class="aws-quick-btn is-danger-soft" onclick="window.hapusEkskulAktif()">🗑️ Hapus</button>
+                    </div>
+                </div>
+
+                <!-- Area Konten 4 Sub-Tab Ekstrakurikuler -->
+                <div id="ekskul-tab-content-area" class="aws-module-card">
+                    <div id="tab-ekskul-rencana" class="ekskul-tab-content"></div>
+                    <div id="tab-ekskul-anggota" class="ekskul-tab-content" style="display:none;"></div>
+                    <div id="tab-ekskul-absensi" class="ekskul-tab-content" style="display:none;"></div>
+                    <div id="tab-ekskul-ujian" class="ekskul-tab-content" style="display:none;"></div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- MODAL RUANG ADMINISTRASI GURU -->
@@ -1312,35 +1601,35 @@
             </div>
             <div class="modal-body" style="padding: 15px; display: flex; flex-direction: column; flex: 1; overflow: hidden; background:#f4f6f6;">
                 
-                <!-- Header Administrasi (Pilih Kelas, Catatan Kelas, Rekap Nilai, Info, & Salin Link Siswa) -->
-                <div style="display:flex; justify-content:space-between; align-items:center; background:white; padding:10px 15px; border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,0.05); margin-bottom:15px; flex-wrap:wrap; gap:10px;">
-                    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                        <label style="font-weight:bold; font-size:13px; color:#2c3e50;">🏫 Pilih Kelas Terlebih Dahulu:</label>
-                        <select id="admin-select-kelas" class="input-box" style="width:200px; margin:0; padding:6px; font-weight:bold;" onchange="window.pilihKelasAdmin(this.value)"></select>
-                        <button class="btn-action" style="background:#e67e22; width:auto; padding:6px 12px; font-size:12px; border-radius:6px; display:flex; align-items:center; gap:6px;" onclick="window.bukaCatatanKelas()">📝 Catatan Kelas</button>
-                        <button class="btn-action" style="background:#16a085; width:auto; padding:6px 12px; font-size:12px; border-radius:6px; display:flex; align-items:center; gap:6px;" onclick="window.bukaModal('modal-rekap-nilai')">📊 Rekap Nilai</button>
-                        <button type="button" class="btn-action" style="background:#8e44ad; width:auto; padding:6px 12px; font-size:12px; border-radius:6px; display:flex; align-items:center; gap:6px;" onclick="window.bukaModalJadwalGuru()" title="Buka Kalender Pengingat, Jadwal Pelajaran, & Rencana Pembelajaran">📅 Jadwal</button>
-                    </div>
-                    <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-                        <div style="font-size:12px; color:#7f8c8d; font-weight:bold;">
-                            👥 <span id="admin-info-total-siswa">0</span> Siswa terdaftar | 📅 <span id="admin-info-total-agenda">0</span> Catatan Agenda
-                        </div>
-                        <button class="btn-action" style="background:#2980b9; width:auto; padding:7px 14px; font-size:12px; border-radius:20px; display:flex; align-items:center; gap:6px;" onclick="window.salinLinkSiswaGuru()">🔗 Salin Link Siswa</button>
-                    </div>
+                <!-- Sub-Tab Pill Bar Administrasi Kelas (Gaya Dashboard Modern) -->
+                <div class="aws-subtabs-bar" id="aws-admin-subtabs">
+                    <button type="button" class="btn-action tab-admin-btn active" onclick="bukaTabAdmin('tab-absensi', this)">📋 Absensi Siswa</button>
+                    <button type="button" class="btn-action tab-admin-btn" onclick="bukaTabAdmin('tab-agenda', this)">📅 Agenda Mengajar</button>
+                    <button type="button" class="btn-action tab-admin-btn" onclick="bukaTabAdmin('tab-ledger', this)">📊 Ledger Akademik</button>
+                    <button type="button" class="btn-action tab-admin-btn is-remedial-tab" onclick="bukaTabAdmin('tab-remedial-admin', this)">🔥 Remedial <span id="badge-remedial-admin" class="aws-pill-counter">0</span></button>
+                    <button type="button" class="btn-action tab-admin-btn" onclick="bukaTabAdmin('tab-notifikasi-admin', this)">📢 Notifikasi Siswa</button>
+                    <button type="button" class="btn-action tab-admin-btn" onclick="bukaTabAdmin('tab-input-data', this)">👥 Input Data Kelas</button>
+                    <button type="button" class="btn-action tab-admin-btn" onclick="bukaTabAdmin('tab-backup-arsip', this)">💾 Backup &amp; Arsip</button>
+                    <button type="button" id="btn-kelola-akun" class="btn-action tab-admin-btn is-superadmin-tab" style="display:none;" onclick="bukaTabAdmin('tab-kelola-akun', this)">🔑 Kelola Akun Guru</button>
                 </div>
 
-                <!-- Tabs Menu Administrasi (Reminder diganti menjadi Remedial) -->
-                <div style="display:flex; gap:8px; margin-bottom:15px; flex-wrap:wrap; border-bottom: 2px solid #ddd; padding-bottom: 10px;">
-                    <button class="btn-action tab-admin-btn active" style="background:#0b3954; width:auto; padding:8px 15px; font-size:12px;" onclick="bukaTabAdmin('tab-absensi', this)">📋 Absensi Siswa</button>
-                    <button class="btn-action tab-admin-btn" style="background:#ffffff; color:#333; border:1px solid #ccc; width:auto; padding:8px 15px; font-size:12px; box-shadow:none;" onclick="bukaTabAdmin('tab-agenda', this)">📅 Agenda Mengajar</button>
-                    <button class="btn-action tab-admin-btn" style="background:#ffffff; color:#333; border:1px solid #ccc; width:auto; padding:8px 15px; font-size:12px; box-shadow:none;" onclick="bukaTabAdmin('tab-ledger', this)">📊 Ledger Akademik</button>
-                    <button class="btn-action tab-admin-btn" style="background:#ffffff; color:#c0392b; border:1px solid #f5b7b1; width:auto; padding:8px 15px; font-size:12px; box-shadow:none; font-weight:bold;" onclick="bukaTabAdmin('tab-remedial-admin', this)">🔥 Remedial <span id="badge-remedial-admin" style="background:#e74c3c; color:white; padding:2px 6px; border-radius:10px; font-size:10px;">0</span></button>
-                    <button class="btn-action tab-admin-btn" style="background:#ffffff; color:#333; border:1px solid #ccc; width:auto; padding:8px 15px; font-size:12px; box-shadow:none;" onclick="bukaTabAdmin('tab-notifikasi-admin', this)">📢 Notifikasi Siswa</button>
-                    <button class="btn-action tab-admin-btn" style="background:#ffffff; color:#16a085; border:1px solid #a3e4d7; width:auto; padding:8px 15px; font-size:12px; box-shadow:none; font-weight:bold;" onclick="bukaTabAdmin('tab-backup-arsip', this)">💾 Backup & Arsip</button>
-                    <div style="flex:1;"></div>
-                    <!-- Tombol Input Data Pindah ke Kanan -->
-                    <button class="btn-action tab-admin-btn" style="background:#3498db; color:white; width:auto; padding:8px 15px; font-size:12px; border:none;" onclick="bukaTabAdmin('tab-input-data', this)">👥 Input Data Siswa & Kelas</button>
-                    <button id="btn-kelola-akun" class="btn-action" style="background:#f1c40f; color:#2c3e50; width:auto; padding:8px 15px; font-size:12px; display:none;" onclick="bukaTabAdmin('tab-kelola-akun', this)">🔑 Kelola Akun Guru</button>
+                <!-- Bar Filter Kelas, Statistik Ringkas, & Aksi Cepat -->
+                <div class="aws-filter-bar">
+                    <div class="aws-filter-left">
+                        <div class="aws-select-group">
+                            <label for="admin-select-kelas">🏫 Kelas Aktif</label>
+                            <select id="admin-select-kelas" class="input-box aws-select-pill" onchange="window.pilihKelasAdmin(this.value)"></select>
+                        </div>
+                        <div class="aws-stat-chips">
+                            <span class="aws-stat-chip">👥 <b id="admin-info-total-siswa">0</b> Siswa</span>
+                            <span class="aws-stat-chip">📅 <b id="admin-info-total-agenda">0</b> Agenda</span>
+                        </div>
+                    </div>
+                    <div class="aws-filter-right">
+                        <button type="button" class="aws-quick-btn" onclick="window.bukaCatatanKelas()">📝 Catatan Kelas</button>
+                        <button type="button" class="aws-quick-btn" onclick="window.bukaModalJadwalGuru()" title="Buka Kalender Pengingat, Jadwal Pelajaran, & Rencana Pembelajaran">📅 Jadwal</button>
+                        <button type="button" class="aws-quick-btn is-primary" onclick="window.salinLinkSiswaGuru()">🔗 Salin Link Siswa</button>
+                    </div>
                 </div>
 
                 <!-- Area Konten Tabs -->
@@ -2158,6 +2447,7 @@
     <script src="./administrasi-guru.js"></script>
     <script src="./bank-soal-manajer.js"></script>
     <script src="./ujian-rekap-cbt.js"></script>
+    <script src="./ekstrakurikuler.js"></script>
     <script src="./ruang-latihan.js"></script>
     <script src="./fitur-afektif-games.js"></script>
     <script src="./my-pet-engine.js"></script>

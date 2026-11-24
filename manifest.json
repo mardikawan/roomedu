@@ -1,12 +1,12 @@
 {
-  "name": "Sistem Belajar Mahardika",
-  "short_name": "Mahardika",
+  "name": "Mardikawan Room Edu",
+  "short_name": "Mardikawan",
   "description": "Platform E-Learning Interaktif & CBT Ujian Sekolah",
   "start_url": "./index.html?bab=home",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#0b3954",
-  "theme_color": "#0b3954",
+  "background_color": "##E8FFE8",
+  "theme_color": "#060608",
   "orientation": "any",
   "icons": [
     {

@@ -1628,7 +1628,51 @@ window.KATALOG_BORDER_SHOP = [
     { id: "b24", no: 24, tier: "Theme",     harga: 500000,  nama: "24. Sorcerer (JJK)",     ikonKanan: "🤞", classCss: "sbd-border-24", avatarCss: "av-frame-24" },
     { id: "b25", no: 25, tier: "Theme",     harga: 500000,  nama: "25. Scout Legion (AOT)", ikonKanan: "🛡️", classCss: "sbd-border-25", avatarCss: "av-frame-25" },
     { id: "b26", no: 26, tier: "Theme",     harga: 500000,  nama: "26. Super Saiyan (DB)",  ikonKanan: "🐉", classCss: "sbd-border-26", avatarCss: "av-frame-26" },
-    { id: "b27", no: 27, tier: "Theme",     harga: 500000,  nama: "27. Cyberpunk Neon",     ikonKanan: "🤖", classCss: "sbd-border-27", avatarCss: "av-frame-27" }
+    { id: "b27", no: 27, tier: "Theme",     harga: 500000,  nama: "27. Cyberpunk Neon",     ikonKanan: "🤖", classCss: "sbd-border-27", avatarCss: "av-frame-27" },
+
+    // TAMBAHAN TIER 3: SPECIAL (50.000 Coin) - Alam, Cahaya, & Kristal
+    { id: "b28", no: 28, tier: "Special",   harga: 50000,   nama: "28. Bioluminesensi Laut", ikonKanan: "🪼", classCss: "sbd-border-28", avatarCss: "av-frame-28" },
+    { id: "b29", no: 29, tier: "Special",   harga: 50000,   nama: "29. Aurora Borealis",     ikonKanan: "🌌", classCss: "sbd-border-29", avatarCss: "av-frame-29" },
+    { id: "b30", no: 30, tier: "Special",   harga: 50000,   nama: "30. Hutan Tropis Zamrud", ikonKanan: "🌴", classCss: "sbd-border-30", avatarCss: "av-frame-30" },
+    { id: "b31", no: 31, tier: "Special",   harga: 50000,   nama: "31. Kristal Rose Quartz", ikonKanan: "💎", classCss: "sbd-border-31", avatarCss: "av-frame-31" },
+    { id: "b32", no: 32, tier: "Special",   harga: 50000,   nama: "32. Samudra Karang",      ikonKanan: "🪸", classCss: "sbd-border-32", avatarCss: "av-frame-32" },
+
+    // TAMBAHAN TIER 4: LEGENDARY (1.000.000 Coin) - Ikonik Sains & Kosmik Kerajaan
+    { id: "b33", no: 33, tier: "Legendary", harga: 1000000, nama: "33. Heliks DNA Emas",     ikonKanan: "🧬", classCss: "sbd-border-33", avatarCss: "av-frame-33" },
+    { id: "b34", no: 34, tier: "Legendary", harga: 1000000, nama: "34. Supernova Kosmik",    ikonKanan: "🌟", classCss: "sbd-border-34", avatarCss: "av-frame-34" },
+    { id: "b35", no: 35, tier: "Legendary", harga: 1000000, nama: "35. Sayap Phoenix Abadi", ikonKanan: "🔥", classCss: "sbd-border-35", avatarCss: "av-frame-35" },
+    { id: "b36", no: 36, tier: "Legendary", harga: 1000000, nama: "36. Naga Giok Kaisar",    ikonKanan: "🐲", classCss: "sbd-border-36", avatarCss: "av-frame-36" },
+    { id: "b37", no: 37, tier: "Legendary", harga: 1000000, nama: "37. Gerhana Matahari",    ikonKanan: "🌑", classCss: "sbd-border-37", avatarCss: "av-frame-37" },
+
+    // TAMBAHAN TIER 5: THEME (500.000 Coin) - Anime, Game, & Retro
+    { id: "b38", no: 38, tier: "Theme",     harga: 500000,  nama: "38. Shadow Monarch (SL)", ikonKanan: "🗡️", classCss: "sbd-border-38", avatarCss: "av-frame-38" },
+    { id: "b39", no: 39, tier: "Theme",     harga: 500000,  nama: "39. Soul Reaper (Bleach)",ikonKanan: "🌙", classCss: "sbd-border-39", avatarCss: "av-frame-39" },
+    { id: "b40", no: 40, tier: "Theme",     harga: 500000,  nama: "40. Plus Ultra (MHA)",    ikonKanan: "⚡", classCss: "sbd-border-40", avatarCss: "av-frame-40" },
+    { id: "b41", no: 41, tier: "Theme",     harga: 500000,  nama: "41. Egoist (Blue Lock)",  ikonKanan: "⚽", classCss: "sbd-border-41", avatarCss: "av-frame-41" },
+    { id: "b42", no: 42, tier: "Theme",     harga: 500000,  nama: "42. Poké-Trainer",        ikonKanan: "🔴", classCss: "sbd-border-42", avatarCss: "av-frame-42" },
+    { id: "b43", no: 43, tier: "Theme",     harga: 500000,  nama: "43. Celestia Stars",      ikonKanan: "✨", classCss: "sbd-border-43", avatarCss: "av-frame-43" },
+    { id: "b44", no: 44, tier: "Theme",     harga: 500000,  nama: "44. Pixel Diamond Craft", ikonKanan: "⛏️", classCss: "sbd-border-44", avatarCss: "av-frame-44" },
+    { id: "b45", no: 45, tier: "Theme",     harga: 500000,  nama: "45. Retro Synthwave 80s", ikonKanan: "🕶️", classCss: "sbd-border-45", avatarCss: "av-frame-45" },
+
+    // TIER 6: SEASON LIMITED (1.500.000 Coin) - Edisi Musiman Eksklusif (Kontrol Pause/Buka oleh Admin)
+    { id: "b46", no: 46, tier: "Season",    harga: 1500000, nama: "46. Natal (Miracle Noel)",      ikonKanan: "🎄", classCss: "sbd-border-46", avatarCss: "av-frame-46" },
+    { id: "b47", no: 47, tier: "Season",    harga: 1500000, nama: "47. Kathina (Sacred Lotus)",    ikonKanan: "🪷", classCss: "sbd-border-47", avatarCss: "av-frame-47" },
+    { id: "b48", no: 48, tier: "Season",    harga: 1500000, nama: "48. Imlek (Imperial Lunar)",    ikonKanan: "🏮", classCss: "sbd-border-48", avatarCss: "av-frame-48" },
+    { id: "b49", no: 49, tier: "Season",    harga: 1500000, nama: "49. Lebaran (Eid Crescent)",    ikonKanan: "🌙", classCss: "sbd-border-49", avatarCss: "av-frame-49" },
+    { id: "b50", no: 50, tier: "Season",    harga: 1500000, nama: "50. Musim Hujan (Monsoon)",       ikonKanan: "🌧️", classCss: "sbd-border-50", avatarCss: "av-frame-50" },
+    { id: "b51", no: 51, tier: "Season",    harga: 1500000, nama: "51. Musim Kemarau (Solstice)",    ikonKanan: "☀️", classCss: "sbd-border-51", avatarCss: "av-frame-51" },
+    { id: "b52", no: 52, tier: "Season",    harga: 1500000, nama: "52. Musim Ujian (Exam Overdrive)",ikonKanan: "📝", classCss: "sbd-border-52", avatarCss: "av-frame-52" },
+    { id: "b53", no: 53, tier: "Season",    harga: 1500000, nama: "53. Musim Liburan (Tropical)",    ikonKanan: "🏖️", classCss: "sbd-border-53", avatarCss: "av-frame-53" },
+    { id: "b54", no: 54, tier: "Season",    harga: 1500000, nama: "54. Waisak (Bodhi Lanterns)",     ikonKanan: "☸️", classCss: "sbd-border-54", avatarCss: "av-frame-54" },
+    { id: "b55", no: 55, tier: "Season",    harga: 1500000, nama: "55. Kemerdekaan (Garuda 17)",     ikonKanan: "🇮🇩", classCss: "sbd-border-55", avatarCss: "av-frame-55" },
+    { id: "b56", no: 56, tier: "Season",    harga: 1500000, nama: "56. Tahun Baru (Fireworks)",      ikonKanan: "🎆", classCss: "sbd-border-56", avatarCss: "av-frame-56" },
+    { id: "b57", no: 57, tier: "Season",    harga: 1500000, nama: "57. Classmeeting (Arena Juara)",  ikonKanan: "🏆", classCss: "sbd-border-57", avatarCss: "av-frame-57" },
+    { id: "b58", no: 58, tier: "Season",    harga: 1500000, nama: "58. Musim Praktikum (Bio-Lab)",   ikonKanan: "🧪", classCss: "sbd-border-58", avatarCss: "av-frame-58" },
+    { id: "b59", no: 59, tier: "Season",    harga: 1500000, nama: "59. Musim Olimpiade (OSN Apex)",  ikonKanan: "🥇", classCss: "sbd-border-59", avatarCss: "av-frame-59" },
+    { id: "b60", no: 60, tier: "Season",    harga: 1500000, nama: "60. Hari Guru (Lentera Ilmu)",    ikonKanan: "📚", classCss: "sbd-border-60", avatarCss: "av-frame-60" },
+    { id: "b61", no: 61, tier: "Season",    harga: 1500000, nama: "61. Kenaikan Kelas (Level Up!)",  ikonKanan: "🎓", classCss: "sbd-border-61", avatarCss: "av-frame-61" },
+    { id: "b62", no: 62, tier: "Season",    harga: 1500000, nama: "62. Malam Halloween (Phantom)",   ikonKanan: "🎃", classCss: "sbd-border-62", avatarCss: "av-frame-62" },
+    { id: "b63", no: 63, tier: "Season",    harga: 1500000, nama: "63. Musim Semi (Sakura Drift)",   ikonKanan: "🌸", classCss: "sbd-border-63", avatarCss: "av-frame-63" }
 ];
 
 window.cariDataBorderById = function(borderId) {
@@ -1681,6 +1725,7 @@ window.pastikanAreaShopDiProfilAda = function() {
                 '<button type="button" class="shop-tier-btn" onclick="window.renderIsiShopBorder(\'Special\', this)">🔮 Special (50rb)</button>' +
                 '<button type="button" class="shop-tier-btn" onclick="window.renderIsiShopBorder(\'Theme\', this)">🎌 Theme (500rb)</button>' +
                 '<button type="button" class="shop-tier-btn" onclick="window.renderIsiShopBorder(\'Legendary\', this)">🐉 Legendary (1jt)</button>' +
+                '<button type="button" class="shop-tier-btn is-season-tab" onclick="window.renderIsiShopBorder(\'Season\', this)">✨ Season (1,5jt)</button>' +
             '</div>' +
             '<div id="shop-border-list" style="display:grid; grid-template-columns:1fr; gap:12px; max-height:310px; overflow-y:auto; padding:4px;"></div>' +
         '</div>';
@@ -1693,12 +1738,194 @@ window.pastikanAreaShopDiProfilAda = function() {
     }
 };
 
+// =========================================================================
+// MESIN KONTROL PENJUALAN BORDER SEASON (PAUSE / BUKA OLEH ADMIN)
+// =========================================================================
+window.seasonBorderSalesConfig = window.seasonBorderSalesConfig || {};
+window._seasonConfigLoaded = false;
+
+window.dapatkanCacheKeySeasonConfig = function() {
+    let guru = (window.guruAktif || sessionStorage.getItem('guruTarget') || 'mahardika').trim().toLowerCase();
+    return 'season_border_cfg_' + guru;
+};
+
+window.ambilSemuaBorderSeason = function() {
+    return window.KATALOG_BORDER_SHOP.filter(function(item) {
+        return item.tier === 'Season';
+    });
+};
+
+window.apakahBorderSeasonSedangDijual = function(borderId) {
+    let item = window.cariDataBorderById(borderId);
+    if (!item || item.tier !== 'Season') return true;
+
+    if (!window._seasonConfigLoaded) {
+        try {
+            let raw = localStorage.getItem(window.dapatkanCacheKeySeasonConfig());
+            if (raw) {
+                let parsed = JSON.parse(raw);
+                if (parsed && typeof parsed === 'object') {
+                    window.seasonBorderSalesConfig = Object.assign({}, parsed, window.seasonBorderSalesConfig);
+                }
+            }
+        } catch (e) {}
+    }
+
+    // Jika bernilai false -> penjualan dijeda oleh Admin. Default true (siap dijual hingga Admin menekan Pause)
+    if (window.seasonBorderSalesConfig && window.seasonBorderSalesConfig[borderId] === false) {
+        return false;
+    }
+    return true;
+};
+
+window.muatKonfigBorderSeasonDariServer = function(forceRefresh, onDone) {
+    let guru = (window.guruAktif || sessionStorage.getItem('guruTarget') || 'mahardika').trim().toLowerCase();
+    let pathDB = 'data_guru/' + guru + '/admin_season_border_config';
+
+    if (typeof window.bacaDataRestFirebase !== 'function') {
+        if (onDone) onDone();
+        return;
+    }
+
+    window.bacaDataRestFirebase(pathDB, function(val) {
+        if (val && typeof val === 'object') {
+            window.seasonBorderSalesConfig = val;
+            try {
+                localStorage.setItem(window.dapatkanCacheKeySeasonConfig(), JSON.stringify(val));
+            } catch (e) {}
+        }
+        window._seasonConfigLoaded = true;
+        if (onDone) onDone();
+    }, function() {
+        window._seasonConfigLoaded = true;
+        if (onDone) onDone();
+    }, { forceRefresh: Boolean(forceRefresh), ttlMs: forceRefresh ? 0 : 25000 });
+};
+
+window.simpanKonfigBorderSeasonKeServer = function() {
+    let guru = (window.guruAktif || sessionStorage.getItem('guruTarget') || 'mahardika').trim().toLowerCase();
+    let pathDB = 'data_guru/' + guru + '/admin_season_border_config';
+    try {
+        localStorage.setItem(window.dapatkanCacheKeySeasonConfig(), JSON.stringify(window.seasonBorderSalesConfig || {}));
+    } catch (e) {}
+    if (typeof window.tulisDataRestFirebase === 'function') {
+        window.tulisDataRestFirebase(pathDB, window.seasonBorderSalesConfig || {}, 'PUT');
+    }
+};
+
+window.toggleStatusJualBorderSeason = function(borderId) {
+    let sedangDijual = window.apakahBorderSeasonSedangDijual(borderId);
+    window.seasonBorderSalesConfig[borderId] = !sedangDijual;
+    window._seasonConfigLoaded = true;
+    window.simpanKonfigBorderSeasonKeServer();
+    window.renderModalKontrolBorderSeason();
+    if (window.activeShopTier === 'Season') {
+        window.renderIsiShopBorder('Season');
+    }
+};
+
+window.setSemuaStatusBorderSeason = function(statusAktif) {
+    window.ambilSemuaBorderSeason().forEach(function(item) {
+        window.seasonBorderSalesConfig[item.id] = Boolean(statusAktif);
+    });
+    window._seasonConfigLoaded = true;
+    window.simpanKonfigBorderSeasonKeServer();
+    window.renderModalKontrolBorderSeason();
+    if (window.activeShopTier === 'Season') {
+        window.renderIsiShopBorder('Season');
+    }
+};
+
+window.bukaModalKontrolBorderSeason = function() {
+    let modal = document.getElementById('modal-kontrol-border-season');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'modal-kontrol-border-season';
+        modal.className = 'modal-overlay';
+        modal.onclick = function(e) {
+            if (e.target === modal) window.tutupModal('modal-kontrol-border-season');
+        };
+        modal.innerHTML =
+            '<div class="modal-box season-admin-modal-box">' +
+                '<div class="modal-header season-admin-header">' +
+                    '<div>' +
+                        '<h3 style="margin:0;">✨ Kontrol Penjualan Border Season (1.500.000 Coin)</h3>' +
+                        '<div style="font-size:11.5px; color:#A7FFF3; margin-top:2px;">Pause atau buka penjualan tiap edisi musiman. Siswa yang sudah membeli tetap bisa memakainya kapan saja.</div>' +
+                    '</div>' +
+                    '<button type="button" class="close-btn" onclick="window.tutupModal(\'modal-kontrol-border-season\')">✕</button>' +
+                '</div>' +
+                '<div class="modal-body season-admin-body">' +
+                    '<div class="season-admin-topbar">' +
+                        '<span id="season-admin-summary" style="font-size:12px; font-weight:800; color:#060608;">Memuat status penjualan...</span>' +
+                        '<div style="display:flex; gap:8px; flex-wrap:wrap;">' +
+                            '<button type="button" class="aws-quick-btn is-danger-soft" onclick="window.setSemuaStatusBorderSeason(false)">⏸️ Pause Semua</button>' +
+                            '<button type="button" class="aws-quick-btn is-primary" onclick="window.setSemuaStatusBorderSeason(true)">▶️ Buka Semua</button>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div id="season-admin-list" class="season-admin-list"></div>' +
+                '</div>' +
+            '</div>';
+        document.body.appendChild(modal);
+    }
+
+    window.bukaModal('modal-kontrol-border-season');
+    window.renderModalKontrolBorderSeason();
+    window.muatKonfigBorderSeasonDariServer(true, function() {
+        window.renderModalKontrolBorderSeason();
+    });
+};
+
+window.renderModalKontrolBorderSeason = function() {
+    let listEl = document.getElementById('season-admin-list');
+    let sumEl = document.getElementById('season-admin-summary');
+    if (!listEl) return;
+
+    let items = window.ambilSemuaBorderSeason();
+    let aktifCount = 0;
+    let html = '';
+
+    items.forEach(function(item) {
+        let isOpen = window.apakahBorderSeasonSedangDijual(item.id);
+        if (isOpen) aktifCount++;
+
+        let avatarHtml = window.buatHTMLBingkaiAvatar('', item.id, 46);
+        let badgeStatus = isOpen
+            ? '<span class="season-sale-pill is-open">🟢 SEDANG DIJUAL</span>'
+            : '<span class="season-sale-pill is-paused">⏸️ DIJEDA (PAUSED)</span>';
+
+        let btnToggle = isOpen
+            ? '<button type="button" class="season-toggle-btn is-pause" onclick="window.toggleStatusJualBorderSeason(\'' + item.id + '\')">⏸️ Pause Penjualan</button>'
+            : '<button type="button" class="season-toggle-btn is-resume" onclick="window.toggleStatusJualBorderSeason(\'' + item.id + '\')">▶️ Buka Penjualan</button>';
+
+        html +=
+            '<div class="sbd-banner-frame sbd-tier-season ' + item.classCss + '" style="padding:14px 16px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">' +
+                '<div style="display:flex; align-items:center; gap:14px; z-index:2;">' +
+                    avatarHtml +
+                    '<div>' +
+                        '<div class="shop-card-title" style="font-weight:900; font-size:14.5px;">' + item.nama + ' ' + item.ikonKanan + '</div>' +
+                        '<div class="shop-card-sub" style="font-size:11.5px; font-weight:700; margin-top:2px;">🪙 ' + item.harga.toLocaleString('id-ID') + ' Coin • Limited Edition</div>' +
+                        '<div style="margin-top:5px;">' + badgeStatus + '</div>' +
+                    '</div>' +
+                '</div>' +
+                '<div style="z-index:2; flex-shrink:0;">' + btnToggle + '</div>' +
+            '</div>';
+    });
+
+    if (sumEl) {
+        sumEl.innerText = '📊 Status: ' + aktifCount + ' Aktif Dijual • ' + (items.length - aktifCount) + ' Dijeda (Paused)';
+    }
+    listEl.innerHTML = html;
+};
+
 window.toggleBukaTutupShopProfil = function() {
     let drawer = document.getElementById('profil-shop-drawer');
     if (!drawer) return;
     if (drawer.style.display === 'none') {
         drawer.style.display = 'block';
         window.renderIsiShopBorder('Standard');
+        window.muatKonfigBorderSeasonDariServer(false, function() {
+            if (window.activeShopTier === 'Season') window.renderIsiShopBorder('Season');
+        });
     } else {
         drawer.style.display = 'none';
     }
@@ -1714,6 +1941,14 @@ window.renderIsiShopBorder = function(tierFilter, btnEl) {
         btnEl.classList.add('active');
     }
 
+    if (window.activeShopTier === 'Season' && !window._seasonRefreshInFlight) {
+        window._seasonRefreshInFlight = true;
+        window.muatKonfigBorderSeasonDariServer(false, function() {
+            window._seasonRefreshInFlight = false;
+            if (window.activeShopTier === 'Season') window.renderIsiShopBorder('Season');
+        });
+    }
+
     let listEl = document.getElementById('shop-border-list');
     if (!listEl) return;
 
@@ -1726,24 +1961,49 @@ window.renderIsiShopBorder = function(tierFilter, btnEl) {
     let owned = Array.isArray(lb.ownedBorders) ? lb.ownedBorders : (lb.ownedBorders ? Object.values(lb.ownedBorders) : []);
     let equipped = lb.equippedBorder || "";
     let namaTampil = lb.namaPanggilan || lb.namaLengkap || uName;
+    let isAdminUser = (sessionStorage.getItem("statusLogin") === "admin");
 
     let items = window.KATALOG_BORDER_SHOP.filter(function(item) {
         return item.tier === window.activeShopTier;
     });
 
     let html = '';
+    if (window.activeShopTier === 'Season') {
+        html +=
+            '<div class="season-shop-banner">' +
+                '<span>✨ <b>Edisi Musiman Terbatas</b> — Hanya dijual pada momen tertentu. Border yang sudah dibeli tetap bisa dipakai selamanya!</span>' +
+                (isAdminUser ? '<button type="button" onclick="window.bukaModalKontrolBorderSeason()" style="background:#060608; color:#00E1FF; border:1px solid #00E1FF; padding:4px 10px; border-radius:14px; font-size:11px; font-weight:800; cursor:pointer;">⚙️ Atur Pause</button>' : '') +
+            '</div>';
+    }
+
     items.forEach(function(item) {
         let isOwned = owned.includes(item.id);
         let isEquipped = (equipped === item.id);
+        let isSeason = (item.tier === 'Season');
+        let sedangDijual = isSeason ? window.apakahBorderSeasonSedangDijual(item.id) : true;
         let hargaStr = item.harga.toLocaleString('id-ID') + ' Coin';
 
         let btnAksi = '';
         if (isEquipped) {
             btnAksi = '<button type="button" onclick="window.lepasBorderProfil()" style="background:#64748b; color:white; border:none; padding:6px 12px; border-radius:16px; font-size:11px; font-weight:bold; cursor:pointer;">✓ Terpasang (Lepas)</button>';
         } else if (isOwned) {
+            // Siswa yang sudah membeli TETAP BISA MEMAKAI meski penjualan sedang di-pause!
             btnAksi = '<button type="button" onclick="window.pasangBorderProfil(\'' + item.id + '\')" style="background:#27ae60; color:white; border:none; padding:6px 14px; border-radius:16px; font-size:11px; font-weight:bold; cursor:pointer;">Pasang</button>';
+        } else if (isSeason && !sedangDijual) {
+            btnAksi = '<button type="button" disabled style="background:rgba(15,23,42,0.78); color:#cbd5e1; border:1px solid rgba(255,255,255,0.28); padding:6px 12px; border-radius:16px; font-size:11px; font-weight:800; cursor:not-allowed;">⏸️ Dijeda</button>';
         } else {
             btnAksi = '<button type="button" onclick="window.beliBorderDiShop(\'' + item.id + '\')" style="background:#0b3954; color:#f1c40f; border:1px solid #f1c40f; padding:6px 12px; border-radius:16px; font-size:11px; font-weight:800; cursor:pointer;">🪙 Beli (' + hargaStr + ')</button>';
+        }
+
+        let extraTag = '';
+        if (isSeason) {
+            if (isOwned && !sedangDijual) {
+                extraTag = ' • <span style="color:#fef08a;">🎖️ Koleksi Terbatas Dimiliki</span>';
+            } else if (!sedangDijual) {
+                extraTag = ' • <span style="color:#fca5a5;">⏸️ Penjualan Dijeda</span>';
+            } else {
+                extraTag = ' • <span style="color:#74F9FE;">✨ Event Aktif</span>';
+            }
         }
 
         let avatarHtml = window.buatHTMLBingkaiAvatar(lb.foto, item.id, 44);
@@ -1754,8 +2014,8 @@ window.renderIsiShopBorder = function(tierFilter, btnEl) {
                 '<div style="display:flex; align-items:center; gap:12px; z-index:2;">' +
                     avatarHtml +
                     '<div>' +
-                        '<div style="font-weight:800; font-size:14px; color:#1e293b;">' + namaTampil + ' <span style="font-size:14px;">' + item.ikonKanan + '</span></div>' +
-                        '<div style="font-size:11px; font-weight:700; color:#334155;">' + item.nama + ' • ' + item.tier + '</div>' +
+                        '<div class="shop-card-title" style="font-weight:800; font-size:14px; color:#1e293b;">' + namaTampil + ' <span style="font-size:14px;">' + item.ikonKanan + '</span></div>' +
+                        '<div class="shop-card-sub" style="font-size:11px; font-weight:700; color:#334155;">' + item.nama + ' • ' + item.tier + extraTag + '</div>' +
                     '</div>' +
                 '</div>' +
                 '<div style="z-index:2; flex-shrink:0;">' + btnAksi + '</div>' +
@@ -1787,6 +2047,11 @@ window.beliBorderDiShop = function(borderId) {
         return;
     }
 
+    // Validasi kunci penjualan khusus Border Season
+    if (item.tier === 'Season' && !window.apakahBorderSeasonSedangDijual(borderId)) {
+        return alert('⏸️ Penjualan border edisi Season "' + item.nama + '" sedang dijeda oleh Guru.\n\nNantikan momen event berikutnya saat penjualannya dibuka kembali!');
+    }
+
     let saldoCoin = (typeof window.ambilCoinSiswa === "function")
         ? window.ambilCoinSiswa(cleanKey)
         : (Number(lb.coin !== undefined ? lb.coin : (lb.xpTersedia !== undefined ? lb.xpTersedia : lb.xp)) || 0);
@@ -1800,7 +2065,6 @@ window.beliBorderDiShop = function(borderId) {
         return;
     }
 
-    // Potong Coin di memori dulu (skipSave = true) agar Coin & Border terkirim dalam 1 paket PUT yang sama
     if (typeof window.gunakanCoinSiswa === "function") {
         if (!window.gunakanCoinSiswa(item.harga, "beli_border_" + borderId, true)) return;
     } else {
@@ -1808,7 +2072,6 @@ window.beliBorderDiShop = function(borderId) {
         lb.xpTersedia = lb.coin;
     }
 
-    // Pastikan mengambil referensi objek terbaru setelah pemotongan Coin
     lb = (typeof window.pastikanStrukturDualXPDanPet === "function")
         ? window.pastikanStrukturDualXPDanPet(cleanKey)
         : lb;
@@ -1820,12 +2083,10 @@ window.beliBorderDiShop = function(borderId) {
     }
     lb.equippedBorder = borderId;
 
-    // 1x Simpan Atomic ke Firebase (Coin terpotong + Border dimiliki tersimpan serentak)
     if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
         window.simpanLeaderboardSiswaKeDB(cleanKey, lb);
     }
 
-    // Catat bukti pembelian ke History siswa
     if (typeof window.catatRiwayatAktivitasSiswa === "function") {
         let sisaCoin = Number(lb.coin !== undefined ? lb.coin : lb.xpTersedia) || 0;
         window.catatRiwayatAktivitasSiswa(
@@ -1974,6 +2235,39 @@ window.adminHapusFotoSiswa = function(uKey) {
     }
 };
 
+window.hitungStreakPublikSiswa = function(siswa) {
+    if (!siswa || !siswa.misiHarian || typeof siswa.misiHarian !== "object") {
+        return { aktif: 0, rekor: 0 };
+    }
+    let m = siswa.misiHarian;
+    let hariIni = (typeof window.dapatkanTanggalLokalYYYYMMDD === "function") ? window.dapatkanTanggalLokalYYYYMMDD(0) : "";
+    let kemarin = (typeof window.dapatkanTanggalLokalYYYYMMDD === "function") ? window.dapatkanTanggalLokalYYYYMMDD(-1) : "";
+    let rawStreak = Number(m.streak) || 0;
+    let rekor = Math.max(rawStreak, Number(m.bestStreak) || 0);
+    let masihAktif = Boolean(rawStreak > 0 && (m.lastStreakDate === hariIni || m.lastStreakDate === kemarin));
+    return {
+        aktif: masihAktif ? rawStreak : 0,
+        rekor: rekor
+    };
+};
+
+window.buatBadgeStreakLeaderboard = function(siswa) {
+    let st = window.hitungStreakPublikSiswa(siswa);
+    let hari = st.aktif;
+    let tip = "Login Streak Aktif: " + hari + " Hari" + (st.rekor > 0 ? (" • Rekor Terbaik: " + st.rekor + " Hari") : "");
+
+    if (hari >= 30) {
+        return '<span class="lb-streak-pill is-blue-flame" title="' + tip + '">🔥 ' + hari + ' Hari</span>';
+    }
+    if (hari >= 7) {
+        return '<span class="lb-streak-pill is-hot-flame" title="' + tip + '">🔥 ' + hari + ' Hari</span>';
+    }
+    if (hari >= 1) {
+        return '<span class="lb-streak-pill is-warm-flame" title="' + tip + '">🔥 ' + hari + ' Hari</span>';
+    }
+    return '<span class="lb-streak-pill is-zero-flame" title="' + tip + '">🔥 0 Hari</span>';
+};
+
 window.renderTabelLeaderboard = function() {
     let container = document.getElementById('leaderboard-list-container');
     if (!container) return;
@@ -2026,10 +2320,9 @@ window.renderTabelLeaderboard = function() {
         let namaPanggilan = (siswa.namaPanggilan || "").trim();
         let namaUtama = namaPanggilan || namaAsli;
 
-        // Nama lengkap dienter ke bawah nama panggilan
         let htmlNamaLengkapBawah = "";
         if (namaPanggilan && namaAsli && namaPanggilan.toLowerCase() !== namaAsli.toLowerCase()) {
-            htmlNamaLengkapBawah = '<div style="font-size:12px; font-weight:600; color:#475569; margin-top:1px; line-height:1.3;">(' + namaAsli + ')</div>';
+            htmlNamaLengkapBawah = '<div class="lb-card-subname" style="font-size:12px; font-weight:600; color:#475569; margin-top:1px; line-height:1.3;">(' + namaAsli + ')</div>';
         }
 
         let statSoal = siswa.statSoal || { PG: 0, PGK: 0, IS: 0, Essay: 0 };
@@ -2051,24 +2344,25 @@ window.renderTabelLeaderboard = function() {
         let isSelf = (uKeySafe.toLowerCase() === currentUsername);
         let isAdminViewer = (sessionStorage.getItem("statusLogin") === "admin") || (typeof window.isAdminSession === "function" && window.isAdminSession());
 
-        // Deteksi apakah siswa sedang aktif di web (Online jika isSelf, atau isOnline=true & aktif dalam 3 menit terakhir)
         let lastActMs = Number(siswa.lastActive) || 0;
         let isCurrentlyOnline = isSelf || (Boolean(siswa.isOnline) && (Date.now() - lastActMs < 180000));
 
-        // 1. Indikator Online / Offline untuk SELURUH SISWA
+        // 1. Indikator Online / Offline & Api Streak Publik untuk Semua Orang
         let badgeOnlinePublicHtml = isCurrentlyOnline
             ? '<span style="display:inline-flex; align-items:center; gap:4px; background:#dcfce7; color:#15803d; border:1px solid #86efac; padding:1px 8px; border-radius:12px; font-size:10px; font-weight:800;">🟢 Online</span>'
             : '<span style="display:inline-flex; align-items:center; gap:4px; background:#f1f5f9; color:#64748b; border:1px solid #cbd5e1; padding:1px 8px; border-radius:12px; font-size:10px; font-weight:700;">⚪ Offline</span>';
 
-        // 2. Tulisan di atas tombol Visit KHUSUS ADMIN (Muncul "Login" jika sedang aktif, atau kapan terakhir login, lengkap dengan jam & menit)
+        let badgeStreakPublicHtml = window.buatBadgeStreakLeaderboard(siswa);
+
+        // 2. Info Login & Alat Tambah XP / Hapus Foto Khusus Admin
         let infoLoginAdminHtml = '';
         let adminToolsHtml = '';
-        
+
         if (isAdminViewer) {
             let waktuTerakhir = siswa.waktuLoginTerakhir || siswa.loginTerakhir || "Belum tercatat";
             if (lastActMs > 0) {
                 let d = new Date(lastActMs);
-                waktuTerakhir = String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth()+1).padStart(2, '0') + '/' + d.getFullYear() + ' ' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+                waktuTerakhir = String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + d.getFullYear() + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
             }
 
             if (isCurrentlyOnline) {
@@ -2077,9 +2371,8 @@ window.renderTabelLeaderboard = function() {
                 infoLoginAdminHtml = '<div style="font-size:10px; font-weight:700; color:#475569; background:rgba(255,255,255,0.85); border:1px solid #cbd5e1; padding:2px 8px; border-radius:8px; white-space:nowrap;">🕒 Login: ' + waktuTerakhir + '</div>';
             }
 
-            // Alat Tambah XP & Hapus Foto Profil (Khusus Admin) - Diposisikan Kanan Atas
-            adminToolsHtml = 
-                '<div style="position:absolute; top:12px; right:12px; display:flex; gap:6px; align-items:center; z-index:10; background:rgba(255,255,255,0.9); padding:4px; border-radius:6px; box-shadow:0 2px 4px rgba(0,0,0,0.05);">' +
+            adminToolsHtml =
+                '<div style="position:absolute; top:12px; right:12px; display:flex; gap:6px; align-items:center; z-index:10; background:rgba(255,255,255,0.92); padding:4px; border-radius:6px; box-shadow:0 2px 4px rgba(0,0,0,0.08);">' +
                     '<input type="number" id="inp-add-xp-' + uKeySafe + '" placeholder="+XP/Coin" style="width:75px; font-size:10px; padding:4px 6px; border:1px solid #cbd5e1; border-radius:4px; font-family:\'Poppins\', sans-serif; font-weight:bold; outline:none;">' +
                     '<button type="button" onclick="window.adminTambahXPSiswa(\'' + uKeySafe + '\')" style="background:#27ae60; color:white; border:none; padding:4px 8px; border-radius:4px; font-size:10px; font-weight:bold; cursor:pointer; transition:0.2s;" onmouseover="this.style.background=\'#219653\'" onmouseout="this.style.background=\'#27ae60\'">➕ Tambah</button>' +
                     '<button type="button" onclick="window.adminHapusFotoSiswa(\'' + uKeySafe + '\')" style="background:#e74c3c; color:white; border:none; padding:4px 8px; border-radius:4px; font-size:10px; font-weight:bold; cursor:pointer; transition:0.2s;" onmouseover="this.style.background=\'#c0392b\'" onmouseout="this.style.background=\'#e74c3c\'">🗑️ Foto</button>' +
@@ -2094,24 +2387,24 @@ window.renderTabelLeaderboard = function() {
         '<div class="' + classBorder + '" style="display:flex; align-items:flex-start; gap:12px; ' + styleDefault + ' padding:14px 15px; border-radius:12px; position:relative;">' +
             adminToolsHtml +
             '<div style="display:flex; align-items:center; gap:10px; flex-shrink:0; z-index:2; margin-top:2px;">' +
-                '<div style="font-size:20px; font-weight:900; color:' + (i < 3 ? '#d35400' : '#64748b') + '; width:24px; text-align:center;">' + medali + '</div>' +
+                '<div class="lb-card-rank" style="font-size:20px; font-weight:900; color:' + (i < 3 ? '#d35400' : '#64748b') + '; width:24px; text-align:center;">' + medali + '</div>' +
                 avatarHtml +
             '</div>' +
             '<div style="flex:1; min-width:0; z-index:2; display:flex; flex-direction:column; gap:4px;">' +
-                '<div style="font-weight:800; font-size:15px; color:#1e293b; line-height:1.25; word-break:break-word;">' +
+                '<div class="lb-card-name" style="font-weight:800; font-size:15px; color:#1e293b; line-height:1.25; word-break:break-word;">' +
                     namaUtama + ikonOrnamen +
                     htmlNamaLengkapBawah +
                 '</div>' +
                 '<div style="font-size:11px; color:#475569; display:flex; align-items:center; flex-wrap:wrap; gap:5px;">' +
                     '<span style="background:' + lencana.bg + '; color:' + lencana.warna + '; border:1px solid ' + lencana.border + '; padding:1px 7px; border-radius:10px; font-weight:bold;">' + lencana.ikon + ' ' + lencana.nama + '</span>' +
-                    '<span>• <b>' + siswa.kelas + '</b></span>' +
+                    '<span class="lb-card-meta-txt">• <b>' + siswa.kelas + '</b></span>' +
                     badgeOnlinePublicHtml +
+                    badgeStreakPublicHtml +
                 '</div>' +
-                '<!-- Jumlah XP, Soal Selesai, Info Login Admin, & Tombol Visit -->' +
-                '<div style="display:flex; align-items:flex-end; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-top:4px; padding-top:6px; border-top:1px dashed rgba(100,116,139,0.25);">' +
+                '<div style="display:flex; align-items:flex-end; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-top:4px; padding-top:6px; border-top:1px dashed rgba(100,116,139,0.28);">' +
                     '<div style="display:flex; align-items:baseline; gap:8px; flex-wrap:wrap;">' +
-                        '<span style="font-size:20px; font-weight:900; color:#0b3954; font-family:\'Bebas Neue\', sans-serif; letter-spacing:0.5px;">' + xpTotalSiswa.toLocaleString('id-ID') + ' XP</span>' +
-                        '<span style="font-size:11px; color:#475569; font-weight:bold;">🔥 ' + totalDikerjakan + ' Soal Selesai</span>' +
+                        '<span class="lb-card-xp" style="font-size:20px; font-weight:900; color:#0b3954; font-family:\'Bebas Neue\', sans-serif; letter-spacing:0.5px;">' + xpTotalSiswa.toLocaleString('id-ID') + ' XP</span>' +
+                        '<span class="lb-card-soal" style="font-size:11px; color:#475569; font-weight:bold;">📝 ' + totalDikerjakan + ' Soal Selesai</span>' +
                     '</div>' +
                     '<div style="display:flex; flex-direction:column; align-items:flex-end; gap:5px;">' +
                         infoLoginAdminHtml +
