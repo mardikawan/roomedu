@@ -1470,6 +1470,33 @@ window.renderTabelAfektifAdmin = function() {
     tbody.innerHTML = html;
 };
 
+window.exportExcelKognitifSiswa = function() {
+    let table = document.getElementById("tabel-kognitif-excel");
+    if (!table) return;
+
+    let html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">' +
+        '<head><meta charset="utf-8"><style>table{border-collapse:collapse;font-family:Calibri,sans-serif;font-size:12px;}th,td{border:1px solid #000;padding:6px;vertical-align:top;}th{background:#0b3954;color:#fff;font-weight:bold;}</style></head>' +
+        '<body><h3>Laporan Analisis Perkembangan Kognitif Siswa</h3>' + table.outerHTML + '</body></html>';
+
+    if (typeof window.bukaPreviewSpreadsheetUniversal === "function") {
+        window.bukaPreviewSpreadsheetUniversal({
+            title: "Analisis Perkembangan Kognitif Siswa",
+            subtitle: "Rekap Capaian & Tren Kognitif",
+            filenameBase: "Analisis_Kognitif_Siswa",
+            rawHtmlExcel: html
+        });
+        return;
+    }
+
+    let blob = new Blob([html], { type: "application/vnd.ms-excel" });
+    let link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "Analisis_Kognitif_Siswa.xls";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
 window.exportExcelAfektifSiswa = function() {
     let table = document.getElementById("tabel-afektif-excel");
     if (!table) return;
@@ -1477,6 +1504,16 @@ window.exportExcelAfektifSiswa = function() {
     let html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">' +
         '<head><meta charset="utf-8"><style>table{border-collapse:collapse;font-family:Calibri,sans-serif;font-size:12px;}th,td{border:1px solid #000;padding:6px;vertical-align:top;}th{background:#2c3e50;color:#fff;font-weight:bold;}</style></head>' +
         '<body><h3>Rekap Perkembangan Afektif & Check-In Harian Siswa</h3>' + table.outerHTML + '</body></html>';
+
+    if (typeof window.bukaPreviewSpreadsheetUniversal === "function") {
+        window.bukaPreviewSpreadsheetUniversal({
+            title: "Rekap Afektif & Check-In Siswa",
+            subtitle: "Catatan Refleksi Emosi Siswa",
+            filenameBase: "Rekap_Afektif_Siswa",
+            rawHtmlExcel: html
+        });
+        return;
+    }
 
     let blob = new Blob([html], { type: "application/vnd.ms-excel" });
     let link = document.createElement("a");
@@ -3615,6 +3652,7 @@ window.pastikanAreaHistoryDiProfilAda = function() {
                 '<select id="filter-history-profil" class="input-box" style="margin:0; flex:1; min-width:180px; padding:7px 10px; font-size:12px; font-weight:700; cursor:pointer;" onchange="window.renderDaftarHistoryProfil()">' +
                     '<option value="semua">📋 Semua Aktivitas (Keseluruhan)</option>' +
                     '<option value="soal">📝 Soal Dikerjakan (Latihan & Ujian)</option>' +
+                    '<option value="flashcards">🃏 Sesi Flashcards (Active Recall)</option>' +
                     '<option value="checkin">😊 Check-in Harian</option>' +
                     '<option value="border">🖼️ Pembelian Border Shop</option>' +
                     '<option value="pet">🐾 Pembelian Barang My Pet</option>' +
@@ -3723,10 +3761,11 @@ window.renderDaftarHistoryProfil = function() {
     }
 
     let gayaKat = {
-        soal:    { ikon: "📝", bg: "#ebf5fb", border: "#3498db", label: "Soal", warna: "#1d4ed8" },
-        checkin: { ikon: "😊", bg: "#fef9e7", border: "#f1c40f", label: "Check-in", warna: "#b45309" },
-        border:  { ikon: "🖼️", bg: "#f5eef8", border: "#8e44ad", label: "Border", warna: "#7e22ce" },
-        pet:     { ikon: "🐾", bg: "#e8f8f5", border: "#16a085", label: "My Pet", warna: "#0f766e" }
+        soal:       { ikon: "📝", bg: "#ebf5fb", border: "#3498db", label: "Soal", warna: "#1d4ed8" },
+        flashcards: { ikon: "🃏", bg: "#ecfdf5", border: "#00E1FF", label: "Flashcards", warna: "#2370A1" },
+        checkin:    { ikon: "😊", bg: "#fef9e7", border: "#f1c40f", label: "Check-in", warna: "#b45309" },
+        border:     { ikon: "🖼️", bg: "#f5eef8", border: "#8e44ad", label: "Border", warna: "#7e22ce" },
+        pet:        { ikon: "🐾", bg: "#e8f8f5", border: "#16a085", label: "My Pet", warna: "#0f766e" }
     };
 
     let esc = function(s) {

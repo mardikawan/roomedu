@@ -537,12 +537,128 @@ window.editPaketUjian = function(namaPaket) {
 // =========================================================================
 // 3. MANAJER BANK LATIHAN MANDIRI (GROUPING C1, C2, HOTS)
 // =========================================================================
+window.adminLatihanSettings = window.adminLatihanSettings || null;
+
+window.normalisasiTopikLatihan = function(rawTopik) {
+    let s = String(rawTopik || "").trim();
+    return s ? s : "Umum";
+};
+
+window.kunciCachePengaturanLatihan = function() {
+    let guru = (window.guruAktif || sessionStorage.getItem("guruTarget") || "mahardika").trim().toLowerCase();
+    return "pref_latihan_settings_" + guru;
+};
+
+window.apakahAcakSoalLatihanAktif = function() {
+    if (window.adminLatihanSettings && typeof window.adminLatihanSettings.acakSoal === "boolean") {
+        return window.adminLatihanSettings.acakSoal;
+    }
+    try {
+        let raw = localStorage.getItem(window.kunciCachePengaturanLatihan());
+        if (raw) {
+            let parsed = JSON.parse(raw);
+            if (parsed && typeof parsed.acakSoal === "boolean") {
+                window.adminLatihanSettings = parsed;
+                return parsed.acakSoal;
+            }
+        }
+    } catch (e) {}
+    return false;
+};
+
+window.perbaruiTombolAcakLatihanUI = function() {
+    let btn = document.getElementById("btn-toggle-acak-latihan");
+    let lbl = document.getElementById("lbl-toggle-acak-latihan");
+    let aktif = window.apakahAcakSoalLatihanAktif();
+    if (btn) {
+        btn.classList.toggle("is-on", aktif);
+        btn.classList.toggle("is-off", !aktif);
+    }
+    if (lbl) {
+        lbl.innerText = aktif ? "🔀 Acak Soal: AKTIF" : "🔀 Acak Soal: MATI";
+    }
+};
+
+window.muatPengaturanLatihanDariServer = function(forceRefresh, onDone) {
+    let guru = (window.guruAktif || sessionStorage.getItem("guruTarget") || "mahardika").trim().toLowerCase();
+    let pathDB = "data_guru/" + guru + "/admin_latihan_settings";
+    window.perbaruiTombolAcakLatihanUI();
+
+    if (typeof window.bacaDataRestFirebase !== "function") {
+        if (onDone) onDone();
+        return;
+    }
+
+    window.bacaDataRestFirebase(pathDB, function(val) {
+        if (val && typeof val === "object") {
+            window.adminLatihanSettings = { acakSoal: Boolean(val.acakSoal) };
+            try {
+                localStorage.setItem(window.kunciCachePengaturanLatihan(), JSON.stringify(window.adminLatihanSettings));
+            } catch (e) {}
+        }
+        window.perbaruiTombolAcakLatihanUI();
+        if (onDone) onDone();
+    }, function() {
+        window.perbaruiTombolAcakLatihanUI();
+        if (onDone) onDone();
+    }, { forceRefresh: Boolean(forceRefresh), ttlMs: forceRefresh ? 0 : 60000 });
+};
+
+window.toggleAcakSoalLatihan = function() {
+    let baru = !window.apakahAcakSoalLatihanAktif();
+    window.adminLatihanSettings = { acakSoal: baru, updatedAt: new Date().toISOString() };
+    try {
+        localStorage.setItem(window.kunciCachePengaturanLatihan(), JSON.stringify(window.adminLatihanSettings));
+    } catch (e) {}
+
+    window.perbaruiTombolAcakLatihanUI();
+
+    let guru = (window.guruAktif || sessionStorage.getItem("guruTarget") || "mahardika").trim().toLowerCase();
+    let pathDB = "data_guru/" + guru + "/admin_latihan_settings";
+    if (typeof window.tulisDataRestFirebase === "function") {
+        window.tulisDataRestFirebase(pathDB, window.adminLatihanSettings, "PUT");
+    }
+
+    let toast = document.createElement("div");
+    toast.innerText = baru
+        ? "🔀 Pengacakan Soal Latihan DIHIDUPKAN — soal siswa otomatis diacak."
+        : "📋 Pengacakan Soal Latihan DIMATIKAN — urutan soal mengikuti Bank Soal.";
+    toast.style.cssText = "position:fixed; top:20px; left:50%; transform:translateX(-50%); background:#060608; color:#00E1FF; border:1.5px solid #00E1FF; padding:9px 18px; border-radius:24px; font-family:'Poppins',sans-serif; font-size:12px; font-weight:700; z-index:9999999;";
+    document.body.appendChild(toast);
+    setTimeout(function() { toast.remove(); }, 2200);
+};
+
+window.isiSaranTopikUntukBab = function(kelas, mapel, bab) {
+    let dl = document.getElementById("admin-topik-list");
+    if (!dl) return;
+    let topikSet = new Set();
+    Object.values(window.adminBankLatihanData || {}).forEach(function(it) {
+        if (!it) return;
+        if ((!kelas || it.kelas === kelas) && (!mapel || it.mapel === mapel) && (!bab || it.bab === bab)) {
+            let t = window.normalisasiTopikLatihan(it.topik);
+            if (t !== "Umum") topikSet.add(t);
+        }
+    });
+    let html = "";
+    Array.from(topikSet).sort().forEach(function(t) {
+        html += '<option value="' + t.replace(/"/g, "&quot;") + '"></option>';
+    });
+    dl.innerHTML = html;
+};
+
 window.bukaModalBankLatihanBaru = function() {
     document.getElementById("admin-bs-kelas").disabled = false;
     document.getElementById("admin-bs-mapel").disabled = false;
     document.getElementById("admin-bs-bab").disabled = false;
+    document.getElementById("admin-bs-bab").value = "";
+    let inpTopik = document.getElementById("admin-bs-topik");
+    if (inpTopik) {
+        inpTopik.disabled = false;
+        inpTopik.value = "";
+    }
     document.getElementById("admin-bs-kesulitan").disabled = false;
     document.getElementById("admin-bs-text").value = "";
+    window.isiSaranTopikUntukBab("", "", "");
 
     window.modeSimpanBankLatihan = "new";
     window.kunciEditBankLatihan = null;
@@ -565,6 +681,14 @@ window.editBankLatihan = function(key) {
     document.getElementById("admin-bs-bab").value = item.bab;
     document.getElementById("admin-bs-kesulitan").value = item.kesulitan;
 
+    let topikAsli = window.normalisasiTopikLatihan(item.topik);
+    let inpTopik = document.getElementById("admin-bs-topik");
+    if (inpTopik) {
+        inpTopik.disabled = false;
+        inpTopik.value = (topikAsli === "Umum") ? "" : topikAsli;
+    }
+    window.isiSaranTopikUntukBab(item.kelas, item.mapel, item.bab);
+
     document.getElementById("admin-bs-kelas").disabled = true;
     document.getElementById("admin-bs-mapel").disabled = true;
     document.getElementById("admin-bs-bab").disabled = true;
@@ -577,7 +701,8 @@ window.editBankLatihan = function(key) {
     window.modeSimpanBankLatihan = "edit";
     window.kunciEditBankLatihan = key;
 
-    document.querySelector("#modal-admin-bank-soal .modal-header h3").innerHTML = "✏️ Edit Arsip Latihan (" + item.kesulitan + ")";
+    let labelTopik = (topikAsli !== "Umum") ? (" • " + topikAsli) : "";
+    document.querySelector("#modal-admin-bank-soal .modal-header h3").innerHTML = "✏️ Edit Arsip Latihan (" + item.kesulitan + labelTopik + ")";
     let btn = document.querySelector("#modal-admin-bank-soal .btn-action");
     btn.innerHTML = "Simpan Perubahan 💾";
     btn.style.background = "#27ae60";
@@ -586,7 +711,7 @@ window.editBankLatihan = function(key) {
     window.bukaModal("modal-admin-bank-soal");
 };
 
-window.tambahSoalBankLatihan = function(key) {
+window.tambahSoalBankLatihan = function(key, presetTopik) {
     let item = window.adminBankLatihanData[key];
     if (!item) return;
 
@@ -594,6 +719,14 @@ window.tambahSoalBankLatihan = function(key) {
     document.getElementById("admin-bs-mapel").value = item.mapel;
     document.getElementById("admin-bs-bab").value = item.bab;
     document.getElementById("admin-bs-kesulitan").value = item.kesulitan || "C1";
+
+    let inpTopik = document.getElementById("admin-bs-topik");
+    if (inpTopik) {
+        inpTopik.disabled = false;
+        let tPrefill = presetTopik !== undefined ? presetTopik : "";
+        inpTopik.value = (tPrefill === "Umum") ? "" : tPrefill;
+    }
+    window.isiSaranTopikUntukBab(item.kelas, item.mapel, item.bab);
 
     document.getElementById("admin-bs-kelas").disabled = true;
     document.getElementById("admin-bs-mapel").disabled = true;
@@ -618,6 +751,8 @@ window.simpanKeBankSoalPusat = function() {
     let kelas = document.getElementById('admin-bs-kelas').value;
     let mapel = document.getElementById('admin-bs-mapel').value;
     let bab = document.getElementById('admin-bs-bab').value.trim();
+    let inpTopik = document.getElementById('admin-bs-topik');
+    let topik = window.normalisasiTopikLatihan(inpTopik ? inpTopik.value : "");
     let kesulitan = document.getElementById('admin-bs-kesulitan').value;
     let rawText = document.getElementById('admin-bs-text').value;
 
@@ -711,30 +846,31 @@ window.simpanKeBankSoalPusat = function() {
     if (questions.length === 0) return alert("Gagal mengekstrak soal. Pastikan format teks benar (ada kata 'Soal:', opsi 'A.', 'B.', dan 'Kunci:').");
 
     if (window.modeSimpanBankLatihan === 'edit' && window.kunciEditBankLatihan) {
-        window.adminBankLatihanData[window.kunciEditBankLatihan].soal = questions;
-    } else if (window.modeSimpanBankLatihan === 'append_or_new' || window.modeSimpanBankLatihan === 'append') {
+        let targetEdit = window.adminBankLatihanData[window.kunciEditBankLatihan];
+        if (targetEdit) {
+            targetEdit.topik = topik;
+            targetEdit.soal = questions;
+        }
+    } else {
         let existingKey = null;
         Object.keys(window.adminBankLatihanData).forEach(function(k) {
             let i = window.adminBankLatihanData[k];
-            if (i && i.kelas === kelas && i.mapel === mapel && i.bab === bab && i.kesulitan === kesulitan) {
+            if (i && i.kelas === kelas && i.mapel === mapel && i.bab === bab &&
+                window.normalisasiTopikLatihan(i.topik) === topik && i.kesulitan === kesulitan) {
                 existingKey = k;
             }
         });
 
         if (existingKey) {
-            let lama = window.adminBankLatihanData[existingKey].soal || [];
+            let lama = Array.isArray(window.adminBankLatihanData[existingKey].soal) ? window.adminBankLatihanData[existingKey].soal : [];
+            window.adminBankLatihanData[existingKey].topik = topik;
             window.adminBankLatihanData[existingKey].soal = lama.concat(questions);
         } else {
             let newKey = "bs_" + Date.now();
             window.adminBankLatihanData[newKey] = {
-                kelas: kelas, mapel: mapel, bab: bab, kesulitan: kesulitan, soal: questions
+                kelas: kelas, mapel: mapel, bab: bab, topik: topik, kesulitan: kesulitan, soal: questions
             };
         }
-    } else {
-        let newKey = "bs_" + Date.now();
-        window.adminBankLatihanData[newKey] = {
-            kelas: kelas, mapel: mapel, bab: bab, kesulitan: kesulitan, soal: questions
-        };
     }
 
     window.renderManajerSoal();
@@ -745,6 +881,8 @@ window.simpanKeBankSoalPusat = function() {
 };
 
 window.renderManajerSoal = function() {
+    window.perbaruiTombolAcakLatihanUI();
+
     let listEl = document.getElementById('list-manajer-soal');
     let selKelas = document.getElementById('filter-manajer-kelas');
     if (!listEl || !selKelas) return;
@@ -769,12 +907,22 @@ window.renderManajerSoal = function() {
         if (klsAktif !== "Semua" && item.kelas !== klsAktif) return;
 
         let groupKey = item.kelas + "_" + item.mapel + "_" + item.bab;
+        let topikName = window.normalisasiTopikLatihan(item.topik);
 
         if (!groupedByBab[groupKey]) {
             groupedByBab[groupKey] = {
                 kelas: item.kelas,
                 mapel: item.mapel,
                 bab: item.bab,
+                repKey: key,
+                topics: {},
+                total: 0
+            };
+        }
+
+        if (!groupedByBab[groupKey].topics[topikName]) {
+            groupedByBab[groupKey].topics[topikName] = {
+                nama: topikName,
                 c1: { key: null, count: 0 },
                 c2: { key: null, count: 0 },
                 hots: { key: null, count: 0 },
@@ -782,13 +930,22 @@ window.renderManajerSoal = function() {
             };
         }
 
-        let jmlSoal = item.soal ? item.soal.length : 0;
+        let arrS = Array.isArray(item.soal) ? item.soal : Object.values(item.soal || {});
+        let jmlSoal = arrS.length;
         groupedByBab[groupKey].total += jmlSoal;
+        groupedByBab[groupKey].topics[topikName].total += jmlSoal;
 
-        let t = (item.kesulitan || "").toUpperCase();
-        if (t === "C1") { groupedByBab[groupKey].c1 = { key: key, count: jmlSoal }; }
-        else if (t === "C2") { groupedByBab[groupKey].c2 = { key: key, count: jmlSoal }; }
-        else if (t === "HOTS") { groupedByBab[groupKey].hots = { key: key, count: jmlSoal }; }
+        let lvl = String(item.kesulitan || "").toUpperCase();
+        if (lvl === "C1") {
+            groupedByBab[groupKey].topics[topikName].c1.key = key;
+            groupedByBab[groupKey].topics[topikName].c1.count += jmlSoal;
+        } else if (lvl === "C2") {
+            groupedByBab[groupKey].topics[topikName].c2.key = key;
+            groupedByBab[groupKey].topics[topikName].c2.count += jmlSoal;
+        } else if (lvl === "HOTS") {
+            groupedByBab[groupKey].topics[topikName].hots.key = key;
+            groupedByBab[groupKey].topics[topikName].hots.count += jmlSoal;
+        }
     });
 
     let groupKeys = Object.keys(groupedByBab).sort();
@@ -798,43 +955,77 @@ window.renderManajerSoal = function() {
         return;
     }
 
+    let buatBadgeLevel = function(slot, label, cls) {
+        if (slot && slot.key) {
+            return '<span class="ml-tier-badge ' + cls + '" onclick="window.editBankLatihan(\'' + slot.key + '\')" title="Edit Soal ' + label + '">' + label + ': ' + slot.count + ' ✏️</span>';
+        }
+        return '<span class="ml-tier-badge is-empty">' + label + ': 0</span>';
+    };
+
     let html = '';
     groupKeys.forEach(function(gKey) {
         let g = groupedByBab[gKey];
+        let topikNames = Object.keys(g.topics).sort(function(a, b) {
+            if (a === "Umum") return 1;
+            if (b === "Umum") return -1;
+            return a.localeCompare(b);
+        });
 
-        let badgeC1 = g.c1.key
-            ? '<span style="background:#27ae60; color:white; padding:2px 8px; border-radius:12px; font-size:11px; font-weight:bold; display:inline-flex; align-items:center; gap:4px; cursor:pointer;" onclick="window.editBankLatihan(\'' + g.c1.key + '\')" title="Edit Soal C1">C1: ' + g.c1.count + ' <span style="font-size:9px;">✏️</span></span>'
-            : '<span style="background:#e2e8f0; color:#94a3b8; padding:2px 8px; border-radius:12px; font-size:11px; font-weight:bold;">C1: 0</span>';
-
-        let badgeC2 = g.c2.key
-            ? '<span style="background:#f39c12; color:white; padding:2px 8px; border-radius:12px; font-size:11px; font-weight:bold; display:inline-flex; align-items:center; gap:4px; cursor:pointer;" onclick="window.editBankLatihan(\'' + g.c2.key + '\')" title="Edit Soal C2">C2: ' + g.c2.count + ' <span style="font-size:9px;">✏️</span></span>'
-            : '<span style="background:#e2e8f0; color:#94a3b8; padding:2px 8px; border-radius:12px; font-size:11px; font-weight:bold;">C2: 0</span>';
-
-        let badgeHOTS = g.hots.key
-            ? '<span style="background:#c0392b; color:white; padding:2px 8px; border-radius:12px; font-size:11px; font-weight:bold; display:inline-flex; align-items:center; gap:4px; cursor:pointer;" onclick="window.editBankLatihan(\'' + g.hots.key + '\')" title="Edit Soal HOTS">HOTS: ' + g.hots.count + ' <span style="font-size:9px;">✏️</span></span>'
-            : '<span style="background:#e2e8f0; color:#94a3b8; padding:2px 8px; border-radius:12px; font-size:11px; font-weight:bold;">HOTS: 0</span>';
-
-        let repKey = g.c1.key || g.c2.key || g.hots.key;
+        let hanyaUmum = (topikNames.length === 1 && topikNames[0] === "Umum");
+        let repKey = g.repKey;
         let safeKls = String(g.kelas || '').replace(/'/g, "\\'");
         let safeMpl = String(g.mapel || '').replace(/'/g, "\\'");
         let safeBab = String(g.bab || '').replace(/'/g, "\\'");
 
-        html += '<li class="soal-manager-item" style="display:flex; flex-wrap:wrap; gap:10px; align-items:center;">' +
-            '<div class="soal-manager-info" style="flex:1; min-width:260px;">' +
-                '<strong style="font-size:15px; color:#2c3e50;">🚀 ' + g.bab + '</strong> <span style="color:#7f8c8d; font-size:13px;">(' + g.mapel + ')</span><br>' +
-                '<div style="margin-top:6px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">' +
-                    '<span class="soal-manager-tag" style="background:#8e44ad; font-size:11px; display:inline-block; margin-right:4px;">' + g.kelas + '</span>' +
-                    badgeC1 + badgeC2 + badgeHOTS +
+        let bodyBadgesHtml = '';
+        if (hanyaUmum) {
+            let tp = g.topics["Umum"];
+            bodyBadgesHtml =
+                '<div class="ml-card-badges">' +
+                    '<span class="ml-tier-badge is-kelas">' + g.kelas + '</span>' +
+                    buatBadgeLevel(tp.c1, 'C1', 'is-c1') +
+                    buatBadgeLevel(tp.c2, 'C2', 'is-c2') +
+                    buatBadgeLevel(tp.hots, 'HOTS', 'is-hots') +
+                '</div>';
+        } else {
+            let rowsTopik = topikNames.map(function(tNama) {
+                let tp = g.topics[tNama];
+                let safeTopik = tNama.replace(/'/g, "\\'");
+                return '<div class="ml-topic-row">' +
+                    '<div class="ml-topic-head">' +
+                        '<span class="ml-topic-name">📌 ' + tNama + '</span>' +
+                        '<button type="button" class="ml-topic-add-btn" onclick="window.tambahSoalBankLatihan(\'' + repKey + '\', \'' + safeTopik + '\')" title="Tambah soal ke topik ' + tNama + '">➕</button>' +
+                    '</div>' +
+                    '<div class="ml-card-badges">' +
+                        buatBadgeLevel(tp.c1, 'C1', 'is-c1') +
+                        buatBadgeLevel(tp.c2, 'C2', 'is-c2') +
+                        buatBadgeLevel(tp.hots, 'HOTS', 'is-hots') +
+                    '</div>' +
+                '</div>';
+            }).join('');
+
+            bodyBadgesHtml =
+                '<div class="ml-card-badges" style="margin-bottom:2px;">' +
+                    '<span class="ml-tier-badge is-kelas">' + g.kelas + '</span>' +
+                    '<span class="ml-tier-badge is-topic-cnt">📂 ' + topikNames.length + ' Topik</span>' +
                 '</div>' +
+                '<div class="ml-topic-list">' + rowsTopik + '</div>';
+        }
+
+        html += '<li class="soal-manager-item ml-card-compact">' +
+            '<div class="ml-card-top">' +
+                '<div class="ml-card-title-wrap">' +
+                    '<strong class="ml-card-title">🚀 ' + g.bab + '</strong>' +
+                    '<span class="ml-card-mapel">(' + g.mapel + ')</span>' +
+                '</div>' +
+                '<span class="ml-card-total-pill">' + g.total + ' Soal</span>' +
             '</div>' +
-            '<div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">' +
-                '<span style="color:#27ae60; font-weight:900; font-size:13px; margin-right:4px; white-space:nowrap;">' + g.total + ' Total Soal</span>' +
-                '<div style="display:flex; gap:5px; flex-wrap:wrap;">' +
-                    '<button class="btn-action" style="background:#2c3e50; color:white; padding:6px 10px; font-size:11px; width:auto;" title="Cetak PDF Bab Ini" onclick="window.cetakBankLatihanGroup(\'pdf\', \'' + safeKls + '\', \'' + safeMpl + '\', \'' + safeBab + '\')">🖨️ PDF</button>' +
-                    '<button class="btn-action" style="background:#2980b9; color:white; padding:6px 10px; font-size:11px; width:auto;" title="Export Word Bab Ini" onclick="window.cetakBankLatihanGroup(\'word\', \'' + safeKls + '\', \'' + safeMpl + '\', \'' + safeBab + '\')">📄 Word</button>' +
-                    '<button class="btn-action" style="background:#f1c40f; color:#2c3e50; padding:6px 12px; font-size:12px; width:auto;" onclick="window.tambahSoalBankLatihan(\'' + repKey + '\')">➕ Tambah</button>' +
-                    '<button class="btn-delete-soal" style="padding:6px 12px; font-size:12px; width:auto;" onclick="window.hapusBankLatihanGroup(\'' + safeKls + '\', \'' + safeMpl + '\', \'' + safeBab + '\')">🗑️ Hapus</button>' +
-                '</div>' +
+            bodyBadgesHtml +
+            '<div class="ml-card-actions">' +
+                '<button type="button" class="ml-act-btn is-pdf" title="Cetak PDF Bab Ini" onclick="window.cetakBankLatihanGroup(\'pdf\', \'' + safeKls + '\', \'' + safeMpl + '\', \'' + safeBab + '\')">🖨️ PDF</button>' +
+                '<button type="button" class="ml-act-btn is-word" title="Export Word Bab Ini" onclick="window.cetakBankLatihanGroup(\'word\', \'' + safeKls + '\', \'' + safeMpl + '\', \'' + safeBab + '\')">📄 Word</button>' +
+                '<button type="button" class="ml-act-btn is-add" title="Tambah Soal / Topik Baru di Bab Ini" onclick="window.tambahSoalBankLatihan(\'' + repKey + '\', \'\')">➕ Tambah</button>' +
+                '<button type="button" class="ml-act-btn is-del" title="Hapus Semua Soal Bab Ini" onclick="window.hapusBankLatihanGroup(\'' + safeKls + '\', \'' + safeMpl + '\', \'' + safeBab + '\')">🗑️</button>' +
             '</div>' +
         '</li>';
     });
@@ -1200,6 +1391,10 @@ window.bukaModalAmbilSoal = function(isUntukKuisInline) {
     if (selMapel) selMapel.innerHTML = '<option value="">-- Tunggu Kelas --</option>';
     let container = document.getElementById('ambil-soal-bab-container');
     if (container) container.innerHTML = '';
+    let boxTopik = document.getElementById('ambil-soal-topik-box');
+    if (boxTopik) boxTopik.style.display = 'none';
+    let contTopik = document.getElementById('ambil-soal-topik-container');
+    if (contTopik) contTopik.innerHTML = '';
 
     // Inisialisasi Dropdown Tab 2 (Spesifik)
     let selKelasSp = document.getElementById('spesifik-soal-kelas');
@@ -1208,6 +1403,8 @@ window.bukaModalAmbilSoal = function(isUntukKuisInline) {
     if (selMapelSp) selMapelSp.innerHTML = '<option value="">-- Tunggu Kelas --</option>';
     let selBabSp = document.getElementById('spesifik-soal-bab');
     if (selBabSp) selBabSp.innerHTML = '<option value="">-- Tunggu Mapel --</option>';
+    let selTopikSp = document.getElementById('spesifik-soal-topik');
+    if (selTopikSp) selTopikSp.innerHTML = '<option value="SEMUA">-- Tunggu Bab --</option>';
     let selKesSp = document.getElementById('spesifik-soal-kesulitan');
     if (selKesSp) selKesSp.innerHTML = '<option value="">-- Tunggu Mapel --</option>';
 
@@ -1273,6 +1470,11 @@ window.updateAmbilSoalMapel = function() {
     Array.from(mapelSet).sort().forEach(function(m) { htmlM += '<option value="' + m + '">' + m + '</option>'; });
     selMapel.innerHTML = htmlM;
     document.getElementById('ambil-soal-bab-container').innerHTML = '';
+    let boxTopik = document.getElementById('ambil-soal-topik-box');
+    if (boxTopik) boxTopik.style.display = 'none';
+    let contTopik = document.getElementById('ambil-soal-topik-container');
+    if (contTopik) contTopik.innerHTML = '';
+    window.updateInfoStokTarikSoal();
 };
 
 window.updateAmbilSoalBab = function() {
@@ -1291,10 +1493,84 @@ window.updateAmbilSoalBab = function() {
     Array.from(babSet).sort().forEach(function(b) {
         let safeVal = b.replace(/"/g, '&quot;');
         htmlB += '<label style="cursor:pointer; display:flex; gap:8px; font-size:13px; align-items:center;">' +
-                    '<input type="checkbox" class="chk-ambil-bab" value="' + safeVal + '" onchange="window.updateInfoStokTarikSoal()"> ' + b +
+                    '<input type="checkbox" class="chk-ambil-bab" value="' + safeVal + '" onchange="window.updateAmbilSoalTopik()"> ' + b +
                  '</label>';
     });
     container.innerHTML = htmlB || '<span style="font-size:12px; color:#888;">Tidak ada bab tersedia.</span>';
+    window.updateAmbilSoalTopik();
+};
+
+window.updateAmbilSoalTopik = function() {
+    let kelas = document.getElementById('ambil-soal-kelas').value;
+    let mapel = document.getElementById('ambil-soal-mapel').value;
+    let selectedBabs = Array.from(document.querySelectorAll('.chk-ambil-bab:checked')).map(function(el) { return el.value; });
+    let prevCheckedTopiks = new Set(Array.from(document.querySelectorAll('.chk-ambil-topik:checked')).map(function(el) { return el.value; }));
+
+    let boxTopik = document.getElementById('ambil-soal-topik-box');
+    let contTopik = document.getElementById('ambil-soal-topik-container');
+    if (!boxTopik || !contTopik) {
+        window.updateInfoStokTarikSoal();
+        return;
+    }
+
+    if (selectedBabs.length === 0) {
+        boxTopik.style.display = 'none';
+        contTopik.innerHTML = '';
+        window.updateInfoStokTarikSoal();
+        return;
+    }
+
+    let bank = window.adminBankLatihanData || {};
+    let topikMap = {};
+    let adaTopikNonUmum = false;
+
+    Object.values(bank).forEach(function(item) {
+        if (!item || item.kelas !== kelas || item.mapel !== mapel || !selectedBabs.includes(item.bab)) return;
+        let tName = (typeof window.normalisasiTopikLatihan === 'function')
+            ? window.normalisasiTopikLatihan(item.topik)
+            : (String(item.topik || '').trim() || 'Umum');
+        if (tName !== 'Umum') adaTopikNonUmum = true;
+
+        let pairKey = item.bab + '||' + tName;
+        let arrS = Array.isArray(item.soal) ? item.soal : Object.values(item.soal || {});
+        if (!topikMap[pairKey]) {
+            topikMap[pairKey] = { key: pairKey, bab: item.bab, topik: tName, count: 0 };
+        }
+        topikMap[pairKey].count += arrS.length;
+    });
+
+    let daftarTopik = Object.values(topikMap).sort(function(a, b) {
+        let cmpB = a.bab.localeCompare(b.bab);
+        if (cmpB !== 0) return cmpB;
+        if (a.topik === 'Umum') return 1;
+        if (b.topik === 'Umum') return -1;
+        return a.topik.localeCompare(b.topik);
+    });
+
+    if (!adaTopikNonUmum && daftarTopik.length <= 1) {
+        boxTopik.style.display = 'none';
+        contTopik.innerHTML = '';
+        window.updateInfoStokTarikSoal();
+        return;
+    }
+
+    boxTopik.style.display = 'block';
+    let showBabPrefix = selectedBabs.length > 1;
+    let htmlT = '';
+    daftarTopik.forEach(function(tp) {
+        let safeVal = tp.key.replace(/"/g, '&quot;');
+        let checkedAttr = prevCheckedTopiks.has(tp.key) ? ' checked' : '';
+        let labelTampil = (showBabPrefix ? (tp.bab + ' • ') : '') + tp.topik + ' (' + tp.count + ')';
+        htmlT += '<label style="cursor:pointer; display:inline-flex; gap:6px; align-items:center; background:#ffffff; border:1px solid #a7f3d0; padding:4px 9px; border-radius:14px; font-size:12px; font-weight:600; color:#065f46;">' +
+                    '<input type="checkbox" class="chk-ambil-topik" value="' + safeVal + '"' + checkedAttr + ' style="accent-color:#047857; cursor:pointer;" onchange="window.updateInfoStokTarikSoal()"> ' + labelTampil +
+                 '</label>';
+    });
+    contTopik.innerHTML = htmlT;
+    window.updateInfoStokTarikSoal();
+};
+
+window.resetCentangTopikAmbilSoal = function() {
+    document.querySelectorAll('.chk-ambil-topik').forEach(function(cb) { cb.checked = false; });
     window.updateInfoStokTarikSoal();
 };
 
@@ -1302,6 +1578,13 @@ window.updateInfoStokTarikSoal = function() {
     let kelas = document.getElementById('ambil-soal-kelas').value;
     let mapel = document.getElementById('ambil-soal-mapel').value;
     let selectedBabs = Array.from(document.querySelectorAll('.chk-ambil-bab:checked')).map(function(el) { return el.value; });
+    let selectedTopiks = Array.from(document.querySelectorAll('.chk-ambil-topik:checked')).map(function(el) { return el.value; });
+    let pakaiFilterTopik = selectedTopiks.length > 0;
+
+    let statusTopikEl = document.getElementById('ambil-soal-topik-status');
+    if (statusTopikEl) {
+        statusTopikEl.innerText = pakaiFilterTopik ? (selectedTopiks.length + ' Topik Dipilih') : 'Semua Topik';
+    }
 
     let stok = {
         PG: { C1: 0, C2: 0, HOTS: 0 },
@@ -1313,6 +1596,13 @@ window.updateInfoStokTarikSoal = function() {
     let bank = window.adminBankLatihanData || {};
     Object.values(bank).forEach(function(item) {
         if (item && item.kelas === kelas && item.mapel === mapel && selectedBabs.includes(item.bab)) {
+            if (pakaiFilterTopik) {
+                let tName = (typeof window.normalisasiTopikLatihan === 'function')
+                    ? window.normalisasiTopikLatihan(item.topik)
+                    : (String(item.topik || '').trim() || 'Umum');
+                if (!selectedTopiks.includes(item.bab + '||' + tName)) return;
+            }
+
             let diff = (item.kesulitan || 'C1').trim().toUpperCase();
             if (!['C1', 'C2', 'HOTS'].includes(diff)) diff = 'C1';
 
@@ -1407,6 +1697,8 @@ window.eksekusiTarikSoalKeUjian = function() {
     let kelas = document.getElementById('ambil-soal-kelas').value;
     let mapel = document.getElementById('ambil-soal-mapel').value;
     let selectedBabs = Array.from(document.querySelectorAll('.chk-ambil-bab:checked')).map(function(el) { return el.value; });
+    let selectedTopiks = Array.from(document.querySelectorAll('.chk-ambil-topik:checked')).map(function(el) { return el.value; });
+    let pakaiFilterTopik = selectedTopiks.length > 0;
 
     if (selectedBabs.length === 0) return alert("Pilih minimal 1 Bab materi!");
 
@@ -1421,6 +1713,13 @@ window.eksekusiTarikSoalKeUjian = function() {
 
     Object.values(bank).forEach(function(item) {
         if (item && item.kelas === kelas && item.mapel === mapel && selectedBabs.includes(item.bab)) {
+            if (pakaiFilterTopik) {
+                let tName = (typeof window.normalisasiTopikLatihan === 'function')
+                    ? window.normalisasiTopikLatihan(item.topik)
+                    : (String(item.topik || '').trim() || 'Umum');
+                if (!selectedTopiks.includes(item.bab + '||' + tName)) return;
+            }
+
             let diff = (item.kesulitan || 'C1').trim().toUpperCase();
             if (!['C1', 'C2', 'HOTS'].includes(diff)) diff = 'C1';
 
@@ -1479,11 +1778,13 @@ window.updateSpesifikSoalMapel = function() {
     let kelas = document.getElementById('spesifik-soal-kelas').value;
     let selMapel = document.getElementById('spesifik-soal-mapel');
     let selBab = document.getElementById('spesifik-soal-bab');
+    let selTopik = document.getElementById('spesifik-soal-topik');
     let selKes = document.getElementById('spesifik-soal-kesulitan');
 
     if (!kelas) {
         selMapel.innerHTML = '<option value="">-- Tunggu Kelas --</option>';
         selBab.innerHTML = '<option value="">-- Tunggu Mapel --</option>';
+        if (selTopik) selTopik.innerHTML = '<option value="SEMUA">-- Tunggu Bab --</option>';
         selKes.innerHTML = '<option value="">-- Tunggu Mapel --</option>';
         window.renderDaftarSoalSpesifik();
         return;
@@ -1501,6 +1802,7 @@ window.updateSpesifikSoalMapel = function() {
     });
     selMapel.innerHTML = htmlM;
     selBab.innerHTML = '<option value="">-- Tunggu Mapel --</option>';
+    if (selTopik) selTopik.innerHTML = '<option value="SEMUA">-- Tunggu Bab --</option>';
     selKes.innerHTML = '<option value="">-- Tunggu Mapel --</option>';
     window.renderDaftarSoalSpesifik();
 };
@@ -1509,10 +1811,12 @@ window.updateSpesifikSoalBabDanLevel = function() {
     let kelas = document.getElementById('spesifik-soal-kelas').value;
     let mapel = document.getElementById('spesifik-soal-mapel').value;
     let selBab = document.getElementById('spesifik-soal-bab');
+    let selTopik = document.getElementById('spesifik-soal-topik');
     let selKes = document.getElementById('spesifik-soal-kesulitan');
 
     if (!kelas || !mapel) {
         selBab.innerHTML = '<option value="">-- Tunggu Mapel --</option>';
+        if (selTopik) selTopik.innerHTML = '<option value="SEMUA">-- Tunggu Bab --</option>';
         selKes.innerHTML = '<option value="">-- Tunggu Mapel --</option>';
         window.renderDaftarSoalSpesifik();
         return;
@@ -1544,6 +1848,44 @@ window.updateSpesifikSoalBabDanLevel = function() {
     });
     selKes.innerHTML = htmlKes;
 
+    window.onUbahBabSpesifikSoal();
+};
+
+window.onUbahBabSpesifikSoal = function() {
+    let kelas = document.getElementById('spesifik-soal-kelas') ? document.getElementById('spesifik-soal-kelas').value : '';
+    let mapel = document.getElementById('spesifik-soal-mapel') ? document.getElementById('spesifik-soal-mapel').value : '';
+    let bab = document.getElementById('spesifik-soal-bab') ? document.getElementById('spesifik-soal-bab').value : '';
+    let selTopik = document.getElementById('spesifik-soal-topik');
+
+    if (selTopik) {
+        if (!kelas || !mapel) {
+            selTopik.innerHTML = '<option value="SEMUA">-- Tunggu Bab --</option>';
+        } else {
+            let bank = window.adminBankLatihanData || {};
+            let topikSet = new Set();
+            Object.values(bank).forEach(function(item) {
+                if (!item || item.kelas !== kelas || item.mapel !== mapel) return;
+                if (bab && bab !== 'SEMUA' && item.bab !== bab) return;
+                let tName = (typeof window.normalisasiTopikLatihan === 'function')
+                    ? window.normalisasiTopikLatihan(item.topik)
+                    : (String(item.topik || '').trim() || 'Umum');
+                topikSet.add(tName);
+            });
+
+            let daftarT = Array.from(topikSet).sort(function(a, b) {
+                if (a === 'Umum') return 1;
+                if (b === 'Umum') return -1;
+                return a.localeCompare(b);
+            });
+
+            let htmlT = '<option value="SEMUA">📌 Semua Topik' + (daftarT.length > 1 ? (' (' + daftarT.length + ')') : '') + '</option>';
+            daftarT.forEach(function(t) {
+                htmlT += '<option value="' + t.replace(/"/g, '&quot;') + '">' + t + '</option>';
+            });
+            selTopik.innerHTML = htmlT;
+        }
+    }
+
     window.renderDaftarSoalSpesifik();
 };
 
@@ -1551,6 +1893,7 @@ window.renderDaftarSoalSpesifik = function() {
     let kelas = document.getElementById('spesifik-soal-kelas') ? document.getElementById('spesifik-soal-kelas').value : '';
     let mapel = document.getElementById('spesifik-soal-mapel') ? document.getElementById('spesifik-soal-mapel').value : '';
     let bab = document.getElementById('spesifik-soal-bab') ? document.getElementById('spesifik-soal-bab').value : '';
+    let topik = document.getElementById('spesifik-soal-topik') ? document.getElementById('spesifik-soal-topik').value : 'SEMUA';
     let kesulitan = document.getElementById('spesifik-soal-kesulitan') ? document.getElementById('spesifik-soal-kesulitan').value : '';
     let container = document.getElementById('spesifik-daftar-soal-container');
     let infoTampil = document.getElementById('spesifik-info-jumlah-tampil');
@@ -1573,6 +1916,11 @@ window.renderDaftarSoalSpesifik = function() {
         if (!item || item.kelas !== kelas || item.mapel !== mapel) return;
         if (bab && bab !== 'SEMUA' && item.bab !== bab) return;
 
+        let topikItem = (typeof window.normalisasiTopikLatihan === 'function')
+            ? window.normalisasiTopikLatihan(item.topik)
+            : (String(item.topik || '').trim() || 'Umum');
+        if (topik && topik !== 'SEMUA' && topikItem !== topik) return;
+
         let lvlItem = String(item.kesulitan || 'C1').toUpperCase().trim();
         if (kesulitan !== 'SEMUA' && lvlItem !== kesulitan) return;
 
@@ -1583,6 +1931,7 @@ window.renderDaftarSoalSpesifik = function() {
             daftarTampil.push({
                 uid: uniqueId,
                 bab: item.bab || '-',
+                topik: topikItem,
                 kesulitan: lvlItem,
                 soalObj: q
             });
@@ -1626,6 +1975,9 @@ window.renderDaftarSoalSpesifik = function() {
 
         let borderCard = isChecked ? '2px solid #8e44ad' : '1px solid #cbd5e1';
         let bgCard = isChecked ? '#faf5ff' : '#ffffff';
+        let badgeTopikHtml = (entry.topik && entry.topik !== 'Umum')
+            ? '<span style="background:#ecfdf5; color:#047857; border:1px solid #a7f3d0; padding:1px 7px; border-radius:4px; font-size:10px; font-weight:bold;">📌 ' + entry.topik + '</span>'
+            : '';
 
         html +=
             '<label id="card-spesifik-' + entry.uid + '" style="display:flex; align-items:flex-start; gap:12px; background:' + bgCard + '; border:' + borderCard + '; border-radius:8px; padding:12px; cursor:pointer; transition:0.15s;">' +
@@ -1636,6 +1988,7 @@ window.renderDaftarSoalSpesifik = function() {
                         '<span style="background:' + warnaTipe + '; color:white; padding:1px 7px; border-radius:4px; font-size:10px; font-weight:bold;">' + tipeQ + '</span>' +
                         '<span style="background:' + warnaLvl + '; color:white; padding:1px 7px; border-radius:4px; font-size:10px; font-weight:bold;">' + entry.kesulitan + '</span>' +
                         '<span style="background:#eaf2f8; color:#2980b9; padding:1px 7px; border-radius:4px; font-size:10px; font-weight:bold;">📖 ' + entry.bab + '</span>' +
+                        badgeTopikHtml +
                         '<span style="font-size:11px; color:#16a085; font-weight:bold; margin-left:auto;">🔑 Kunci: ' + kunciStr + '</span>' +
                     '</div>' +
                     '<div style="font-size:13px; color:#1e293b; line-height:1.45; font-weight:600;">' + q.question + '</div>' +
@@ -1847,6 +2200,7 @@ document.addEventListener("DOMContentLoaded", function() {
             mutations.forEach(function(m) {
                 if (m.target.id === 'modal-manajer-soal' && m.target.style.display === 'flex') {
                     window.renderManajerSoal();
+                    window.muatPengaturanLatihanDariServer(false);
                 }
             });
         });

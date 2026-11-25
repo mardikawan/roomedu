@@ -829,16 +829,16 @@
         </div>
     </div>
 
-    <!-- MODAL BANK SOAL LATIHAN (Dengan Kesulitan C1, C2, HOTS) -->
+    <!-- MODAL BANK SOAL LATIHAN (Dengan Topik / Sub-Bab Opsional & Kesulitan C1, C2, HOTS) -->
     <div id="modal-admin-bank-soal" class="modal-overlay" onclick="if(event.target===this)tutupModal('modal-admin-bank-soal')">
-        <div class="modal-box" style="width:600px;">
+        <div class="modal-box" style="width:620px;">
             <div class="modal-header" style="background:#f4ecf7;">
                 <h3 style="color:#8e44ad; margin:0;">📥 Arsip Latihan Mandiri</h3>
                 <button class="close-btn" onclick="tutupModal('modal-admin-bank-soal')">✕</button>
             </div>
             <div class="modal-body">
-                <div style="display:flex;gap:8px;margin-bottom:10px;">
-                    <select id="admin-bs-kelas" class="input-box">
+                <div style="display:grid; grid-template-columns:1fr 1fr 1.5fr; gap:8px; margin-bottom:8px;">
+                    <select id="admin-bs-kelas" class="input-box" style="margin:0;">
                         <option value="Kelas 10">Kls 10</option>
                         <option value="Kelas 11">Kls 11</option>
                         <option value="Kelas 12">Kls 12</option>
@@ -846,7 +846,7 @@
                         <option value="SD">SD</option>
                         <option value="Umum">Umum</option>
                     </select>
-                    <select id="admin-bs-mapel" class="input-box">
+                    <select id="admin-bs-mapel" class="input-box" style="margin:0;">
                         <option value="Biologi">Biologi</option>
                         <option value="Fisika">Fisika</option>
                         <option value="Kimia">Kimia</option>
@@ -857,11 +857,15 @@
                         <option value="English">English</option>
                         <option value="Umum">Umum</option>
                     </select>
-                    <input type="text" id="admin-bs-bab" class="input-box" list="admin-bab-list" placeholder="Bab">
-                    <select id="admin-bs-kesulitan" class="input-box">
-                        <option value="C1">C1</option>
-                        <option value="C2">C2</option>
-                        <option value="HOTS">HOTS</option>
+                    <input type="text" id="admin-bs-bab" class="input-box" style="margin:0;" list="admin-bab-list" placeholder="Nama Bab (mis: Sistem Peredaran Darah)">
+                </div>
+                <div style="display:grid; grid-template-columns:2fr 1fr; gap:8px; margin-bottom:10px;">
+                    <input type="text" id="admin-bs-topik" class="input-box" style="margin:0;" list="admin-topik-list" placeholder="Topik / Sub-Bab (Opsional, mis: Darah / Jantung)">
+                    <datalist id="admin-topik-list"></datalist>
+                    <select id="admin-bs-kesulitan" class="input-box" style="margin:0; font-weight:700;">
+                        <option value="C1">Tingkat C1</option>
+                        <option value="C2">Tingkat C2</option>
+                        <option value="HOTS">Tingkat HOTS</option>
                     </select>
                 </div>
                 <textarea id="admin-bs-text" class="input-box" rows="8" placeholder="Paste soal pilihan ganda atau isian singkat..."></textarea>
@@ -905,6 +909,16 @@
                     <label style="font-weight:bold; font-size:12px;">Centang Bab (Bisa lebih dari 1):</label>
                     <div id="ambil-soal-bab-container" style="background:#f8f9fa; border:1px solid #ddd; padding:10px; border-radius:6px; max-height:120px; overflow-y:auto; display:flex; flex-direction:column; gap:6px;">
                         <!-- Checkbox Bab akan dirender di sini -->
+                    </div>
+
+                    <div id="ambil-soal-topik-box" style="display:none; background:#f0fdf7; border:1px solid #a7f3d0; padding:10px; border-radius:6px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:6px; flex-wrap:wrap;">
+                            <label style="font-weight:bold; font-size:12px; color:#065f46; margin:0;">
+                                📌 Pilih Topik Khusus (Opsional — <span id="ambil-soal-topik-status">Semua Topik</span>):
+                            </label>
+                            <button type="button" style="background:#ffffff; color:#047857; border:1px solid #6ee7b7; border-radius:6px; padding:2px 8px; font-size:11px; font-weight:700; cursor:pointer;" onclick="window.resetCentangTopikAmbilSoal()">↺ Semua Topik</button>
+                        </div>
+                        <div id="ambil-soal-topik-container" style="max-height:110px; overflow-y:auto; display:flex; flex-wrap:wrap; gap:8px;"></div>
                     </div>
 
                     <label style="font-weight:bold; font-size:12px; margin-top:5px;">Atur Jumlah Tarik Soal (Isi 0 jika tidak ditarik):</label>
@@ -957,7 +971,7 @@
 
                 <!-- MODE 2: AMBIL SOAL SPESIFIK (PILIH & CENTANG MANUAL PER SOAL) -->
                 <div id="view-ambil-soal-spesifik" style="display:none; flex-direction:column; gap:12px;">
-                    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:10px; background:#f8fafc; padding:12px; border-radius:8px; border:1px solid #e2e8f0;">
+                    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:10px; background:#f8fafc; padding:12px; border-radius:8px; border:1px solid #e2e8f0;">
                         <div>
                             <label style="font-weight:bold; font-size:11px; color:#2c3e50; display:block; margin-bottom:4px;">1. Pilih Kelas:</label>
                             <select id="spesifik-soal-kelas" class="input-box" style="margin:0; font-weight:bold; padding:8px;" onchange="window.updateSpesifikSoalMapel()"></select>
@@ -968,10 +982,16 @@
                         </div>
                         <div>
                             <label style="font-weight:bold; font-size:11px; color:#2c3e50; display:block; margin-bottom:4px;">3. Pilih Bab Materi:</label>
-                            <select id="spesifik-soal-bab" class="input-box" style="margin:0; font-weight:bold; padding:8px;" onchange="window.renderDaftarSoalSpesifik()"></select>
+                            <select id="spesifik-soal-bab" class="input-box" style="margin:0; font-weight:bold; padding:8px;" onchange="window.onUbahBabSpesifikSoal()"></select>
                         </div>
                         <div>
-                            <label style="font-weight:bold; font-size:11px; color:#2c3e50; display:block; margin-bottom:4px;">4. Tingkat Kesulitan:</label>
+                            <label style="font-weight:bold; font-size:11px; color:#047857; display:block; margin-bottom:4px;">4. Topik (Opsional):</label>
+                            <select id="spesifik-soal-topik" class="input-box" style="margin:0; font-weight:bold; padding:8px; color:#047857;" onchange="window.renderDaftarSoalSpesifik()">
+                                <option value="SEMUA">-- Tunggu Bab --</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-weight:bold; font-size:11px; color:#2c3e50; display:block; margin-bottom:4px;">5. Tingkat Kesulitan:</label>
                             <select id="spesifik-soal-kesulitan" class="input-box" style="margin:0; font-weight:bold; padding:8px; color:#8e44ad;" onchange="window.renderDaftarSoalSpesifik()">
                                 <option value="">-- Menunggu Mapel --</option>
                             </select>
@@ -1007,7 +1027,7 @@
         </div>
     </div>
 
-    <!-- MODAL MANAJER LATIHAN (Terintegrasi Bank Latihan & Filter Kelas Aktif) -->
+    <!-- MODAL MANAJER LATIHAN (Terintegrasi Bank Latihan, Filter Kelas, & Sakelar Acak Soal) -->
     <div id="modal-manajer-soal" class="modal-overlay" onclick="if(event.target===this)tutupModal('modal-manajer-soal')">
         <div class="modal-box" style="width: 650px; max-height: 85vh; display:flex; flex-direction:column;">
             <div class="modal-header" style="background:#fdebd0;">
@@ -1025,6 +1045,10 @@
                         </div>
                     </div>
                     <div class="aws-filter-right">
+                        <button type="button" id="btn-toggle-acak-latihan" class="ml-shuffle-switch is-off" onclick="window.toggleAcakSoalLatihan()" title="Hidupkan agar soal latihan siswa otomatis diacak setiap masuk">
+                            <span class="ml-shuffle-dot"></span>
+                            <span id="lbl-toggle-acak-latihan">🔀 Acak Soal: MATI</span>
+                        </button>
                         <button type="button" class="aws-quick-btn is-primary" onclick="window.bukaModalBankLatihanBaru()">📥 + Tambah / Arsipkan Bank Latihan</button>
                     </div>
                 </div>
@@ -1217,14 +1241,14 @@
 
     <div class="right-edge-adder" onclick="tambahBlokBaruAkhir()">⊕ Add block</div>
     
-    <!-- MODAL MASUK LATIHAN (Sinkron Kelas, Mapel, Bab, & Kesulitan C1/C2/HOTS) -->
+    <!-- MODAL MASUK LATIHAN (Sinkron Kelas, Mapel, Bab, Topik Opsional, & Kesulitan C1/C2/HOTS) -->
     <div id="modal-enter-latihan" class="modal-overlay" onclick="if(event.target===this)tutupModal('modal-enter-latihan')">
-        <div class="modal-box" style="width: 450px; text-align:center; background:#fdfefe; border-radius:12px; overflow:hidden;">
+        <div class="modal-box" style="width: 470px; text-align:center; background:#fdfefe; border-radius:12px; overflow:hidden;">
             <div class="modal-header" style="background:#fef9e7; border-bottom:1px solid #f9e79f; padding:15px;">
-                <h3 style="color:#d35400; margin:0; font-size:18px;">🚀 Pilih Topik Latihan</h3>
+                <h3 style="color:#d35400; margin:0; font-size:18px;">🚀 Pilih Materi Latihan</h3>
                 <button class="close-btn" style="position:absolute; top:12px; right:15px;" onclick="tutupModal('modal-enter-latihan')">✕</button>
             </div>
-            <div class="modal-body" style="padding:25px; display:flex; flex-direction:column; gap:14px; text-align:left;">
+            <div class="modal-body" style="padding:22px; display:flex; flex-direction:column; gap:13px; text-align:left;">
                 <div>
                     <label style="font-weight:bold; font-size:12px; color:#7f8c8d; margin-bottom:5px; display:block;">1. Tingkat Kelas:</label>
                     <select id="latihan-select-kelas" class="input-box" style="margin:0; font-weight:bold; cursor:pointer;" onchange="window.updateDropdownLatihanMapel()">
@@ -1239,10 +1263,23 @@
                 </div>
                 <div>
                     <label style="font-weight:bold; font-size:12px; color:#7f8c8d; margin-bottom:5px; display:block;">3. Bab Materi:</label>
-                    <select id="latihan-select-bab" class="input-box" style="margin:0; font-weight:bold; cursor:pointer;" onchange="window.updateDropdownLatihanKesulitan()">
+                    <select id="latihan-select-bab" class="input-box" style="margin:0; font-weight:bold; cursor:pointer;" onchange="window.onUbahBabLatihanSiswa()">
                         <option value="">-- Pilih Mapel Dahulu --</option>
                     </select>
                 </div>
+
+                <!-- Pilihan Topik Bersifat Opsional (Otomatis Muncul Hanya Jika Bab Punya Pembagian Topik) -->
+                <div id="latihan-topik-opsional-box" class="lat-topik-opt-box" style="display:none;">
+                    <div class="lat-topik-opt-head">
+                        <div class="lat-topik-opt-info">
+                            <div id="latihan-topik-status-txt" class="lat-topik-status">📚 Semua Topik (1 Bab Penuh)</div>
+                            <div class="lat-topik-sub">Opsional: langsung mulai semua soal, atau klik tombol di kanan untuk fokus topik tertentu.</div>
+                        </div>
+                        <button type="button" id="btn-toggle-pilih-topik-lat" class="lat-topik-toggle-btn" onclick="window.togglePilihTopikLatihan()">🎯 Pilih Topik</button>
+                    </div>
+                    <div id="latihan-topik-chips-wrap" class="lat-topik-chips-wrap" style="display:none;"></div>
+                </div>
+
                 <div>
                     <label style="font-weight:bold; font-size:12px; color:#7f8c8d; margin-bottom:5px; display:block;">4. Tingkat Kesulitan (C1 / C2 / HOTS / Campuran):</label>
                     <select id="latihan-select-kesulitan" class="input-box" style="margin:0; font-weight:bold; cursor:pointer; color:#d35400;">
@@ -1253,7 +1290,7 @@
                     <label style="font-weight:bold; font-size:12px; color:#7f8c8d; margin-bottom:5px; display:block;">5. Jumlah Soal (Minimal 20 Soal, Bisa Lebih):</label>
                     <input type="number" id="latihan-jumlah-soal" class="input-box" value="20" min="20" max="200" style="margin:0; font-weight:bold; color:#2c3e50;" onchange="if(this.value < 20) { alert('⚠️ Latihan membutuhkan minimal 20 soal!'); this.value = 20; }" onblur="if(this.value < 20) { this.value = 20; }">
                 </div>
-                <button class="btn-action" style="background:#f1c40f; color:#d35400; width:100%; font-size:16px; padding:12px; margin-top:6px; font-weight:900; text-transform:uppercase; letter-spacing:1px; border-radius:8px; box-shadow:0 4px 6px rgba(241, 196, 15, 0.3);" onclick="window.mulaiLatihanSiswa()">🚀 Mulai Berlatih</button>
+                <button class="btn-action" style="background:#f1c40f; color:#d35400; width:100%; font-size:16px; padding:12px; margin-top:4px; font-weight:900; text-transform:uppercase; letter-spacing:1px; border-radius:8px; box-shadow:0 4px 6px rgba(241, 196, 15, 0.3);" onclick="window.mulaiLatihanSiswa()">🚀 Mulai Berlatih</button>
             </div>
         </div>
     </div>
@@ -1432,6 +1469,11 @@
                 <li class="drawer-static-item is-ujian">
                     <a href="javascript:void(0)" onclick="event.preventDefault(); window.toggleMainSidebarNav(false); window.bukaModalMasukUjianSiswa()">
                         <span>🎯 UJIAN</span>
+                    </a>
+                </li>
+                <li class="drawer-static-item is-flashcards">
+                    <a href="javascript:void(0)" onclick="event.preventDefault(); window.toggleMainSidebarNav(false); window.bukaModalFlashcards()">
+                        <span>🃏 FLASHCARDS</span>
                     </a>
                 </li>
                 <li class="drawer-static-item is-home-fallback">
@@ -1998,11 +2040,11 @@
                     </div>
                 </div>
 
-                <!-- TAB 3: RENCANA PEMBELAJARAN TERINTEGRASI (AGENDA + JADWAL + LIBUR/ACARA) -->
+                <!-- TAB 3: RENCANA PEMBELAJARAN TERINTEGRASI (HARI INI + SEMUA KELAS DALAM 1 HALAMAN SCROLL) -->
                 <div id="view-jadwal-rencana" style="display:none; flex-direction:column; flex:1; overflow:hidden; background:#f8fafc; color:#1e293b;">
                     <div class="rencana-topbar">
                         <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                            <strong style="font-size:14px; color:#0b3954;">📋 Rencana Pembelajaran Berikutnya</strong>
+                            <strong style="font-size:14px; color:#0b3954;">📋 Rencana Pembelajaran</strong>
                             <label class="rencana-skip-toggle" title="Jika dicentang, tanggal bertanda Acara/... juga dilewati saat menghitung pertemuan berikutnya">
                                 <input type="checkbox" id="chk-rencana-skip-acara" checked onchange="window.ubahOpsiSkipAcaraRencana(this.checked)">
                                 <span>Lewati Hari Acara</span>
@@ -2015,26 +2057,65 @@
                         </div>
                     </div>
 
-                    <!-- Panel Pengaturan Pola Jadwal Mingguan per Kelas -->
+                    <!-- Panel Pengaturan Pola Jadwal Mingguan (JP & Jam Mengajar per Kelas) -->
                     <div id="panel-editor-jadwal-saya" class="rencana-schedule-editor" style="display:none;"></div>
 
-                    <!-- Tabel Utama Rencana Pembelajaran Semua Kelas -->
-                    <div style="flex:1; overflow:auto; padding:12px;">
-                        <div style="overflow-x:auto; background:#ffffff; border:1px solid #cbd5e1; border-radius:10px;">
-                            <table class="excel-table rencana-table" style="width:100%; min-width:860px;">
-                                <thead>
-                                    <tr>
-                                        <th style="width:125px; background:#0b3954;">Kelas</th>
-                                        <th style="width:165px; background:#0b3954;">Jadwal Berikutnya</th>
-                                        <th style="width:72px; text-align:center; background:#0b3954;">Total JP</th>
-                                        <th style="min-width:210px; background:#0b3954;">Rencana Berikutnya (dari Agenda)</th>
-                                        <th style="min-width:200px; background:#0b3954;">Hal yang Harus Dipersiapkan</th>
-                                        <th style="min-width:170px; background:#0b3954;">Keterangan</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="tbody-rencana-pembelajaran"></tbody>
-                            </table>
-                        </div>
+                    <!-- Area 1 Halaman Scroll Vertikal: Bagian 1 (Hari Ini) + Bagian 2 (Semua Kelas) -->
+                    <div class="rencana-scroll-body">
+
+                        <!-- BAGIAN 1: RENCANA PEMBELAJARAN HARI INI -->
+                        <section class="rencana-section-card is-today-section">
+                            <div class="rencana-section-head is-today-head">
+                                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                                    <span class="rencana-today-dot"></span>
+                                    <strong id="judul-rencana-hari-ini" style="font-size:14px; color:#060608;">📅 Rencana Pembelajaran Hari Ini</strong>
+                                    <span id="badge-ringkasan-hari-ini" class="rencana-today-summary-pill">0 Kelas • 0 JP</span>
+                                </div>
+                                <span style="font-size:11px; color:#2370A1; font-weight:700;">✏️ Agenda hari ini dapat diedit langsung &amp; tersinkron otomatis</span>
+                            </div>
+                            <div id="banner-kalender-hari-ini" class="rencana-cal-alert" style="display:none;"></div>
+                            <div class="rencana-table-scroll">
+                                <table class="excel-table rencana-table" style="width:100%; min-width:920px;">
+                                    <thead>
+                                        <tr>
+                                            <th style="width:135px; background:#2370A1;">Jam Mengajar</th>
+                                            <th style="width:125px; background:#2370A1;">Kelas</th>
+                                            <th style="width:74px; text-align:center; background:#2370A1;">Total JP</th>
+                                            <th style="min-width:240px; background:#2370A1;">Agenda / Rencana Hari Ini (Bisa Diedit)</th>
+                                            <th style="min-width:195px; background:#2370A1;">Hal yang Harus Dipersiapkan</th>
+                                            <th style="min-width:165px; background:#2370A1;">Keterangan</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tbody-rencana-hari-ini"></tbody>
+                                </table>
+                            </div>
+                        </section>
+
+                        <!-- BAGIAN 2: RENCANA PEMBELAJARAN SEMUA KELAS (DIGESER KE BAWAH) -->
+                        <section class="rencana-section-card">
+                            <div class="rencana-section-head">
+                                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                                    <strong style="font-size:13.5px; color:#0b3954;">📚 Rencana Pembelajaran Berikutnya (Semua Kelas)</strong>
+                                </div>
+                                <span style="font-size:11px; color:#64748b; font-weight:600;">Diurutkan otomatis berdasarkan jadwal pertemuan terdekat</span>
+                            </div>
+                            <div class="rencana-table-scroll">
+                                <table class="excel-table rencana-table" style="width:100%; min-width:860px;">
+                                    <thead>
+                                        <tr>
+                                            <th style="width:125px; background:#0b3954;">Kelas</th>
+                                            <th style="width:175px; background:#0b3954;">Jadwal Berikutnya</th>
+                                            <th style="width:72px; text-align:center; background:#0b3954;">Total JP</th>
+                                            <th style="min-width:210px; background:#0b3954;">Rencana Berikutnya (dari Agenda)</th>
+                                            <th style="min-width:200px; background:#0b3954;">Hal yang Harus Dipersiapkan</th>
+                                            <th style="min-width:170px; background:#0b3954;">Keterangan</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tbody-rencana-pembelajaran"></tbody>
+                                </table>
+                            </div>
+                        </section>
+
                     </div>
                 </div>
             </div>
@@ -2448,6 +2529,7 @@
     <script src="./bank-soal-manajer.js"></script>
     <script src="./ujian-rekap-cbt.js"></script>
     <script src="./ekstrakurikuler.js"></script>
+    <script src="./flashcards.js"></script>
     <script src="./ruang-latihan.js"></script>
     <script src="./fitur-afektif-games.js"></script>
     <script src="./my-pet-engine.js"></script>

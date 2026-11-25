@@ -10761,11 +10761,279 @@ window.ubahOpsiSkipAcaraRencana = function(isChecked) {
     if (typeof window.simpanJadwalKalenderKeDB === 'function') window.simpanJadwalKalenderKeDB();
 };
 
+window.pastikanJamJadwalRencanaAda = function() {
+    let data = window.pastikanStrukturRencanaPembelajaran();
+    if (!data.teachingHours || typeof data.teachingHours !== 'object') {
+        data.teachingHours = {};
+    }
+    return data;
+};
+
+window.ambilJamMengajarSlot = function(namaKelas, hariNum) {
+    let data = window.pastikanJamJadwalRencanaAda();
+    let jamMap = data.teachingHours[namaKelas];
+    if (!jamMap || typeof jamMap !== 'object') return '';
+    return String(jamMap[hariNum] || '').trim();
+};
+
+window.ekstrakMenitUrutJam = function(jamStr) {
+    let m = String(jamStr || '').match(/(\d{1,2})[:.](\d{2})/);
+    if (!m) return 99999;
+    return (parseInt(m[1], 10) * 60) + parseInt(m[2], 10);
+};
+
+// Cari referensi agenda terakhir (sebelum hari ini) milik suatu kelas agar bisa diedit langsung & sinkron balik
+window.cariReferensiAgendaUntukRencana = function(namaKelas, batasSebelumDateKey) {
+    let store = window.adminAgendaData || {};
+    let normTarget = window.normalisasiNamaKelasJadwal(namaKelas);
+    let matchedKey = Object.keys(store).find(function(k) {
+        return window.normalisasiNamaKelasJadwal(k) === normTarget;
+    });
+
+    if (!matchedKey || !store[matchedKey]) {
+        return { matchedKey: matchedKey || '', refObj: null, tanggal: '', materi: '', rencana: '', adaAgendaHariIni: false };
+    }
+
+    let rawList = store[matchedKey];
+    let items = Array.isArray(rawList) ? rawList : Object.values(rawList || {});
+    let bestBefore = null;
+    let bestAny = null;
+    let adaAgendaHariIni = false;
+
+    items.forEach(function(it) {
+        if (!it || typeof it !== 'object') return;
+        let tgl = String(it.tgl || it.tanggal || '').trim();
+        let ren = String(it.rencana || it.rencanaBerikutnya || it.rencana_berikutnya || '').trim();
+        let mat = String(it.materi || '').trim();
+        let entry = { refObj: it, tanggal: tgl, materi: mat, rencana: ren };
+
+        if (batasSebelumDateKey && tgl === batasSebelumDateKey) {
+            adaAgendaHariIni = true;
+        }
+        if (!bestAny || (tgl && tgl >= bestAny.tanggal)) {
+            bestAny = entry;
+        }
+        if (batasSebelumDateKey) {
+            if (!tgl || tgl < batasSebelumDateKey) {
+                if (!bestBefore || tgl >= bestBefore.tanggal) {
+                    bestBefore = entry;
+                }
+            }
+        }
+    });
+
+    let chosen = batasSebelumDateKey ? (bestBefore || bestAny) : bestAny;
+    if (!chosen) {
+        return { matchedKey: matchedKey, refObj: null, tanggal: '', materi: '', rencana: '', adaAgendaHariIni: adaAgendaHariIni };
+    }
+    return {
+        matchedKey: matchedKey,
+        refObj: chosen.refObj,
+        tanggal: chosen.tanggal,
+        materi: chosen.materi,
+        rencana: chosen.rencana,
+        adaAgendaHariIni: adaAgendaHariIni
+    };
+};
+
+window.renderTabelRencanaHariIni = function() {
+    let tbody = document.getElementById('tbody-rencana-hari-ini');
+    let judulEl = document.getElementById('judul-rencana-hari-ini');
+    let badgeEl = document.getElementById('badge-ringkasan-hari-ini');
+    let calBanner = document.getElementById('banner-kalender-hari-ini');
+    if (!tbody) return;
+
+    let data = window.pastikanJamJadwalRencanaAda();
+    let schedule = data.teachingSchedule || {};
+    let notesMap = data.rencanaNotes || {};
+
+    let now = new Date();
+    let todayDow = now.getDay(); // 0=Minggu, 1=Senin..6=Sabtu
+    let todayKey = window.buatDateKeyLokal(now);
+    let namaHariArr = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+    let namaHariIni = namaHariArr[todayDow] || '';
+    let tanggalIndo = window.formatTanggalIndoSingkat(todayKey);
+
+    if (judulEl) {
+        judulEl.innerText = '📅 Rencana Pembelajaran Hari Ini — ' + namaHariIni + ', ' + tanggalIndo;
+    }
+
+    // Tampilkan informasi jika hari ini ditandai Libur / Acara di Kalender
+    if (calBanner) {
+        let evTodayRaw = (data.events && data.events[todayKey]) ? data.events[todayKey] : [];
+        let evToday = Array.isArray(evTodayRaw) ? evTodayRaw : Object.values(evTodayRaw || {});
+        if (evToday.length > 0) {
+            let labels = evToday.map(function(ev) {
+                let kat = typeof window.deteksiKategoriAgendaKalender === 'function' ? window.deteksiKategoriAgendaKalender(ev) : 'agenda';
+                let ico = kat === 'libur' ? '🔴 Libur' : (kat === 'acara' ? '🎭 Acara' : '📌 Agenda');
+                let titleClean = String(ev.title || '').replace(/^(?:libur|acara)\s*[\/:]\s*/i, '').trim();
+                return ico + ': ' + titleClean;
+            });
+            calBanner.style.display = 'block';
+            calBanner.innerText = 'ℹ️ Catatan Kalender Hari Ini: ' + labels.join(' • ');
+        } else {
+            calBanner.style.display = 'none';
+            calBanner.innerText = '';
+        }
+    }
+
+    let daftarHariIni = [];
+    Object.keys(schedule).forEach(function(namaKelas) {
+        let mapHari = schedule[namaKelas] || {};
+        let jp = parseInt(mapHari[todayDow], 10) || 0;
+        if (jp <= 0) return;
+
+        let jamStr = window.ambilJamMengajarSlot(namaKelas, todayDow);
+        let agendaRef = window.cariReferensiAgendaUntukRencana(namaKelas, todayKey);
+        let normK = window.normalisasiNamaKelasJadwal(namaKelas);
+        let noteKey = normK + '__after_' + (agendaRef.tanggal || 'awal');
+        let noteObj = notesMap[noteKey] || { persiapan: '', keterangan: '', rencanaManual: '' };
+        let teksRencana = agendaRef.rencana || noteObj.rencanaManual || '';
+
+        daftarHariIni.push({
+            namaKelas: namaKelas,
+            jp: jp,
+            jam: jamStr,
+            jamUrut: window.ekstrakMenitUrutJam(jamStr),
+            agendaRef: agendaRef,
+            noteKey: noteKey,
+            teksRencana: teksRencana,
+            persiapan: noteObj.persiapan || '',
+            keterangan: noteObj.keterangan || ''
+        });
+    });
+
+    // Urutkan otomatis berdasarkan jam mengajar paling pagi
+    daftarHariIni.sort(function(a, b) {
+        if (a.jamUrut !== b.jamUrut) return a.jamUrut - b.jamUrut;
+        return a.namaKelas.localeCompare(b.namaKelas);
+    });
+
+    let totalJP = daftarHariIni.reduce(function(acc, r) { return acc + r.jp; }, 0);
+    if (badgeEl) {
+        badgeEl.innerText = daftarHariIni.length + ' Kelas • ' + totalJP + ' JP';
+    }
+
+    if (daftarHariIni.length === 0) {
+        tbody.innerHTML =
+            '<tr><td colspan="6" style="padding:22px; text-align:center; color:#475569; background:#f8fffc;">' +
+                'Tidak ada jadwal mengajar untuk hari <b>' + namaHariIni + ', ' + tanggalIndo + '</b>. ' +
+                'Anda tetap dapat melihat jadwal seluruh kelas di tabel bawah atau mengatur jadwal lewat <b>⚙️ Atur Jadwal Saya</b>.' +
+            '</td></tr>';
+        return;
+    }
+
+    let esc = function(s) {
+        return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    };
+
+    let html = '';
+    daftarHariIni.forEach(function(item) {
+        let safeKls = item.namaKelas.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        let safeNoteKey = item.noteKey.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+
+        let sumberMeta = '';
+        if (item.agendaRef.tanggal) {
+            sumberMeta = '<div class="rencana-source-meta">Dari agenda ' + window.formatTanggalIndoSingkat(item.agendaRef.tanggal) +
+                (item.agendaRef.materi ? ' • ' + esc(item.agendaRef.materi) : '') +
+                (item.agendaRef.adaAgendaHariIni ? ' • <b style="color:#15803d;">✓ Agenda hari ini tercatat</b>' : '') +
+                '</div>';
+        } else {
+            sumberMeta = '<div class="rencana-source-meta">Belum ada agenda sebelumnya — ketikan di atas akan otomatis tersimpan.</div>';
+        }
+
+        html +=
+            '<tr>' +
+                '<td style="vertical-align:top; padding:6px;">' +
+                    '<input type="text" class="rencana-jam-input" value="' + esc(item.jam) + '" placeholder="07:30 - 09:00" title="Isi atau ubah jam mengajar untuk hari ' + namaHariIni + '" oninput="window.ubahJamJadwalKelas(\'' + safeKls + '\', ' + todayDow + ', this.value, true)">' +
+                '</td>' +
+                '<td style="font-weight:800; color:#0b3954; vertical-align:top;">' +
+                    '<div>' + esc(item.namaKelas) + '</div>' +
+                    '<span class="rencana-badge-today" style="margin-left:0; margin-top:4px;">HARI INI</span>' +
+                '</td>' +
+                '<td style="text-align:center; vertical-align:top;">' +
+                    '<span class="rencana-jp-pill">' + item.jp + ' JP</span>' +
+                '</td>' +
+                '<td style="vertical-align:top; padding:6px;">' +
+                    '<textarea class="rencana-cell-input is-agenda-edit" rows="2" placeholder="Tulis / edit rencana pembelajaran hari ini..." oninput="window.simpanEditRencanaDariJadwal(\'' + safeKls + '\', \'' + safeNoteKey + '\', this.value)">' + esc(item.teksRencana) + '</textarea>' +
+                    sumberMeta +
+                '</td>' +
+                '<td style="vertical-align:top; padding:6px;">' +
+                    '<textarea class="rencana-cell-input" data-sync-note="' + esc(item.noteKey) + '" data-sync-field="persiapan" rows="2" placeholder="Alat/bahan, LKPD, media..." oninput="window.simpanInputRencanaNote(\'' + safeNoteKey + '\', \'persiapan\', this.value, this)">' + esc(item.persiapan) + '</textarea>' +
+                '</td>' +
+                '<td style="vertical-align:top; padding:6px;">' +
+                    '<textarea class="rencana-cell-input" data-sync-note="' + esc(item.noteKey) + '" data-sync-field="keterangan" rows="2" placeholder="Catatan tambahan..." oninput="window.simpanInputRencanaNote(\'' + safeNoteKey + '\', \'keterangan\', this.value, this)">' + esc(item.keterangan) + '</textarea>' +
+                '</td>' +
+            '</tr>';
+    });
+
+    tbody.innerHTML = html;
+};
+
+window.simpanEditRencanaDariJadwal = function(namaKelas, noteKey, valBaru) {
+    let data = window.pastikanJamJadwalRencanaAda();
+    let todayKey = window.buatDateKeyLokal(new Date());
+    let agendaRef = window.cariReferensiAgendaUntukRencana(namaKelas, todayKey);
+    let nilaiBersih = String(valBaru || '');
+    let adaUpdateAgenda = false;
+
+    // 1. Jika ada agenda sebelumnya di kelas tersebut, perbarui langsung kolom rencana di objek Agenda aslinya
+    if (agendaRef && agendaRef.refObj) {
+        let obj = agendaRef.refObj;
+        if ('rencanaBerikutnya' in obj && !('rencana' in obj)) obj.rencanaBerikutnya = nilaiBersih.trim();
+        else if ('rencana_berikutnya' in obj && !('rencana' in obj)) obj.rencana_berikutnya = nilaiBersih.trim();
+        else obj.rencana = nilaiBersih.trim();
+        adaUpdateAgenda = true;
+    }
+
+    // 2. Simpan juga cadangan sinkron di rencanaNotes agar kelas yang belum punya agenda tetap tersimpan
+    if (!data.rencanaNotes[noteKey]) {
+        data.rencanaNotes[noteKey] = { persiapan: '', keterangan: '' };
+    }
+    data.rencanaNotes[noteKey].rencanaManual = nilaiBersih;
+
+    // 3. Cerminkan perubahan ke teks rencana di tabel "Semua Kelas" di bawah secara live tanpa merusak fokus ketik
+    let normTarget = window.normalisasiNamaKelasJadwal(namaKelas);
+    document.querySelectorAll('[data-sync-rencana-kelas="' + normTarget + '"]').forEach(function(el) {
+        if (nilaiBersih.trim()) {
+            el.style.color = '#0f172a';
+            el.style.fontStyle = 'normal';
+            el.style.fontWeight = '700';
+            el.innerText = nilaiBersih.trim();
+        } else {
+            el.style.color = '#94a3b8';
+            el.style.fontStyle = 'italic';
+            el.style.fontWeight = '400';
+            el.innerText = 'Belum ada "Rencana Berikutnya" di Agenda kelas ini.';
+        }
+    });
+
+    let st = document.getElementById('status-sync-rencana');
+    if (st) st.innerText = '✍️ Menyimpan rencana...';
+
+    clearTimeout(window._rencanaAgendaEditTimer);
+    window._rencanaAgendaEditTimer = setTimeout(function() {
+        if (adaUpdateAgenda && typeof window.simpanPerubahanAgendaKeServer === 'function') {
+            window.simpanPerubahanAgendaKeServer();
+        }
+        if (typeof window.simpanJadwalKalenderKeDB === 'function') {
+            window.simpanJadwalKalenderKeDB();
+        }
+        if (typeof window.renderAgendaAdmin === 'function' && window.kelasAktifAdmin && window.normalisasiNamaKelasJadwal(window.kelasAktifAdmin) === normTarget) {
+            window.renderAgendaAdmin();
+        }
+        if (st) st.innerText = '✅ Rencana tersinkron';
+    }, 550);
+};
+
 window.renderTabelRencanaPembelajaran = function() {
+    // Render bagian atas (Rencana Pembelajaran Hari Ini) terlebih dahulu
+    window.renderTabelRencanaHariIni();
+
     let tbody = document.getElementById('tbody-rencana-pembelajaran');
     if (!tbody) return;
 
-    let data = window.pastikanStrukturRencanaPembelajaran();
+    let data = window.pastikanJamJadwalRencanaAda();
     let schedule = data.teachingSchedule || {};
     let notesMap = data.rencanaNotes || {};
     let skipAcara = Boolean(data.skipAcaraDiRencana);
@@ -10782,23 +11050,35 @@ window.renderTabelRencanaPembelajaran = function() {
         let nextInfo = window.hitungJadwalPertemuanBerikutnya(schedule[namaKelas], agenda ? agenda.tanggal : '', skipAcara);
         let normK = window.normalisasiNamaKelasJadwal(namaKelas);
         let noteKey = normK + '__after_' + ((agenda && agenda.tanggal) ? agenda.tanggal : 'awal');
-        let noteObj = notesMap[noteKey] || { persiapan: '', keterangan: '' };
+        let noteObj = notesMap[noteKey] || { persiapan: '', keterangan: '', rencanaManual: '' };
+
+        let nextJam = '';
+        if (nextInfo && nextInfo.dateKey) {
+            let nextDow = new Date(nextInfo.dateKey + 'T00:00:00').getDay();
+            nextJam = window.ambilJamMengajarSlot(namaKelas, nextDow);
+        }
 
         return {
             namaKelas: namaKelas,
+            normK: normK,
             agenda: agenda,
             nextInfo: nextInfo,
+            nextJam: nextJam,
             noteKey: noteKey,
+            rencanaManual: noteObj.rencanaManual || '',
             persiapan: noteObj.persiapan || '',
             keterangan: noteObj.keterangan || ''
         };
     });
 
-    // Urutkan otomatis berdasarkan tanggal pertemuan berikutnya yang paling dekat
+    // Urutkan otomatis berdasarkan tanggal pertemuan berikutnya yang paling dekat (lalu jam jika hari sama)
     rowsData.sort(function(a, b) {
         let da = a.nextInfo ? a.nextInfo.dateKey : '9999-12-31';
         let db = b.nextInfo ? b.nextInfo.dateKey : '9999-12-31';
         if (da !== db) return da.localeCompare(db);
+        let ja = window.ekstrakMenitUrutJam(a.nextJam);
+        let jb = window.ekstrakMenitUrutJam(b.nextJam);
+        if (ja !== jb) return ja - jb;
         return a.namaKelas.localeCompare(b.namaKelas);
     });
 
@@ -10814,6 +11094,7 @@ window.renderTabelRencanaPembelajaran = function() {
         if (item.nextInfo) {
             let isHariIni = (item.nextInfo.dateKey === todayKey);
             let badgeToday = isHariIni ? ' <span class="rencana-badge-today">HARI INI</span>' : '';
+            let jamBadgeHtml = item.nextJam ? '<div class="rencana-jam-chip">🕒 ' + esc(item.nextJam) + '</div>' : '';
             let skipHtml = '';
             if (item.nextInfo.dilewati && item.nextInfo.dilewati.length > 0) {
                 skipHtml = '<div class="rencana-skip-note">⏭️ Lewati ' + esc(item.nextInfo.dilewati.join(', ')) + '</div>';
@@ -10825,21 +11106,26 @@ window.renderTabelRencanaPembelajaran = function() {
             nextHtml =
                 '<div style="font-weight:800; color:#0b3954; font-size:13px;">' + item.nextInfo.hari + badgeToday + '</div>' +
                 '<div style="font-size:11.5px; color:#475569; font-weight:600;">' + item.nextInfo.tanggalTampil + '</div>' +
-                skipHtml + acaraHtml;
+                jamBadgeHtml + skipHtml + acaraHtml;
             jpHtml = '<span class="rencana-jp-pill">' + item.nextInfo.jp + ' JP</span>';
         }
 
-        let rencanaHtml = '<span style="color:#94a3b8; font-style:italic; font-size:12px;">Belum ada "Rencana Berikutnya" di Agenda kelas ini.</span>';
-        if (item.agenda && item.agenda.rencana) {
+        let teksRencanaTampil = (item.agenda && item.agenda.rencana) ? item.agenda.rencana : (item.rencanaManual || '');
+        let rencanaHtml = '';
+        if (teksRencanaTampil) {
             rencanaHtml =
-                '<div style="font-weight:700; color:#0f172a; font-size:12.5px; line-height:1.45;">' + esc(item.agenda.rencana) + '</div>' +
-                '<div style="font-size:10.5px; color:#64748b; margin-top:4px;">Dari agenda ' + window.formatTanggalIndoSingkat(item.agenda.tanggal) + (item.agenda.materi ? ' • ' + esc(item.agenda.materi) : '') + '</div>';
+                '<div data-sync-rencana-kelas="' + esc(item.normK) + '" style="font-weight:700; color:#0f172a; font-size:12.5px; line-height:1.45;">' + esc(teksRencanaTampil) + '</div>' +
+                (item.agenda && item.agenda.tanggal
+                    ? '<div style="font-size:10.5px; color:#64748b; margin-top:4px;">Dari agenda ' + window.formatTanggalIndoSingkat(item.agenda.tanggal) + (item.agenda.materi ? ' • ' + esc(item.agenda.materi) : '') + '</div>'
+                    : '');
         } else if (item.agenda && item.agenda.tanggal) {
             rencanaHtml =
-                '<div style="color:#94a3b8; font-style:italic; font-size:11.5px;">Kolom rencana kosong pada agenda terakhir (' + window.formatTanggalIndoSingkat(item.agenda.tanggal) + ').</div>';
+                '<div data-sync-rencana-kelas="' + esc(item.normK) + '" style="color:#94a3b8; font-style:italic; font-size:11.5px;">Kolom rencana kosong pada agenda terakhir (' + window.formatTanggalIndoSingkat(item.agenda.tanggal) + ').</div>';
+        } else {
+            rencanaHtml = '<div data-sync-rencana-kelas="' + esc(item.normK) + '" style="color:#94a3b8; font-style:italic; font-size:12px;">Belum ada "Rencana Berikutnya" di Agenda kelas ini.</div>';
         }
 
-        let safeNoteKey = item.noteKey.replace(/'/g, "\\'");
+        let safeNoteKey = item.noteKey.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 
         html +=
             '<tr>' +
@@ -10848,10 +11134,10 @@ window.renderTabelRencanaPembelajaran = function() {
                 '<td style="text-align:center; vertical-align:top;">' + jpHtml + '</td>' +
                 '<td style="vertical-align:top;">' + rencanaHtml + '</td>' +
                 '<td style="vertical-align:top; padding:6px;">' +
-                    '<textarea class="rencana-cell-input" rows="2" placeholder="Alat/bahan, LKPD, media..." oninput="window.simpanInputRencanaNote(\'' + safeNoteKey + '\', \'persiapan\', this.value)">' + esc(item.persiapan) + '</textarea>' +
+                    '<textarea class="rencana-cell-input" data-sync-note="' + esc(item.noteKey) + '" data-sync-field="persiapan" rows="2" placeholder="Alat/bahan, LKPD, media..." oninput="window.simpanInputRencanaNote(\'' + safeNoteKey + '\', \'persiapan\', this.value, this)">' + esc(item.persiapan) + '</textarea>' +
                 '</td>' +
                 '<td style="vertical-align:top; padding:6px;">' +
-                    '<textarea class="rencana-cell-input" rows="2" placeholder="Catatan tambahan..." oninput="window.simpanInputRencanaNote(\'' + safeNoteKey + '\', \'keterangan\', this.value)">' + esc(item.keterangan) + '</textarea>' +
+                    '<textarea class="rencana-cell-input" data-sync-note="' + esc(item.noteKey) + '" data-sync-field="keterangan" rows="2" placeholder="Catatan tambahan..." oninput="window.simpanInputRencanaNote(\'' + safeNoteKey + '\', \'keterangan\', this.value, this)">' + esc(item.keterangan) + '</textarea>' +
                 '</td>' +
             '</tr>';
     });
@@ -10859,12 +11145,19 @@ window.renderTabelRencanaPembelajaran = function() {
     tbody.innerHTML = html;
 };
 
-window.simpanInputRencanaNote = function(noteKey, field, val) {
-    let data = window.pastikanStrukturRencanaPembelajaran();
+window.simpanInputRencanaNote = function(noteKey, field, val, sourceEl) {
+    let data = window.pastikanJamJadwalRencanaAda();
     if (!data.rencanaNotes[noteKey]) {
         data.rencanaNotes[noteKey] = { persiapan: '', keterangan: '' };
     }
     data.rencanaNotes[noteKey][field] = val;
+
+    // Sinkronkan isi textarea yang sama antara tabel Hari Ini & tabel Semua Kelas secara real-time
+    document.querySelectorAll('textarea[data-sync-note][data-sync-field="' + field + '"]').forEach(function(ta) {
+        if (ta !== sourceEl && ta.getAttribute('data-sync-note') === noteKey) {
+            ta.value = val;
+        }
+    });
 
     let st = document.getElementById('status-sync-rencana');
     if (st) st.innerText = '✍️ Menyimpan...';
@@ -10876,7 +11169,7 @@ window.simpanInputRencanaNote = function(noteKey, field, val) {
     }, 550);
 };
 
-// --- PANEL EDITOR JADWAL MENGAJAR SAYA (UNTUK GANTI SEMESTER / TAMBAH KELAS) ---
+// --- PANEL EDITOR JADWAL MENGAJAR SAYA (JP + JAM MENGAJAR PER HARI) ---
 window.toggleEditorJadwalSaya = function() {
     let panel = document.getElementById('panel-editor-jadwal-saya');
     if (!panel) return;
@@ -10888,30 +11181,44 @@ window.toggleEditorJadwalSaya = function() {
 window.renderEditorJadwalSaya = function() {
     let panel = document.getElementById('panel-editor-jadwal-saya');
     if (!panel) return;
-    let schedule = window.pastikanStrukturRencanaPembelajaran().teachingSchedule;
+    let data = window.pastikanJamJadwalRencanaAda();
+    let schedule = data.teachingSchedule || {};
     let daftarKelas = Object.keys(schedule);
+
+    let esc = function(s) {
+        return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    };
 
     let rowsHtml = '';
     daftarKelas.forEach(function(kls) {
         let map = schedule[kls] || {};
-        let safeKls = kls.replace(/'/g, "\\'");
-        let escKls = kls.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        let safeKls = kls.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
         let colsHari = '';
         for (let h = 1; h <= 5; h++) {
             let jp = parseInt(map[h], 10) || 0;
-            colsHari += '<td style="text-align:center; padding:4px;"><input type="number" min="0" max="10" value="' + jp + '" style="width:46px; text-align:center; padding:4px; border:1px solid #cbd5e1; border-radius:6px; font-weight:700;" onchange="window.ubahJpJadwalKelas(\'' + safeKls + '\', ' + h + ', this.value)"></td>';
+            let jamStr = window.ambilJamMengajarSlot(kls, h);
+            colsHari +=
+                '<td style="text-align:center; padding:5px 4px; vertical-align:top;">' +
+                    '<div class="rencana-slot-cell">' +
+                        '<div class="rencana-slot-jp-row">' +
+                            '<input type="number" min="0" max="10" value="' + jp + '" title="Jumlah JP" onchange="window.ubahJpJadwalKelas(\'' + safeKls + '\', ' + h + ', this.value)">' +
+                            '<span>JP</span>' +
+                        '</div>' +
+                        '<input type="text" class="rencana-slot-jam-in" value="' + esc(jamStr) + '" placeholder="07:30-09:00" title="Jam Mengajar (mis: 07:30 - 09:00)" onchange="window.ubahJamJadwalKelas(\'' + safeKls + '\', ' + h + ', this.value, false)">' +
+                    '</div>' +
+                '</td>';
         }
         rowsHtml +=
             '<tr>' +
-                '<td style="font-weight:800; color:#0b3954;">' + escKls + '</td>' +
+                '<td style="font-weight:800; color:#0b3954; vertical-align:middle;">' + esc(kls) + '</td>' +
                 colsHari +
-                '<td style="text-align:center;"><button type="button" style="background:#fee2e2; color:#dc2626; border:none; border-radius:6px; padding:4px 8px; cursor:pointer; font-weight:700; font-size:11px;" onclick="window.hapusKelasJadwalSaya(\'' + safeKls + '\')">✕</button></td>' +
+                '<td style="text-align:center; vertical-align:middle;"><button type="button" style="background:#fee2e2; color:#dc2626; border:none; border-radius:6px; padding:4px 8px; cursor:pointer; font-weight:700; font-size:11px;" onclick="window.hapusKelasJadwalSaya(\'' + safeKls + '\')">✕</button></td>' +
             '</tr>';
     });
 
     panel.innerHTML =
         '<div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:8px;">' +
-            '<div style="font-size:12px; font-weight:800; color:#0b3954;">⚙️ Pengaturan Jumlah JP per Hari (Isi 0 jika tidak mengajar hari tersebut)</div>' +
+            '<div style="font-size:12px; font-weight:800; color:#0b3954;">⚙️ Pengaturan Jumlah JP &amp; Jam Mengajar per Hari (Isi 0 JP jika tidak mengajar hari tersebut)</div>' +
             '<div style="display:flex; gap:6px; align-items:center;">' +
                 '<input type="text" id="input-tambah-kelas-jadwal" placeholder="Nama kelas baru..." style="padding:5px 8px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; width:145px;">' +
                 '<button type="button" class="jadwal-act-btn primary" style="padding:5px 10px; font-size:11px;" onclick="window.tambahKelasJadwalSaya()">+ Kelas</button>' +
@@ -10919,7 +11226,7 @@ window.renderEditorJadwalSaya = function() {
             '</div>' +
         '</div>' +
         '<div style="overflow-x:auto;">' +
-            '<table class="excel-table" style="width:100%; font-size:12px;">' +
+            '<table class="excel-table" style="width:100%; min-width:740px; font-size:12px;">' +
                 '<thead><tr><th style="background:#334155;">Kelas</th><th style="text-align:center; background:#334155;">Senin</th><th style="text-align:center; background:#334155;">Selasa</th><th style="text-align:center; background:#334155;">Rabu</th><th style="text-align:center; background:#334155;">Kamis</th><th style="text-align:center; background:#334155;">Jumat</th><th style="width:45px; text-align:center; background:#334155;">Hapus</th></tr></thead>' +
                 '<tbody>' + rowsHtml + '</tbody>' +
             '</table>' +
@@ -10927,7 +11234,7 @@ window.renderEditorJadwalSaya = function() {
 };
 
 window.ubahJpJadwalKelas = function(namaKelas, hariNum, jpVal) {
-    let schedule = window.pastikanStrukturRencanaPembelajaran().teachingSchedule;
+    let schedule = window.pastikanJamJadwalRencanaAda().teachingSchedule;
     if (!schedule[namaKelas]) schedule[namaKelas] = {};
     let jp = Math.max(0, Math.min(12, parseInt(jpVal, 10) || 0));
     if (jp > 0) schedule[namaKelas][hariNum] = jp;
@@ -10937,11 +11244,31 @@ window.ubahJpJadwalKelas = function(namaKelas, hariNum, jpVal) {
     if (typeof window.simpanJadwalKalenderKeDB === 'function') window.simpanJadwalKalenderKeDB();
 };
 
+window.ubahJamJadwalKelas = function(namaKelas, hariNum, jamVal, fromInlineToday) {
+    let data = window.pastikanJamJadwalRencanaAda();
+    if (!data.teachingHours[namaKelas]) data.teachingHours[namaKelas] = {};
+    let bersih = String(jamVal || '').trim();
+    if (bersih) data.teachingHours[namaKelas][hariNum] = bersih;
+    else delete data.teachingHours[namaKelas][hariNum];
+
+    let st = document.getElementById('status-sync-rencana');
+    if (st) st.innerText = '✍️ Menyimpan jam...';
+
+    clearTimeout(window._rencanaJamSaveTimer);
+    window._rencanaJamSaveTimer = setTimeout(function() {
+        if (typeof window.simpanJadwalKalenderKeDB === 'function') window.simpanJadwalKalenderKeDB();
+        if (!fromInlineToday) {
+            window.renderTabelRencanaPembelajaran();
+        }
+        if (st) st.innerText = '✅ Jam tersimpan';
+    }, fromInlineToday ? 500 : 80);
+};
+
 window.tambahKelasJadwalSaya = function() {
     let inp = document.getElementById('input-tambah-kelas-jadwal');
     let nama = inp ? inp.value.trim() : '';
     if (!nama) return;
-    let schedule = window.pastikanStrukturRencanaPembelajaran().teachingSchedule;
+    let schedule = window.pastikanJamJadwalRencanaAda().teachingSchedule;
     if (!schedule[nama]) schedule[nama] = {};
     if (inp) inp.value = '';
     window.renderEditorJadwalSaya();
@@ -10950,8 +11277,9 @@ window.tambahKelasJadwalSaya = function() {
 };
 
 window.hapusKelasJadwalSaya = function(namaKelas) {
-    let schedule = window.pastikanStrukturRencanaPembelajaran().teachingSchedule;
-    delete schedule[namaKelas];
+    let data = window.pastikanJamJadwalRencanaAda();
+    delete data.teachingSchedule[namaKelas];
+    if (data.teachingHours) delete data.teachingHours[namaKelas];
     window.renderEditorJadwalSaya();
     window.renderTabelRencanaPembelajaran();
     if (typeof window.simpanJadwalKalenderKeDB === 'function') window.simpanJadwalKalenderKeDB();

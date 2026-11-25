@@ -6,6 +6,23 @@
 // =========================================================================
 // 1. GERBANG PILIH TOPIK LATIHAN & DROPDOWN DINAMIS
 // =========================================================================
+window._latihanTopikState = {
+    modeSpesifik: false,
+    availableTopiks: [],
+    selectedTopiks: []
+};
+
+window.resetPanelTopikOpsionalLatihan = function() {
+    window._latihanTopikState = { modeSpesifik: false, availableTopiks: [], selectedTopiks: [] };
+    let box = document.getElementById('latihan-topik-opsional-box');
+    let wrap = document.getElementById('latihan-topik-chips-wrap');
+    if (box) box.style.display = 'none';
+    if (wrap) {
+        wrap.style.display = 'none';
+        wrap.innerHTML = '';
+    }
+};
+
 window.renderDropdownLatihan = function() {
     let selKelas = document.getElementById('latihan-select-kelas');
     if (!selKelas) return;
@@ -35,6 +52,7 @@ window.renderDropdownLatihan = function() {
     } else {
         document.getElementById('latihan-select-mapel').innerHTML = '<option value="">-- Pilih Kelas Dahulu --</option>';
         document.getElementById('latihan-select-bab').innerHTML = '<option value="">-- Pilih Mapel Dahulu --</option>';
+        window.resetPanelTopikOpsionalLatihan();
         let selKes = document.getElementById('latihan-select-kesulitan');
         if (selKes) selKes.innerHTML = '<option value="">-- Pilih Bab Dahulu --</option>';
     }
@@ -46,6 +64,7 @@ window.updateDropdownLatihanMapel = function() {
     let kelas = document.getElementById('latihan-select-kelas').value;
     let selMapel = document.getElementById('latihan-select-mapel');
     let selKes = document.getElementById('latihan-select-kesulitan');
+    window.resetPanelTopikOpsionalLatihan();
 
     if (!kelas) {
         selMapel.innerHTML = '<option value="">-- Pilih Kelas Dahulu --</option>';
@@ -74,6 +93,7 @@ window.updateDropdownLatihanBab = function() {
     let mapel = document.getElementById('latihan-select-mapel').value;
     let selBab = document.getElementById('latihan-select-bab');
     let selKes = document.getElementById('latihan-select-kesulitan');
+    window.resetPanelTopikOpsionalLatihan();
 
     if (!mapel) {
         selBab.innerHTML = '<option value="">-- Pilih Mapel Dahulu --</option>';
@@ -99,6 +119,112 @@ window.updateDropdownLatihanBab = function() {
     if (selKes) selKes.innerHTML = '<option value="">-- Pilih Bab Dahulu --</option>';
 };
 
+window.onUbahBabLatihanSiswa = function() {
+    let kelas = document.getElementById('latihan-select-kelas').value;
+    let mapel = document.getElementById('latihan-select-mapel').value;
+    let bab = document.getElementById('latihan-select-bab').value;
+
+    window.resetPanelTopikOpsionalLatihan();
+    if (!bab) {
+        window.updateDropdownLatihanKesulitan();
+        return;
+    }
+
+    let bank = window.adminBankLatihanData || {};
+    let topikCountMap = {};
+    Object.values(bank).forEach(function(item) {
+        if (item && item.kelas === kelas && item.mapel === mapel && item.bab === bab) {
+            let tName = (typeof window.normalisasiTopikLatihan === 'function')
+                ? window.normalisasiTopikLatihan(item.topik)
+                : (String(item.topik || '').trim() || 'Umum');
+            let arrS = Array.isArray(item.soal) ? item.soal : Object.values(item.soal || {});
+            topikCountMap[tName] = (topikCountMap[tName] || 0) + arrS.length;
+        }
+    });
+
+    let daftarTopik = Object.keys(topikCountMap).sort(function(a, b) {
+        if (a === 'Umum') return 1;
+        if (b === 'Umum') return -1;
+        return a.localeCompare(b);
+    }).map(function(nama) {
+        return { nama: nama, count: topikCountMap[nama] };
+    });
+
+    window._latihanTopikState.availableTopiks = daftarTopik;
+    let adaSubTopik = daftarTopik.length > 1 || (daftarTopik.length === 1 && daftarTopik[0].nama !== 'Umum');
+
+    if (adaSubTopik) {
+        window.renderPanelTopikOpsionalLatihan();
+    }
+    window.updateDropdownLatihanKesulitan();
+};
+
+window.renderPanelTopikOpsionalLatihan = function() {
+    let box = document.getElementById('latihan-topik-opsional-box');
+    let statusEl = document.getElementById('latihan-topik-status-txt');
+    let btnToggle = document.getElementById('btn-toggle-pilih-topik-lat');
+    let wrapChips = document.getElementById('latihan-topik-chips-wrap');
+    if (!box || !wrapChips) return;
+
+    let st = window._latihanTopikState;
+    if (!st.availableTopiks || st.availableTopiks.length === 0) {
+        box.style.display = 'none';
+        return;
+    }
+
+    box.style.display = 'block';
+    if (!st.modeSpesifik) {
+        if (statusEl) statusEl.innerText = '📚 Semua Topik (' + st.availableTopiks.length + ' Topik • 1 Bab Penuh)';
+        if (btnToggle) {
+            btnToggle.innerText = '🎯 Pilih Topik';
+            btnToggle.classList.remove('is-active');
+        }
+        wrapChips.style.display = 'none';
+    } else {
+        let jmlDipilih = st.selectedTopiks.length;
+        if (statusEl) {
+            statusEl.innerText = jmlDipilih > 0
+                ? ('🎯 Fokus ' + jmlDipilih + ' Topik Dipilih')
+                : '🎯 Centang minimal 1 topik di bawah:';
+        }
+        if (btnToggle) {
+            btnToggle.innerText = '📚 Semua Topik';
+            btnToggle.classList.add('is-active');
+        }
+        wrapChips.style.display = 'flex';
+        wrapChips.innerHTML = st.availableTopiks.map(function(tp) {
+            let isChecked = st.selectedTopiks.indexOf(tp.nama) !== -1;
+            let safeNama = tp.nama.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+            return '<button type="button" class="lat-topik-chip' + (isChecked ? ' is-picked' : '') + '" onclick="window.toggleSatuTopikLatihan(\'' + safeNama + '\')">' +
+                (isChecked ? '✓ ' : '') + tp.nama + ' <span>(' + tp.count + ')</span>' +
+            '</button>';
+        }).join('');
+    }
+};
+
+window.togglePilihTopikLatihan = function() {
+    let st = window._latihanTopikState;
+    st.modeSpesifik = !st.modeSpesifik;
+    if (st.modeSpesifik && st.selectedTopiks.length === 0 && st.availableTopiks.length > 0) {
+        st.selectedTopiks = [st.availableTopiks[0].nama];
+    }
+    if (!st.modeSpesifik) {
+        st.selectedTopiks = [];
+    }
+    window.renderPanelTopikOpsionalLatihan();
+    window.updateDropdownLatihanKesulitan();
+};
+
+window.toggleSatuTopikLatihan = function(namaTopik) {
+    let st = window._latihanTopikState;
+    let idx = st.selectedTopiks.indexOf(namaTopik);
+    if (idx === -1) st.selectedTopiks.push(namaTopik);
+    else st.selectedTopiks.splice(idx, 1);
+
+    window.renderPanelTopikOpsionalLatihan();
+    window.updateDropdownLatihanKesulitan();
+};
+
 window.updateDropdownLatihanKesulitan = function() {
     let kelas = document.getElementById('latihan-select-kelas').value;
     let mapel = document.getElementById('latihan-select-mapel').value;
@@ -111,33 +237,42 @@ window.updateDropdownLatihanKesulitan = function() {
         return;
     }
 
+    let st = window._latihanTopikState;
+    let pakaiFilterTopik = Boolean(st && st.modeSpesifik);
+    let filterList = pakaiFilterTopik ? (st.selectedTopiks || []) : [];
+
+    if (pakaiFilterTopik && filterList.length === 0) {
+        selKes.innerHTML = '<option value="">-- Pilih Minimal 1 Topik di Atas --</option>';
+        return;
+    }
+
     let bank = window.adminBankLatihanData || {};
-    let urutanLevel = { 'C1': 1, 'C2': 2, 'HOTS': 3 };
-    let ditemukan = [];
-    let setLevelTersedia = new Set();
+    let levelCounts = { C1: 0, C2: 0, HOTS: 0 };
 
     Object.keys(bank).forEach(function(k) {
         let item = bank[k];
-        if (item && item.kelas === kelas && item.mapel === mapel && item.bab === bab) {
-            let arrSoal = Array.isArray(item.soal) ? item.soal : Object.values(item.soal || {});
-            ditemukan.push({ key: k, kesulitan: item.kesulitan, jml: arrSoal.length });
-            setLevelTersedia.add(item.kesulitan);
-        }
-    });
+        if (!item || item.kelas !== kelas || item.mapel !== mapel || item.bab !== bab) return;
+        let tName = (typeof window.normalisasiTopikLatihan === 'function')
+            ? window.normalisasiTopikLatihan(item.topik)
+            : (String(item.topik || '').trim() || 'Umum');
+        if (pakaiFilterTopik && filterList.indexOf(tName) === -1) return;
 
-    ditemukan.sort(function(a, b) {
-        return (urutanLevel[a.kesulitan] || 99) - (urutanLevel[b.kesulitan] || 99);
+        let lvl = String(item.kesulitan || 'C1').toUpperCase().trim();
+        let arrSoal = Array.isArray(item.soal) ? item.soal : Object.values(item.soal || {});
+        if (levelCounts[lvl] !== undefined) levelCounts[lvl] += arrSoal.length;
     });
 
     let html = '<option value="">-- Pilih Tingkat Kesulitan --</option>';
-    ditemukan.forEach(function(d) {
-        html += '<option value="' + d.key + '">Tingkat ' + d.kesulitan + ' (' + d.jml + ' Soal)</option>';
+    ['C1', 'C2', 'HOTS'].forEach(function(lvl) {
+        if (levelCounts[lvl] > 0) {
+            html += '<option value="LEVEL_' + lvl + '">Tingkat ' + lvl + ' (' + levelCounts[lvl] + ' Soal)</option>';
+        }
     });
 
-    if (setLevelTersedia.has('C1') && setLevelTersedia.has('C2')) {
+    if (levelCounts.C1 > 0 && levelCounts.C2 > 0) {
         html += '<option value="COMBO_C1_C2">C1 + C2 (Proporsi 40% : 60%)</option>';
     }
-    if (setLevelTersedia.has('C1') && setLevelTersedia.has('C2') && setLevelTersedia.has('HOTS')) {
+    if (levelCounts.C1 > 0 && levelCounts.C2 > 0 && levelCounts.HOTS > 0) {
         html += '<option value="COMBO_CAMPURAN">Campuran (30% : 40% : 30%)</option>';
     }
 
@@ -250,24 +385,49 @@ window.normalisasiDaftarSoalLatihan = function(rawSoalArray) {
     });
 };
 
-window.cariPaketLatihanByLevel = function(kelas, mapel, bab, targetKesulitan) {
+window.acakArrayLatihan = function(arr) {
+    let copy = (arr || []).slice();
+    for (let i = copy.length - 1; i > 0; i--) {
+        let j = Math.floor(Math.random() * (i + 1));
+        let tmp = copy[i];
+        copy[i] = copy[j];
+        copy[j] = tmp;
+    }
+    return copy;
+};
+
+window.cariPaketLatihanByLevel = function(kelas, mapel, bab, targetKesulitan, topikFilterArr) {
     let bank = window.adminBankLatihanData || {};
     let targetUpper = (targetKesulitan || '').toUpperCase().trim();
-    let foundKey = null;
-    Object.keys(bank).forEach(function(k) {
+    let pakaiFilter = Array.isArray(topikFilterArr) && topikFilterArr.length > 0;
+    let firstKey = null;
+    let gabunganSoal = [];
+
+    Object.keys(bank).sort().forEach(function(k) {
         let item = bank[k];
-        if (item && item.kelas === kelas && item.mapel === mapel && item.bab === bab && String(item.kesulitan || '').toUpperCase().trim() === targetUpper) {
-            foundKey = k;
-        }
+        if (!item || item.kelas !== kelas || item.mapel !== mapel || item.bab !== bab) return;
+        if (String(item.kesulitan || '').toUpperCase().trim() !== targetUpper) return;
+
+        let tName = (typeof window.normalisasiTopikLatihan === 'function')
+            ? window.normalisasiTopikLatihan(item.topik)
+            : (String(item.topik || '').trim() || 'Umum');
+        if (pakaiFilter && topikFilterArr.indexOf(tName) === -1) return;
+
+        if (!firstKey) firstKey = k;
+        let arrS = Array.isArray(item.soal) ? item.soal : Object.values(item.soal || {});
+        arrS.forEach(function(q, qIdx) {
+            if (!q) return;
+            gabunganSoal.push(Object.assign({}, q, { _sourceKey: k, origIdx: qIdx, _topikNama: tName }));
+        });
     });
-    if (!foundKey || !bank[foundKey]) return null;
-    let soals = Array.isArray(bank[foundKey].soal) ? bank[foundKey].soal : Object.values(bank[foundKey].soal || {});
-    return { key: foundKey, soal: soals, kesulitan: targetUpper };
+
+    if (gabunganSoal.length === 0) return null;
+    return { key: firstKey, soal: gabunganSoal, kesulitan: targetUpper };
 };
 
 window.eksekusiMulaiLatihanInti = function() {
     let selKes = document.getElementById('latihan-select-kesulitan');
-    let keyVal = (selKes && selKes.value) ? selKes.value : document.getElementById('latihan-select-bab').value;
+    let keyVal = (selKes && selKes.value) ? selKes.value : '';
     let inpJumlah = document.getElementById('latihan-jumlah-soal');
     let jumlahTotal = parseInt(inpJumlah ? inpJumlah.value : 20, 10);
 
@@ -279,36 +439,57 @@ window.eksekusiMulaiLatihanInti = function() {
 
     if (!keyVal) return alert("Pilih Bab dan Tingkat Kesulitan terlebih dahulu!");
 
-    let bank = window.adminBankLatihanData || {};
+    let stTopik = window._latihanTopikState || {};
+    if (stTopik.modeSpesifik && (!stTopik.selectedTopiks || stTopik.selectedTopiks.length === 0)) {
+        return alert("⚠️ Pilih minimal 1 topik terlebih dahulu, atau klik tombol Semua Topik!");
+    }
+
     let kelas = document.getElementById('latihan-select-kelas').value;
     let mapel = document.getElementById('latihan-select-mapel').value;
     let bab = document.getElementById('latihan-select-bab').value;
+    let filterTopikAktif = stTopik.modeSpesifik ? stTopik.selectedTopiks.slice() : [];
+    let isAcakAktif = (typeof window.apakahAcakSoalLatihanAktif === 'function') && window.apakahAcakSoalLatihanAktif();
 
     let rawSoalKumpulan = [];
-    let kesulitanTitel = keyVal;
+    let kesulitanTitel = 'C1';
+    let paketKeyUtama = keyVal;
 
-    function ambilSoalBerurutanDariKesulitan(targetKesulitan, jumlahKebutuhan) {
-        let ditemukan = window.cariPaketLatihanByLevel(kelas, mapel, bab, targetKesulitan);
+    function ambilSoalDariLevel(targetKesulitan, jumlahKebutuhan) {
+        let ditemukan = window.cariPaketLatihanByLevel(kelas, mapel, bab, targetKesulitan, filterTopikAktif);
         if (!ditemukan || !Array.isArray(ditemukan.soal)) return [];
-        return ditemukan.soal.slice(0, jumlahKebutuhan);
+        let pool = isAcakAktif ? window.acakArrayLatihan(ditemukan.soal) : ditemukan.soal.slice();
+        return pool.slice(0, jumlahKebutuhan);
     }
 
     if (keyVal === 'COMBO_C1_C2') {
         let pC1 = Math.round(jumlahTotal * 0.40);
         let pC2 = jumlahTotal - pC1;
-        rawSoalKumpulan = [].concat(ambilSoalBerurutanDariKesulitan('C1', pC1), ambilSoalBerurutanDariKesulitan('C2', pC2));
+        rawSoalKumpulan = [].concat(ambilSoalDariLevel('C1', pC1), ambilSoalDariLevel('C2', pC2));
+        if (isAcakAktif) rawSoalKumpulan = window.acakArrayLatihan(rawSoalKumpulan);
         kesulitanTitel = 'C1';
     } else if (keyVal === 'COMBO_CAMPURAN') {
         let pC1 = Math.round(jumlahTotal * 0.30);
         let pHOTS = Math.round(jumlahTotal * 0.30);
         let pC2 = jumlahTotal - pC1 - pHOTS;
-        rawSoalKumpulan = [].concat(ambilSoalBerurutanDariKesulitan('C1', pC1), ambilSoalBerurutanDariKesulitan('C2', pC2), ambilSoalBerurutanDariKesulitan('HOTS', pHOTS));
+        rawSoalKumpulan = [].concat(ambilSoalDariLevel('C1', pC1), ambilSoalDariLevel('C2', pC2), ambilSoalDariLevel('HOTS', pHOTS));
+        if (isAcakAktif) rawSoalKumpulan = window.acakArrayLatihan(rawSoalKumpulan);
         kesulitanTitel = 'C1';
+    } else if (keyVal.indexOf('LEVEL_') === 0) {
+        let lvl = keyVal.replace('LEVEL_', '');
+        let ditemukan = window.cariPaketLatihanByLevel(kelas, mapel, bab, lvl, filterTopikAktif);
+        if (!ditemukan) return alert("Paket latihan tidak ditemukan di arsip!");
+        let pool = isAcakAktif ? window.acakArrayLatihan(ditemukan.soal) : ditemukan.soal.slice();
+        rawSoalKumpulan = pool.slice(0, jumlahTotal);
+        kesulitanTitel = lvl;
+        paketKeyUtama = ditemukan.key || keyVal;
     } else {
+        let bank = window.adminBankLatihanData || {};
         let paketData = bank[keyVal];
         if (!paketData) return alert("Paket latihan tidak ditemukan di arsip!");
         let allSoal = Array.isArray(paketData.soal) ? paketData.soal : Object.values(paketData.soal || {});
-        rawSoalKumpulan = allSoal.slice(0, jumlahTotal);
+        let mapped = allSoal.map(function(q, qIdx) { return Object.assign({}, q, { _sourceKey: keyVal, origIdx: qIdx }); });
+        let pool = isAcakAktif ? window.acakArrayLatihan(mapped) : mapped;
+        rawSoalKumpulan = pool.slice(0, jumlahTotal);
         kesulitanTitel = (paketData.kesulitan || 'C1').toUpperCase().trim();
     }
 
@@ -318,11 +499,13 @@ window.eksekusiMulaiLatihanInti = function() {
     let normalizedSoal = window.normalisasiDaftarSoalLatihan(rawSoalKumpulan);
 
     window.sesiLatihanSiswa = {
-        paketKey: keyVal,
+        paketKey: paketKeyUtama,
         kelas: kelas,
         mapel: mapel,
         bab: bab,
+        selectedTopiks: filterTopikAktif,
         kesulitan: kesulitanTitel,
+        isShuffled: isAcakAktif,
         soal: normalizedSoal,
         jawaban: {},
         _startTimeMs: Date.now(),
@@ -355,22 +538,27 @@ window.muatLevelAdaptifLatihan = function(targetLevel) {
     let kls = window.sesiLatihanSiswa.kelas;
     let mpl = window.sesiLatihanSiswa.mapel;
     let bab = window.sesiLatihanSiswa.bab;
+    let prevTopiks = Array.isArray(window.sesiLatihanSiswa.selectedTopiks) ? window.sesiLatihanSiswa.selectedTopiks : [];
     let prevDisableMG = Boolean(window.sesiLatihanSiswa.disableMiniGames);
+    let isAcakAktif = (typeof window.apakahAcakSoalLatihanAktif === 'function') && window.apakahAcakSoalLatihanAktif();
 
-    let paketTarget = window.cariPaketLatihanByLevel(kls, mpl, bab, targetLevel);
+    let paketTarget = window.cariPaketLatihanByLevel(kls, mpl, bab, targetLevel, prevTopiks);
     if (!paketTarget || !paketTarget.soal || paketTarget.soal.length === 0) {
-        return alert("⚠️ Soal untuk tingkat " + targetLevel + " pada bab \"" + bab + "\" belum tersedia di Bank Latihan.");
+        return alert("⚠️ Soal untuk tingkat " + targetLevel + " pada pilihan materi ini belum tersedia di Bank Latihan.");
     }
 
     window.tutupModalHasilQuiz();
-    let soalNormalized = window.normalisasiDaftarSoalLatihan(paketTarget.soal);
+    let pool = isAcakAktif ? window.acakArrayLatihan(paketTarget.soal) : paketTarget.soal.slice();
+    let soalNormalized = window.normalisasiDaftarSoalLatihan(pool);
 
     window.sesiLatihanSiswa = {
         paketKey: paketTarget.key,
         kelas: kls,
         mapel: mpl,
         bab: bab,
+        selectedTopiks: prevTopiks,
         kesulitan: targetLevel.toUpperCase(),
+        isShuffled: isAcakAktif,
         soal: soalNormalized,
         jawaban: {},
         disableMiniGames: prevDisableMG,
@@ -429,6 +617,10 @@ window.bukaRuangLatihan = function() {
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
+    let topikInfo = (Array.isArray(window.sesiLatihanSiswa.selectedTopiks) && window.sesiLatihanSiswa.selectedTopiks.length > 0)
+        ? (' • Topik: ' + window.sesiLatihanSiswa.selectedTopiks.join(', '))
+        : '';
+
     let judulUI = document.getElementById('ujian-judul-ui');
     if (judulUI) {
         judulUI.style.color = '#2c3e50';
@@ -436,11 +628,12 @@ window.bukaRuangLatihan = function() {
     }
 
     let isAdmin = sessionStorage.getItem("statusLogin") === "admin";
+    let modeUrutTxt = window.sesiLatihanSiswa.isShuffled ? 'Soal diacak' : 'Soal berurutan sesuai Bank Soal';
     let subUI = document.getElementById('ujian-strict-subtitle');
     if (subUI) {
         subUI.innerText = isAdmin
             ? '🛠️ Mode Admin Aktif: Klik langsung pada teks soal, opsi, atau pembahasan untuk mengedit, atau klik 🗑️ untuk membuang soal.'
-            : 'Jalur Belajar Adaptif (' + window.sesiLatihanSiswa.kesulitan + ') • Soal berurutan sesuai Bank Soal.';
+            : 'Jalur Belajar Adaptif (' + window.sesiLatihanSiswa.kesulitan + ')' + topikInfo + ' • ' + modeUrutTxt + '.';
     }
 
     let timerEl = document.getElementById('ujian-timer-fixed');
@@ -488,7 +681,7 @@ window.simpanEditanLatihanAdmin = function(soalIdx, field, optIdx, newValue) {
         q.correct = cleanVal.split(/\||,/).map(function(s) { return s.trim(); }).filter(Boolean);
     }
 
-    let key = window.sesiLatihanSiswa.paketKey;
+    let key = q._sourceKey || window.sesiLatihanSiswa.paketKey;
     if (key && window.adminBankLatihanData && window.adminBankLatihanData[key]) {
         let bankSoalArr = window.adminBankLatihanData[key].soal;
         if (Array.isArray(bankSoalArr) && typeof q.origIdx === 'number' && bankSoalArr[q.origIdx]) {
@@ -507,7 +700,7 @@ window.buangSoalLatihanAdmin = function(soalIdx) {
     if (!q) return;
     if (!confirm("Buang soal nomor " + (soalIdx + 1) + " ini secara permanen dari Bank Latihan?")) return;
 
-    let key = window.sesiLatihanSiswa.paketKey;
+    let key = q._sourceKey || window.sesiLatihanSiswa.paketKey;
     let origToDelete = q.origIdx;
 
     window.sesiLatihanSiswa.soal.splice(soalIdx, 1);
@@ -517,7 +710,8 @@ window.buangSoalLatihanAdmin = function(soalIdx) {
         if (Array.isArray(bankSoalArr) && typeof origToDelete === 'number') {
             bankSoalArr.splice(origToDelete, 1);
             window.sesiLatihanSiswa.soal.forEach(function(item) {
-                if (item.origIdx > origToDelete) item.origIdx -= 1;
+                let itemKey = item._sourceKey || window.sesiLatihanSiswa.paketKey;
+                if (itemKey === key && item.origIdx > origToDelete) item.origIdx -= 1;
             });
             if (typeof window.simpanBankLatihanKeDB === "function") window.simpanBankLatihanKeDB();
         }
@@ -2006,6 +2200,9 @@ document.addEventListener("DOMContentLoaded", function() {
             mutations.forEach(function(m) {
                 if (m.target.id === 'modal-enter-latihan' && m.target.style.display === 'flex') {
                     window.renderDropdownLatihan();
+                    if (typeof window.muatPengaturanLatihanDariServer === 'function') {
+                        window.muatPengaturanLatihanDariServer(false);
+                    }
                 }
             });
         });

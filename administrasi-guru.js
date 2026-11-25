@@ -953,27 +953,28 @@ window.exportExcelLedgerSiswa = function() {
     let absData = (window.adminAbsensiData && window.adminAbsensiData[kls]) ? window.adminAbsensiData[kls] : { status: {} };
     let kolomUjian = window.ambilKolomLedgerKelas(kls);
 
-    let csv = "No,Nama Siswa,";
-    kolomUjian.forEach(function(k) { csv += '"' + k + '",'; });
-    csv += "Nilai Akhir (40% Kuis + 30% PH + 30% SAS),Hadir (H),Sakit (S),Izin (I),Alfa (A)\n";
+    let headers = ["No", "Nama Siswa"];
+    kolomUjian.forEach(function(k) { headers.push(k); });
+    headers.push("Nilai Akhir", "H", "S", "I", "A");
 
     let totalNilaiPerKolom = new Array(kolomUjian.length).fill(0);
     let countSiswaPerKolom = new Array(kolomUjian.length).fill(0);
     let totalNilaiAkhir = 0;
     let countSiswaAkhir = 0;
 
+    let rows = [];
     siswaArr.forEach(function(nama, idx) {
         let statArr = (absData.status && absData.status[nama]) ? absData.status[nama] : [];
         let cH = 0, cS = 0, cI = 0, cA = 0;
         statArr.forEach(function(s) { if (s === 'H') cH++; else if (s === 'S') cS++; else if (s === 'I') cI++; else if (s === 'A') cA++; });
 
-        let barisNilai = "";
+        let row = [idx + 1, nama];
         kolomUjian.forEach(function(kol, i) {
             let rekapPaket = window.ambilObjekRekapPaket(kls, kol);
             let dataSiswa = window.ambilDataSiswaDiObjekRekap(rekapPaket, nama);
             let hasEntry = Boolean(dataSiswa && dataSiswa.nilaiAkhir !== undefined);
             let n = hasEntry ? parseFloat(dataSiswa.nilaiAkhir) : 0;
-            barisNilai += (hasEntry ? n.toFixed(1) : '') + ",";
+            row.push(hasEntry ? n.toFixed(1) : "-");
             if (hasEntry) {
                 totalNilaiPerKolom[i] += n;
                 countSiswaPerKolom[i]++;
@@ -985,26 +986,27 @@ window.exportExcelLedgerSiswa = function() {
             totalNilaiAkhir += hasilNA.nilaiAkhir;
             countSiswaAkhir++;
         }
-        csv += (idx + 1) + ',"' + nama + '",' + barisNilai + (hasilNA.adaNilai ? hasilNA.nilaiAkhir.toFixed(1) : '') + ',' + cH + ',' + cS + ',' + cI + ',' + cA + '\n';
+        row.push(hasilNA.adaNilai ? hasilNA.nilaiAkhir.toFixed(1) : "-", cH, cS, cI, cA);
+        rows.push(row);
     });
 
-    csv += ',"RATA-RATA KELAS",';
+    let footerRow = ["", "RATA-RATA KELAS"];
     kolomUjian.forEach(function(kol, i) {
-        let rata = countSiswaPerKolom[i] > 0 ? (totalNilaiPerKolom[i] / countSiswaPerKolom[i]).toFixed(1) : '';
-        csv += rata + ',';
+        footerRow.push(countSiswaPerKolom[i] > 0 ? (totalNilaiPerKolom[i] / countSiswaPerKolom[i]).toFixed(1) : "-");
     });
-    let rataAkhir = countSiswaAkhir > 0 ? (totalNilaiAkhir / countSiswaAkhir).toFixed(1) : '';
-    csv += rataAkhir + ',,,,\n';
+    footerRow.push(countSiswaAkhir > 0 ? (totalNilaiAkhir / countSiswaAkhir).toFixed(1) : "-", "", "", "", "");
 
-    let blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    let url = URL.createObjectURL(blob);
-    let link = document.createElement("a");
-    link.href = url;
-    link.download = 'Ledger_' + kls.replace(/\s+/g, '_') + '.csv';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    window.bukaPreviewSpreadsheetUniversal({
+        title: "Ledger Akademik – " + kls,
+        subtitle: "Kelas " + kls + " • Rumus NA (40% Kuis + 30% PH + 30% SAS)",
+        filenameBase: "Ledger_" + kls.replace(/\s+/g, "_"),
+        headers: headers,
+        rows: rows,
+        footerRow: footerRow
+    });
 };
+
+window._filterUjianRemedialAdmin = "SEMUA";
 
 window.renderRemedialTabAdmin = function() {
     let tbody = document.getElementById('body-remedial-tab-admin');
@@ -1013,11 +1015,23 @@ window.renderRemedialTabAdmin = function() {
     let badge = document.getElementById('badge-remedial-admin');
     if (!tbody) return;
 
+    let tableEl = tbody.closest('table');
+    let thead = tableEl ? tableEl.querySelector('thead') : null;
+    if (thead) {
+        thead.innerHTML =
+            '<tr>' +
+                '<th style="width:42px; text-align:center;">No</th>' +
+                '<th style="width:200px; text-align:left;">Nama Siswa</th>' +
+                '<th style="text-align:left;">Evaluasi di Bawah KKM (Nilai &amp; Aksi Cepat)</th>' +
+                '<th style="width:92px; text-align:center;">Catatan</th>' +
+            '</tr>';
+    }
+
     let kls = window.kelasAktifAdmin;
     if (!kls) {
         if (lblKls) lblKls.innerHTML = '<span style="color:#e74c3c;">Belum Dipilih</span>';
         if (badge) { badge.innerText = "0"; badge.style.background = "#95a5a6"; }
-        tbody.innerHTML = '<tr><td colspan="6" style="padding:20px; color:#7f8c8d; font-weight:bold;">Pilih kelas di header atas terlebih dahulu.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" style="padding:20px; color:#7f8c8d; font-weight:bold;">Pilih kelas di header atas terlebih dahulu.</td></tr>';
         return;
     }
 
@@ -1029,54 +1043,138 @@ window.renderRemedialTabAdmin = function() {
     let siswaArr = (window.adminData[kls] || []).slice().sort();
     let kolomUjian = window.ambilKolomLedgerKelas(kls);
 
-    let daftarRemed = [];
+    // Pasang toolbar filter ujian & tombol preview spreadsheet tepat di samping KKM
+    if (inpKkm && inpKkm.parentElement && inpKkm.parentElement.parentElement) {
+        let hostBar = inpKkm.parentElement.parentElement;
+        let selFilter = document.getElementById('filter-ujian-remedial-admin');
+        if (!selFilter) {
+            let wrapCtrl = document.createElement('div');
+            wrapCtrl.style.cssText = 'display:flex; align-items:center; gap:8px; flex-wrap:wrap;';
+            wrapCtrl.innerHTML =
+                '<select id="filter-ujian-remedial-admin" class="input-box" style="margin:0; padding:6px 10px; font-size:12px; font-weight:700; width:auto; min-width:170px;" onchange="window._filterUjianRemedialAdmin=this.value; window.renderRemedialTabAdmin();"></select>' +
+                '<button type="button" class="aws-quick-btn is-primary" style="padding:6px 12px; font-size:11.5px;" onclick="window.exportExcelRemedialAdmin()">📊 Export</button>';
+            hostBar.insertBefore(wrapCtrl, inpKkm.parentElement);
+            selFilter = document.getElementById('filter-ujian-remedial-admin');
+        }
+        if (selFilter) {
+            let curVal = window._filterUjianRemedialAdmin || "SEMUA";
+            let optHtml = '<option value="SEMUA">📋 Semua Ujian (' + kolomUjian.length + ')</option>';
+            kolomUjian.forEach(function(kol) {
+                let s = (kol === curVal) ? ' selected' : '';
+                optHtml += '<option value="' + kol.replace(/"/g, '&quot;') + '"' + s + '>📝 ' + kol + '</option>';
+            });
+            selFilter.innerHTML = optHtml;
+            if (curVal !== "SEMUA" && kolomUjian.indexOf(curVal) === -1) {
+                window._filterUjianRemedialAdmin = "SEMUA";
+                selFilter.value = "SEMUA";
+            }
+        }
+    }
+
+    let filterUjian = window._filterUjianRemedialAdmin || "SEMUA";
+    let totalItemSemua = 0;
+    let grupSiswa = [];
+
     siswaArr.forEach(function(nama) {
+        let itemsSiswa = [];
         kolomUjian.forEach(function(kol) {
             let rekapPaket = window.ambilObjekRekapPaket(kls, kol);
             let dataSiswa = window.ambilDataSiswaDiObjekRekap(rekapPaket, nama);
             if (dataSiswa && dataSiswa.nilaiAkhir !== undefined) {
                 let n = parseFloat(dataSiswa.nilaiAkhir);
                 if (!isNaN(n) && n < kkm) {
-                    daftarRemed.push({ nama: nama, ujian: kol, nilai: n });
+                    totalItemSemua++;
+                    if (filterUjian === "SEMUA" || filterUjian === kol) {
+                        itemsSiswa.push({ ujian: kol, nilai: n });
+                    }
                 }
             }
         });
+        if (itemsSiswa.length > 0) {
+            grupSiswa.push({ nama: nama, items: itemsSiswa });
+        }
     });
 
     if (badge) {
-        badge.innerText = String(daftarRemed.length);
-        badge.style.background = daftarRemed.length > 0 ? "#e74c3c" : "#27ae60";
+        badge.innerText = String(totalItemSemua);
+        badge.style.background = totalItemSemua > 0 ? "#e74c3c" : "#27ae60";
     }
 
-    if (daftarRemed.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="padding:25px; color:#27ae60; font-weight:bold; background:#e8f8f5;">🎉 Luar biasa! Seluruh siswa di kelas ' + kls + ' telah mencapai batas KKM (' + kkm + ') pada semua evaluasi.</td></tr>';
+    if (grupSiswa.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="padding:25px; color:#27ae60; font-weight:bold; background:#e8f8f5;">🎉 Luar biasa! Tidak ada siswa yang berada di bawah KKM (' + kkm + ') untuk filter ini.</td></tr>';
         return;
     }
 
     let html = '';
-    daftarRemed.forEach(function(item, idx) {
+    grupSiswa.forEach(function(g, idx) {
         let safeKlsAttr = kls.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-        let safeNamaAttr = item.nama.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-        let safeUjianAttr = item.ujian.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+        let safeNamaAttr = g.nama.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+
+        let chipsHtml = g.items.map(function(it) {
+            let safeUjianAttr = it.ujian.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+            let selisih = (kkm - it.nilai).toFixed(1);
+            return '<div class="remed-inline-chip">' +
+                '<span class="remed-chip-exam" title="' + it.ujian.replace(/"/g, '&quot;') + '">' + it.ujian + '</span>' +
+                '<span class="remed-chip-score" title="Kurang ' + selisih + ' poin dari KKM ' + kkm + '">' + it.nilai.toFixed(1) + '</span>' +
+                '<div class="remed-chip-actions">' +
+                    '<button type="button" class="remed-mini-btn is-start" title="Mulai Sesi Ujian Remedial CBT" onclick="window.aktifkanUjianRemedial(\'' + safeKlsAttr + '\', \'' + safeUjianAttr + '\', \'' + safeNamaAttr + '\', ' + kkm + ')">🚀 Remedial</button>' +
+                    '<button type="button" class="remed-mini-btn is-pass" title="Tandai Tuntas (Naikkan ke KKM ' + kkm + ')" onclick="window.tuntasRemedialSiswa(\'' + safeKlsAttr + '\', \'' + safeUjianAttr + '\', \'' + safeNamaAttr + '\', ' + kkm + ')">✅ Tuntas</button>' +
+                '</div>' +
+            '</div>';
+        }).join('');
 
         html +=
-        '<tr style="background:#fdf2f2; border-bottom:1px solid #fadbd8;">' +
-            '<td style="color:#c0392b; font-weight:bold;">' + (idx + 1) + '</td>' +
-            '<td style="text-align:left; font-weight:bold; color:#2c3e50;"><span style="background:#34495e; color:white; padding:3px 8px; border-radius:4px; font-size:11px;">' + item.ujian + '</span></td>' +
-            '<td style="text-align:left; font-weight:bold; color:#c0392b;">' + item.nama + '</td>' +
-            '<td style="font-size:15px; font-weight:900; color:#c0392b;">' + item.nilai.toFixed(1) + '</td>' +
-            '<td style="font-size:14px; font-weight:bold; color:#d35400;">' + kkm + '</td>' +
-            '<td>' +
-                '<div style="display:flex; gap:6px; justify-content:center; flex-wrap:wrap;">' +
-                    '<button style="background:#0b3954; color:white; border:none; padding:5px 10px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;" title="Buka sesi ujian remedial CBT untuk evaluasi ini" onclick="window.aktifkanUjianRemedial(\'' + safeKlsAttr + '\', \'' + safeUjianAttr + '\', \'' + safeNamaAttr + '\', ' + kkm + ')">🚀 Mulai Remedial</button>' +
-                    '<button style="background:#27ae60; color:white; border:none; padding:5px 10px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;" title="Naikkan langsung ke nilai KKM di Ledger" onclick="window.tuntasRemedialSiswa(\'' + safeKlsAttr + '\', \'' + safeUjianAttr + '\', \'' + safeNamaAttr + '\', ' + kkm + ')">✅ Tuntas</button>' +
-                    '<button style="background:#f1c40f; color:#2c3e50; border:none; padding:5px 10px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;" onclick="window.catatanSiswaBuka(\'' + safeKlsAttr + '\', \'' + safeNamaAttr + '\')">📝 Catatan</button>' +
-                '</div>' +
+        '<tr class="remed-compact-row">' +
+            '<td style="text-align:center; font-weight:800; color:#b91c1c;">' + (idx + 1) + '</td>' +
+            '<td style="text-align:left; font-weight:800; color:#0f172a;">' +
+                '<div>' + g.nama + '</div>' +
+                '<span class="remed-count-sub">' + g.items.length + ' evaluasi di bawah KKM ' + kkm + '</span>' +
+            '</td>' +
+            '<td style="text-align:left; padding:6px 8px !important;">' +
+                '<div class="remed-chip-stack">' + chipsHtml + '</div>' +
+            '</td>' +
+            '<td style="text-align:center;">' +
+                '<button type="button" class="remed-mini-btn is-note" onclick="window.catatanSiswaBuka(\'' + safeKlsAttr + '\', \'' + safeNamaAttr + '\')">📝 Catatan</button>' +
             '</td>' +
         '</tr>';
     });
 
     tbody.innerHTML = html;
+};
+
+window.exportExcelRemedialAdmin = function() {
+    let kls = window.kelasAktifAdmin;
+    if (!kls) return alert("Pilih kelas terlebih dahulu!");
+    let inpKkm = document.getElementById('input-kkm-remedial-admin');
+    let kkm = (inpKkm && parseFloat(inpKkm.value)) ? parseFloat(inpKkm.value) : window.dapatkanKKMKelas(kls);
+    let siswaArr = (window.adminData[kls] || []).slice().sort();
+    let kolomUjian = window.ambilKolomLedgerKelas(kls);
+    let filterUjian = window._filterUjianRemedialAdmin || "SEMUA";
+
+    let rows = [];
+    let no = 1;
+    siswaArr.forEach(function(nama) {
+        kolomUjian.forEach(function(kol) {
+            if (filterUjian !== "SEMUA" && filterUjian !== kol) return;
+            let rekapPaket = window.ambilObjekRekapPaket(kls, kol);
+            let dataSiswa = window.ambilDataSiswaDiObjekRekap(rekapPaket, nama);
+            if (dataSiswa && dataSiswa.nilaiAkhir !== undefined) {
+                let n = parseFloat(dataSiswa.nilaiAkhir);
+                if (!isNaN(n) && n < kkm) {
+                    rows.push([no++, nama, kol, n.toFixed(1), kkm, (kkm - n).toFixed(1)]);
+                }
+            }
+        });
+    });
+
+    if (rows.length === 0) return alert("Tidak ada data remedial untuk ditampilkan.");
+    window.bukaPreviewSpreadsheetUniversal({
+        title: "Daftar Remedial Siswa – " + kls,
+        subtitle: "Kelas " + kls + " • KKM " + kkm,
+        filenameBase: "Remedial_" + kls.replace(/\s+/g, "_"),
+        headers: ["No", "Nama Siswa", "Nama Evaluasi", "Nilai Awal", "KKM", "Kekurangan"],
+        rows: rows
+    });
 };
 
 window.updateModalRemedial = function() {
@@ -1612,13 +1710,25 @@ window.renderAbsensiAdmin = function() {
     let absData = window.pastikanDataAbsensiKelas(kls);
     let arrTgl = absData.tgl || [];
 
+    let safeKlsHead = kls.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
     let htmlHead = baseHeadHTML;
     arrTgl.forEach(function(t, pIndex) {
+        let safeTglHead = String(t || '').replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+        let sudahAgenda = window.cariIndeksAgendaPadaTanggal(kls, t) >= 0;
+        let clsAgenda = sudahAgenda ? 'is-agenda-done' : 'is-agenda-miss';
+        let tipAgenda = sudahAgenda
+            ? 'Agenda tanggal ' + t + ' sudah diisi — Klik untuk buka & edit'
+            : 'Belum ada Agenda pada tanggal ' + t + ' — Klik untuk buat sekarang';
+
         htmlHead +=
-            '<th style="background:#2c3e50; color:white; min-width:120px; padding:10px 8px 32px 8px; cursor:pointer; text-align:center; user-select:none; white-space:nowrap; position:relative; border-right:1px solid #3e5871;" onclick="window.editTanggalAbsensi(' + pIndex + ')" oncontextmenu="event.preventDefault(); window.hapusPertemuanAbsensi(' + pIndex + ');" title="Klik untuk ubah tanggal | Klik kanan untuk hapus kolom pertemuan">' +
-                '<div style="font-size:12px; font-weight:700; margin-bottom:2px;">Pertemuan ' + (pIndex + 1) + '</div>' +
-                '<div style="color:#f1c40f; font-size:11px; font-weight:700;">' + t + '</div>' +
-                '<button type="button" onclick="event.stopPropagation(); window.setSemuaHadirAbsensi(' + pIndex + ')" style="position:absolute; bottom:6px; left:50%; transform:translateX(-50%); background:#27ae60; border:none; color:white; font-size:9px; padding:4px 8px; border-radius:12px; cursor:pointer; font-weight:bold; white-space:nowrap; box-shadow:0 2px 4px rgba(0,0,0,0.2);" title="Set status Hadir (H) untuk semua siswa">☑️ Hadir Semua</button>' +
+            '<th class="abs-date-col-th" onclick="window.editTanggalAbsensi(' + pIndex + ')" oncontextmenu="event.preventDefault(); window.hapusPertemuanAbsensi(' + pIndex + ');" title="Klik tanggal untuk edit | Klik kanan untuk hapus">' +
+                '<div class="abs-th-stack">' +
+                    '<div class="abs-th-date-lbl">' + window.formatTanggalRingkasAbsen(t) + '</div>' +
+                    '<div class="abs-th-btn-row">' +
+                        '<button type="button" class="abs-th-ico-btn is-hadir-all" onclick="event.stopPropagation(); window.setSemuaHadirAbsensi(' + pIndex + ')" title="Tandai Hadir (H) Semua Siswa">✓</button>' +
+                        '<button type="button" class="abs-th-ico-btn ' + clsAgenda + '" onclick="event.stopPropagation(); window.bukaAgendaDariTanggalAbsensi(\'' + safeKlsHead + '\', \'' + safeTglHead + '\')" title="' + tipAgenda + '">📋</button>' +
+                    '</div>' +
+                '</div>' +
             '</th>';
     });
     htmlHead += endHeadHTML;
@@ -1642,7 +1752,7 @@ window.renderAbsensiAdmin = function() {
             let bgCol = val === 'H' ? '#d5f5e3' : (val === 'A' ? '#fadbd8' : (val === 'S' ? '#fdebd0' : (val === 'I' ? '#d6eaf8' : '#ffffff')));
             let txtCol = val === 'H' ? '#1e8449' : (val === 'A' ? '#c0392b' : (val === 'S' ? '#d35400' : (val === 'I' ? '#2980b9' : '#7f8c8d')));
 
-            cellsTgl += '<td style="background:' + bgCol + '; color:' + txtCol + '; font-weight:bold; cursor:pointer; font-size:13px; transition:0.15s; text-align:center; min-width:120px; user-select:none;" onclick="window.toggleStatusAbsensi(\'' + safeKlsAttr + '\', \'' + safeNamaAttr + '\', ' + pIndex + ', this)">' + val + '</td>';
+            cellsTgl += '<td style="background:' + bgCol + '; color:' + txtCol + '; font-weight:bold; cursor:pointer; font-size:13px; transition:0.15s; text-align:center; min-width:86px; user-select:none;" onclick="window.toggleStatusAbsensi(\'' + safeKlsAttr + '\', \'' + safeNamaAttr + '\', ' + pIndex + ', this)">' + val + '</td>';
         });
 
         let catatanArr = (absData.catatan && absData.catatan[nama]) ? absData.catatan[nama] : [];
@@ -1718,6 +1828,100 @@ window.renderAgendaAdmin = function() {
     tbody.innerHTML = bHTML;
 };
 
+window.normalisasiTanggalISOAbsen = function(rawStr) {
+    let s = String(rawStr || '').trim();
+    if (!s) return '';
+
+    let pDash = s.split('-');
+    if (pDash.length === 3 && pDash[0].length === 4) {
+        return pDash[0] + '-' + String(pDash[1]).padStart(2, '0') + '-' + String(pDash[2]).padStart(2, '0');
+    }
+
+    let pSlash = s.indexOf('/') !== -1 ? s.split('/') : pDash;
+    if (pSlash.length === 3 && pSlash[2].length === 4) {
+        return pSlash[2] + '-' + String(pSlash[1]).padStart(2, '0') + '-' + String(pSlash[0]).padStart(2, '0');
+    }
+
+    let blnMap = {
+        jan: '01', feb: '02', mar: '03', apr: '04', mei: '05', may: '05',
+        jun: '06', jul: '07', agu: '08', aug: '08', sep: '09', okt: '10', oct: '10', nov: '11', des: '12', dec: '12'
+    };
+    let parts = s.toLowerCase().split(/\s+/);
+    if (parts.length >= 3) {
+        let dNum = parseInt(parts[0], 10);
+        let mKey = parts[1].substring(0, 3);
+        let yNum = parseInt(parts[2], 10);
+        if (!isNaN(dNum) && blnMap[mKey] && !isNaN(yNum)) {
+            return String(yNum) + '-' + blnMap[mKey] + '-' + String(dNum).padStart(2, '0');
+        }
+    }
+    return s.toLowerCase();
+};
+
+window.formatTanggalRingkasAbsen = function(rawStr) {
+    let iso = window.normalisasiTanggalISOAbsen(rawStr);
+    let parts = iso.split('-');
+    if (parts.length === 3 && parts[0].length === 4) {
+        let bln = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+        let mIdx = parseInt(parts[1], 10) - 1;
+        return parseInt(parts[2], 10) + ' ' + (bln[mIdx] || parts[1]) + ' ' + parts[0].slice(-2);
+    }
+    return String(rawStr || '-');
+};
+
+window.cariIndeksAgendaPadaTanggal = function(kls, rawTgl) {
+    if (!kls || !rawTgl) return -1;
+    let targetIso = window.normalisasiTanggalISOAbsen(rawTgl);
+    if (!targetIso) return -1;
+    let arr = (window.adminAgendaData && Array.isArray(window.adminAgendaData[kls])) ? window.adminAgendaData[kls] : [];
+    for (let i = 0; i < arr.length; i++) {
+        let item = arr[i];
+        if (!item) continue;
+        let itemIso = window.normalisasiTanggalISOAbsen(item.tgl || item.tanggal);
+        if (itemIso === targetIso) return i;
+    }
+    return -1;
+};
+
+window.bukaAgendaDariTanggalAbsensi = function(kls, rawTgl) {
+    if (!kls) return;
+    window.kelasAktifAdmin = kls;
+    let btnTabAgenda = document.querySelector('#aws-admin-subtabs .tab-admin-btn[onclick*="tab-agenda"]') ||
+                       document.querySelector('.tab-admin-btn[onclick*="tab-agenda"]');
+    window.bukaTabAdmin('tab-agenda', btnTabAgenda);
+    window.renderAgendaAdmin();
+
+    let isoTgl = window.normalisasiTanggalISOAbsen(rawTgl);
+    let idxAgenda = window.cariIndeksAgendaPadaTanggal(kls, rawTgl);
+
+    setTimeout(function() {
+        if (idxAgenda >= 0) {
+            let tbodyAg = document.getElementById('body-agenda-mengajar');
+            let targetRow = tbodyAg && tbodyAg.rows ? tbodyAg.rows[idxAgenda] : null;
+            if (targetRow) {
+                targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                targetRow.classList.add('agenda-row-flash');
+                setTimeout(function() { targetRow.classList.remove('agenda-row-flash'); }, 2400);
+            }
+        } else {
+            let inpTgl = document.getElementById('agenda-tanggal');
+            let inpMat = document.getElementById('agenda-materi');
+            if (inpTgl && isoTgl.length === 10 && isoTgl.indexOf('-') === 4) {
+                inpTgl.value = isoTgl;
+            }
+            if (inpMat) {
+                inpMat.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                inpMat.focus();
+            }
+            let toast = document.createElement('div');
+            toast.innerText = '📋 Agenda tanggal ' + rawTgl + ' belum dibuat — tanggal sudah diisi otomatis!';
+            toast.style.cssText = "position:fixed; top:20px; left:50%; transform:translateX(-50%); background:#060608; color:#00E1FF; border:1.5px solid #00E1FF; padding:9px 18px; border-radius:24px; font-family:'Poppins',sans-serif; font-size:12px; font-weight:700; z-index:9999999;";
+            document.body.appendChild(toast);
+            setTimeout(function() { toast.remove(); }, 2500);
+        }
+    }, 120);
+};
+
 window.tambahAgendaAdmin = function() {
     if (!window.kelasAktifAdmin) return alert("Pilih kelas di sebelah kiri terlebih dahulu!");
     let tgl = document.getElementById('agenda-tanggal').value;
@@ -1739,6 +1943,7 @@ window.tambahAgendaAdmin = function() {
     document.getElementById('agenda-rencana').value = "";
 
     window.renderAgendaAdmin();
+    window.renderAbsensiAdmin();
     if (typeof window.simpanAgendaKeDB === "function") window.simpanAgendaKeDB();
 };
 
@@ -1746,6 +1951,7 @@ window.hapusAgendaAdmin = function(idx) {
     if (confirm("Hapus catatan agenda ini?")) {
         window.adminAgendaData[window.kelasAktifAdmin].splice(idx, 1);
         window.renderAgendaAdmin();
+        window.renderAbsensiAdmin();
         if (typeof window.simpanAgendaKeDB === "function") window.simpanAgendaKeDB();
     }
 };
@@ -1758,34 +1964,29 @@ window.exportExcelAbsensi = function() {
     let absData = window.adminAbsensiData[window.kelasAktifAdmin] || { tgl: [], status: {} };
     let siswaArr = window.adminData[window.kelasAktifAdmin].slice().sort();
 
-    let csvContent = "No,Nama Siswa,";
-    absData.tgl.forEach(function(t, i) {
-        csvContent += 'Pertemuan ' + (i + 1) + ' (' + t + '),';
-    });
-    csvContent += "Hadir,Sakit,Izin,Alfa\n";
+    let headers = ["No", "Nama Siswa"];
+    absData.tgl.forEach(function(t) { headers.push(t); });
+    headers.push("H", "S", "I", "A");
 
-    siswaArr.forEach(function(s, idx) {
-        let row = (idx + 1) + ',"' + s + '",';
+    let rows = siswaArr.map(function(s, idx) {
+        let row = [idx + 1, s];
         let rekap = { 'H': 0, 'S': 0, 'I': 0, 'A': 0 };
-
         absData.tgl.forEach(function(t, i) {
             let stat = (absData.status[s] && absData.status[s][i]) ? absData.status[s][i] : '-';
             if (rekap[stat] !== undefined) rekap[stat]++;
-            row += stat + ',';
+            row.push(stat);
         });
-
-        row += rekap['H'] + ',' + rekap['S'] + ',' + rekap['I'] + ',' + rekap['A'] + '\n';
-        csvContent += row;
+        row.push(rekap['H'], rekap['S'], rekap['I'], rekap['A']);
+        return row;
     });
 
-    let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    let url = URL.createObjectURL(blob);
-    let link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", 'Absensi_Kelas_' + window.kelasAktifAdmin + '.csv');
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    window.bukaPreviewSpreadsheetUniversal({
+        title: "Absensi Kelas – " + window.kelasAktifAdmin,
+        subtitle: "Kelas " + window.kelasAktifAdmin + " • " + absData.tgl.length + " Pertemuan",
+        filenameBase: "Absensi_Kelas_" + window.kelasAktifAdmin.replace(/\s+/g, "_"),
+        headers: headers,
+        rows: rows
+    });
 };
 
 window.exportExcelAgenda = function() {
@@ -1794,20 +1995,18 @@ window.exportExcelAgenda = function() {
     }
 
     let agendaArr = window.adminAgendaData[window.kelasAktifAdmin];
-    let csvContent = "No,Tanggal,JP,Materi Pembelajaran,Keterangan,Rencana Berikutnya\n";
-
-    agendaArr.forEach(function(item, idx) {
-        csvContent += (idx + 1) + ',"' + item.tgl + '","' + item.jp + '","' + item.materi + '","' + item.ket + '","' + item.rencana + '"\n';
+    let headers = ["No", "Tanggal", "JP", "Materi Pembelajaran", "Keterangan", "Rencana Berikutnya"];
+    let rows = agendaArr.map(function(item, idx) {
+        return [idx + 1, item.tgl || "-", item.jp || "-", item.materi || "-", item.ket || "-", item.rencana || "-"];
     });
 
-    let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    let url = URL.createObjectURL(blob);
-    let link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", 'Agenda_Mengajar_Kelas_' + window.kelasAktifAdmin + '.csv');
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    window.bukaPreviewSpreadsheetUniversal({
+        title: "Agenda Mengajar – " + window.kelasAktifAdmin,
+        subtitle: "Kelas " + window.kelasAktifAdmin,
+        filenameBase: "Agenda_Mengajar_" + window.kelasAktifAdmin.replace(/\s+/g, "_"),
+        headers: headers,
+        rows: rows
+    });
 };
 
 // =========================================================================
@@ -2310,5 +2509,236 @@ window.eksekusiBersihkanSemesterLama = function() {
         window.tampilkanCustomDialog("prompt", pesanPrompt, "", lanjutSetelahKetik);
     } else {
         lanjutSetelahKetik(prompt(pesanPrompt));
+    }
+};
+// =========================================================================
+// 7. MODAL PREVIEW SPREADSHEET UNIVERSAL (BERGAYA EXCEL A-B-C / 1-2-3)
+// =========================================================================
+window._spPreviewState = null;
+
+window.kodeKolomExcel = function(index) {
+    let label = "";
+    let n = index;
+    while (n >= 0) {
+        label = String.fromCharCode(65 + (n % 26)) + label;
+        n = Math.floor(n / 26) - 1;
+    }
+    return label;
+};
+
+window.ekstrakMatrixDariHtmlTables = function(rawHtml) {
+    let wrap = document.createElement('div');
+    wrap.innerHTML = rawHtml || '';
+    let tables = wrap.querySelectorAll('table');
+    let allRows = [];
+    let maxCols = 0;
+
+    tables.forEach(function(tbl, tIdx) {
+        if (tIdx > 0 && allRows.length > 0) {
+            allRows.push([]);
+        }
+        tbl.querySelectorAll('tr').forEach(function(tr) {
+            let cells = Array.from(tr.querySelectorAll('th, td'));
+            if (cells.length === 0) return;
+            let rowArr = [];
+            cells.forEach(function(c) {
+                let txt = String(c.innerText || c.textContent || '').replace(/\s+/g, ' ').trim();
+                let span = Math.max(1, parseInt(c.getAttribute('colspan'), 10) || 1);
+                rowArr.push(txt);
+                for (let k = 1; k < span; k++) rowArr.push('');
+            });
+            if (rowArr.length > maxCols) maxCols = rowArr.length;
+            allRows.push(rowArr);
+        });
+    });
+
+    allRows.forEach(function(r) {
+        while (r.length < maxCols) r.push('');
+    });
+    return { matrix: allRows, maxCols: maxCols };
+};
+
+window.bukaPreviewSpreadsheetUniversal = function(opts) {
+    if (!opts) return;
+    let esc = function(s) {
+        return String(s === undefined || s === null ? '' : s)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    };
+
+    let matrix = [];
+    let headerRowCount = 0;
+    let footerIndex = -1;
+    let maxCols = 0;
+    let rawExcelHtml = opts.rawHtmlExcel || '';
+
+    if (opts.rawHtmlExcel && (!opts.headers || opts.headers.length === 0)) {
+        let parsed = window.ekstrakMatrixDariHtmlTables(opts.rawHtmlExcel);
+        matrix = parsed.matrix;
+        maxCols = parsed.maxCols;
+    } else {
+        let hdrs = Array.isArray(opts.headers) ? opts.headers : [];
+        let rows = Array.isArray(opts.rows) ? opts.rows : [];
+        if (hdrs.length > 0) {
+            matrix.push(hdrs.slice());
+            headerRowCount = 1;
+            maxCols = Math.max(maxCols, hdrs.length);
+        }
+        rows.forEach(function(r) {
+            let arr = Array.isArray(r) ? r.slice() : [r];
+            maxCols = Math.max(maxCols, arr.length);
+            matrix.push(arr);
+        });
+        if (Array.isArray(opts.footerRow) && opts.footerRow.length > 0) {
+            footerIndex = matrix.length;
+            maxCols = Math.max(maxCols, opts.footerRow.length);
+            matrix.push(opts.footerRow.slice());
+        }
+        matrix.forEach(function(r) {
+            while (r.length < maxCols) r.push('');
+        });
+    }
+
+    let jumlahBarisData = headerRowCount > 0 ? Math.max(0, matrix.length - headerRowCount - (footerIndex >= 0 ? 1 : 0)) : matrix.length;
+    let fnameBase = String(opts.filenameBase || 'Spreadsheet_Mardikawan').replace(/[^a-zA-Z0-9_-]/g, '_');
+
+    window._spPreviewState = {
+        title: opts.title || 'Preview Spreadsheet',
+        subtitle: opts.subtitle || '',
+        filenameBase: fnameBase,
+        matrix: matrix,
+        maxCols: maxCols,
+        headerRowCount: headerRowCount,
+        footerIndex: footerIndex,
+        rawExcelHtml: rawExcelHtml
+    };
+
+    let modal = document.getElementById('modal-preview-spreadsheet-univ');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'modal-preview-spreadsheet-univ';
+        modal.className = 'modal-overlay';
+        modal.onclick = function(e) {
+            if (e.target === modal) window.tutupModal('modal-preview-spreadsheet-univ');
+        };
+        modal.innerHTML =
+            '<div class="modal-box sp-prev-modal-box">' +
+                '<div class="modal-header sp-prev-header">' +
+                    '<h3 id="sp-prev-title" style="margin:0;">📊 Preview Spreadsheet</h3>' +
+                    '<button type="button" class="sp-prev-close" onclick="window.tutupModal(\'modal-preview-spreadsheet-univ\')">✕</button>' +
+                '</div>' +
+                '<div class="modal-body sp-prev-body">' +
+                    '<div class="sp-prev-bar">' +
+                        '<div id="sp-prev-info" class="sp-prev-info"></div>' +
+                        '<div class="sp-prev-actions">' +
+                            '<button type="button" class="sp-prev-btn is-csv" onclick="window.eksekusiUnduhPreviewSpreadsheet(\'csv\')">📥 Download CSV (.csv)</button>' +
+                            '<button type="button" class="sp-prev-btn is-xls" onclick="window.eksekusiUnduhPreviewSpreadsheet(\'xls\')">📗 Download Excel (.xls)</button>' +
+                            '<button type="button" class="sp-prev-btn is-print" onclick="window.eksekusiUnduhPreviewSpreadsheet(\'print\')">🖨️ Cetak / PDF</button>' +
+                            '<button type="button" class="sp-prev-btn is-close" onclick="window.tutupModal(\'modal-preview-spreadsheet-univ\')">Tutup</button>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="sp-prev-sheet-wrap">' +
+                        '<table id="sp-prev-table" class="sp-prev-table"></table>' +
+                    '</div>' +
+                '</div>' +
+            '</div>';
+        document.body.appendChild(modal);
+    }
+
+    document.getElementById('sp-prev-title').innerText = '📊 Preview Spreadsheet – ' + (opts.title || 'Data');
+    document.getElementById('sp-prev-info').innerHTML =
+        '📗 <b>Preview Excel:</b> ' + esc(opts.subtitle || opts.title || 'Data') + ' • <b>' + jumlahBarisData + '</b> baris data siap diunduh.';
+
+    let tblHtml = '<thead><tr class="sp-col-letters"><th class="sp-corner-cell"></th>';
+    for (let c = 0; c < maxCols; c++) {
+        tblHtml += '<th>' + window.kodeKolomExcel(c) + '</th>';
+    }
+    tblHtml += '</tr></thead><tbody>';
+
+    matrix.forEach(function(row, rIdx) {
+        let isHdr = (rIdx < headerRowCount);
+        let isFtr = (rIdx === footerIndex);
+        let trCls = isHdr ? 'sp-row-header' : (isFtr ? 'sp-row-footer' : '');
+        tblHtml += '<tr class="' + trCls + '"><td class="sp-row-num">' + (rIdx + 1) + '</td>';
+        row.forEach(function(cellVal) {
+            let cellStr = String(cellVal === undefined || cellVal === null ? '' : cellVal);
+            let extraCls = '';
+            if (!isHdr && !isFtr) {
+                if (cellStr === 'H' || cellStr === '1') extraCls = ' is-good';
+                else if (cellStr === 'A' || cellStr === '0') extraCls = ' is-bad';
+            }
+            tblHtml += '<td class="' + extraCls + '">' + esc(cellStr) + '</td>';
+        });
+        tblHtml += '</tr>';
+    });
+    tblHtml += '</tbody>';
+
+    document.getElementById('sp-prev-table').innerHTML = tblHtml;
+    window.bukaModal('modal-preview-spreadsheet-univ');
+};
+
+window.eksekusiUnduhPreviewSpreadsheet = function(mode) {
+    let st = window._spPreviewState;
+    if (!st) return;
+
+    let esc = function(s) {
+        return String(s === undefined || s === null ? '' : s)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    };
+
+    if (mode === 'csv') {
+        let csvLines = st.matrix.map(function(row) {
+            return row.map(function(cell) {
+                return '"' + String(cell === undefined || cell === null ? '' : cell).replace(/"/g, '""') + '"';
+            }).join(',');
+        });
+        let blob = new Blob(['\uFEFF' + csvLines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+        let url = URL.createObjectURL(blob);
+        let a = document.createElement('a');
+        a.href = url;
+        a.download = st.filenameBase + '.csv';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        return;
+    }
+
+    let htmlDoc = st.rawExcelHtml;
+    if (!htmlDoc) {
+        let bodyTbl = '<table>';
+        st.matrix.forEach(function(row, rIdx) {
+            let isHdr = (rIdx < st.headerRowCount);
+            let isFtr = (rIdx === st.footerIndex);
+            bodyTbl += '<tr>';
+            row.forEach(function(c) {
+                if (isHdr) bodyTbl += '<th style="background:#166534;color:#ffffff;font-weight:bold;">' + esc(c) + '</th>';
+                else if (isFtr) bodyTbl += '<td style="background:#f0fdf4;font-weight:bold;">' + esc(c) + '</td>';
+                else bodyTbl += '<td>' + esc(c) + '</td>';
+            });
+            bodyTbl += '</tr>';
+        });
+        bodyTbl += '</table>';
+        htmlDoc =
+            '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">' +
+            '<head><meta charset="utf-8"><title>' + esc(st.title) + '</title>' +
+            '<style>body{font-family:Calibri,Arial,sans-serif;font-size:12px;}table{border-collapse:collapse;width:100%;}th,td{border:1px solid #1e293b;padding:6px 8px;text-align:left;}h3{margin:0 0 4px 0;}</style></head>' +
+            '<body><h3>' + esc(st.title) + '</h3><p style="margin:0 0 10px 0;color:#475569;">' + esc(st.subtitle) + '</p>' + bodyTbl + '</body></html>';
+    }
+
+    if (mode === 'xls') {
+        let blob = new Blob([htmlDoc], { type: 'application/vnd.ms-excel' });
+        let url = URL.createObjectURL(blob);
+        let a = document.createElement('a');
+        a.href = url;
+        a.download = st.filenameBase + '.xls';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    } else if (mode === 'print') {
+        let win = window.open('', '_blank', 'width=980,height=720');
+        if (!win) return alert('⚠️ Pop-up diblokir browser. Izinkan pop-up untuk mencetak.');
+        win.document.open();
+        win.document.write(htmlDoc);
+        win.document.close();
+        setTimeout(function() { win.print(); }, 300);
     }
 };

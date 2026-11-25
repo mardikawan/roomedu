@@ -2694,6 +2694,15 @@ window.exportCSVSpreadsheet = function() {
         csv.push(row.join(','));
     }
 
+    if (typeof window.bukaPreviewSpreadsheetUniversal === "function") {
+        window.bukaPreviewSpreadsheetUniversal({
+            title: "Spreadsheet Nilai – " + kls,
+            subtitle: "Kelas " + kls + (pkt ? (" • " + pkt) : " • Semua Paket"),
+            filenameBase: "Spreadsheet_Nilai_" + kls + (pkt ? "_" + pkt : "_Semua"),
+            rawHtmlExcel: "<html><head><meta charset='utf-8'><style>table{border-collapse:collapse;font-family:Calibri,sans-serif;font-size:12px;}th,td{border:1px solid #000;padding:5px;text-align:center;}</style></head><body>" + table.outerHTML + "</body></html>"
+        });
+        return;
+    }
     let csvString = csv.join('\n');
     let blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
     let url = URL.createObjectURL(blob);
@@ -2864,6 +2873,16 @@ window.exportExcelRekapNilai = function() {
         html += '<td style="font-weight:bold;">' + (!isNaN(n) ? n.toFixed(1) : '-') + '</td></tr>';
     });
     html += '</table></body></html>';
+
+    if (typeof window.bukaPreviewSpreadsheetUniversal === "function") {
+        window.bukaPreviewSpreadsheetUniversal({
+            title: "Analisis Rekap (0-1) – " + namaPaketAsli,
+            subtitle: "Kelas " + selKelas + " • " + namaPaketAsli,
+            filenameBase: "Analisis_01_Ujian_" + selKelas + "_" + namaPaketAsli.replace(/\s+/g, "_"),
+            rawHtmlExcel: html
+        });
+        return;
+    }
 
     let blob = new Blob([html], { type: 'application/vnd.ms-excel' });
     let url = URL.createObjectURL(blob);

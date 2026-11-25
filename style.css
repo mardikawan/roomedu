@@ -18615,3 +18615,1966 @@ body.strict-mode-active #main-nav.navbar.main-left-drawer {
     background: conic-gradient(#be185d, #fbcfe8, #f472b6, #fef08a, #be185d);
     box-shadow: 0 0 22px rgba(244, 114, 182, 0.95);
 }
+/* =========================================================================
+   RENCANA PEMBELAJARAN 1 HALAMAN SCROLL: HARI INI (ATAS) + SEMUA KELAS (BAWAH)
+   ========================================================================= */
+.rencana-scroll-body {
+    flex: 1 1 0%;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    background: #f0fdf7;
+}
+
+.rencana-section-card {
+    background: #ffffff;
+    border: 1.5px solid #cbd5e1;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 3px 12px rgba(15, 23, 42, 0.05);
+    flex-shrink: 0;
+}
+
+.rencana-section-card.is-today-section {
+    border: 2px solid #2370A1;
+    box-shadow: 0 6px 20px rgba(35, 112, 161, 0.12);
+}
+
+.rencana-section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 10px 14px;
+    background: #f8fafc;
+    border-bottom: 1.5px solid #e2e8f0;
+}
+
+.rencana-section-head.is-today-head {
+    background: linear-gradient(90deg, #E8FFE8 0%, #f0fdfa 100%);
+    border-bottom: 1.5px solid #A7FFF3;
+}
+
+.rencana-today-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #00E1FF;
+    border: 2px solid #2370A1;
+    box-shadow: 0 0 8px rgba(0, 225, 255, 0.85);
+    flex-shrink: 0;
+}
+
+.rencana-today-summary-pill {
+    background: #060608;
+    color: #00E1FF;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.rencana-cal-alert {
+    background: #fef9c3;
+    color: #854d0e;
+    border-bottom: 1.5px solid #fde047;
+    padding: 7px 14px;
+    font-size: 11.5px;
+    font-weight: 700;
+}
+
+.rencana-table-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.rencana-jam-input {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1.5px solid #bae6fd;
+    border-radius: 8px;
+    padding: 6px 8px;
+    font-family: 'Poppins', 'Quicksand', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    color: #0b3954;
+    background: #f0f9ff;
+    outline: none;
+    text-align: center;
+}
+
+.rencana-jam-input:focus {
+    background: #ffffff;
+    border-color: #2370A1;
+    box-shadow: 0 0 0 2px rgba(0, 225, 255, 0.25);
+}
+
+.rencana-jam-chip {
+    display: inline-block;
+    margin-top: 3px;
+    background: #e0f2fe;
+    color: #0369a1;
+    border: 1px solid #bae6fd;
+    border-radius: 6px;
+    padding: 1px 6px;
+    font-size: 10.5px;
+    font-weight: 700;
+}
+
+.rencana-cell-input.is-agenda-edit {
+    background: #f8fffc;
+    border-color: #99f6e4;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.rencana-source-meta {
+    font-size: 10px;
+    color: #64748b;
+    margin-top: 4px;
+    line-height: 1.35;
+}
+
+/* Editor Slot JP + Jam Mengajar di Panel Atur Jadwal Saya */
+.rencana-schedule-editor {
+    max-height: 290px !important;
+}
+
+.rencana-slot-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.rencana-slot-jp-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #334155;
+}
+
+.rencana-slot-jp-row input {
+    width: 44px;
+    text-align: center;
+    padding: 3px 4px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-weight: 800;
+    color: #0b3954;
+}
+
+.rencana-slot-jam-in {
+    width: 100%;
+    max-width: 104px;
+    box-sizing: border-box;
+    padding: 3px 5px;
+    border: 1px solid #bae6fd;
+    border-radius: 6px;
+    font-size: 10.5px;
+    font-weight: 600;
+    text-align: center;
+    color: #0369a1;
+    background: #ffffff;
+}
+/* =========================================================================
+   1. FIX Z-INDEX SIDEBAR KIRI (AGAR MY WORLD TIDAK MENIMPA DRAWER)
+   ========================================================================= */
+.main-nav-backdrop {
+    z-index: 9999940 !important;
+}
+#main-nav.navbar.main-left-drawer {
+    z-index: 9999950 !important;
+}
+#main-nav.main-left-drawer li.is-flashcards > a {
+    background: rgba(16, 185, 129, 0.18) !important;
+    border-color: rgba(167, 255, 243, 0.35) !important;
+    color: #A7FFF3 !important;
+    font-weight: 700 !important;
+}
+#main-nav.main-left-drawer li.is-flashcards > a:hover {
+    background: rgba(0, 225, 255, 0.28) !important;
+    color: #ffffff !important;
+}
+
+/* =========================================================================
+   2. ABSENSI EFISIEN (TANGGAL + CENTANG + TOMBOL AGENDA HIJAU/MERAH)
+   ========================================================================= */
+.abs-date-col-th {
+    min-width: 86px !important;
+    padding: 7px 6px !important;
+    cursor: pointer;
+    text-align: center !important;
+    user-select: none;
+    white-space: nowrap;
+}
+
+.abs-th-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+}
+
+.abs-th-date-lbl {
+    font-size: 11.5px;
+    font-weight: 800;
+    color: #ffffff;
+    line-height: 1.15;
+    letter-spacing: 0.2px;
+}
+
+.abs-th-btn-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+}
+
+.abs-th-ico-btn {
+    width: 24px;
+    height: 22px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 900;
+    padding: 0;
+    transition: transform 0.12s, filter 0.12s;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.22);
+}
+
+.abs-th-ico-btn:hover {
+    transform: scale(1.1);
+    filter: brightness(1.08);
+}
+
+.abs-th-ico-btn.is-hadir-all {
+    background: #ffffff;
+    color: #15803d;
+}
+
+.abs-th-ico-btn.is-agenda-done {
+    background: #16a34a;
+    color: #ffffff;
+}
+
+.abs-th-ico-btn.is-agenda-miss {
+    background: #dc2626;
+    color: #ffffff;
+}
+
+@keyframes agendaFlashGlow {
+    0%, 100% { box-shadow: inset 0 0 0 0 rgba(0, 225, 255, 0); background: transparent; }
+    25%, 70% { box-shadow: inset 0 0 0 2px #00E1FF; background: #e0f2fe; }
+}
+.agenda-row-flash td {
+    animation: agendaFlashGlow 2.3s ease;
+}
+
+/* =========================================================================
+   3. TABEL REMEDIAL RINGKAS (1 SISWA = 1 BARIS)
+   ========================================================================= */
+.remed-compact-row td {
+    vertical-align: middle !important;
+    background: #fffafa !important;
+}
+
+.remed-count-sub {
+    display: inline-block;
+    font-size: 10.5px;
+    font-weight: 700;
+    color: #b91c1c;
+    margin-top: 2px;
+}
+
+.remed-chip-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.remed-inline-chip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #ffffff;
+    border: 1px solid #fecaca;
+    border-left: 3.5px solid #dc2626;
+    border-radius: 8px;
+    padding: 5px 8px;
+    flex-wrap: nowrap;
+}
+
+.remed-chip-exam {
+    flex: 1;
+    min-width: 110px;
+    font-size: 11.5px;
+    font-weight: 800;
+    color: #1e293b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.remed-chip-score {
+    background: #fee2e2;
+    color: #b91c1c;
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-size: 12px;
+    font-weight: 900;
+    flex-shrink: 0;
+}
+
+.remed-chip-actions {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+}
+
+.remed-mini-btn {
+    border: none;
+    border-radius: 7px;
+    padding: 4px 9px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: opacity 0.14s, transform 0.12s;
+}
+.remed-mini-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+.remed-mini-btn.is-start { background: #060608; color: #00E1FF; }
+.remed-mini-btn.is-pass  { background: #16a34a; color: #ffffff; }
+.remed-mini-btn.is-note  { background: #fef08a; color: #713f12; border: 1px solid #facc15; }
+
+/* =========================================================================
+   4. KARTU MANAJER LATIHAN RAPI & KOMPAK (1 BARIS AKSI TANPA RUANG KOSONG)
+   ========================================================================= */
+.soal-manager-item.ml-card-compact {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+    padding: 13px 14px !important;
+    justify-content: space-between !important;
+}
+
+.ml-card-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.ml-card-title-wrap {
+    min-width: 0;
+    line-height: 1.3;
+}
+
+.ml-card-title {
+    font-size: 14px;
+    font-weight: 800;
+    color: #060608;
+    margin-right: 4px;
+}
+
+.ml-card-mapel {
+    font-size: 11.5px;
+    color: #64748b;
+    font-weight: 600;
+}
+
+.ml-card-total-pill {
+    background: #dcfce7;
+    color: #15803d;
+    border: 1px solid #86efac;
+    border-radius: 999px;
+    padding: 2px 9px;
+    font-size: 11px;
+    font-weight: 800;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.ml-card-badges {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-wrap: wrap;
+}
+
+.ml-tier-badge {
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 10.5px;
+    font-weight: 800;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    white-space: nowrap;
+}
+.ml-tier-badge.is-kelas { background: #2370A1; color: #ffffff; }
+.ml-tier-badge.is-c1    { background: #16a34a; color: #ffffff; cursor: pointer; }
+.ml-tier-badge.is-c2    { background: #f59e0b; color: #ffffff; cursor: pointer; }
+.ml-tier-badge.is-hots  { background: #dc2626; color: #ffffff; cursor: pointer; }
+.ml-tier-badge.is-empty { background: #e2e8f0; color: #94a3b8; }
+
+.ml-card-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1.25fr 38px;
+    gap: 6px;
+    padding-top: 8px;
+    border-top: 1px dashed #cdebe5;
+}
+
+.ml-act-btn {
+    border: none;
+    border-radius: 9px;
+    padding: 6px 6px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    transition: transform 0.12s, filter 0.12s;
+}
+.ml-act-btn:hover { transform: translateY(-1px); filter: brightness(1.06); }
+.ml-act-btn.is-pdf  { background: #0f172a; color: #ffffff; }
+.ml-act-btn.is-word { background: #2370A1; color: #ffffff; }
+.ml-act-btn.is-add  { background: #facc15; color: #060608; }
+.ml-act-btn.is-del  { background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; }
+
+/* =========================================================================
+   5. MODAL PREVIEW SPREADSHEET UNIVERSAL (GAYA EXCEL A-B-C / 1-2-3)
+   ========================================================================= */
+#modal-preview-spreadsheet-univ {
+    background: rgba(6, 6, 8, 0.62) !important;
+    backdrop-filter: blur(4px) !important;
+    z-index: 6500 !important;
+}
+
+.modal-box.sp-prev-modal-box {
+    width: 94vw !important;
+    max-width: 1120px !important;
+    max-height: 90dvh !important;
+    background: #ffffff !important;
+    border-radius: 18px !important;
+    border: 1.5px solid #cbd5e1 !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+.sp-prev-header {
+    background: #ffffff !important;
+    color: #060608 !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    padding: 15px 20px !important;
+}
+
+.sp-prev-header h3 {
+    font-size: 16px !important;
+    font-weight: 800 !important;
+    color: #060608 !important;
+}
+
+.sp-prev-close {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    color: #334155;
+    font-size: 14px;
+    font-weight: 800;
+    cursor: pointer;
+}
+.sp-prev-close:hover { background: #fee2e2; color: #dc2626; }
+
+.sp-prev-body {
+    padding: 16px 20px !important;
+    background: #f8fafc !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 14px;
+    overflow: hidden !important;
+}
+
+.sp-prev-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    background: #ecfdf5;
+    border: 1.5px solid #a7f3d0;
+    border-radius: 14px;
+    padding: 10px 14px;
+    flex-shrink: 0;
+}
+
+.sp-prev-info {
+    font-size: 12.5px;
+    color: #065f46;
+}
+
+.sp-prev-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.sp-prev-btn {
+    border-radius: 999px;
+    padding: 8px 15px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    border: 1.5px solid transparent;
+    transition: transform 0.12s, filter 0.12s;
+}
+.sp-prev-btn:hover { transform: translateY(-1px); filter: brightness(1.06); }
+.sp-prev-btn.is-csv   { background: #0f766e; color: #ffffff; }
+.sp-prev-btn.is-xls   { background: #166534; color: #ffffff; }
+.sp-prev-btn.is-print { background: #2370A1; color: #ffffff; }
+.sp-prev-btn.is-close { background: #ffffff; color: #334155; border-color: #cbd5e1; }
+
+.sp-prev-sheet-wrap {
+    flex: 1 1 0%;
+    min-height: 220px;
+    overflow: auto;
+    border: 2px solid #166534;
+    border-radius: 12px;
+    background: #ffffff;
+}
+
+.sp-prev-table {
+    width: max-content;
+    min-width: 100%;
+    border-collapse: collapse;
+    font-family: 'Poppins', 'Open Sans', sans-serif;
+    font-size: 12px;
+}
+
+.sp-prev-table th,
+.sp-prev-table td {
+    border: 1px solid #d1d5db;
+    padding: 7px 11px;
+    white-space: nowrap;
+}
+
+.sp-prev-table tr.sp-col-letters th {
+    background: #f0fdf4;
+    color: #166534;
+    font-size: 11px;
+    font-weight: 800;
+    text-align: center;
+    position: sticky;
+    top: 0;
+    z-index: 3;
+}
+
+.sp-prev-table .sp-corner-cell {
+    width: 38px;
+    background: #166534 !important;
+    position: sticky;
+    left: 0;
+    z-index: 4 !important;
+}
+
+.sp-prev-table .sp-row-num {
+    background: #f8fafc;
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 700;
+    text-align: center;
+    width: 38px;
+    position: sticky;
+    left: 0;
+    z-index: 2;
+}
+
+.sp-prev-table tr.sp-row-header td:not(.sp-row-num) {
+    background: #166534;
+    color: #ffffff;
+    font-weight: 800;
+}
+
+.sp-prev-table tr.sp-row-footer td:not(.sp-row-num) {
+    background: #f0fdf4;
+    color: #065f46;
+    font-weight: 800;
+    border-top: 2px solid #166534;
+}
+
+.sp-prev-table td.is-good { color: #15803d; font-weight: 800; text-align: center; }
+.sp-prev-table td.is-bad  { color: #dc2626; font-weight: 800; text-align: center; }
+
+/* =========================================================================
+   6. MODAL FLASHCARDS 3D FLIP & ACTIVE RECALL
+   ========================================================================= */
+#modal-flashcards {
+    background: rgba(6, 6, 8, 0.65) !important;
+    backdrop-filter: blur(4px) !important;
+    z-index: 6200 !important;
+}
+
+.modal-box.fc-modal-box {
+    width: 94vw !important;
+    max-width: 960px !important;
+    height: 90dvh !important;
+    background: #ffffff !important;
+    border: 1.5px solid var(--aws-aqua-soft) !important;
+    border-radius: 18px !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+.fc-modal-header {
+    background: #060608 !important;
+    color: #ffffff !important;
+    border-bottom: 2px solid #00E1FF !important;
+    padding: 14px 20px !important;
+}
+
+.fc-modal-header h3 {
+    color: #00E1FF !important;
+    font-size: 16px !important;
+    font-weight: 800 !important;
+}
+
+.fc-subtitle {
+    font-size: 11px;
+    color: #A7FFF3;
+    margin-top: 2px;
+}
+
+.fc-close-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255, 255, 255, 0.14);
+    color: #ffffff;
+    font-weight: 800;
+    cursor: pointer;
+}
+.fc-close-btn:hover { background: #00E1FF; color: #060608; }
+
+.fc-modal-body {
+    flex: 1 1 0%;
+    min-height: 0;
+    background: #E8FFE8 !important;
+    padding: 14px 16px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px;
+    overflow: hidden !important;
+}
+
+.fc-top-tabs {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+}
+
+.fc-tab-btn {
+    border-radius: 999px;
+    padding: 7px 15px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    border: 1.5px solid #A7FFF3;
+    background: #ffffff;
+    color: #2370A1;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.fc-tab-btn.active {
+    background: #060608;
+    border-color: #060608;
+    color: #00E1FF;
+}
+
+.fc-view-picker {
+    flex: 1 1 0%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow-y: auto;
+}
+
+.fc-filter-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    background: #ffffff;
+    border: 1.5px solid #A7FFF3;
+    border-radius: 12px;
+    padding: 10px 14px;
+}
+
+.fc-select-sm {
+    margin: 0 !important;
+    width: 210px !important;
+    padding: 6px 10px !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    border-radius: 10px !important;
+}
+
+.fc-deck-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 12px;
+}
+
+.fc-deck-card {
+    background: #ffffff;
+    border: 1.5px solid #cdebe5;
+    border-radius: 14px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    box-shadow: 0 3px 10px rgba(35, 112, 161, 0.06);
+}
+
+.fc-deck-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 6px;
+}
+
+.fc-deck-kls {
+    font-size: 10.5px;
+    font-weight: 800;
+    color: #2370A1;
+    background: #e0f2fe;
+    padding: 2px 8px;
+    border-radius: 8px;
+}
+
+.fc-deck-cnt {
+    font-size: 10.5px;
+    font-weight: 800;
+    color: #15803d;
+    background: #dcfce7;
+    padding: 2px 8px;
+    border-radius: 8px;
+}
+
+.fc-deck-title {
+    font-size: 14px;
+    font-weight: 800;
+    color: #060608;
+    line-height: 1.3;
+}
+
+.fc-deck-level-row {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+    margin-top: auto;
+    padding-top: 6px;
+    border-top: 1px dashed #e2e8f0;
+}
+
+.fc-play-btn {
+    border: none;
+    border-radius: 8px;
+    padding: 5px 9px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+}
+.fc-play-btn.is-all  { background: #060608; color: #00E1FF; }
+.fc-play-btn.is-c1   { background: #16a34a; color: #ffffff; }
+.fc-play-btn.is-c2   { background: #f59e0b; color: #ffffff; }
+.fc-play-btn.is-hots { background: #dc2626; color: #ffffff; }
+
+.fc-empty-state {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 36px 18px;
+    background: #ffffff;
+    border: 2px dashed #A7FFF3;
+    border-radius: 14px;
+    color: #526a7d;
+    font-size: 13px;
+}
+
+/* Stage Belajar 3D Flip */
+.fc-view-study {
+    flex: 1 1 0%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.fc-study-topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.fc-study-title {
+    font-size: 14.5px;
+    font-weight: 800;
+    color: #060608;
+}
+
+.fc-progress-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.fc-progress-track {
+    height: 8px;
+    border-radius: 999px;
+    background: #cdebe5;
+    overflow: hidden;
+}
+
+.fc-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #2370A1, #00E1FF);
+    transition: width 0.25s ease;
+}
+
+.fc-progress-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11.5px;
+    color: #2c4356;
+}
+
+.fc-stage-area {
+    flex: 1 1 0%;
+    min-height: 230px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    perspective: 1200px;
+}
+
+.fc-card-scene {
+    width: 100%;
+    max-width: 680px;
+    height: 100%;
+    min-height: 240px;
+    max-height: 360px;
+    cursor: pointer;
+}
+
+.fc-card-3d-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+    transform-style: preserve-3d;
+}
+
+.fc-card-3d-inner.is-flipped {
+    transform: rotateY(180deg);
+}
+
+.fc-card-face {
+    position: absolute;
+    inset: 0;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    border-radius: 18px;
+    padding: 18px 22px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    box-sizing: border-box;
+    box-shadow: 0 12px 30px rgba(6, 6, 8, 0.14);
+}
+
+.fc-card-face.is-front {
+    background: #ffffff;
+    border: 2px solid #2370A1;
+}
+
+.fc-card-face.is-back {
+    background: linear-gradient(135deg, #060608 0%, #10324a 100%);
+    border: 2px solid #00E1FF;
+    color: #ffffff;
+    transform: rotateY(180deg);
+}
+
+.fc-face-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+}
+
+.fc-face-lbl {
+    font-size: 10.5px;
+    font-weight: 800;
+    letter-spacing: 0.7px;
+    color: #2370A1;
+}
+.fc-card-face.is-back .fc-face-lbl { color: #74F9FE; }
+
+.fc-face-tag {
+    font-size: 10.5px;
+    font-weight: 800;
+    padding: 2px 9px;
+    border-radius: 999px;
+    background: #E8FFE8;
+    color: #2370A1;
+}
+.fc-card-face.is-back .fc-face-tag {
+    background: rgba(0, 225, 255, 0.18);
+    color: #00E1FF;
+}
+
+.fc-face-content {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1.5;
+    overflow-y: auto;
+    padding: 10px 4px;
+    color: #060608;
+}
+.fc-face-content.is-answer {
+    color: #E8FFE8;
+    font-size: 18px;
+}
+
+.fc-face-foot {
+    text-align: center;
+    font-size: 11px;
+    color: #64748b;
+}
+
+.fc-face-hint {
+    background: rgba(167, 255, 243, 0.14);
+    border: 1px solid rgba(116, 249, 254, 0.35);
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-size: 12px;
+    color: #A7FFF3;
+    max-height: 82px;
+    overflow-y: auto;
+    line-height: 1.4;
+}
+
+.fc-recall-bar {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    transition: opacity 0.2s;
+}
+
+.fc-recall-btn {
+    border: none;
+    border-radius: 12px;
+    padding: 10px 16px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 12.5px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: transform 0.12s;
+}
+.fc-recall-btn:hover { transform: translateY(-2px); }
+.fc-recall-btn span { font-size: 10.5px; font-weight: 600; opacity: 0.85; }
+.fc-recall-btn.is-forgot { background: #fee2e2; color: #b91c1c; border: 1.5px solid #fca5a5; }
+.fc-recall-btn.is-unsure { background: #fef3c7; color: #92400e; border: 1.5px solid #fcd34d; }
+.fc-recall-btn.is-gotit  { background: #16a34a; color: #ffffff; box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3); }
+
+.fc-nav-mini {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    border: 1.5px solid #A7FFF3;
+    background: #ffffff;
+    color: #2370A1;
+    font-weight: 800;
+    cursor: pointer;
+}
+.fc-nav-mini:hover { background: #060608; color: #00E1FF; border-color: #060608; }
+
+.fc-finish-box {
+    margin: auto;
+    background: #ffffff;
+    border: 2px solid #00E1FF;
+    border-radius: 18px;
+    padding: 28px 24px;
+    text-align: center;
+    max-width: 460px;
+    width: 100%;
+}
+
+.fc-bonus-pill {
+    display: inline-block;
+    background: #060608;
+    color: #00E1FF;
+    border-radius: 999px;
+    padding: 5px 14px;
+    font-size: 12px;
+    font-weight: 700;
+    margin-top: 4px;
+}
+
+.fc-admin-split {
+    display: grid;
+    grid-template-columns: 1.3fr 1fr;
+    gap: 12px;
+}
+
+.fc-admin-form,
+.fc-admin-list-box {
+    background: #ffffff;
+    border: 1.5px solid #cdebe5;
+    border-radius: 14px;
+    padding: 14px;
+}
+
+.fc-admin-deck-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    background: #f8fffc;
+    border: 1px solid #cdebe5;
+    border-radius: 10px;
+    padding: 9px 11px;
+}
+
+@media (max-width: 820px) {
+    .fc-admin-split { grid-template-columns: 1fr; }
+    .remed-inline-chip { flex-wrap: wrap; }
+}
+/* =========================================================================
+   SAKELAR ACAK SOAL LATIHAN & PENGELOMPOKAN TOPIK OPSIONAL (LATIHAN + FC)
+   ========================================================================= */
+.ml-shuffle-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 14px;
+    border-radius: 999px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+    border: 1.5px solid #cbd5e1;
+    transition: background 0.16s, border-color 0.16s, color 0.16s;
+    white-space: nowrap;
+}
+
+.ml-shuffle-switch.is-off {
+    background: #f1f5f9;
+    color: #475569;
+    border-color: #cbd5e1;
+}
+
+.ml-shuffle-switch.is-on {
+    background: #060608;
+    color: #00E1FF;
+    border-color: #00E1FF;
+    box-shadow: 0 3px 12px rgba(0, 225, 255, 0.25);
+}
+
+.ml-shuffle-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #94a3b8;
+    transition: background 0.16s, box-shadow 0.16s;
+}
+
+.ml-shuffle-switch.is-on .ml-shuffle-dot {
+    background: #00E1FF;
+    box-shadow: 0 0 8px #00E1FF;
+}
+
+/* Sub-Baris Topik di Dalam Kartu Bab Manajer Latihan */
+.ml-tier-badge.is-topic-cnt {
+    background: #E8FFE8;
+    color: #2370A1;
+    border: 1px solid #A7FFF3;
+}
+
+.ml-topic-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    background: #f8fffc;
+    border: 1px solid #d5f2ec;
+    border-radius: 10px;
+    padding: 8px;
+}
+
+.ml-topic-row {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding-bottom: 6px;
+    border-bottom: 1px dashed #d5f2ec;
+}
+
+.ml-topic-row:last-child {
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.ml-topic-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 6px;
+}
+
+.ml-topic-name {
+    font-size: 11.5px;
+    font-weight: 800;
+    color: #060608;
+}
+
+.ml-topic-add-btn {
+    border: 1px solid #A7FFF3;
+    background: #ffffff;
+    color: #2370A1;
+    border-radius: 6px;
+    padding: 1px 6px;
+    font-size: 10px;
+    font-weight: 800;
+    cursor: pointer;
+}
+.ml-topic-add-btn:hover {
+    background: #00E1FF;
+    color: #060608;
+}
+
+/* Kotak Pilihan Topik Opsional di Gerbang Latihan Siswa */
+.lat-topik-opt-box {
+    background: #f0fdf7;
+    border: 1.5px solid #A7FFF3;
+    border-radius: 10px;
+    padding: 9px 11px;
+}
+
+.lat-topik-opt-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+}
+
+.lat-topik-opt-info {
+    min-width: 0;
+    flex: 1;
+}
+
+.lat-topik-status {
+    font-size: 12px;
+    font-weight: 800;
+    color: #060608;
+}
+
+.lat-topik-sub {
+    font-size: 10.5px;
+    color: #526a7d;
+    line-height: 1.3;
+    margin-top: 1px;
+}
+
+.lat-topik-toggle-btn {
+    border: 1.5px solid #2370A1;
+    background: #ffffff;
+    color: #2370A1;
+    border-radius: 999px;
+    padding: 5px 11px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 11px;
+    font-weight: 800;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.lat-topik-toggle-btn.is-active,
+.lat-topik-toggle-btn:hover {
+    background: #060608;
+    border-color: #060608;
+    color: #00E1FF;
+}
+
+.lat-topik-chips-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 9px;
+    padding-top: 8px;
+    border-top: 1px dashed #A7FFF3;
+}
+
+.lat-topik-chip {
+    border: 1.5px solid #cbd5e1;
+    background: #ffffff;
+    color: #334155;
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.12s;
+}
+
+.lat-topik-chip span {
+    font-size: 10px;
+    opacity: 0.78;
+}
+
+.lat-topik-chip.is-picked {
+    background: #2370A1;
+    border-color: #2370A1;
+    color: #ffffff;
+}
+
+/* Tambahan Header & Topik Opsional di Flashcards */
+.fc-hdr-admin-btn {
+    background: rgba(0, 225, 255, 0.14);
+    color: #74F9FE;
+    border: 1.5px solid #00E1FF;
+    border-radius: 999px;
+    padding: 5px 12px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 11px;
+    font-weight: 800;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.fc-hdr-admin-btn:hover {
+    background: #00E1FF;
+    color: #060608;
+}
+
+.fc-card-topic-strip {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.fc-topic-opt-btn {
+    align-self: flex-start;
+    border: 1px dashed #2370A1;
+    background: #f0f9ff;
+    color: #2370A1;
+    border-radius: 8px;
+    padding: 4px 9px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.fc-topic-opt-btn.is-filtered {
+    background: #060608;
+    border-style: solid;
+    border-color: #00E1FF;
+    color: #00E1FF;
+}
+
+.fc-card-topic-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    background: #f8fffc;
+    border: 1px solid #d5f2ec;
+    border-radius: 9px;
+    padding: 7px;
+}
+/* =========================================================================
+   FLASHCARDS ANKI-GRADE (SM-2, MICRO-LEARNING, CLOZE, & IMAGE OCCLUSION)
+   ========================================================================= */
+.fc-micro-banner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    background: linear-gradient(120deg, #060608 0%, #10324a 100%);
+    border: 1.5px solid #00E1FF;
+    border-radius: 14px;
+    padding: 12px 16px;
+    color: #ffffff;
+}
+
+.fc-micro-title {
+    font-size: 13.5px;
+    font-weight: 800;
+    color: #00E1FF;
+    margin-bottom: 6px;
+}
+
+.fc-micro-stats {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.fc-stat-pill {
+    padding: 2px 9px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 800;
+}
+.fc-stat-pill.is-due    { background: rgba(239, 68, 68, 0.22); color: #fca5a5; border: 1px solid rgba(248, 113, 113, 0.5); }
+.fc-stat-pill.is-new    { background: rgba(56, 189, 248, 0.22); color: #74F9FE; border: 1px solid rgba(0, 225, 255, 0.45); }
+.fc-stat-pill.is-master { background: rgba(34, 197, 94, 0.22); color: #86efac; border: 1px solid rgba(74, 222, 128, 0.45); }
+
+.fc-micro-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.fc-micro-btn {
+    border: none;
+    border-radius: 999px;
+    padding: 8px 14px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 11.5px;
+    font-weight: 800;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: transform 0.12s, filter 0.12s;
+}
+.fc-micro-btn:hover { transform: translateY(-1px); filter: brightness(1.06); }
+.fc-micro-btn.is-due-go   { background: #ef4444; color: #ffffff; }
+.fc-micro-btn.is-quick-go { background: #00E1FF; color: #060608; }
+
+.fc-deck-srs-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.fc-srs-mini {
+    font-size: 10.5px;
+    font-weight: 800;
+    padding: 1px 7px;
+    border-radius: 6px;
+}
+.fc-srs-mini.is-due    { background: #fee2e2; color: #b91c1c; }
+.fc-srs-mini.is-new    { background: #e0f2fe; color: #0369a1; }
+.fc-srs-mini.is-master { background: #dcfce7; color: #15803d; }
+
+.fc-fmt-tag {
+    font-size: 10px;
+    font-weight: 800;
+    padding: 1px 7px;
+    border-radius: 6px;
+}
+.fc-fmt-tag.is-cloze { background: #f3e8ff; color: #7e22ce; }
+.fc-fmt-tag.is-occ   { background: #ffedd5; color: #c2410c; }
+
+/* Cloze Highlights */
+.fc-cloze-blank {
+    display: inline-block;
+    background: #e0f2fe;
+    color: #2370A1;
+    border: 1.5px dashed #2370A1;
+    border-radius: 8px;
+    padding: 1px 10px;
+    font-weight: 900;
+    margin: 0 2px;
+}
+
+.fc-cloze-reveal {
+    display: inline-block;
+    background: rgba(0, 225, 255, 0.22);
+    color: #74F9FE;
+    border: 1.5px solid #00E1FF;
+    border-radius: 8px;
+    padding: 1px 9px;
+    font-weight: 900;
+    margin: 0 2px;
+}
+
+/* Type-Recall Anti Illusion of Competence */
+.fc-type-box {
+    margin: 8px 0 4px 0;
+}
+
+.fc-typed-compare {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    border-radius: 10px;
+    padding: 7px 11px;
+    font-size: 11.5px;
+    margin-top: 6px;
+}
+.fc-typed-compare.is-match {
+    background: rgba(34, 197, 94, 0.22);
+    border: 1px solid #4ade80;
+    color: #dcfce7;
+}
+.fc-typed-compare.is-diff {
+    background: rgba(245, 158, 11, 0.22);
+    border: 1px solid #fbbf24;
+    color: #fef3c7;
+}
+
+/* Reveal & 4 Tombol Penilaian SM-2 */
+.fc-reveal-bar {
+    display: flex;
+    justify-content: center;
+}
+
+.fc-reveal-big-btn {
+    width: 100%;
+    max-width: 440px;
+    border: none;
+    border-radius: 12px;
+    padding: 12px 20px;
+    background: #060608;
+    color: #00E1FF;
+    border: 1.5px solid #00E1FF;
+    font-family: 'Poppins', sans-serif;
+    font-size: 13.5px;
+    font-weight: 800;
+    cursor: pointer;
+    box-shadow: 0 5px 16px rgba(6, 6, 8, 0.2);
+}
+.fc-reveal-big-btn span {
+    font-size: 11px;
+    color: #A7FFF3;
+    font-weight: 600;
+    margin-left: 4px;
+}
+.fc-reveal-big-btn:hover { background: #2370A1; color: #ffffff; }
+
+.fc-sm2-bar {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    max-width: 680px;
+    width: 100%;
+    margin: 0 auto;
+}
+
+.fc-sm2-btn {
+    border: none;
+    border-radius: 12px;
+    padding: 9px 6px;
+    font-family: 'Poppins', sans-serif;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    transition: transform 0.12s, filter 0.12s;
+}
+.fc-sm2-btn:hover { transform: translateY(-2px); filter: brightness(1.06); }
+.fc-sm2-btn b { font-size: 12.5px; font-weight: 800; }
+.fc-sm2-btn span { font-size: 10.5px; font-weight: 700; opacity: 0.9; }
+
+.fc-sm2-btn.is-again { background: #fee2e2; color: #b91c1c; border: 1.5px solid #f87171; }
+.fc-sm2-btn.is-hard  { background: #ffedd5; color: #c2410c; border: 1.5px solid #fb923c; }
+.fc-sm2-btn.is-good  { background: #dcfce7; color: #15803d; border: 1.5px solid #4ade80; }
+.fc-sm2-btn.is-easy  { background: #e0f2fe; color: #0369a1; border: 1.5px solid #38bdf8; }
+
+.fc-finish-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 12px;
+}
+.fc-finish-stats > div {
+    background: #f0fdf7;
+    border: 1px solid #A7FFF3;
+    border-radius: 10px;
+    padding: 8px 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.fc-finish-stats span { font-size: 10px; font-weight: 700; color: #526a7d; }
+.fc-finish-stats b    { font-size: 16px; font-weight: 900; color: #060608; }
+
+/* Visual Image Occlusion Viewer (Sisi Belajar) */
+.fc-card-scene.is-visual-scene {
+    max-height: 410px;
+}
+
+.fc-occ-view-box {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    padding: 6px 0;
+}
+
+.fc-occ-img-wrap {
+    position: relative;
+    display: inline-block;
+    max-width: 100%;
+    max-height: 265px;
+    line-height: 0;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #ffffff;
+}
+
+.fc-occ-img-wrap img {
+    display: block;
+    max-width: 100%;
+    max-height: 265px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+}
+
+.fc-occ-mask {
+    position: absolute;
+    box-sizing: border-box;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 900;
+    font-size: 13px;
+}
+.fc-occ-mask.is-target {
+    background: #f97316;
+    border: 2px solid #ffffff;
+    color: #ffffff;
+    box-shadow: 0 0 10px rgba(249, 115, 22, 0.8);
+}
+.fc-occ-mask.is-other {
+    background: #1e293b;
+    border: 1.5px solid #64748b;
+}
+.fc-occ-mask.is-revealed {
+    background: rgba(34, 197, 94, 0.16);
+    border: 2.5px solid #22c55e;
+    box-shadow: 0 0 10px rgba(34, 197, 94, 0.7);
+}
+
+.fc-occ-ans-pill {
+    text-align: center;
+    background: rgba(0, 225, 255, 0.18);
+    border: 1px solid #00E1FF;
+    color: #74F9FE;
+    border-radius: 999px;
+    padding: 4px 12px;
+    font-size: 12px;
+    font-weight: 800;
+    align-self: center;
+}
+
+/* Studio Admin (Switcher Tipe, Cloze Helper, & Canvas Occlusion) */
+.fc-type-switcher {
+    display: flex;
+    gap: 4px;
+    background: #f0fdf7;
+    border: 1px solid #A7FFF3;
+    border-radius: 999px;
+    padding: 3px;
+}
+
+.fc-type-pill {
+    border: none;
+    border-radius: 999px;
+    padding: 5px 11px;
+    background: transparent;
+    color: #2370A1;
+    font-family: 'Poppins', sans-serif;
+    font-size: 11px;
+    font-weight: 800;
+    cursor: pointer;
+}
+.fc-type-pill.active {
+    background: #060608;
+    color: #00E1FF;
+}
+
+.fc-admin-lbl {
+    font-size: 11px;
+    font-weight: 700;
+    color: #2370A1;
+    display: block;
+    margin-bottom: 4px;
+}
+
+.fc-cloze-wrap-btn {
+    border: 1.5px solid #7e22ce;
+    background: #f3e8ff;
+    color: #6b21a8;
+    border-radius: 8px;
+    padding: 4px 10px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 11px;
+    font-weight: 800;
+    cursor: pointer;
+}
+.fc-cloze-wrap-btn:hover { background: #7e22ce; color: #ffffff; }
+
+.fc-occ-toolbar {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+}
+
+.fc-occ-stage-wrap {
+    background: #0f172a;
+    border-radius: 12px;
+    padding: 10px;
+    text-align: center;
+    margin-bottom: 8px;
+}
+
+.fc-occ-empty {
+    color: #cbd5e1;
+    font-size: 12px;
+    padding: 26px 14px;
+    border: 1.5px dashed #475569;
+    border-radius: 10px;
+    line-height: 1.5;
+}
+
+.fc-occ-editor-canvas {
+    max-width: 100%;
+    max-height: 290px;
+    width: auto;
+    height: auto;
+    border-radius: 8px;
+    cursor: crosshair;
+    touch-action: none;
+    background: #ffffff;
+}
+
+.fc-occ-boxes-list {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    max-height: 125px;
+    overflow-y: auto;
+}
+
+.fc-occ-box-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.fc-occ-num {
+    background: #f97316;
+    color: #ffffff;
+    border-radius: 6px;
+    padding: 2px 7px;
+    font-size: 11px;
+    font-weight: 800;
+    flex-shrink: 0;
+}
+
+.fc-occ-del-btn {
+    border: none;
+    background: #fee2e2;
+    color: #dc2626;
+    border-radius: 6px;
+    width: 26px;
+    height: 26px;
+    font-weight: 800;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+    .fc-sm2-bar { grid-template-columns: repeat(2, 1fr); }
+}
+/* =========================================================================
+   HISTORY FLASHCARDS & TAG KELAS AKUN PADA SESI CEPAT
+   ========================================================================= */
+.fc-hdr-hist-btn {
+    background: rgba(167, 255, 243, 0.14);
+    color: #E8FFE8;
+    border: 1.5px solid #A7FFF3;
+    border-radius: 999px;
+    padding: 5px 12px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 11px;
+    font-weight: 800;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.fc-hdr-hist-btn:hover,
+.fc-hdr-hist-btn.is-active {
+    background: #A7FFF3;
+    color: #060608;
+    border-color: #A7FFF3;
+}
+
+.fc-micro-kls-tag {
+    display: inline-block;
+    margin-left: 6px;
+    background: rgba(0, 225, 255, 0.18);
+    color: #E8FFE8;
+    border: 1px solid rgba(116, 249, 254, 0.45);
+    border-radius: 999px;
+    padding: 1px 9px;
+    font-size: 10.5px;
+    font-weight: 700;
+    vertical-align: middle;
+}
+
+.fc-hist-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.fc-hist-stat {
+    background: #ffffff;
+    border: 1.5px solid #cdebe5;
+    border-radius: 12px;
+    padding: 9px 10px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.fc-hist-stat span {
+    font-size: 10.5px;
+    font-weight: 700;
+    color: #526a7d;
+}
+.fc-hist-stat b {
+    font-size: 18px;
+    font-weight: 900;
+    color: #060608;
+}
+.fc-hist-stat.is-ok b     { color: #15803d; }
+.fc-hist-stat.is-master   { background: #060608; border-color: #060608; }
+.fc-hist-stat.is-master span { color: #A7FFF3; }
+.fc-hist-stat.is-master b { color: #00E1FF; }
+
+.fc-hist-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.fc-hist-item {
+    background: #ffffff;
+    border: 1.5px solid #cdebe5;
+    border-left: 4px solid #2370A1;
+    border-radius: 12px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.fc-hist-item-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.fc-hist-badges {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 4px;
+}
+
+.fc-hist-type-tag {
+    padding: 1px 8px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 800;
+}
+.fc-hist-type-tag.is-micro { background: #060608; color: #00E1FF; }
+.fc-hist-type-tag.is-bab   { background: #e0f2fe; color: #2370A1; }
+
+.fc-hist-kls-tag {
+    background: #E8FFE8;
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+    padding: 1px 7px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 800;
+}
+
+.fc-hist-time {
+    font-size: 10.5px;
+    color: #64748b;
+    font-weight: 600;
+}
+
+.fc-hist-title {
+    font-size: 13.5px;
+    font-weight: 800;
+    color: #060608;
+    line-height: 1.3;
+}
+
+.fc-hist-retensi {
+    text-align: center;
+    padding: 5px 11px;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    line-height: 1.15;
+}
+.fc-hist-retensi b    { font-size: 16px; font-weight: 900; }
+.fc-hist-retensi span { font-size: 9.5px; font-weight: 700; }
+.fc-hist-retensi.is-high { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+.fc-hist-retensi.is-mid  { background: #fef3c7; color: #b45309; border: 1px solid #fcd34d; }
+
+.fc-hist-item-foot {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding-top: 7px;
+    border-top: 1px dashed #e2e8f0;
+}
+
+.fc-hist-grade-summary {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    font-size: 11px;
+    font-weight: 700;
+    color: #475569;
+}
+.fc-hist-grade-summary .g-again { color: #dc2626; }
+.fc-hist-grade-summary .g-hard  { color: #ea580c; }
+.fc-hist-grade-summary .g-good  { color: #16a34a; }
+.fc-hist-grade-summary .g-easy  { color: #0284c7; }
+
+.fc-hist-expand-btn {
+    border: 1px solid #cbd5e1;
+    background: #f8fafc;
+    color: #2370A1;
+    border-radius: 8px;
+    padding: 4px 10px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+}
+.fc-hist-expand-btn:hover { background: #e0f2fe; border-color: #2370A1; }
+
+.fc-hist-detail-box {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    background: #f8fffc;
+    border: 1px solid #d5f2ec;
+    border-radius: 9px;
+    padding: 8px 10px;
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+.fc-hist-card-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 7px;
+    font-size: 11.5px;
+    padding-bottom: 5px;
+    border-bottom: 1px dashed #e2e8f0;
+}
+.fc-hist-card-row:last-child {
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.fc-hist-card-no {
+    font-weight: 800;
+    color: #2370A1;
+    flex-shrink: 0;
+}
+
+.fc-hist-card-txt {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    line-height: 1.35;
+}
+.fc-hist-card-txt strong { color: #0f172a; }
+.fc-hist-card-txt span   { color: #0f766e; font-weight: 600; }
+
+.fc-hist-grade-pill {
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 800;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.fc-hist-grade-pill.is-again { background: #fee2e2; color: #b91c1c; }
+.fc-hist-grade-pill.is-hard  { background: #ffedd5; color: #c2410c; }
+.fc-hist-grade-pill.is-good  { background: #dcfce7; color: #15803d; }
+.fc-hist-grade-pill.is-easy  { background: #e0f2fe; color: #0369a1; }
+
+@media (max-width: 640px) {
+    .fc-hist-summary-grid { grid-template-columns: repeat(2, 1fr); }
+}

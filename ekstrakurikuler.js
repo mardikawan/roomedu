@@ -1566,3 +1566,77 @@ window.simpanKoreksiDetailEkskul = function() {
         }
     );
 };
+window.exportExcelRencanaEkskul = function() {
+    let ek = window.ambilEkskulAktif();
+    if (!ek || ek.rencana.length === 0) return alert('⚠️ Belum ada data rencana mingguan untuk diekspor.');
+    let rows = ek.rencana.map(function(item, idx) {
+        return [idx + 1, item.minggu || '', item.tanggal || '', item.materi || '', item.aktivitas || '', item.keterangan || ''];
+    });
+    window.bukaPreviewSpreadsheetUniversal({
+        title: 'Rencana Mingguan Ekskul – ' + ek.nama,
+        subtitle: 'Pembina: ' + (ek.pembina || '-') + ' • Jadwal: ' + (ek.jadwalRutin || '-'),
+        filenameBase: 'Rencana_Ekskul_' + String(ek.nama || 'Ekskul').replace(/\s+/g, '_'),
+        headers: ['No', 'Minggu', 'Tanggal', 'Topik / Materi', 'Aktivitas & Target', 'Alat / Keterangan'],
+        rows: rows
+    });
+};
+
+window.exportExcelAnggotaEkskul = function() {
+    let ek = window.ambilEkskulAktif();
+    if (!ek || ek.anggota.length === 0) return alert('⚠️ Belum ada anggota ekstrakurikuler yang dipilih.');
+    let rows = ek.anggota.map(function(a, idx) {
+        return [idx + 1, a.nama, a.kelas];
+    });
+    window.bukaPreviewSpreadsheetUniversal({
+        title: 'Daftar Anggota Ekskul – ' + ek.nama,
+        subtitle: ek.anggota.length + ' Siswa Terdaftar',
+        filenameBase: 'Anggota_Ekskul_' + String(ek.nama || 'Ekskul').replace(/\s+/g, '_'),
+        headers: ['No', 'Nama Siswa', 'Kelas'],
+        rows: rows
+    });
+};
+
+window.exportExcelAbsensiEkskul = function() {
+    let ek = window.ambilEkskulAktif();
+    if (!ek || ek.anggota.length === 0) return alert('⚠️ Belum ada data kehadiran untuk diekspor.');
+    let headers = ['No', 'Nama Siswa', 'Kelas'];
+    ek.pertemuan.forEach(function(pt, i) { headers.push('P' + (i + 1) + ' (' + pt.tanggal + ')'); });
+    headers.push('H', 'S', 'I', 'A');
+
+    let rows = ek.anggota.map(function(ang, idx) {
+        let cnt = { H: 0, S: 0, I: 0, A: 0 };
+        let r = [idx + 1, ang.nama, ang.kelas];
+        ek.pertemuan.forEach(function(pt) {
+            let st = (ek.absensi[pt.id] && ek.absensi[pt.id][ang.key]) ? ek.absensi[pt.id][ang.key] : '-';
+            if (cnt[st] !== undefined) cnt[st]++;
+            r.push(st);
+        });
+        r.push(cnt.H, cnt.S, cnt.I, cnt.A);
+        return r;
+    });
+    window.bukaPreviewSpreadsheetUniversal({
+        title: 'Rekap Kehadiran Ekskul – ' + ek.nama,
+        subtitle: ek.pertemuan.length + ' Pertemuan • ' + ek.anggota.length + ' Anggota',
+        filenameBase: 'Kehadiran_Ekskul_' + String(ek.nama || 'Ekskul').replace(/\s+/g, '_'),
+        headers: headers,
+        rows: rows
+    });
+};
+
+window.exportExcelRekapEkskul = function() {
+    let ek = window.ambilEkskulAktif();
+    let pktKey = window._ekskulPaketRekapAktif;
+    if (!ek || !pktKey) return alert('⚠️ Pilih paket ujian ekskul terlebih dahulu.');
+    let mapNilai = (ek.rekapNilai && ek.rekapNilai[pktKey]) ? ek.rekapNilai[pktKey] : {};
+    let rows = ek.anggota.map(function(ang, idx) {
+        let rec = mapNilai[ang.key];
+        return [idx + 1, ang.nama, ang.kelas, rec ? (rec.pelanggaran || 0) : '-', (rec && rec.nilaiAkhir !== undefined) ? Number(rec.nilaiAkhir).toFixed(1) : '-'];
+    });
+    window.bukaPreviewSpreadsheetUniversal({
+        title: 'Nilai Ujian Ekskul – ' + ek.nama,
+        subtitle: 'Paket: ' + pktKey,
+        filenameBase: 'Nilai_Ekskul_' + String(ek.nama || 'Ekskul').replace(/\s+/g, '_') + '_' + String(pktKey).replace(/\s+/g, '_'),
+        headers: ['No', 'Nama Anggota', 'Kelas', 'Pelanggaran', 'Nilai Akhir'],
+        rows: rows
+    });
+};
