@@ -1,24 +1,23 @@
 /* =========================================================================
-   A4 LAYOUT ENGINE (TAHAP 1)
-   - 2 Jenis Content Block:
-     1) Lembar Kertas A4 Fix (210x297mm = 794x1123px, Margin 2cm = 75.6px)
-     2) Blok Media / Non-Fix (Kuis, Modul Interaktif, Video, PDF -> Lebar A4, Tinggi Fleksibel)
-   - Skala Presisi 80% Lebar Layar Desktop/Tablet (10% Kiri & 10% Kanan)
-   - Deteksi Batas Bawah Kertas A4 + Pemisah Otomatis ke Lembar Baru
-   - Mesin Print PDF A4 & Export Word (.doc) Langsung dari Lembar Materi
+   A4 LAYOUT ENGINE (STABIL — SEJAJAR 100% A4, KUIS, MEDIA, & MODUL INTERAKTIF)
+   - Lembar A4 Fix: 794x1123px (Margin 2cm) diskalakan ke 80% layar
+   - Blok Kuis, Modul Interaktif, Video, & PDF: lebar identik (--a4-visual-width)
+     TANPA CSS zoom agar tombol Ekstrak, iframe, & input berjalan 100% normal
+   - Observer ringan (childList saja) -> tidak mengganggu Ekstrak/Media/Modul
+   - Menjaga tombol kanan bawah (Dark Mode, Zoom +/-, Fullscreen, Scroll) selalu aktif
    ========================================================================= */
 
 (function() {
-    const A4_WIDTH_PX = 794;       // 210mm pada 96 DPI
-    const A4_HEIGHT_PX = 1123;     // 297mm pada 96 DPI
-    const A4_MARGIN_PX = 75.6;     // 2cm (20mm) di semua sisi
+    const A4_WIDTH_PX = 794;
+    const A4_HEIGHT_PX = 1123;
+    const A4_MARGIN_PX = 75.6;
     const A4_SAFE_BOTTOM_PX = A4_HEIGHT_PX - A4_MARGIN_PX;
 
     let _a4Updating = false;
     let _a4Timer = null;
 
     // =========================================================================
-    // 1. DETEKSI HALAMAN HOME & KALKULASI SKALA PRESISI 80% LAYAR
+    // 1. DETEKSI HOME & KALKULASI LEBAR SERAGAM (80% LAYAR)
     // =========================================================================
     window.a4ApakahHalamanHome = function() {
         let homeLayout = document.querySelector('.home-three-col-layout.is-home-active');
@@ -38,44 +37,52 @@
         if (isHome) {
             document.body.classList.remove('a4-workspace-active');
             document.documentElement.style.setProperty('--a4-screen-scale', '1');
+            document.documentElement.style.setProperty('--a4-visual-width', '820px');
             return;
         }
 
         document.body.classList.add('a4-workspace-active');
 
         if (vw <= 768) {
-            // Di HP tetap responsif 100% lebar agar nyaman dibaca siswa
             document.documentElement.style.setProperty('--a4-screen-scale', '1');
+            document.documentElement.style.setProperty('--a4-visual-width', '100%');
             return;
         }
 
-        // Lebar visual tepat 80% layar (menyisakan 10% padding kiri & 10% padding kanan)
-        let targetVisualWidth = vw * 0.80;
+        let targetVisualWidth = Math.round(vw * 0.80);
         let scale = targetVisualWidth / A4_WIDTH_PX;
         document.documentElement.style.setProperty('--a4-screen-scale', scale.toFixed(4));
+        document.documentElement.style.setProperty('--a4-visual-width', Math.round(A4_WIDTH_PX * scale) + 'px');
     };
 
     // =========================================================================
-    // 2. DETEKSI & SIMPAN TIPE BLOK ('a4' vs 'media') AGAR SINKRON KE FIREBASE
+    // 2. DETEKSI TIPE BLOK ('a4' vs 'media') & JENIS WIDGET BAWAAN
     // =========================================================================
+    window.a4ApakahBlokWidgetTetap = function(contentBlockEl, wrapperEl) {
+        if (wrapperEl && wrapperEl.querySelector('.pdf-landscape-block, .quiz-container, .modul-interaktif-card')) {
+            return true;
+        }
+        if (contentBlockEl && contentBlockEl.querySelector('.quiz-container, .modul-interaktif-card')) {
+            return true;
+        }
+        return false;
+    };
+
     window.a4DeteksiTipeBlok = function(contentBlockEl, wrapperEl) {
         if (!contentBlockEl) return 'media';
-        if (wrapperEl && wrapperEl.querySelector('.pdf-landscape-block')) return 'media';
+        if (window.a4ApakahBlokWidgetTetap(contentBlockEl, wrapperEl)) return 'media';
 
-        // 1. Cek penanda manual yang tersimpan di dalam HTML blok (ikut tersimpan di Firebase)
         let meta = contentBlockEl.querySelector('.a4-type-meta');
         if (meta) {
             let savedType = meta.getAttribute('data-sheet-type');
             if (savedType === 'a4' || savedType === 'media') return savedType;
         }
 
-        // 2. Auto-deteksi elemen media non-fix (Kuis, Modul Interaktif, Video, PDF Embed)
-        let hasNonFixMedia = Boolean(
-            contentBlockEl.querySelector('.quiz-container, .modul-interaktif-card, .gdrive-pdf-a4, video, audio, iframe')
+        let hasMedia = Boolean(
+            contentBlockEl.querySelector('.gdrive-pdf-a4, video, audio, iframe')
         );
-        if (hasNonFixMedia) return 'media';
+        if (hasMedia) return 'media';
 
-        // 3. Default sesuai kesepakatan: langsung paksa semua blok materi menjadi Lembar A4 Fix
         return 'a4';
     };
 
@@ -91,7 +98,6 @@
         }
         meta.setAttribute('data-sheet-type', tipeBaru);
 
-        // Picu auto-save bawaan main.js ke Firebase
         contentBlockEl.dispatchEvent(new Event('input', { bubbles: true }));
         setTimeout(function() {
             contentBlockEl.dispatchEvent(new Event('blur', { bubbles: true }));
@@ -104,7 +110,7 @@
         let wrappers = document.querySelectorAll('#blocks-container > .block-wrapper');
         let wrap = wrappers[blockIdx];
         if (!wrap) return;
-        let cb = wrap.querySelector('.content-block');
+        let cb = wrap.querySelector(':scope > .a4-paper-wrapper > .block-collapsible-area > .content-block, :scope > .dynamic-block-shell > .block-collapsible-area > .content-block, :scope > .content-block');
         if (!cb) return;
         let cur = wrap.getAttribute('data-sheet-type') || 'a4';
         let next = (cur === 'a4') ? 'media' : 'a4';
@@ -118,7 +124,7 @@
         let wrappers = document.querySelectorAll('#blocks-container > .block-wrapper');
         let wrap = wrappers[blockIdx];
         if (!wrap) return;
-        let cb = wrap.querySelector('.content-block');
+        let cb = wrap.querySelector(':scope > .a4-paper-wrapper > .block-collapsible-area > .content-block, :scope > .dynamic-block-shell > .block-collapsible-area > .content-block');
         if (!cb) return;
 
         let children = Array.from(cb.childNodes).filter(function(node) {
@@ -128,12 +134,13 @@
         });
 
         if (children.length <= 1) {
-            return alert('⚠️ Konten meluber berada di dalam 1 elemen besar (misalnya 1 paragraf/tabel panjang). Silakan tekan Enter untuk membagi paragraf terlebih dahulu, atau pindahkan bagian bawah secara manual.');
+            return alert('⚠️ Konten meluber berada di dalam 1 elemen besar. Tekan Enter untuk membagi paragraf terlebih dahulu.');
         }
 
         let cbRect = cb.getBoundingClientRect();
-        let scale = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--a4-screen-scale')) || 1;
-        let batasVisualY = cbRect.top + (A4_SAFE_BOTTOM_PX * scale);
+        let a4Scale = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--a4-screen-scale')) || 1;
+        let pageZoom = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--user-page-zoom')) || 1;
+        let batasVisualY = cbRect.top + (A4_SAFE_BOTTOM_PX * a4Scale * pageZoom);
 
         let nodesPindah = [];
         for (let i = 0; i < children.length; i++) {
@@ -146,7 +153,6 @@
                 range.selectNodeContents(node);
                 rect = range.getBoundingClientRect();
             }
-            // Pastikan minimal 1 elemen pertama tetap tinggal di lembar asal agar tidak kosong
             if (i > 0 && rect && rect.bottom > batasVisualY) {
                 nodesPindah = children.slice(i);
                 break;
@@ -157,29 +163,25 @@
             return alert('ℹ️ Konten sudah pas di dalam 1 lembar A4.');
         }
 
-        // Ambil HTML elemen yang meluber lalu hapus dari lembar asal
         let htmlPindah = nodesPindah.map(function(n) {
             return (n.nodeType === 1) ? n.outerHTML : ('<p>' + n.textContent + '</p>');
         }).join('');
 
-        // Gunakan tombol '+' bawaan blok agar struktur & sinkronisasi Firebase main.js tetap utuh
         let btnAddBelow = wrap.querySelector('.btn-add-block-below');
         if (!btnAddBelow) {
-            return alert('⚠️ Masuk ke Mode Edit terlebih dahulu agar sistem bisa menambah lembar A4 baru di bawahnya.');
+            return alert('⚠️ Masuk ke Mode Edit terlebih dahulu agar sistem bisa menambah lembar A4 baru.');
         }
 
         nodesPindah.forEach(function(n) {
             if (n.parentNode) n.parentNode.removeChild(n);
         });
         cb.dispatchEvent(new Event('input', { bubbles: true }));
-
-        // Klik tombol tambah blok di bawah
         btnAddBelow.click();
 
         setTimeout(function() {
             let newWrappers = document.querySelectorAll('#blocks-container > .block-wrapper');
             let targetWrap = newWrappers[blockIdx + 1];
-            let targetCb = targetWrap ? targetWrap.querySelector('.content-block') : null;
+            let targetCb = targetWrap ? targetWrap.querySelector(':scope > .a4-paper-wrapper > .block-collapsible-area > .content-block, :scope > .dynamic-block-shell > .block-collapsible-area > .content-block') : null;
             if (targetCb) {
                 targetCb.innerHTML = htmlPindah;
                 window.a4SetTipeBlok(targetCb, 'a4');
@@ -194,7 +196,7 @@
     };
 
     // =========================================================================
-    // 4. SINKRONISASI VISUAL SEMUA CONTENT BLOCK (A4 FIX vs MEDIA NON-FIX)
+    // 4. SINKRONISASI VISUAL SEMUA CONTENT BLOCK (A4 vs KUIS/MEDIA/MODUL)
     // =========================================================================
     window.a4SegarkanSemuaBlok = function() {
         if (_a4Updating) return;
@@ -207,22 +209,37 @@
             let nomorLembarA4 = 0;
 
             wrappers.forEach(function(wrap, idx) {
-                let shell = wrap.querySelector('.a4-paper-wrapper, .dynamic-block-shell');
-                let cb = wrap.querySelector('.content-block');
-                let oldStrip = wrap.querySelector('.a4-sheet-admin-strip');
+                let shell = wrap.querySelector(':scope > .a4-paper-wrapper, :scope > .dynamic-block-shell');
+                let cb = shell
+                    ? shell.querySelector(':scope > .block-collapsible-area > .content-block')
+                    : wrap.querySelector(':scope > .content-block');
+                let oldStrip = wrap.querySelector(':scope > .a4-paper-wrapper > .a4-sheet-admin-strip, :scope > .dynamic-block-shell > .a4-sheet-admin-strip');
                 let oldCut = wrap.querySelector('.a4-overflow-cutline');
 
-                if (isHome || !cb || !shell) {
+                if (isHome || !cb) {
                     wrap.removeAttribute('data-sheet-type');
-                    wrap.classList.remove('sheet-is-a4', 'sheet-is-media', 'sheet-is-overflow');
+                    wrap.classList.remove('sheet-is-a4', 'sheet-is-media', 'sheet-is-overflow', 'has-a4-strip', 'has-embedded-widget');
                     if (oldStrip) oldStrip.remove();
                     if (oldCut) oldCut.remove();
                     return;
                 }
 
-                let tipe = window.a4DeteksiTipeBlok(cb, wrap);
+                // Khusus Slide PDF (.pdf-landscape-block tanpa .a4-paper-wrapper)
+                if (!shell) {
+                    wrap.setAttribute('data-sheet-type', 'media');
+                    wrap.classList.add('sheet-is-media', 'has-embedded-widget');
+                    wrap.classList.remove('sheet-is-a4', 'sheet-is-overflow', 'has-a4-strip');
+                    if (oldStrip) oldStrip.remove();
+                    if (oldCut) oldCut.remove();
+                    return;
+                }
+
+                let isWidgetTetap = window.a4ApakahBlokWidgetTetap(cb, wrap);
+                let tipe = isWidgetTetap ? 'media' : window.a4DeteksiTipeBlok(cb, wrap);
+
                 wrap.setAttribute('data-sheet-type', tipe);
                 shell.setAttribute('data-sheet-type', tipe);
+                wrap.classList.toggle('has-embedded-widget', isWidgetTetap);
 
                 if (tipe === 'a4') {
                     nomorLembarA4++;
@@ -233,11 +250,17 @@
                     wrap.classList.remove('sheet-is-a4');
                 }
 
-                // Cek apakah blok sedang dilipat (collapsed)
+                // Untuk Kuis & Modul Interaktif: jangan pasang strip A4 agar tombol Ekstrak/header bersih
+                if (isWidgetTetap) {
+                    wrap.classList.remove('sheet-is-overflow', 'has-a4-strip');
+                    if (oldStrip) oldStrip.remove();
+                    if (oldCut) oldCut.remove();
+                    return;
+                }
+
                 let collapsible = cb.closest('.block-collapsible-area');
                 let isCollapsed = Boolean(collapsible && collapsible.style.display === 'none');
 
-                // Deteksi apakah isi Lembar A4 meluber melewati 1123px (297mm)
                 let isOverflow = false;
                 let perkiraanHal = 1;
                 if (tipe === 'a4' && !isCollapsed) {
@@ -248,8 +271,8 @@
                     }
                 }
                 wrap.classList.toggle('sheet-is-overflow', isOverflow);
+                wrap.classList.add('has-a4-strip');
 
-                // Pasang atau perbarui strip status tipis khusus Admin di atas lembar
                 let strip = oldStrip;
                 if (!strip) {
                     strip = document.createElement('div');
@@ -257,15 +280,12 @@
                     shell.insertBefore(strip, shell.firstChild);
                 }
 
-                let statusHtml = '';
-                if (tipe === 'a4') {
-                    statusHtml = '<span class="a4-badge-type is-a4">📄 Lembar A4 #' + nomorLembarA4 + ' (210×297 mm • Margin 2 cm)</span>' +
+                let statusHtml = (tipe === 'a4')
+                    ? '<span class="a4-badge-type is-a4">📄 Lembar A4 #' + nomorLembarA4 + ' (210×297 mm • Margin 2 cm)</span>' +
                         (isOverflow
                             ? '<span class="a4-badge-warn">⚠️ Melebihi 1 halaman (~' + perkiraanHal + ' hal)</span>'
-                            : '<span class="a4-badge-ok">✅ Pas 1 Halaman</span>');
-                } else {
-                    statusHtml = '<span class="a4-badge-type is-media">🧩 Blok Media / Non-Fix (Lebar A4 • Tinggi Fleksibel)</span>';
-                }
+                            : '<span class="a4-badge-ok">✅ Pas 1 Halaman</span>')
+                    : '<span class="a4-badge-type is-media">🧩 Blok Media / Non-Fix (Tinggi Fleksibel)</span>';
 
                 let aksiHtml = '<div class="a4-strip-actions">' +
                     (isOverflow
@@ -282,7 +302,6 @@
                     strip.innerHTML = desiredStripHtml;
                 }
 
-                // Garis batas potong merah tepat di 1123px (297mm) jika konten meluber
                 if (isOverflow && collapsible) {
                     let cut = oldCut;
                     if (!cut) {
@@ -306,7 +325,7 @@
         clearTimeout(_a4Timer);
         _a4Timer = setTimeout(function() {
             window.a4SegarkanSemuaBlok();
-        }, delayMs || 120);
+        }, delayMs || 140);
     };
 
     // =========================================================================
@@ -318,7 +337,7 @@
         let mediaCatatan = [];
 
         wrappers.forEach(function(wrap, idx) {
-            let cb = wrap.querySelector('.content-block');
+            let cb = wrap.querySelector(':scope > .a4-paper-wrapper > .block-collapsible-area > .content-block, :scope > .dynamic-block-shell > .block-collapsible-area > .content-block, :scope > .content-block');
             if (!cb) return;
             let tipe = wrap.getAttribute('data-sheet-type') || window.a4DeteksiTipeBlok(cb, wrap);
             let judulBar = wrap.querySelector('.block-collapse-bar');
@@ -331,11 +350,7 @@
                 });
                 let bersih = clone.innerHTML.trim();
                 if (bersih && bersih.replace(/<[^>]*>/g, '').trim().length > 0) {
-                    lembarA4.push({
-                        nomor: lembarA4.length + 1,
-                        judul: judulBlok,
-                        html: bersih
-                    });
+                    lembarA4.push({ nomor: lembarA4.length + 1, judul: judulBlok, html: bersih });
                 }
             } else {
                 let jenis = 'Media Digital / Interaktif';
@@ -366,9 +381,7 @@
 
         let sheetsHtml = data.lembarA4.map(function(sheet, i) {
             let isLast = (i === data.lembarA4.length - 1);
-            return '<div class="a4-physical-sheet' + (isLast ? ' is-last' : '') + '">' +
-                sheet.html +
-            '</div>';
+            return '<div class="a4-physical-sheet' + (isLast ? ' is-last' : '') + '">' + sheet.html + '</div>';
         }).join('');
 
         let cssCetak =
@@ -466,31 +479,35 @@
     };
 
     // =========================================================================
-    // 6. CSS OVERRIDE A4 FIX (MARGIN 2CM) + SKALA 80% LAYAR + TOMBOL ADMIN
+    // 6. CSS OVERRIDE A4 FIX + LEBAR SERAGAM KUIS/MEDIA/MODUL + FAST SCROLL FIX
     // =========================================================================
     window.a4PasangCSS = function() {
-        if (document.getElementById('a4-layout-engine-css')) return;
+        let old = document.getElementById('a4-layout-engine-css');
+        if (old) old.remove();
         let st = document.createElement('style');
         st.id = 'a4-layout-engine-css';
         st.textContent =
-            ':root { --a4-screen-scale: 1; }' +
+            ':root { --a4-screen-scale: 1; --a4-visual-width: 80vw; }' +
+
+            /* Pastikan tombol kanan bawah (Dark Mode, Zoom +/-, Fullscreen, Scroll) selalu di atas & bisa diklik */
+            '.fast-scroll-btns { z-index: 9550 !important; pointer-events: auto !important; zoom: 1 !important; transform: translateZ(0); }' +
+            '.fast-scroll-btns button { pointer-events: auto !important; cursor: pointer !important; }' +
+            'body.drawing-mode-active .fast-scroll-btns, body.strict-mode-active .fast-scroll-btns, body.modal-open-lock .fast-scroll-btns { display: none !important; }' +
 
             /* Wadah utama ruang kerja materi (kecuali Home) */
             'body.a4-workspace-active #main-editor-wrapper { background-color: #dbe4ee !important; padding-top: 18px !important; padding-bottom: 70px !important; }' +
             'body.a4-workspace-active #blocks-container { width: 100% !important; max-width: 100% !important; gap: 22px !important; align-items: center !important; }' +
             'body.a4-workspace-active #blocks-container > .block-wrapper { width: 100% !important; display: flex !important; justify-content: center !important; }' +
 
-            /* Semua jenis content block selebar A4 portrait (794px) dan diskalakan tepat ke 80% layar */
-            'body.a4-workspace-active .block-wrapper:not(.pdf-focus-fullscreen) > .a4-paper-wrapper,' +
-            'body.a4-workspace-active .block-wrapper:not(.pdf-focus-fullscreen) > .dynamic-block-shell,' +
-            'body.a4-workspace-active .block-wrapper:not(.pdf-focus-fullscreen) > .pdf-landscape-block {' +
+            /* JENIS 1: LEMBAR KERTAS A4 FIX (794x1123px diskalakan tepat ke 80% layar) */
+            'body.a4-workspace-active .block-wrapper.sheet-is-a4:not(.pdf-focus-fullscreen) > .a4-paper-wrapper,' +
+            'body.a4-workspace-active .block-wrapper.sheet-is-a4:not(.pdf-focus-fullscreen) > .dynamic-block-shell {' +
                 'width: 794px !important; max-width: 794px !important; min-width: 794px !important;' +
                 'zoom: var(--a4-screen-scale, 1);' +
                 'margin: 0 auto !important; position: relative !important;' +
             '}' +
-
-            /* JENIS 1: LEMBAR KERTAS A4 FIX (Margin 2cm = 75.6px di keempat sisi, Tinggi 297mm = 1123px) */
-            'body.a4-workspace-active .block-wrapper.sheet-is-a4 .content-block {' +
+            'body.a4-workspace-active .block-wrapper.sheet-is-a4 > .a4-paper-wrapper > .block-collapsible-area > .content-block,' +
+            'body.a4-workspace-active .block-wrapper.sheet-is-a4 > .dynamic-block-shell > .block-collapsible-area > .content-block {' +
                 'width: 794px !important; max-width: 794px !important;' +
                 'min-height: 1123px !important;' +
                 'padding: 75.6px 75.6px 75.6px 75.6px !important;' +
@@ -502,28 +519,48 @@
             '}' +
 
             /* Siku panduan margin 2cm (75.6px) saat Admin di Mode Edit */
-            'body.a4-workspace-active.mode-edit-aktif .block-wrapper.sheet-is-a4 .content-block:not(.bg-pattern-lines):not(.bg-pattern-grid):not(.bg-pattern-dots),' +
-            'body.a4-workspace-active.force-edit-mode .block-wrapper.sheet-is-a4 .content-block:not(.bg-pattern-lines):not(.bg-pattern-grid):not(.bg-pattern-dots) {' +
+            'body.a4-workspace-active.mode-edit-aktif .block-wrapper.sheet-is-a4 > .a4-paper-wrapper > .block-collapsible-area > .content-block:not(.bg-pattern-lines):not(.bg-pattern-grid):not(.bg-pattern-dots),' +
+            'body.a4-workspace-active.force-edit-mode .block-wrapper.sheet-is-a4 > .a4-paper-wrapper > .block-collapsible-area > .content-block:not(.bg-pattern-lines):not(.bg-pattern-grid):not(.bg-pattern-dots) {' +
                 'background-image: url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'794\' height=\'1123\' viewBox=\'0 0 794 1123\'%3E%3Cpath d=\'M 52 75.6 L 75.6 75.6 L 75.6 52\' fill=\'none\' stroke=\'%23cbd5e1\' stroke-width=\'1.3\'/%3E%3Cpath d=\'M 742 75.6 L 718.4 75.6 L 718.4 52\' fill=\'none\' stroke=\'%23cbd5e1\' stroke-width=\'1.3\'/%3E%3Cpath d=\'M 52 1047.4 L 75.6 1047.4 L 75.6 1071\' fill=\'none\' stroke=\'%23cbd5e1\' stroke-width=\'1.3\'/%3E%3Cpath d=\'M 742 1047.4 L 718.4 1047.4 L 718.4 1071\' fill=\'none\' stroke=\'%23cbd5e1\' stroke-width=\'1.3\'/%3E%3C/svg%3E") !important;' +
                 'background-repeat: no-repeat !important; background-position: top center !important;' +
             '}' +
 
-            /* JENIS 2: BLOK MEDIA / NON-FIX (Lebar tetap A4 794px, Tinggi fleksibel) */
-            'body.a4-workspace-active .block-wrapper.sheet-is-media .content-block {' +
-                'width: 794px !important; max-width: 794px !important;' +
-                'min-height: 120px !important; height: auto !important;' +
-                'padding: 24px 30px !important;' +
+            /* JENIS 2: BLOK KUIS, MODUL INTERAKTIF, VIDEO, & PDF — LEBAR IDENTIK DENGAN LEMBAR A4 TANPA ZOOM */
+            'body.a4-workspace-active .block-wrapper.sheet-is-media:not(.pdf-focus-fullscreen) > .a4-paper-wrapper,' +
+            'body.a4-workspace-active .block-wrapper.sheet-is-media:not(.pdf-focus-fullscreen) > .dynamic-block-shell,' +
+            'body.a4-workspace-active .block-wrapper:not(.pdf-focus-fullscreen) > .pdf-landscape-block {' +
+                'width: var(--a4-visual-width, 80vw) !important; max-width: var(--a4-visual-width, 80vw) !important; min-width: 0 !important;' +
+                'zoom: 1 !important;' +
+                'margin: 0 auto !important; position: relative !important; box-sizing: border-box !important;' +
+            '}' +
+            'body.a4-workspace-active .block-wrapper.sheet-is-media > .a4-paper-wrapper > .block-collapsible-area > .content-block,' +
+            'body.a4-workspace-active .block-wrapper.sheet-is-media > .dynamic-block-shell > .block-collapsible-area > .content-block {' +
+                'width: 100% !important; max-width: 100% !important;' +
+                'min-height: 100px !important; height: auto !important;' +
+                'padding: 20px 26px !important;' +
                 'background-color: #ffffff;' +
-                'border: 1px solid #cbd5e1 !important;' +
-                'border-radius: 10px !important;' +
-                'box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08) !important;' +
+                'border-radius: 0 0 10px 10px !important;' +
                 'box-sizing: border-box !important;' +
             '}' +
+            'body.a4-workspace-active .block-wrapper.sheet-is-media.has-embedded-widget > .a4-paper-wrapper > .block-collapsible-area > .content-block,' +
+            'body.a4-workspace-active .block-wrapper.sheet-is-media.has-embedded-widget > .dynamic-block-shell > .block-collapsible-area > .content-block {' +
+                'padding: 0 !important; background-color: transparent !important; border: none !important; box-shadow: none !important;' +
+            '}' +
+            'body.a4-workspace-active .block-wrapper.sheet-is-media .quiz-container {' +
+                'width: 100% !important; max-width: 100% !important; box-sizing: border-box !important;' +
+            '}' +
+            'body.a4-workspace-active .block-wrapper.sheet-is-media .quiz-question-text {' +
+                'padding-right: 44px;' +
+            '}' +
 
-            /* Rapikan posisi tombol kontrol blok agar tidak pernah terpotong tepi layar 80% */
-            'body.a4-workspace-active .a4-paper-wrapper > .block-controls,' +
-            'body.a4-workspace-active .dynamic-block-shell > .block-controls {' +
+            /* Posisi tombol kontrol blok rapi (tidak pernah menabrak tombol Ekstrak Kuis) */
+            'body.a4-workspace-active .block-wrapper.has-a4-strip > .a4-paper-wrapper > .block-controls,' +
+            'body.a4-workspace-active .block-wrapper.has-a4-strip > .dynamic-block-shell > .block-controls {' +
                 'top: 34px !important; right: 10px !important; left: auto !important; flex-direction: row !important;' +
+            '}' +
+            'body.a4-workspace-active .block-wrapper:not(.has-a4-strip) > .a4-paper-wrapper > .block-controls,' +
+            'body.a4-workspace-active .block-wrapper:not(.has-a4-strip) > .dynamic-block-shell > .block-controls {' +
+                'top: 10px !important; right: 12px !important; left: auto !important; flex-direction: row !important;' +
             '}' +
             'body.a4-workspace-active .a4-paper-wrapper > .block-controls button,' +
             'body.a4-workspace-active .dynamic-block-shell > .block-controls button {' +
@@ -533,7 +570,7 @@
                 'left: 50% !important; right: auto !important; bottom: -16px !important; transform: translateX(-50%) !important;' +
             '}' +
 
-            /* Strip status tipis di atas setiap lembar (Hanya tampil untuk Admin di Mode Edit) */
+            /* Strip status tipis di atas lembar A4 (khusus Admin Mode Edit) */
             '.a4-sheet-admin-strip { display: none; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; padding: 5px 10px; background: #1e293b; color: #f8fafc; font-family: Poppins, sans-serif; font-size: 10.5px; border-radius: 6px 6px 0 0; }' +
             'body.a4-workspace-active.mode-edit-aktif .a4-sheet-admin-strip,' +
             'body.a4-workspace-active.force-edit-mode .a4-sheet-admin-strip { display: flex; }' +
@@ -554,21 +591,23 @@
             'body.a4-workspace-active.force-edit-mode .a4-overflow-cutline { display: block; }' +
             '.a4-overflow-cutline span { display: inline-block; transform: translateY(-50%); background: #dc2626; color: #ffffff; font-family: Poppins, sans-serif; font-size: 9.5px; font-weight: 800; padding: 2px 10px; border-radius: 12px; }' +
 
-            /* Dark Mode */
+            /* Dark Mode lengkap untuk ruang kerja A4 */
             'body.dark-mode-active.a4-workspace-active #main-editor-wrapper { background-color: #0f172a !important; }' +
-            'body.dark-mode-active.a4-workspace-active .block-wrapper.sheet-is-a4 .content-block,' +
-            'body.dark-mode-active.a4-workspace-active .block-wrapper.sheet-is-media .content-block { background-color: #1e293b !important; border-color: #334155 !important; }' +
+            'body.dark-mode-active.a4-workspace-active .block-wrapper.sheet-is-a4 > .a4-paper-wrapper > .block-collapsible-area > .content-block,' +
+            'body.dark-mode-active.a4-workspace-active .block-wrapper.sheet-is-media:not(.has-embedded-widget) > .a4-paper-wrapper > .block-collapsible-area > .content-block {' +
+                'background-color: #1e293b !important; color: #f1f5f9 !important; border-color: #334155 !important;' +
+            '}' +
 
-            /* HP (<=768px): tetap responsif penuh agar tidak terpotong */
+            /* HP (<=768px): tetap responsif penuh 100% */
             '@media (max-width: 768px) {' +
                 'body.a4-workspace-active .block-wrapper:not(.pdf-focus-fullscreen) > .a4-paper-wrapper,' +
                 'body.a4-workspace-active .block-wrapper:not(.pdf-focus-fullscreen) > .dynamic-block-shell,' +
                 'body.a4-workspace-active .block-wrapper:not(.pdf-focus-fullscreen) > .pdf-landscape-block,' +
-                'body.a4-workspace-active .block-wrapper.sheet-is-a4 .content-block,' +
-                'body.a4-workspace-active .block-wrapper.sheet-is-media .content-block {' +
+                'body.a4-workspace-active .block-wrapper.sheet-is-a4 > .a4-paper-wrapper > .block-collapsible-area > .content-block,' +
+                'body.a4-workspace-active .block-wrapper.sheet-is-media > .a4-paper-wrapper > .block-collapsible-area > .content-block {' +
                     'width: 100% !important; max-width: 100% !important; min-width: 0 !important; zoom: 1 !important;' +
                 '}' +
-                'body.a4-workspace-active .block-wrapper.sheet-is-a4 .content-block { min-height: 220px !important; padding: 16px 14px !important; }' +
+                'body.a4-workspace-active .block-wrapper.sheet-is-a4 > .a4-paper-wrapper > .block-collapsible-area > .content-block { min-height: 220px !important; padding: 16px 14px !important; }' +
             '}';
         document.head.appendChild(st);
     };
@@ -586,11 +625,38 @@
         else bar.appendChild(span);
     };
 
+    // Pengaman tombol kanan bawah (Dark Mode & Zoom +/- tetap berfungsi penuh di semua halaman)
+    window.a4PastikanTombolKananBawahAktif = function() {
+        if (typeof window.toggleDarkModeGlobal !== 'function') {
+            window.toggleDarkModeGlobal = function() {
+                let isDark = document.body.classList.toggle('dark-mode-active');
+                try { localStorage.setItem('pref_dark_mode_mahardika', isDark ? '1' : '0'); } catch (e) {}
+                let btn = document.getElementById('btn-darkmode-global');
+                if (btn) btn.innerText = isDark ? '☀️' : '🌙';
+            };
+        }
+
+        if (typeof window.ubahZoomTeksGlobal !== 'function') {
+            window.ubahZoomTeksGlobal = function(stepDir) {
+                let cur = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--user-page-zoom')) || 1;
+                let next = Math.round((cur + (stepDir > 0 ? 0.1 : -0.1)) * 100) / 100;
+                if (next < 0.6) next = 0.6;
+                if (next > 1.5) next = 1.5;
+                document.documentElement.style.setProperty('--user-page-zoom', String(next));
+                try { localStorage.setItem('pref_page_zoom_mahardika', String(next)); } catch (e) {}
+                if (typeof window.ckSamakanLebarDenganContentBlock === 'function') {
+                    setTimeout(window.ckSamakanLebarDenganContentBlock, 60);
+                }
+            };
+        }
+    };
+
     // =========================================================================
-    // 7. INISIALISASI OBSERVER & EVENT RESIZE / EDITING
+    // 7. INISIALISASI OBSERVER RINGAN (TIDAK MENGGANGGU EKSTRAK / MEDIA / MODUL)
     // =========================================================================
     document.addEventListener('DOMContentLoaded', function() {
         window.a4PasangCSS();
+        window.a4PastikanTombolKananBawahAktif();
         window.a4PasangTombolPrintAdmin();
         setTimeout(window.a4PasangTombolPrintAdmin, 900);
         window.a4JadwalkanRefresh(180);
@@ -599,32 +665,30 @@
             window.a4HitungSkalaLayar();
         });
 
-        // Pantau perubahan isi atau perpindahan halaman pada #blocks-container
+        // Hanya pantau penambahan/pergantian blok (childList), bukan setiap klik/atribut internal
         let container = document.getElementById('blocks-container');
         if (container) {
             let obs = new MutationObserver(function() {
-                if (!_a4Updating) window.a4JadwalkanRefresh(140);
+                if (!_a4Updating) window.a4JadwalkanRefresh(150);
             });
-            obs.observe(container, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class'] });
+            obs.observe(container, { childList: true });
 
-            container.addEventListener('input', function() {
-                window.a4JadwalkanRefresh(220);
+            container.addEventListener('input', function(e) {
+                if (e.target && e.target.closest && e.target.closest('.sheet-is-a4')) {
+                    window.a4JadwalkanRefresh(260);
+                }
             });
         }
 
-        // Pantau perubahan status halaman Home vs Materi
         let threeCol = document.querySelector('.home-three-col-layout');
         if (threeCol) {
-            let obsHome = new MutationObserver(function() {
+            new MutationObserver(function() {
                 window.a4JadwalkanRefresh(100);
-            });
-            obsHome.observe(threeCol, { attributes: true, attributeFilter: ['class'] });
+            }).observe(threeCol, { attributes: true, attributeFilter: ['class'] });
         }
 
-        // Pantau toggle Mode Edit vs Preview Student pada body
-        let obsBody = new MutationObserver(function() {
+        new MutationObserver(function() {
             window.a4JadwalkanRefresh(120);
-        });
-        obsBody.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+        }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
     });
 })();

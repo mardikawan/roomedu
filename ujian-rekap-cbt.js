@@ -1098,7 +1098,7 @@ window.renderSoalUjianSiswa = function() {
     html += '<div id="banner-status-koneksi-ujian" style="margin:0 auto 15px auto; padding:8px 15px; border-radius:8px; background:#eafaf1; border:1px solid #a9dfbf; color:#1e8449; font-size:12px; font-weight:bold; text-align:center;">🛡️ Mode Ujian Mandiri & Layar Anti-Sleep Aktif: Jawaban Anda tersimpan otomatis di perangkat.</div>';
 
     soalArr.forEach(function(q, idx) {
-        let qEditAttr = isAdmin ? 'contenteditable="true" style="border-bottom:1px dashed #e67e22; outline:none; cursor:text;" onblur="window.inlineEditSoal(\'ujian\', ' + idx + ', \'question\', null, this.innerText)"' : '';
+        let qEditAttr = isAdmin ? 'class="latihan-editable-field" contenteditable="true" style="border-bottom:1px dashed #e67e22; outline:none; cursor:text;" onblur="window.inlineEditSoal(\'ujian\', ' + idx + ', \'question\', null, this.innerHTML.replace(/^\\d+\\.\\s*/, \'\'))"' : '';
         let ansLama = jawabanTersimpan[idx];
         let opsiArr = Array.isArray(q.options) ? q.options : [];
 
@@ -1116,7 +1116,7 @@ window.renderSoalUjianSiswa = function() {
         } else {
             html += '<div class="quiz-options">';
             opsiArr.forEach(function(opt) {
-                let optEditAttr = isAdmin ? 'contenteditable="true" style="border-bottom:1px dashed #e67e22; outline:none; cursor:text; padding:2px;" onclick="event.stopPropagation()" onblur="window.inlineEditSoal(\'ujian\', ' + idx + ', \'option\', \'' + opt.label + '\', this.innerText)"' : '';
+                let optEditAttr = isAdmin ? 'class="latihan-editable-field" contenteditable="true" style="border-bottom:1px dashed #e67e22; outline:none; cursor:text; padding:2px;" onclick="event.stopPropagation()" onblur="window.inlineEditSoal(\'ujian\', ' + idx + ', \'option\', \'' + opt.label + '\', this.innerHTML)"' : '';
 
                 if (q.type === 'PG') {
                     let isSelected = (ansLama === opt.label);

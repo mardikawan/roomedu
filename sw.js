@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mahardika-pwa-v24';
+const CACHE_NAME = 'mahardika-pwa-v25';
 
 // Daftar file inti aplikasi (menggunakan ./ agar cocok di GitHub Pages & Live Server)
 const CORE_ASSETS = [
@@ -11,13 +11,19 @@ const CORE_ASSETS = [
     './administrasi-guru.js',
     './bank-soal-manajer.js',
     './ujian-rekap-cbt.js',
+    './ekstrakurikuler.js',
+    './flashcards.js',
     './ruang-latihan.js',
     './fitur-afektif-games.js',
     './my-pet-engine.js',
+    './a4-layout-engine.js',
+    './page-cakupan-engine.js',
+    './modul-ajar-engine.js',
+    './modul-ajar-export.js',
     './firebase-db.js'
 ];
 
-// 1. Saat versi baru diinstal: simpan file kerangka lalu tunggu persetujuan tombol Perbarui
+// 1. Saat versi baru diinstal: simpan file kerangka lalu tunggu dengan tenang (TIDAK memutus sesi siswa)
 self.addEventListener('install', function(event) {
     event.waitUntil(
         caches.open(CACHE_NAME).then(function(cache) {
@@ -30,9 +36,9 @@ self.addEventListener('install', function(event) {
     );
 });
 
-// Dengarkan perintah dari tombol "Perbarui Sekarang" di layar aplikasi
+// Dengarkan perintah dari tombol "Perbarui" (mendukung sinyal baru & lama)
 self.addEventListener('message', function(event) {
-    if (event.data && event.data.type === 'SKIP_WAITING') {
+    if (event.data && (event.data.type === 'APPLY_UPDATE_SAFE' || event.data.type === 'SKIP_WAITING')) {
         self.skipWaiting();
     }
 });

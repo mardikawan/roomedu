@@ -1255,31 +1255,173 @@ window.muatLeaderboardPenuhSekali = function(onDone, forceRefresh) {
     }, null, { ttlMs: isAdm ? 30000 : 180000, forceRefresh: Boolean(forceRefresh) });
 };
 
-// Saat awal buka web: jika siswa login, tarik 1 data miliknya sendiri via REST API (< 5 KB!)
-(function muatProfilSiswaAwalRest() {
+// Tarik 1 data profil milik siswa sendiri (bisa dipanggil ulang kapan saja saat refresh)
+window.muatProfilSiswaSekarangRest = function(forceRefresh, onDone) {
     let rawU = (sessionStorage.getItem("username") || "").trim().toLowerCase();
     let stat = sessionStorage.getItem("statusLogin");
-    if (stat === "siswa" && rawU && rawU !== "sbd") {
-        let cleanU = window.sanitasiKeyRekapFirebase(rawU).toLowerCase();
-        window.bacaDataRestFirebase(basePath + '/leaderboard_siswa/' + cleanU, function(val) {
-            window.leaderboardLoaded = true;
-            if (!window.leaderboardSiswaData) window.leaderboardSiswaData = {};
-            if (val) {
-                window.leaderboardSiswaData[cleanU] = val;
-                window.leaderboardSiswaData[rawU] = val;
+    if (stat !== "siswa" || !rawU || rawU === "sbd") {
+        if (onDone) onDone();
+        return;
+    }
+
+    let cleanU = window.sanitasiKeyRekapFirebase ? window.sanitasiKeyRekapFirebase(rawU).toLowerCase() : rawU;
+    let opsi = forceRefresh ? { forceRefresh: true, ttlMs: 0 } : undefined;
+
+    window.bacaDataRestFirebase(basePath + '/leaderboard_siswa/' + cleanU, function(val) {
+        window.leaderboardLoaded = true;
+        if (!window.leaderboardSiswaData) window.leaderboardSiswaData = {};
+        if (val) {
+            window.leaderboardSiswaData[cleanU] = val;
+            window.leaderboardSiswaData[rawU] = val;
+        }
+        if (typeof window.sinkronkanObjekDualXPDanCoin === "function") window.sinkronkanObjekDualXPDanCoin(rawU);
+        if (typeof window.perbaruiUIHeaderProfilSiswa === "function") window.perbaruiUIHeaderProfilSiswa();
+        if (typeof window.perbaruiTampilanSaldoXPPet === "function") window.perbaruiTampilanSaldoXPPet();
+
+        // Jika Modal Profil sedang terbuka di layar siswa, langsung perbarui angkanya
+        let modalProfil = document.getElementById('modal-profil-siswa');
+        if (val && modalProfil && modalProfil.style.display === 'flex') {
+            let xpEl = document.getElementById('profil-total-xp');
+            if (xpEl) xpEl.innerText = (Number(val.xpTotal !== undefined ? val.xpTotal : val.xp) || 0) + ' XP';
+            let s = val.statSoal || { PG: 0, PGK: 0, IS: 0, Essay: 0 };
+            if (document.getElementById('profil-stat-pg')) document.getElementById('profil-stat-pg').innerText = Number(s.PG) || 0;
+            if (document.getElementById('profil-stat-pgk')) document.getElementById('profil-stat-pgk').innerText = Number(s.PGK) || 0;
+            if (document.getElementById('profil-stat-is')) document.getElementById('profil-stat-is').innerText = Number(s.IS) || 0;
+            if (document.getElementById('profil-stat-es')) document.getElementById('profil-stat-es').innerText = Number(s.Essay) || 0;
+            if (typeof window.renderKartuEventSASDiProfil === "function") window.renderKartuEventSASDiProfil(rawU);
+        }
+        if (onDone) onDone(val);
+    }, function() {
+        if (onDone) onDone(null);
+    }, opsi);
+};
+
+// Bersihkan seluruh cache lokal Leaderboard di RAM & sessionStorage
+window.bersihkanCacheLeaderboardLokal = function() {
+    window._lastFullLBFetchTime = 0;
+    window._lastSaveLBTime = 0;
+    if (typeof window.hapusCachePathDB === "function") {
+        window.hapusCachePathDB(basePath + '/leaderboard_siswa');
+    }
+    try {
+        Object.keys(sessionStorage).forEach(function(k) {
+            if (k.indexOf('rest_ttl_') === 0 && k.indexOf('leaderboard_siswa') !== -1) {
+                sessionStorage.removeItem(k);
             }
-            if (typeof window.sinkronkanObjekDualXPDanCoin === "function") window.sinkronkanObjekDualXPDanCoin(rawU);
-            if (typeof window.perbaruiUIHeaderProfilSiswa === "function") window.perbaruiUIHeaderProfilSiswa();
-            if (typeof window.perbaruiTampilanSaldoXPPet === "function") window.perbaruiTampilanSaldoXPPet();
         });
+    } catch (e) {}
+};
+
+// Khusus Admin: Paksa tarik Leaderboard terbaru + kirim sinyal refresh otomatis ke semua HP siswa
+window.kirimSinyalSegarkanLeaderboardAdmin = function(onDone) {
+    if (sessionStorage.getItem("statusLogin") !== "admin") {
+        if (onDone) onDone(false);
+        return;
+    }
+
+    let nowTs = Date.now();
+    window.bersihkanCacheLeaderboardLokal();
+
+    window.tulisDataRestFirebase(basePath + '/sistem_refresh_lb', {
+        ts: nowTs,
+        by: (sessionStorage.getItem("username") || "admin")
+    }, "PUT", function() {
+        try { localStorage.setItem("last_lb_refresh_ts_" + guruAktif, String(nowTs)); } catch (e) {}
+    });
+
+    window.muatLeaderboardPenuhSekali(function() {
+        if (typeof window.renderTabelLeaderboard === "function") window.renderTabelLeaderboard();
+        if (typeof window.perbaruiBannerMigrasiFotoAdmin === "function") window.perbaruiBannerMigrasiFotoAdmin();
+        if (onDone) onDone(true);
+    }, true);
+};
+
+// Khusus Siswa: Deteksi sinyal refresh dari Admin (< 40 byte) lalu tarik data terbaru otomatis
+window._lastCheckLbSignalTime = 0;
+window.cekSinyalRefreshLeaderboard = function(paksaCek, onResult) {
+    if (sessionStorage.getItem("statusLogin") !== "siswa") {
+        if (onResult) onResult(false);
+        return;
+    }
+    let now = Date.now();
+    if (!paksaCek && (now - (window._lastCheckLbSignalTime || 0) < 15000)) {
+        if (onResult) onResult(false);
+        return;
+    }
+    window._lastCheckLbSignalTime = now;
+
+    window.bacaDataRestFirebase(basePath + '/sistem_refresh_lb', function(val) {
+        let serverTs = (val && typeof val === "object") ? (Number(val.ts) || 0) : 0;
+        let storageKey = "last_lb_refresh_ts_" + guruAktif;
+        let localTs = Number(localStorage.getItem(storageKey) || "0") || 0;
+
+        if (serverTs > localTs) {
+            try { localStorage.setItem(storageKey, String(serverTs)); } catch (e) {}
+            window.bersihkanCacheLeaderboardLokal();
+
+            let modalLB = document.getElementById('modal-leaderboard');
+            let isLBOpen = Boolean(modalLB && modalLB.style.display === 'flex');
+
+            window.muatProfilSiswaSekarangRest(true, function() {
+                if (typeof window.segarkanSemuaWidgetEventSAS === "function") {
+                    window.segarkanSemuaWidgetEventSAS();
+                }
+            });
+
+            if (isLBOpen) {
+                window.muatLeaderboardPenuhSekali(function() {
+                    if (typeof window.renderTabelLeaderboard === "function") window.renderTabelLeaderboard();
+                    if (onResult) onResult(true);
+                }, true);
+            } else {
+                if (onResult) onResult(true);
+            }
+        } else {
+            if (onResult) onResult(false);
+        }
+    }, function() {
+        if (onResult) onResult(false);
+    }, { forceRefresh: true, ttlMs: 0 });
+};
+
+// Saat awal buka web: muat profil siswa / leaderboard admin + cek sinyal refresh
+(function muatProfilSiswaAwalRest() {
+    let stat = sessionStorage.getItem("statusLogin");
+    if (stat === "siswa") {
+        window.muatProfilSiswaSekarangRest(false);
+        window.cekSinyalRefreshLeaderboard(true);
     } else if (stat === "admin") {
         window.muatLeaderboardPenuhSekali();
     }
 })();
 
+// Polling ringan (20 detik) khusus saat siswa sedang membuka Modal Leaderboard atau Profil
+if (!window._siswaLbSignalPoll) {
+    window._siswaLbSignalPoll = setInterval(function() {
+        if (sessionStorage.getItem("statusLogin") !== "siswa" || document.visibilityState !== "visible") return;
+        let mLB = document.getElementById('modal-leaderboard');
+        let mProf = document.getElementById('modal-profil-siswa');
+        let sedangBuka = Boolean((mLB && mLB.style.display === 'flex') || (mProf && mProf.style.display === 'flex'));
+        if (sedangBuka) {
+            window.cekSinyalRefreshLeaderboard(false);
+        }
+    }, 20000);
+}
+
+// Cek sinyal refresh saat siswa kembali membuka tab/aplikasi
+document.addEventListener("visibilitychange", function() {
+    if (document.visibilityState === "visible" && sessionStorage.getItem("statusLogin") === "siswa") {
+        window.cekSinyalRefreshLeaderboard(false);
+    }
+});
+
 // Tarik Notifikasi & Ujian Aktif via REST API (Dengan Cooldown 2 Menit untuk Siswa)
 window.tarikDataRinganBerkalaRest = function(onDone, forceRefresh) {
     let isAdm = (sessionStorage.getItem("statusLogin") === "admin");
+    if (!isAdm) {
+        window.cekSinyalRefreshLeaderboard(Boolean(forceRefresh));
+    }
+
     window.bacaDataRestFirebase(basePath + '/admin_notifikasi', function(val) {
         window.adminNotifikasiData = val ? (Array.isArray(val) ? val : Object.values(val)) : [];
         if (typeof window.hitungDanUpdateBadgeNotifikasi === "function") {
@@ -1300,10 +1442,19 @@ window.tarikDataRinganBerkalaRest = function(onDone, forceRefresh) {
 };
 window.tarikDataRinganBerkalaRest(null, false);
 
-// Tarik daftar penuh Leaderboard, Notifikasi, atau Akun Siswa via REST saat tombol terkait diklik
+// Tarik daftar penuh Leaderboard, Notifikasi, Profil, atau Akun Siswa via REST saat tombol terkait diklik
 document.addEventListener('click', function(e) {
     if (e.target.closest('#btn-header-leaderboard, [onclick*="bukaModalLeaderboard"], [onclick*="bukaModalPerkembanganSiswa"]')) {
-        window.muatLeaderboardPenuhSekali(null, false);
+        if (sessionStorage.getItem("statusLogin") === "siswa") {
+            window.cekSinyalRefreshLeaderboard(true, function(adaRefresh) {
+                if (!adaRefresh) window.muatLeaderboardPenuhSekali(null, false);
+            });
+        } else {
+            window.muatLeaderboardPenuhSekali(null, false);
+        }
+    }
+    if (e.target.closest('#btn-profil-utama, [onclick*="bukaModalProfilSiswa"]')) {
+        window.cekSinyalRefreshLeaderboard(true);
     }
     if (e.target.closest('#btn-login-utama, [onclick*="bukaModalLoginSistem"], #tab-auth-register')) {
         window.muatDataAkunSiswaSekali(true);

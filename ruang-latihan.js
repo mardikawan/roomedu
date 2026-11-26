@@ -665,6 +665,28 @@ window.keluarRuangLatihanSiswa = function() {
     if (d) d.classList.remove('show-nav');
 };
 
+window.pilihGambarSoalLatihanAdmin = function(soalIdx) {
+    let inp = document.getElementById("input-img-latihan-admin");
+    if (!inp) {
+        inp = document.createElement("input");
+        inp.type = "file";
+        inp.id = "input-img-latihan-admin";
+        inp.accept = "image/*";
+        inp.style.display = "none";
+        document.body.appendChild(inp);
+    }
+    inp.onchange = function() {
+        let f = this.files && this.files[0];
+        this.value = "";
+        if (!f) return;
+        let targetEl = document.getElementById("latihan-edit-q-" + soalIdx);
+        if (targetEl && typeof window.sisipkanGambarKeFieldSoal === "function") {
+            window.sisipkanGambarKeFieldSoal(targetEl, f, null);
+        }
+    };
+    inp.click();
+};
+
 window.simpanEditanLatihanAdmin = function(soalIdx, field, optIdx, newValue) {
     if (sessionStorage.getItem("statusLogin") !== "admin" || !window.sesiLatihanSiswa) return;
     let q = window.sesiLatihanSiswa.soal[soalIdx];
@@ -749,11 +771,14 @@ window.renderSoalLatihanSiswa = function() {
         let opsiArr = Array.isArray(q.options) ? q.options : [];
 
         let btnBuangSoal = isAdmin
-            ? '<button type="button" style="display:block !important; position:absolute; top:15px; right:15px; background:#e74c3c; color:white; border:none; border-radius:4px; padding:6px 10px; font-size:11px; font-weight:bold; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.2); z-index:10;" onclick="window.buangSoalLatihanAdmin(' + idx + ')" title="Buang Soal Ini">🗑️ Buang Soal</button>'
+            ? '<div style="position:absolute; top:15px; right:15px; display:flex; gap:6px; z-index:10;">' +
+                  '<button type="button" style="background:#0284c7; color:white; border:none; border-radius:4px; padding:6px 9px; font-size:11px; font-weight:bold; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.2);" onclick="window.pilihGambarSoalLatihanAdmin(' + idx + ')" title="Sisipkan Gambar ke Soal">🖼️ Gambar</button>' +
+                  '<button type="button" style="background:#e74c3c; color:white; border:none; border-radius:4px; padding:6px 10px; font-size:11px; font-weight:bold; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.2);" onclick="window.buangSoalLatihanAdmin(' + idx + ')" title="Buang Soal Ini">🗑️ Buang Soal</button>' +
+              '</div>'
             : '';
 
         let qEditAttr = isAdmin
-            ? 'contenteditable="true" style="outline:none; cursor:text; background:#fffdf9; padding:4px 6px; border-radius:4px; border-bottom:1px dashed #e67e22;" onblur="window.simpanEditanLatihanAdmin(' + idx + ', \'question\', null, this.innerHTML)"'
+            ? 'id="latihan-edit-q-' + idx + '" class="latihan-editable-field" contenteditable="true" style="display:inline-block; min-width:60%; outline:none; cursor:text; background:#fffdf9; padding:4px 6px; border-radius:4px; border-bottom:1px dashed #e67e22;" onblur="window.simpanEditanLatihanAdmin(' + idx + ', \'question\', null, this.innerHTML)"'
             : '';
 
         html += '<div class="quiz-question-card" id="card-latihan-' + idx + '" style="margin-bottom:25px; box-shadow:0 4px 12px rgba(0,0,0,0.05); border-radius:10px; background:white; padding:22px 20px 20px 20px; border:1px solid #e1e8ed; border-left:4px solid #3498db; position:relative;">' +
@@ -768,7 +793,7 @@ window.renderSoalLatihanSiswa = function() {
             html += '<div class="quiz-options" style="display:flex; flex-direction:column; gap:8px;">';
             opsiArr.forEach(function(opt, oIdx) {
                 let optEditSpan = isAdmin
-                    ? '<span contenteditable="true" style="flex:1; outline:none; border-bottom:1px dashed #e67e22; background:#fffdf9; cursor:text; padding:2px 4px;" onclick="event.stopPropagation();" onblur="window.simpanEditanLatihanAdmin(' + idx + ', \'option\', ' + oIdx + ', this.innerText)">' + opt.text + '</span>'
+                    ? '<span class="latihan-editable-field" contenteditable="true" style="flex:1; outline:none; border-bottom:1px dashed #e67e22; background:#fffdf9; cursor:text; padding:2px 4px;" onclick="event.stopPropagation();" onblur="window.simpanEditanLatihanAdmin(' + idx + ', \'option\', ' + oIdx + ', this.innerHTML)">' + opt.text + '</span>'
                     : '<span>' + opt.text + '</span>';
 
                 if (q.type === 'PGK') {
@@ -793,7 +818,7 @@ window.renderSoalLatihanSiswa = function() {
             ? 'contenteditable="true" style="outline:none; border-bottom:1px dashed #e74c3c; padding:1px 4px; cursor:text; background:#fdf2e9; border-radius:3px;" onblur="window.simpanEditanLatihanAdmin(' + idx + ', \'correct\', null, this.innerText)"'
             : '';
         let bahasEditAttr = isAdmin
-            ? 'contenteditable="true" style="outline:none; border-bottom:1px dashed #e74c3c; padding:2px 4px; cursor:text; background:#fdf2e9; border-radius:3px; display:inline-block; min-width:60%;" onblur="window.simpanEditanLatihanAdmin(' + idx + ', \'explanation\', null, this.innerHTML)"'
+            ? 'class="latihan-editable-field" contenteditable="true" style="outline:none; border-bottom:1px dashed #e74c3c; padding:2px 4px; cursor:text; background:#fdf2e9; border-radius:3px; display:inline-block; min-width:60%;" onblur="window.simpanEditanLatihanAdmin(' + idx + ', \'explanation\', null, this.innerHTML)"'
             : '';
 
         html += '<div id="bahas-' + idx + '" style="display:' + bahasDisplay + '; margin-top:15px; padding:12px 15px; background:#ebf5fb; border-left:4px solid #2980b9; border-radius:6px; font-size:13px; color:#2c3e50;">' +
