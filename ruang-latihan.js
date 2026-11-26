@@ -687,10 +687,16 @@ window.pilihGambarSoalLatihanAdmin = function(soalIdx) {
     inp.click();
 };
 
-window.simpanEditanLatihanAdmin = function(soalIdx, field, optIdx, newValue) {
-    if (sessionStorage.getItem("statusLogin") !== "admin" || !window.sesiLatihanSiswa) return;
+window.simpanEditanLatihanAdmin = function(soalIdx, field, optIdx, newValue, onDone) {
+    if (sessionStorage.getItem("statusLogin") !== "admin" || !window.sesiLatihanSiswa) {
+        if (typeof onDone === "function") onDone(false);
+        return;
+    }
     let q = window.sesiLatihanSiswa.soal[soalIdx];
-    if (!q) return;
+    if (!q) {
+        if (typeof onDone === "function") onDone(false);
+        return;
+    }
 
     let cleanVal = (newValue || "").trim();
     if (field === 'question') {
@@ -705,15 +711,38 @@ window.simpanEditanLatihanAdmin = function(soalIdx, field, optIdx, newValue) {
 
     let key = q._sourceKey || window.sesiLatihanSiswa.paketKey;
     if (key && window.adminBankLatihanData && window.adminBankLatihanData[key]) {
-        let bankSoalArr = window.adminBankLatihanData[key].soal;
-        if (Array.isArray(bankSoalArr) && typeof q.origIdx === 'number' && bankSoalArr[q.origIdx]) {
-            bankSoalArr[q.origIdx].question = q.question;
-            bankSoalArr[q.origIdx].options = q.options;
-            bankSoalArr[q.origIdx].explanation = q.explanation;
-            bankSoalArr[q.origIdx].correct = q.correct;
+        let bankSoalCol = window.adminBankLatihanData[key].soal;
+        if (bankSoalCol && typeof q.origIdx === 'number' && bankSoalCol[q.origIdx]) {
+            bankSoalCol[q.origIdx].question = q.question;
+            bankSoalCol[q.origIdx].options = q.options;
+            bankSoalCol[q.origIdx].explanation = q.explanation;
+            bankSoalCol[q.origIdx].correct = q.correct;
+
             if (typeof window.simpanBankLatihanKeDB === "function") window.simpanBankLatihanKeDB();
+
+            let guru = (window.guruAktif || sessionStorage.getItem("guruTarget") || "mahardika").trim().toLowerCase();
+            try {
+                Object.keys(sessionStorage).forEach(function(k) {
+                    if (k.indexOf("rest_ttl_") === 0 && k.indexOf("admin_bank_latihan") !== -1) {
+                        sessionStorage.removeItem(k);
+                    }
+                });
+            } catch (e) {}
+
+            if (typeof window.tulisDataRestFirebase === "function") {
+                let pSoal = "data_guru/" + guru + "/admin_bank_latihan/" + key + "/soal/" + q.origIdx;
+                window.tulisDataRestFirebase(pSoal, JSON.parse(JSON.stringify(bankSoalCol[q.origIdx])), "PUT", function() {
+                    if (typeof onDone === "function") onDone(true);
+                }, function() {
+                    if (typeof onDone === "function") onDone(false);
+                });
+                return;
+            }
+            if (typeof onDone === "function") onDone(true);
+            return;
         }
     }
+    if (typeof onDone === "function") onDone(false);
 };
 
 window.buangSoalLatihanAdmin = function(soalIdx) {
