@@ -449,9 +449,10 @@ window.closeDropdowns = function() {
 
 window.ambilAnakVisibleNav = function(node) {
     if (!node || !Array.isArray(node.children)) return [];
-    let isEdit = document.body.classList.contains('mode-edit-aktif') || document.documentElement.classList.contains('force-edit-mode');
+    let isAdminEdit = (typeof window.isAdminSession === 'function' && window.isAdminSession()) &&
+        (document.body.classList.contains('mode-edit-aktif') || document.documentElement.classList.contains('force-edit-mode'));
     return node.children.filter(function(child) {
-        return isEdit || !child.effectiveHidden;
+        return isAdminEdit || !child.effectiveHidden;
     });
 };
 
@@ -1789,6 +1790,9 @@ window.renderBlocks = function() {
         }
     }
 
+    if (typeof window.sinkronkanModeEditorKhususSiswa === 'function') {
+        window.sinkronkanModeEditorKhususSiswa(true);
+    }
     let html = '';
     let isEdit = document.body.classList.contains('mode-edit-aktif') || document.documentElement.classList.contains('force-edit-mode');
 
@@ -4608,9 +4612,9 @@ document.addEventListener("DOMContentLoaded", function() {
         imgInput.addEventListener("change", function() {
             let f = this.files && this.files[0];
             if (!f) return;
-            let activeQuizEl = (window.lastActiveEditable && window.lastActiveEditable.classList && window.lastActiveEditable.classList.contains("quiz-editable-field"))
+            let activeQuizEl = (window.lastActiveEditable && window.lastActiveEditable.classList && (window.lastActiveEditable.classList.contains("quiz-editable-field") || window.lastActiveEditable.classList.contains("latihan-editable-field")))
                 ? window.lastActiveEditable
-                : null;
+                : (window._lastQuizFieldEl && document.body.contains(window._lastQuizFieldEl) ? window._lastQuizFieldEl : null);
 
             if (activeQuizEl && typeof window.sisipkanGambarKeFieldSoal === "function") {
                 window.kembalikanSeleksiTeks();
@@ -5470,15 +5474,110 @@ window.updateKunciIsianInline = function(blockIdx, qIdx, rawText) {
 };
 
 window._quizInlineSaveTimer = null;
-window.updateSoalInline = function(blockIdx, qIdx, tipeField, el, optIdx, isImmediate) {
-    let blok = window.contentBlocksData && window.contentBlocksData[blockIdx];
-    if (!blok || !blok.questions || !blok.questions[qIdx] || !el) return;
+window._lastQuizFieldEl = null;
+
+document.addEventListener("focusin", function(e) {
+    let qf = (e.target && e.target.closest) ? e.target.closest(".quiz-editable-field, .latihan-editable-field") : null;
+    if (qf) window._lastQuizFieldEl = qf;
+}, true);
+
+document.addEventListener("pointerdown", function(e) {
+    let qf = (e.target && e.target.closest) ? e.target.closest(".quiz-editable-field, .latihan-editable-field") : null;
+    if (qf) {
+        window._lastQuizFieldEl = qf;
+    } else if (e.target && e.target.closest && e.target.closest(".content-block") && !e.target.closest(".quiz-container")) {
+        window._lastQuizFieldEl = null;
+    }
+}, true);
+
+window.sinkronCacheRoomSetelahEditKuis = function(slugTarget) {
+    let guru = (window.guruAktif || sessionStorage.getItem("guruTarget") || "mahardika").trim().toLowerCase();
+    let slug = slugTarget || window.babAktif || "home";
+    let payloadCache = {
+        blocksObj: window.contentBlocksData || [],
+        floatingBoxesObj: window.floatingBoxesData || [],
+        homeLeftBlocksObj: window.homeLeftBlocksData || [],
+        homeRightBlocksObj: window.homeRightBlocksData || []
+    };
+
+    try {
+        let cKey = "cache_room_" + guru + "_" + slug;
+        sessionStorage.setItem(cKey, JSON.stringify(payloadCache));
+        sessionStorage.setItem(cKey + "_time", String(Date.now()));
+
+        Object.keys(sessionStorage).forEach(function(k) {
+            if (k.indexOf("rest_ttl_") === 0 && k.indexOf("materi_koleksi") !== -1 && k.indexOf(slug) !== -1) {
+                sessionStorage.removeItem(k);
+            }
+        });
+    } catch (e) {}
+
+    if (typeof window.hapusCachePathDB === "function") {
+        window.hapusCachePathDB("data_guru/" + guru + "/materi_koleksi/" + slug);
+    }
+
+    if (typeof window.muatBabOfflineIdb === "function" && typeof window.simpanBabOfflineIdb === "function") {
+        window.muatBabOfflineIdb(guru, slug).then(function(ada) {
+            if (ada) window.simpanBabOfflineIdb(guru, slug, payloadCache);
+        }).catch(function() {});
+    }
+};
+
+window.simpanFieldKuisDariElemen = function(targetEl, isImmediate, onDone) {
+    if (!targetEl) {
+        if (typeof onDone === "function") onDone(false);
+        return;
+    }
+
+    if (targetEl.classList.contains("quiz-editable-field")) {
+        let bIdx = parseInt(targetEl.getAttribute("data-quiz-block"), 10);
+        let qIdx = parseInt(targetEl.getAttribute("data-quiz-q"), 10);
+        let field = targetEl.getAttribute("data-quiz-field");
+        let optRaw = targetEl.getAttribute("data-quiz-opt");
+        let optIdx = (optRaw !== null && optRaw !== "") ? parseInt(optRaw, 10) : null;
+        window.updateSoalInline(bIdx, qIdx, field, targetEl, optIdx, isImmediate, onDone);
+        return;
+    }
+
+    if (targetEl.classList.contains("latihan-editable-field")) {
+        let lIdx = parseInt(targetEl.getAttribute("data-lat-idx"), 10);
+        let lField = targetEl.getAttribute("data-lat-field");
+        let lOptRaw = targetEl.getAttribute("data-lat-opt");
+        let lOptIdx = (lOptRaw !== null && lOptRaw !== "") ? parseInt(lOptRaw, 10) : null;
+        if (!isNaN(lIdx) && lField && typeof window.simpanEditanLatihanAdmin === "function") {
+            window.simpanEditanLatihanAdmin(lIdx, lField, lOptIdx, targetEl.innerHTML, onDone);
+        } else {
+            targetEl.dispatchEvent(new Event("blur"));
+            if (typeof onDone === "function") onDone(true);
+        }
+        return;
+    }
+
+    targetEl.dispatchEvent(new Event("input", { bubbles: true }));
+    if (typeof onDone === "function") onDone(true);
+};
+
+window.updateSoalInline = function(blockIdx, qIdx, tipeField, el, optIdx, isImmediate, onSavedCallback) {
+    let realBlockIdx = blockIdx;
+    if (el && el.closest) {
+        let bw = el.closest("#blocks-container > .block-wrapper");
+        if (bw) {
+            let domIdx = parseInt(bw.getAttribute("data-index"), 10);
+            if (!isNaN(domIdx)) realBlockIdx = domIdx;
+        }
+    }
+
+    let blok = window.contentBlocksData && window.contentBlocksData[realBlockIdx];
+    if (!blok || !blok.questions || !blok.questions[qIdx] || !el) {
+        if (typeof onSavedCallback === "function") onSavedCallback(false);
+        return;
+    }
 
     let clone = el.cloneNode(true);
-    clone.querySelectorAll('img.img-selected').forEach(function(im) {
-        im.classList.remove('img-selected');
+    clone.querySelectorAll("img.img-selected").forEach(function(im) {
+        im.classList.remove("img-selected");
     });
-    clone.querySelectorAll('.quiz-img-uploading-ph').forEach(function(ph) {
+    clone.querySelectorAll(".quiz-img-uploading-ph").forEach(function(ph) {
         ph.remove();
     });
     let htmlBersih = clone.innerHTML.trim();
@@ -5492,71 +5591,98 @@ window.updateSoalInline = function(blockIdx, qIdx, tipeField, el, optIdx, isImme
         blok.questions[qIdx].explanation = htmlBersih;
     }
 
-    if (typeof window.simpanKeDB === "function") {
-        clearTimeout(window._quizInlineSaveTimer);
-        if (isImmediate) {
-            window.simpanKeDB();
-        } else {
-            window._quizInlineSaveTimer = setTimeout(function() {
-                window.simpanKeDB();
-            }, 450);
+    let slugNow = window.babAktif || "home";
+    let guruNow = (window.guruAktif || sessionStorage.getItem("guruTarget") || "mahardika").trim().toLowerCase();
+    window.sinkronCacheRoomSetelahEditKuis(slugNow);
+
+    let eksekusiSimpanServer = function() {
+        let qPath = "data_guru/" + guruNow + "/materi_koleksi/" + slugNow + "/blocksObj/" + realBlockIdx + "/questions/" + qIdx;
+        let qObjSimpan = JSON.parse(JSON.stringify(blok.questions[qIdx]));
+
+        if (typeof window.simpanKeDB === "function") {
+            window.simpanKeDB(slugNow);
         }
+
+        if (typeof window.tulisDataRestFirebase === "function") {
+            window.tulisDataRestFirebase(qPath, qObjSimpan, "PUT", function() {
+                window.sinkronCacheRoomSetelahEditKuis(slugNow);
+                if (typeof onSavedCallback === "function") onSavedCallback(true);
+            }, function(err) {
+                console.error("Gagal simpan soal ke Firebase REST:", err);
+                if (typeof onSavedCallback === "function") onSavedCallback(false);
+            });
+        } else if (typeof onSavedCallback === "function") {
+            onSavedCallback(true);
+        }
+    };
+
+    clearTimeout(window._quizInlineSaveTimer);
+    if (isImmediate) {
+        eksekusiSimpanServer();
+    } else {
+        window._quizInlineSaveTimer = setTimeout(eksekusiSimpanServer, 450);
     }
 };
 
-window.siapkanUrlGambarKuis = function(fileBlob, onDone) {
-    if (!fileBlob || typeof onDone !== "function") return;
-    let isGif = (fileBlob.type === "image/gif") || (fileBlob.name && /\.gif/i.test(fileBlob.name));
+window.siapkanUrlGambarKuis = async function(fileBlob) {
+    let isGif = (fileBlob.type === "image/gif") || (fileBlob.name && fileBlob.name.toLowerCase().endsWith(".gif"));
 
-    let unggahKeCloudinary = function(blobUpload, fallbackUrl) {
-        if (navigator.onLine === false || !blobUpload) {
-            onDone(fallbackUrl);
-            return;
-        }
-        let fd = new FormData();
-        fd.append("file", blobUpload, "soal_kuis_" + Date.now() + (isGif ? ".gif" : ".jpg"));
-        fd.append("upload_preset", "studykawan_video");
-        fetch("https://api.cloudinary.com/v1_1/rtkfvwvg/image/upload", { method: "POST", body: fd })
-            .then(function(res) { return res.json(); })
-            .then(function(data) {
-                if (data && data.secure_url) onDone(data.secure_url);
-                else onDone(fallbackUrl);
-            })
-            .catch(function() {
-                onDone(fallbackUrl);
-            });
-    };
+    let dataUrl = await new Promise(function(resolve) {
+        window.kompresGambar(fileBlob, function(resUrl) { resolve(resUrl || ""); });
+    });
 
-    if (isGif) {
-        window.kompresGambar(fileBlob, function(dataUrl) {
-            unggahKeCloudinary(fileBlob, dataUrl);
-        });
-        return;
-    }
-
-    window.kompresGambar(fileBlob, function(dataUrl) {
-        let parts = String(dataUrl || "").split(",");
-        let blobJpg = null;
-        if (parts.length >= 2) {
-            try {
+    let blobUpload = fileBlob;
+    if (!isGif && dataUrl) {
+        try {
+            let parts = String(dataUrl).split(",");
+            if (parts.length >= 2) {
                 let bstr = atob(parts[1]);
                 let arr = new Uint8Array(bstr.length);
                 for (let i = 0; i < bstr.length; i++) arr[i] = bstr.charCodeAt(i);
-                blobJpg = new Blob([arr], { type: "image/jpeg" });
-            } catch (e) {}
+                blobUpload = new Blob([arr], { type: "image/jpeg" });
+            }
+        } catch (e) {}
+    }
+
+    if (navigator.onLine === false) {
+        return { url: dataUrl, via: "offline", errMsg: "Perangkat sedang offline" };
+    }
+
+    let endpoints = [
+        "https://api.cloudinary.com/v1_1/rtkfvwvg/image/upload",
+        "https://api.cloudinary.com/v1_1/rtkfvwvg/auto/upload"
+    ];
+    let lastErr = "";
+
+    for (let i = 0; i < endpoints.length; i++) {
+        try {
+            let fd = new FormData();
+            fd.append("file", blobUpload, "soal_kuis_" + Date.now() + (isGif ? ".gif" : ".jpg"));
+            fd.append("upload_preset", "studykawan_video");
+
+            let res = await fetch(endpoints[i], { method: "POST", body: fd });
+            let json = await res.json().catch(function() { return {}; });
+            if (res.ok && json && json.secure_url) {
+                return { url: json.secure_url, via: "cloudinary", errMsg: "" };
+            }
+            lastErr = (json && json.error && json.error.message) ? json.error.message : ("HTTP " + res.status);
+        } catch (err) {
+            lastErr = (err && err.message) ? err.message : "Koneksi gagal";
         }
-        unggahKeCloudinary(blobJpg, dataUrl);
-    });
+    }
+
+    console.warn("Upload Cloudinary gagal:", lastErr);
+    return { url: dataUrl, via: "fallback", errMsg: lastErr };
 };
 
-window.sisipkanGambarKeFieldSoal = function(targetEl, fileBlob, rangeOpsional) {
+window.sisipkanGambarKeFieldSoal = async function(targetEl, fileBlob, rangeOpsional) {
     if (!targetEl || !fileBlob) return;
 
     let ph = document.createElement("span");
     ph.className = "quiz-img-uploading-ph";
     ph.setAttribute("contenteditable", "false");
     ph.style.cssText = "display:inline-block; padding:3px 9px; margin:4px 0; background:#e0f2fe; color:#0369a1; border:1px dashed #38bdf8; border-radius:6px; font-size:11px; font-weight:700;";
-    ph.innerText = "⏳ Mengunggah gambar...";
+    ph.innerText = "⏳ Mengunggah ke Cloudinary...";
 
     if (rangeOpsional && targetEl.contains(rangeOpsional.commonAncestorContainer)) {
         try {
@@ -5570,34 +5696,37 @@ window.sisipkanGambarKeFieldSoal = function(targetEl, fileBlob, rangeOpsional) {
     }
 
     let statusBar = document.getElementById("save-status-bar");
-    if (statusBar) statusBar.innerHTML = "<span style='color:#e67e22;'>⏳ Mengunggah gambar soal...</span>";
+    if (statusBar) statusBar.innerHTML = "<span style='color:#e67e22;'>⏳ Mengunggah gambar ke Cloudinary...</span>";
 
-    window.siapkanUrlGambarKuis(fileBlob, function(imgUrl) {
-        let img = document.createElement("img");
-        img.src = imgUrl;
-        img.alt = "Gambar Soal";
-        img.style.cssText = "max-width:100%; height:auto; display:block; margin:8px 0; border-radius:6px;";
+    let hasil = await window.siapkanUrlGambarKuis(fileBlob);
+    if (!hasil || !hasil.url) {
+        if (ph.parentNode) ph.remove();
+        if (statusBar) statusBar.innerHTML = "<span style='color:#e74c3c;'>❌ Gagal memproses gambar</span>";
+        return;
+    }
 
-        if (ph.parentNode) {
-            ph.parentNode.replaceChild(img, ph);
+    let img = document.createElement("img");
+    img.src = hasil.url;
+    img.alt = "Gambar Soal";
+    img.style.cssText = "max-width:100%; height:auto; display:block; margin:8px 0; border-radius:6px;";
+
+    if (ph.parentNode) {
+        ph.parentNode.replaceChild(img, ph);
+    } else {
+        targetEl.appendChild(img);
+    }
+
+    if (statusBar) statusBar.innerHTML = "<span style='color:#e67e22;'>⏳ Menyimpan ke Firebase...</span>";
+
+    window.simpanFieldKuisDariElemen(targetEl, true, function(okDb) {
+        if (!statusBar) return;
+        if (okDb && hasil.via === "cloudinary") {
+            statusBar.innerHTML = "<span style='color:#2ecc71;'>☁️ Gambar di Cloudinary &amp; tersimpan permanen!</span>";
+        } else if (okDb) {
+            statusBar.innerHTML = "<span style='color:#f39c12;'>⚠️ Cloudinary gagal (" + hasil.errMsg + "), tersimpan cadangan di Firebase</span>";
         } else {
-            targetEl.appendChild(img);
+            statusBar.innerHTML = "<span style='color:#e74c3c;'>❌ Gagal menyimpan ke Firebase (cek login/koneksi)</span>";
         }
-
-        if (targetEl.classList.contains("quiz-editable-field")) {
-            let bIdx = parseInt(targetEl.getAttribute("data-quiz-block"), 10);
-            let qIdx = parseInt(targetEl.getAttribute("data-quiz-q"), 10);
-            let field = targetEl.getAttribute("data-quiz-field");
-            let optRaw = targetEl.getAttribute("data-quiz-opt");
-            let optIdx = (optRaw !== null && optRaw !== "") ? parseInt(optRaw, 10) : null;
-            window.updateSoalInline(bIdx, qIdx, field, targetEl, optIdx, true);
-        } else if (targetEl.classList.contains("latihan-editable-field")) {
-            targetEl.dispatchEvent(new Event("blur"));
-        } else {
-            targetEl.dispatchEvent(new Event("input", { bubbles: true }));
-        }
-
-        if (statusBar) statusBar.innerHTML = "<span style='color:#2ecc71;'>✓ Gambar soal tersimpan</span>";
     });
 };
 
@@ -6161,7 +6290,11 @@ window.ubahUkuranGambarTerpilih = function(deltaPx) {
     window.selectedImg.style.maxWidth = '100%';
 
     window.perbaruiPosisiKontrolGambar();
-    if (parentEl) parentEl.dispatchEvent(new Event('input', { bubbles: true }));
+    if (parentEl && (parentEl.classList.contains('quiz-editable-field') || parentEl.classList.contains('latihan-editable-field'))) {
+        window.simpanFieldKuisDariElemen(parentEl, true);
+    } else if (parentEl) {
+        parentEl.dispatchEvent(new Event('input', { bubbles: true }));
+    }
 };
 
 document.addEventListener('click', function(e) {
@@ -6211,7 +6344,11 @@ document.addEventListener('keydown', function(e) {
         window.selectedImg = null;
         let c = document.getElementById('img-controls');
         if (c) c.style.display = 'none';
-        if (p) p.dispatchEvent(new Event('input', { bubbles: true }));
+        if (p && (p.classList.contains('quiz-editable-field') || p.classList.contains('latihan-editable-field'))) {
+            window.simpanFieldKuisDariElemen(p, true);
+        } else if (p) {
+            p.dispatchEvent(new Event('input', { bubbles: true }));
+        }
     }
 });
 
@@ -9170,7 +9307,7 @@ window.bukaModalLeaderboard = function() {
 
 /* =========================================================================
    PENGATURAN KHUSUS ADMIN: TAMBAH XP, COIN, STAT SOAL (PG/PGK/IS/ESSAY),
-   & STREAK LOGIN SISWA (TOMBOL TEPAT DI BAWAH LEADERBOARD — FULL SYNC)
+   STREAK LOGIN, & AKSES TOOLBAR EDIT KHUSUS RUANG OLIMPIADE BIOLOGI
    ========================================================================= */
 window.apakahAdminBolehAturData = function() {
     if (typeof window.isAdminSession === 'function') return window.isAdminSession();
@@ -9196,12 +9333,43 @@ window.pasangTombolAdminAturDataSiswa = function() {
     btn.className = 'header-more-item';
     btn.style.cssText = 'background:#fef9e7; color:#92400e; border:1px solid #f59e0b; font-weight:800;';
     btn.innerHTML = '<span class="hm-ico">⚙️</span><span class="hm-txt">Atur Data Siswa</span>';
-    btn.title = 'Khusus Admin: Tambah XP, Coin, Jumlah Soal (PG/PGK/IS/Essay), & Streak Login';
+    btn.title = 'Khusus Admin: Tambah XP, Coin, Jumlah Soal, Streak Login, & Akses Edit Olimpiade Biologi';
     btn.onclick = function() {
         if (typeof window.tutupMenuHeaderMore === 'function') window.tutupMenuHeaderMore();
         window.bukaModalAdminAturDataSiswa();
     };
     btnLb.insertAdjacentElement('afterend', btn);
+};
+
+// Ambil indeks induk OLIMPIADE BIOLOGI & seluruh sub-room di bawahnya dari window.pagesData
+window.ambilCabangOlimpiadeBiologi = function() {
+    let pages = Array.isArray(window.pagesData) ? window.pagesData : [];
+    let rootIdx = pages.findIndex(function(p) {
+        if (!p || Number(p.level) !== 0) return false;
+        let sl = String(p.slug || '').trim().toLowerCase();
+        let tl = String(p.title || '').trim().toLowerCase();
+        return sl === 'olimpiade-biologi' || tl === 'olimpiade biologi' || tl.indexOf('olimpiade biologi') !== -1;
+    });
+    if (rootIdx === -1) {
+        rootIdx = pages.findIndex(function(p) {
+            if (!p || Number(p.level) !== 0) return false;
+            let sl = String(p.slug || '').trim().toLowerCase();
+            let tl = String(p.title || '').trim().toLowerCase();
+            return sl === 'olimpiade' || tl.indexOf('olimpiade') !== -1;
+        });
+    }
+    if (rootIdx === -1) return { rootIdx: -1, rootPage: null, allPages: [], subPages: [] };
+
+    let rentang = (typeof window.ambilRentangCabangPage === 'function')
+        ? window.ambilRentangCabangPage(rootIdx)
+        : { start: rootIdx, end: rootIdx + 1, count: 1 };
+    let allPages = pages.slice(rentang.start, rentang.end);
+    return {
+        rootIdx: rootIdx,
+        rootPage: pages[rootIdx],
+        allPages: allPages,
+        subPages: allPages.slice(1)
+    };
 };
 
 window.adminBacaInfoStreakDariLB = function(lb) {
@@ -9246,13 +9414,11 @@ window.adminTerapkanStreakKeLB = function(lb, deltaStreak) {
             }
         });
     } else {
-        // Jika siswa belum pernah memiliki field streak, buat di field standar
         lb.loginStreak = nilaiBaru;
         if (!lb.misiHarian || typeof lb.misiHarian !== 'object') lb.misiHarian = {};
         lb.misiHarian.streak = nilaiBaru;
     }
 
-    // Pastikan tanggal check-in streak hari ini tidak langsung ter-reset
     let now = new Date();
     let todayIso = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
     if (lb.misiHarian && typeof lb.misiHarian === 'object') {
@@ -9275,11 +9441,11 @@ window.pastikanModalAdminAturDataAda = function() {
     };
 
     modal.innerHTML =
-        '<div class="modal-box" style="width:620px; max-width:95vw; max-height:90vh; display:flex; flex-direction:column;">' +
+        '<div class="modal-box" style="width:640px; max-width:95vw; max-height:90vh; display:flex; flex-direction:column;">' +
             '<div class="modal-header" style="background:linear-gradient(135deg,#0b3954,#145374); color:#ffffff;">' +
                 '<div>' +
                     '<h3 style="margin:0; font-size:16px;">⚙️ Pengaturan Data Siswa (Khusus Admin)</h3>' +
-                    '<div style="font-size:11px; color:#fde047; margin-top:2px;">Tambah terpisah XP, Coin, Jumlah Soal (PG/PGK/IS/Essay), &amp; Streak Login</div>' +
+                    '<div style="font-size:11px; color:#fde047; margin-top:2px;">XP, Coin, Jumlah Soal, Streak Login, &amp; Akses Editor Ruang OLIMPIADE BIOLOGI</div>' +
                 '</div>' +
                 '<button type="button" class="close-btn" style="color:#ffffff;" onclick="window.tutupModal(\'modal-admin-atur-data-siswa\')">✕</button>' +
             '</div>' +
@@ -9313,7 +9479,7 @@ window.pastikanModalAdminAturDataAda = function() {
 
                 /* 3. Form Tambah Terpisah */
                 '<div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:10px; padding:12px; display:flex; flex-direction:column; gap:10px;">' +
-                    '<div style="font-size:11.5px; font-weight:800; color:#0b3954; border-bottom:1px solid #e2e8f0; padding-bottom:6px;">➕ Nominal Tambahan (Isi 0 / kosongkan jika tidak diubah • Bisa pakai tanda minus jika koreksi)</div>' +
+                    '<div style="font-size:11.5px; font-weight:800; color:#0b3954; border-bottom:1px solid #e2e8f0; padding-bottom:6px;">➕ Nominal Tambahan (Kosongkan jika hanya ingin mengatur akses room)</div>' +
 
                     '<div style="display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px;">' +
                         '<div>' +
@@ -9355,6 +9521,23 @@ window.pastikanModalAdminAturDataAda = function() {
                         '<span>Ikut tambahkan angka <b>PG &amp; IS</b> di atas ke progres <b>Event Ujian SAS</b> siswa ini</span>' +
                     '</label>' +
 
+                    /* 4. Akses Khusus Toolbar Edit Ruang OLIMPIADE BIOLOGI */
+                    '<div style="background:#f0fdf4; border:1.5px solid #22c55e; border-radius:10px; padding:10px 12px; display:flex; flex-direction:column; gap:8px;">' +
+                        '<div style="font-size:12px; font-weight:900; color:#15803d;">🧬 Akses Room Khusus: OLIMPIADE BIOLOGI (Toolbar Font s.d. Draw)</div>' +
+                        '<label style="display:flex; align-items:center; gap:8px; font-size:12px; font-weight:700; color:#1e293b; cursor:pointer;">' +
+                            '<input type="checkbox" id="adm-adj-oli-enable" style="width:16px; height:16px; accent-color:#16a34a;" onchange="window.togglePanelAksesOliAdmin()">' +
+                            '<span>Berikan Toolbar Edit (Font sampai Draw) untuk akun ini di ruang <b>OLIMPIADE BIOLOGI</b></span>' +
+                        '</label>' +
+                        '<div id="adm-adj-oli-scope-wrap" style="display:none; flex-direction:column; gap:7px; padding-top:4px; border-top:1px dashed #86efac;">' +
+                            '<label style="font-size:11px; font-weight:800; color:#166534;">Cakupan Room yang Bisa Diedit:</label>' +
+                            '<div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">' +
+                                '<select id="adm-adj-oli-room" class="input-box" style="margin:0; flex:1; min-width:210px; padding:7px; font-size:12px; font-weight:700;"></select>' +
+                                '<button type="button" class="btn-action" style="background:#0f766e; width:auto; padding:7px 11px; font-size:11px; white-space:nowrap;" onclick="window.adminBuatSubRoomOlimpiadeUntukSiswa()">➕ Buat Sub-Room Khusus</button>' +
+                            '</div>' +
+                            '<div style="font-size:10.5px; color:#475569; line-height:1.4;">Akun ini hanya mendapat toolbar edit saat membuka room tersebut (menu Admin &amp; room Hidden tetap terkunci).</div>' +
+                        '</div>' +
+                    '</div>' +
+
                     '<div id="adm-adj-status-msg" style="display:none; font-size:12px; font-weight:700; padding:8px 10px; border-radius:8px;"></div>' +
 
                     '<button type="button" id="btn-simpan-adm-adj" class="btn-action" style="background:#16a34a; font-size:13.5px; padding:11px; font-weight:800;" onclick="window.terapkanAdminAturDataSiswa()">💾 Terapkan &amp; Sinkronkan ke Server</button>' +
@@ -9365,6 +9548,77 @@ window.pastikanModalAdminAturDataAda = function() {
 
     document.body.appendChild(modal);
     return modal;
+};
+
+window.togglePanelAksesOliAdmin = function() {
+    let chk = document.getElementById('adm-adj-oli-enable');
+    let wrap = document.getElementById('adm-adj-oli-scope-wrap');
+    if (wrap) wrap.style.display = (chk && chk.checked) ? 'flex' : 'none';
+};
+
+window.isiDropdownRoomOlimpiadeAdmin = function(selectedSlug) {
+    let sel = document.getElementById('adm-adj-oli-room');
+    if (!sel) return;
+    let cabang = window.ambilCabangOlimpiadeBiologi();
+    let rootTitle = cabang.rootPage ? cabang.rootPage.title : 'OLIMPIADE BIOLOGI';
+
+    let html = '<option value="ALL">📚 Seluruh Ruang ' + rootTitle + ' (Induk + Semua Sub-Room)</option>';
+    if (cabang.rootPage) {
+        html += '<option value="' + cabang.rootPage.slug.replace(/"/g, '&quot;') + '">📄 Hanya Halaman Utama: ' + cabang.rootPage.title + '</option>';
+    }
+    cabang.subPages.forEach(function(p) {
+        let indent = '— '.repeat(Math.max(1, Number(p.level) || 1));
+        html += '<option value="' + p.slug.replace(/"/g, '&quot;') + '">' + indent + p.title + '</option>';
+    });
+    sel.innerHTML = html;
+
+    if (selectedSlug && Array.from(sel.options).some(function(o) { return o.value === selectedSlug; })) {
+        sel.value = selectedSlug;
+    } else {
+        sel.value = 'ALL';
+    }
+};
+
+window.adminBuatSubRoomOlimpiadeUntukSiswa = function() {
+    if (!window.apakahAdminBolehAturData()) return;
+    let cabang = window.ambilCabangOlimpiadeBiologi();
+    if (cabang.rootIdx === -1 || !cabang.rootPage) {
+        return alert('⚠️ Room utama "OLIMPIADE BIOLOGI" belum ditemukan di daftar Pages.');
+    }
+
+    let selSiswa = document.getElementById('adm-adj-siswa');
+    let userKey = selSiswa ? selSiswa.value : '';
+    let lb = (window.leaderboardSiswaData && window.leaderboardSiswaData[userKey]) || {};
+    let defaultNama = lb.namaLengkap ? ('Ruang ' + lb.namaLengkap) : 'Sub-Room Khusus Olimpiade';
+
+    let judulSub = prompt('Masukkan nama Sub-Room khusus di dalam "' + cabang.rootPage.title + '":', defaultNama);
+    if (!judulSub || !judulSub.trim()) return;
+    judulSub = judulSub.trim();
+
+    let slugSub = (typeof window.buatSlugUnik === 'function')
+        ? window.buatSlugUnik(judulSub, -1)
+        : judulSub.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+
+    let newSubPage = {
+        title: judulSub,
+        slug: slugSub,
+        level: (Number(cabang.rootPage.level) || 0) + 1,
+        hidden: false,
+        isLockedHidden: false
+    };
+
+    let branch = window.ambilRentangCabangPage(cabang.rootIdx);
+    window.pagesData.splice(branch.end, 0, newSubPage);
+    if (typeof window.pastikanRoomHiddenTerkunci === 'function') window.pastikanRoomHiddenTerkunci();
+    if (typeof window.renderDynamicNavbar === 'function') window.renderDynamicNavbar();
+    if (typeof window.simpanPagesKeDB === 'function') window.simpanPagesKeDB();
+
+    let chk = document.getElementById('adm-adj-oli-enable');
+    if (chk) chk.checked = true;
+    window.togglePanelAksesOliAdmin();
+    window.isiDropdownRoomOlimpiadeAdmin(slugSub);
+
+    alert('✅ Sub-Room "' + judulSub + '" berhasil dibuat di bawah ' + cabang.rootPage.title + '!\n\nSekarang klik tombol "💾 Terapkan & Sinkronkan ke Server" untuk mengaktifkan akses edit akun ini.');
 };
 
 window.bukaModalAdminAturDataSiswa = function() {
@@ -9390,6 +9644,8 @@ window.bukaModalAdminAturDataSiswa = function() {
         });
         selKls.innerHTML = htmlKls;
     }
+
+    window.isiDropdownRoomOlimpiadeAdmin('ALL');
 
     if (typeof window.muatLeaderboardPenuhSekali === 'function') {
         window.muatLeaderboardPenuhSekali(function() {
@@ -9453,13 +9709,26 @@ window.renderDropdownSiswaAdminAtur = function() {
     }
 
     selSiswa.innerHTML = list.map(function(s) {
-        return '<option value="' + s.key.replace(/"/g, '&quot;') + '">[' + s.kelas + '] ' + s.nama + ' (' + s.key + ')</option>';
+        let lbItem = window.leaderboardSiswaData && window.leaderboardSiswaData[s.key];
+        let markOli = (lbItem && lbItem.aksesEditOlimpiade && lbItem.aksesEditOlimpiade.aktif) ? ' 🧬' : '';
+        return '<option value="' + s.key.replace(/"/g, '&quot;') + '">[' + s.kelas + '] ' + s.nama + ' (' + s.key + ')' + markOli + '</option>';
     }).join('');
 
     if (prevVal && list.some(function(s) { return s.key === prevVal; })) {
         selSiswa.value = prevVal;
     }
     window.muatDetailSiswaAdminAtur(false);
+};
+
+window.sinkronFormAksesOliDariLB = function(lb) {
+    let akses = (lb && lb.aksesEditOlimpiade && typeof lb.aksesEditOlimpiade === 'object') ? lb.aksesEditOlimpiade : null;
+    let aktif = Boolean(akses && akses.aktif);
+    let targetVal = (aktif && akses.scope === 'specific' && akses.targetSlug) ? akses.targetSlug : 'ALL';
+
+    let chk = document.getElementById('adm-adj-oli-enable');
+    if (chk) chk.checked = aktif;
+    window.isiDropdownRoomOlimpiadeAdmin(targetVal);
+    window.togglePanelAksesOliAdmin();
 };
 
 window.renderPreviewDetailSiswaAdminAtur = function(userKey, lb) {
@@ -9476,6 +9745,12 @@ window.renderPreviewDetailSiswaAdminAtur = function(userKey, lb) {
     let st = obj.statSoal || {};
     let streakInfo = window.adminBacaInfoStreakDariLB(obj);
     let sas = obj.eventSas2026 || { pg: 0, is: 0 };
+    let aksesOli = (obj.aksesEditOlimpiade && obj.aksesEditOlimpiade.aktif) ? obj.aksesEditOlimpiade : null;
+    let labelOli = aksesOli
+        ? ('<span style="color:#15803d; font-weight:800;">✅ Aktif (' + (aksesOli.scope === 'specific' ? ('Khusus: ' + (aksesOli.targetTitle || aksesOli.targetSlug)) : 'Seluruh OLIMPIADE BIOLOGI') + ')</span>')
+        : '<span style="color:#64748b;">Tidak Aktif</span>';
+
+    window.sinkronFormAksesOliDariLB(obj);
 
     box.innerHTML =
         '<div style="font-weight:900; font-size:13px; margin-bottom:6px; color:#0b3954;">👤 ' + (obj.namaLengkap || userKey) + ' <span style="font-weight:600; color:#475569; font-size:11px;">(' + (obj.kelas || 'Umum') + ' • ' + userKey + ')</span></div>' +
@@ -9490,7 +9765,7 @@ window.renderPreviewDetailSiswaAdminAtur = function(userKey, lb) {
             '<div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; padding:4px; font-size:11px;">IS: <b>' + (Number(st.IS) || 0) + '</b></div>' +
             '<div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; padding:4px; font-size:11px;">Essay: <b>' + (Number(st.Essay) || 0) + '</b></div>' +
         '</div>' +
-        '<div style="margin-top:6px; font-size:10.5px; color:#475569;">🎯 Progres Event SAS saat ini: <b>' + (Number(sas.pg) || 0) + ' PG</b> • <b>' + (Number(sas.is) || 0) + ' IS</b></div>';
+        '<div style="margin-top:6px; font-size:10.5px; color:#475569;">🎯 Progres Event SAS: <b>' + (Number(sas.pg) || 0) + ' PG</b> • <b>' + (Number(sas.is) || 0) + ' IS</b> &nbsp;|&nbsp; 🧬 Editor Olimpiade: ' + labelOli + '</div>';
 };
 
 window.muatDetailSiswaAdminAtur = function(forceServer) {
@@ -9534,9 +9809,12 @@ window.terapkanAdminAturDataSiswa = async function() {
     let addEssay = parseInt((document.getElementById('adm-adj-essay') || {}).value || '0', 10) || 0;
     let ikutSas = Boolean((document.getElementById('adm-adj-sync-sas') || {}).checked);
 
-    if (!addXP && !addCoin && !addStreak && !addPG && !addPGK && !addIS && !addEssay) {
-        return alert('⚠️ Isi minimal satu kolom angka tambahan terlebih dahulu.');
-    }
+    let oliEnable = Boolean((document.getElementById('adm-adj-oli-enable') || {}).checked);
+    let selOliRoom = document.getElementById('adm-adj-oli-room');
+    let oliRoomVal = selOliRoom ? selOliRoom.value : 'ALL';
+    let oliRoomTitle = (selOliRoom && selOliRoom.selectedOptions && selOliRoom.selectedOptions[0])
+        ? selOliRoom.selectedOptions[0].textContent.replace(/^[📚📄—\s]+/, '').trim()
+        : 'OLIMPIADE BIOLOGI';
 
     let btn = document.getElementById('btn-simpan-adm-adj');
     let statusEl = document.getElementById('adm-adj-status-msg');
@@ -9546,7 +9824,6 @@ window.terapkanAdminAturDataSiswa = async function() {
     let fullPath = 'data_guru/' + guru + '/leaderboard_siswa/' + userKey;
 
     try {
-        // 1. Tarik data paling segar langsung dari Firebase sebelum menulis
         let baseObj = null;
         if (typeof window.bacaDataRestFirebase === 'function') {
             baseObj = await new Promise(function(resolve) {
@@ -9562,26 +9839,30 @@ window.terapkanAdminAturDataSiswa = async function() {
         let lokalRef = (window.leaderboardSiswaData && window.leaderboardSiswaData[userKey]) || {};
         let merged = JSON.parse(JSON.stringify(baseObj || lokalRef || {}));
 
+        let prevOliAktif = Boolean(merged.aksesEditOlimpiade && merged.aksesEditOlimpiade.aktif);
+        let prevOliTarget = (merged.aksesEditOlimpiade && merged.aksesEditOlimpiade.scope === 'specific') ? (merged.aksesEditOlimpiade.targetSlug || '') : 'ALL';
+        let adaPerubahanOli = (oliEnable !== prevOliAktif) || (oliEnable && oliRoomVal !== prevOliTarget);
+
+        if (!addXP && !addCoin && !addStreak && !addPG && !addPGK && !addIS && !addEssay && !adaPerubahanOli) {
+            if (btn) { btn.disabled = false; btn.innerText = '💾 Terapkan & Sinkronkan ke Server'; }
+            return alert('⚠️ Isi minimal satu angka tambahan atau ubah pengaturan akses room OLIMPIADE BIOLOGI.');
+        }
+
         if (!merged.namaLengkap) merged.namaLengkap = akunRef.namaLengkap || userKey;
         if (!merged.kelas) merged.kelas = akunRef.kelas || 'Umum';
 
-        // 2. Terapkan perubahan secara independen (XP terpisah dari Coin!)
+        // 1. XP & Coin terpisah
         let curXP = Math.max(Number(merged.xpTotal) || 0, Number(merged.xp) || 0);
         let curCoin = (merged.coin !== undefined) ? (Number(merged.coin) || 0) : ((merged.xpTersedia !== undefined) ? (Number(merged.xpTersedia) || 0) : curXP);
-
-        if (addXP !== 0) {
-            curXP = Math.max(0, curXP + addXP);
-        }
-        if (addCoin !== 0) {
-            curCoin = Math.max(0, curCoin + addCoin);
-        }
+        if (addXP !== 0) curXP = Math.max(0, curXP + addXP);
+        if (addCoin !== 0) curCoin = Math.max(0, curCoin + addCoin);
         merged.xpTotal = curXP;
         merged.xp = curXP;
         merged.coin = curCoin;
         merged.xpTersedia = curCoin;
         merged.coinInitialized = true;
 
-        // 3. Terapkan penambahan jumlah soal dikerjakan per tipe (PG, PGK, IS, Essay)
+        // 2. Stat Soal terpisah
         if (!merged.statSoal || typeof merged.statSoal !== 'object') {
             merged.statSoal = { PG: 0, PGK: 0, IS: 0, Essay: 0 };
         }
@@ -9590,7 +9871,7 @@ window.terapkanAdminAturDataSiswa = async function() {
         merged.statSoal.IS = Math.max(0, (Number(merged.statSoal.IS) || 0) + addIS);
         merged.statSoal.Essay = Math.max(0, (Number(merged.statSoal.Essay) || 0) + addEssay);
 
-        // 4. Opsional: ikut sinkronkan penambahan PG/IS ke Event Ujian SAS
+        // 3. Opsional: Event SAS
         if (ikutSas && (addPG !== 0 || addIS !== 0)) {
             if (typeof window.pastikanDataEventSAS === 'function') window.pastikanDataEventSAS(merged);
             else if (!merged.eventSas2026) merged.eventSas2026 = { pg: 0, is: 0, claimedTiers: {}, updatedAt: 0 };
@@ -9599,12 +9880,22 @@ window.terapkanAdminAturDataSiswa = async function() {
             merged.eventSas2026.updatedAt = Date.now();
         }
 
-        // 5. Terapkan penambahan Streak Login
+        // 4. Streak Login
         if (addStreak !== 0) {
             window.adminTerapkanStreakKeLB(merged, addStreak);
         }
 
-        // 6. Tulis permanen ke Firebase REST + kirim sinyal refresh otomatis ke perangkat siswa
+        // 5. Akses Khusus Toolbar Edit Ruang OLIMPIADE BIOLOGI
+        merged.aksesEditOlimpiade = oliEnable
+            ? {
+                aktif: true,
+                scope: oliRoomVal === 'ALL' ? 'all' : 'specific',
+                targetSlug: oliRoomVal === 'ALL' ? '' : oliRoomVal,
+                targetTitle: oliRoomVal === 'ALL' ? 'OLIMPIADE BIOLOGI' : oliRoomTitle,
+                updatedAt: Date.now()
+            }
+            : { aktif: false, scope: 'all', targetSlug: '', targetTitle: '', updatedAt: Date.now() };
+
         await new Promise(function(resolve, reject) {
             if (typeof window.tulisDataRestFirebase === 'function') {
                 window.tulisDataRestFirebase(fullPath, merged, 'PUT', resolve, reject);
@@ -9617,14 +9908,12 @@ window.terapkanAdminAturDataSiswa = async function() {
         window.leaderboardSiswaData[userKey] = merged;
 
         if (typeof window.tulisDataRestFirebase === 'function') {
-            let tsNow = Date.now();
             window.tulisDataRestFirebase('data_guru/' + guru + '/sistem_refresh_lb', {
-                ts: tsNow,
+                ts: Date.now(),
                 by: sessionStorage.getItem('username') || 'admin'
             }, 'PUT');
         }
 
-        // Reset input form agar siap untuk penyesuaian berikutnya
         ['adm-adj-xp', 'adm-adj-coin', 'adm-adj-streak', 'adm-adj-pg', 'adm-adj-pgk', 'adm-adj-is', 'adm-adj-essay'].forEach(function(id) {
             let el = document.getElementById(id);
             if (el) el.value = '';
@@ -9638,7 +9927,7 @@ window.terapkanAdminAturDataSiswa = async function() {
             statusEl.style.background = '#dcfce7';
             statusEl.style.color = '#15803d';
             statusEl.style.border = '1px solid #22c55e';
-            statusEl.innerText = '✅ Data ' + (merged.namaLengkap || userKey) + ' berhasil diperbarui & sinyal sinkronisasi dikirim ke perangkat siswa!';
+            statusEl.innerText = '✅ Data & akses ' + (merged.namaLengkap || userKey) + ' berhasil diperbarui dan disinkronkan!';
         }
     } catch (err) {
         console.error('Admin adjust error:', err);
@@ -9654,10 +9943,216 @@ window.terapkanAdminAturDataSiswa = async function() {
     }
 };
 
-document.addEventListener('DOMContentLoaded', function() {
-    window.pasangTombolAdminAturDataSiswa();
-    setTimeout(window.pasangTombolAdminAturDataSiswa, 600);
-});let cb = w.querySelector('.content-block');
+/* =========================================================================
+   MESIN TOOLBAR EDIT KHUSUS SISWA DI RUANG OLIMPIADE BIOLOGI
+   - Mengaktifkan Toolbar Edit lengkap (Font s.d. Draw) hanya di room yang diizinkan
+   - Menyembunyikan seluruh menu Admin, Preview, Pengaturan Tema, & Room Hidden
+   - Auto-save perubahan materi, kuis, tabel, media, & coretan Draw ke Firebase
+   ========================================================================= */
+window.pasangCssEditorKhususSiswa = function() {
+    if (document.getElementById('css-student-special-editor')) return;
+    let st = document.createElement('style');
+    st.id = 'css-student-special-editor';
+    st.textContent =
+        'body.student-room-editor-mode #admin-menu-bar,' +
+        'body.student-room-editor-mode #btn-preview,' +
+        'body.student-room-editor-mode .header-settings-btn,' +
+        'body.student-room-editor-mode #page-cakupan-panel-wrap,' +
+        'body.student-room-editor-mode .a4-sheet-admin-strip,' +
+        'body.student-room-editor-mode .hidden-nav-item,' +
+        'body.student-room-editor-mode .locked-hidden-nav-item { display: none !important; }' +
+        'body.student-room-editor-mode .toolbar-wrapper { display: flex !important; }' +
+        'body.student-room-editor-mode .block-controls { display: flex !important; }';
+    document.head.appendChild(st);
+};
+
+window.isStudentSpecialEditorHere = function(slugOpt) {
+    if (typeof window.isAdminSession === 'function' && window.isAdminSession()) return false;
+    let stat = sessionStorage.getItem('statusLogin');
+    let rawU = (sessionStorage.getItem('username') || '').trim();
+    let uLow = rawU.toLowerCase();
+    if (stat !== 'siswa' || !uLow || uLow === 'sbd' || uLow === 'tamu' || uLow === 'mahardika') return false;
+
+    let cleanU = (typeof window.sanitasiKeyRekapFirebase === 'function')
+        ? window.sanitasiKeyRekapFirebase(uLow).toLowerCase()
+        : uLow;
+    let lb = (window.leaderboardSiswaData && (window.leaderboardSiswaData[rawU] || window.leaderboardSiswaData[cleanU])) || null;
+    if (!lb || !lb.aksesEditOlimpiade || !lb.aksesEditOlimpiade.aktif) return false;
+
+    let slugNow = String(slugOpt || window.babAktif || 'home').trim().toLowerCase();
+    if (!slugNow || slugNow === 'home') return false;
+
+    let akses = lb.aksesEditOlimpiade;
+    let cabang = window.ambilCabangOlimpiadeBiologi();
+    let allowedSlugs = cabang.allPages.map(function(p) { return String(p.slug || '').trim().toLowerCase(); });
+
+    if (allowedSlugs.length === 0) {
+        if (akses.scope === 'specific' && akses.targetSlug) {
+            return slugNow === String(akses.targetSlug).trim().toLowerCase();
+        }
+        return slugNow === 'olimpiade-biologi' || slugNow === 'olimpiade';
+    }
+
+    if (allowedSlugs.indexOf(slugNow) === -1) return false;
+
+    if (akses.scope === 'specific' && akses.targetSlug) {
+        let tSlug = String(akses.targetSlug).trim().toLowerCase();
+        if (slugNow === tSlug) return true;
+        // Izinkan juga sub-room di bawah targetSlug jika ada
+        let tIdx = (window.pagesData || []).findIndex(function(p) {
+            return p && String(p.slug || '').trim().toLowerCase() === tSlug;
+        });
+        if (tIdx !== -1 && typeof window.ambilRentangCabangPage === 'function') {
+            let subBranch = window.ambilRentangCabangPage(tIdx);
+            let subSlugs = (window.pagesData || []).slice(subBranch.start, subBranch.end).map(function(p) {
+                return String(p.slug || '').trim().toLowerCase();
+            });
+            return subSlugs.indexOf(slugNow) !== -1;
+        }
+        return false;
+    }
+
+    return true;
+};
+
+window.sinkronkanModeEditorKhususSiswa = function(skipReRender) {
+    if (typeof window.isAdminSession === 'function' && window.isAdminSession()) return;
+    window.pasangCssEditorKhususSiswa();
+
+    let bolehEdit = window.isStudentSpecialEditorHere();
+    let sebelumnyaAktif = document.body.classList.contains('student-room-editor-mode');
+
+    if (bolehEdit) {
+        document.body.classList.add('student-room-editor-mode', 'mode-edit-aktif');
+        document.documentElement.classList.add('force-edit-mode');
+        let titleEl = document.getElementById('web-title');
+        if (titleEl) titleEl.removeAttribute('contenteditable');
+    } else {
+        if (sebelumnyaAktif) {
+            if (window.isDrawingMode && typeof window.toggleDrawingMode === 'function') {
+                window.toggleDrawingMode();
+            }
+            if (typeof window.tutupSidebarBlock === 'function') {
+                window.tutupSidebarBlock();
+            }
+        }
+        document.body.classList.remove('student-room-editor-mode', 'mode-edit-aktif');
+        document.documentElement.classList.remove('force-edit-mode');
+    }
+
+    if (!skipReRender && bolehEdit !== sebelumnyaAktif) {
+        if (typeof window.renderBlocks === 'function') window.renderBlocks();
+        if (typeof window.renderFloatingBoxes === 'function') window.renderFloatingBoxes();
+    }
+};
+
+window.simpanMateriSiswaKhususKeDB = function(slugOpt) {
+    let slug = slugOpt || window.babAktif || 'home';
+    if (!window.isStudentSpecialEditorHere(slug)) return false;
+
+    document.querySelectorAll('#blocks-container > .block-wrapper').forEach(function(wrap, i) {
+        let b = window.contentBlocksData && window.contentBlocksData[i];
+        if (!b || b.type === 'quiz' || b.type === 'pdf_slides' || b.type === 'modul_interaktif') return;
+        let cb = wrap.querySelector(':scope > .a4-paper-wrapper > .block-collapsible-area > .content-block, :scope > .dynamic-block-shell > .block-collapsible-area > .content-block');
+        if (cb) {
+            let clone = cb.cloneNode(true);
+            clone.querySelectorAll('img.img-selected').forEach(function(im) { im.classList.remove('img-selected'); });
+            b.html = clone.innerHTML;
+        }
+    });
+
+    document.querySelectorAll('#floating-boxes-container .fb-content[data-fb-index]').forEach(function(el) {
+        let fi = parseInt(el.getAttribute('data-fb-index'), 10);
+        if (!isNaN(fi) && window.floatingBoxesData && window.floatingBoxesData[fi]) {
+            let clone = el.cloneNode(true);
+            clone.querySelectorAll('canvas.drawing-layer').forEach(function(c) { c.remove(); });
+            window.floatingBoxesData[fi].html = clone.innerHTML;
+        }
+    });
+
+    let guru = (window.guruAktif || sessionStorage.getItem('guruTarget') || 'mahardika').trim().toLowerCase();
+    let payload = {
+        blocksObj: window.contentBlocksData || [],
+        floatingBoxesObj: window.floatingBoxesData || [],
+        updatedAt: Date.now(),
+        updatedBy: sessionStorage.getItem('username') || 'siswa_khusus'
+    };
+
+    let stBar = document.getElementById('save-status-bar');
+    if (stBar) stBar.innerHTML = "<span style='color:#e67e22;'>⏳ Menyimpan (Olimpiade)...</span>";
+
+    if (typeof window.sinkronCacheRoomSetelahEditKuis === 'function') {
+        window.sinkronCacheRoomSetelahEditKuis(slug);
+    }
+
+    if (typeof window.tulisDataRestFirebase === 'function') {
+        window.tulisDataRestFirebase('data_guru/' + guru + '/materi_koleksi/' + slug, payload, 'PUT', function() {
+            if (stBar) stBar.innerHTML = "<span style='color:#2ecc71;'>Cloud Sync: Tersimpan ✓</span>";
+        }, function() {
+            if (stBar) stBar.innerHTML = "<span style='color:#e74c3c;'>⚠️ Gagal simpan ke server</span>";
+        });
+        return true;
+    }
+    return false;
+};
+
+// Pasang hook simpanKeDB, perbaruiUIHeaderProfilSiswa, & auto-save ketikan khusus siswa berizin
+(function inisialisasiHookEditorKhususSiswa() {
+    function bungkusSimpanKeDB() {
+        if (typeof window.simpanKeDB === 'function' && !window.simpanKeDB._wrappedOli) {
+            let origSimpan = window.simpanKeDB;
+            window.simpanKeDB = function(slugArg) {
+                if (window.isStudentSpecialEditorHere(slugArg)) {
+                    return window.simpanMateriSiswaKhususKeDB(slugArg);
+                }
+                return origSimpan.apply(this, arguments);
+            };
+            window.simpanKeDB._wrappedOli = true;
+        }
+    }
+
+    if (typeof window.perbaruiUIHeaderProfilSiswa === 'function' && !window.perbaruiUIHeaderProfilSiswa._wrappedOli) {
+        let origHeader = window.perbaruiUIHeaderProfilSiswa;
+        window.perbaruiUIHeaderProfilSiswa = function() {
+            let r = origHeader.apply(this, arguments);
+            window.sinkronkanModeEditorKhususSiswa(false);
+            return r;
+        };
+        window.perbaruiUIHeaderProfilSiswa._wrappedOli = true;
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        window.pasangTombolAdminAturDataSiswa();
+        setTimeout(window.pasangTombolAdminAturDataSiswa, 600);
+        window.pasangCssEditorKhususSiswa();
+        bungkusSimpanKeDB();
+        setTimeout(bungkusSimpanKeDB, 800);
+        setTimeout(bungkusSimpanKeDB, 2000);
+        window.sinkronkanModeEditorKhususSiswa(false);
+
+        let editorWrap = document.getElementById('main-editor-wrapper');
+        if (editorWrap) {
+            editorWrap.addEventListener('input', function(e) {
+                if (!window.isStudentSpecialEditorHere()) return;
+                if (!e.target || !e.target.closest || !e.target.closest('.content-block, .fb-content')) return;
+                let stBar = document.getElementById('save-status-bar');
+                if (stBar) stBar.innerHTML = "<span style='color:#e67e22;'>✍️ Mengetik...</span>";
+                clearTimeout(window.typingTimer);
+                let roomTarget = window.babAktif;
+                window.typingTimer = setTimeout(function() {
+                    window.typingTimer = null;
+                    window.simpanMateriSiswaKhususKeDB(roomTarget);
+                }, 650);
+            });
+        }
+    });
+
+    window.addEventListener('load', function() {
+        bungkusSimpanKeDB();
+        setTimeout(function() { window.sinkronkanModeEditorKhususSiswa(false); }, 500);
+    });
+})();
+let cb = w.querySelector('.content-block');
         if (cb) cb.setAttribute('data-index', idx);
         let btns = w.querySelectorAll('.block-controls button');
 
