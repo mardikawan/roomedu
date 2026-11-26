@@ -1541,6 +1541,39 @@ window.simpanLeaderboardSiswaKeDB = function(usernameKey, dataObj) {
             merged.ownedBorders = Array.from(new Set(srvBorders.concat(incBorders).filter(Boolean)));
         }
 
+        // Jika Admin baru saja memperbarui data siswa di server, cegah browser siswa yang masih memakai salinan lama menimpanya balik
+        let srvAdmTs = Number(existingServerObj && existingServerObj._adminAdjTs) || 0;
+        let incAdmTs = Number(cleanIncoming && cleanIncoming._adminAdjTs) || 0;
+        let isAdminNow = (sessionStorage.getItem("statusLogin") === "admin");
+
+        if (!isAdminNow && existingServerObj && srvAdmTs > incAdmTs) {
+            merged._adminAdjTs = srvAdmTs;
+            if (existingServerObj.aksesEditOlimpiade !== undefined) {
+                merged.aksesEditOlimpiade = existingServerObj.aksesEditOlimpiade;
+            }
+            if (existingServerObj.coin !== undefined) {
+                merged.coin = Math.max(Number(existingServerObj.coin) || 0, Number(cleanIncoming.coin) || 0);
+                merged.xpTersedia = merged.coin;
+            }
+            if (existingServerObj.misiHarian && typeof existingServerObj.misiHarian === "object") {
+                let sStr = Number(existingServerObj.misiHarian.streak) || 0;
+                let iStr = Number(cleanIncoming.misiHarian && cleanIncoming.misiHarian.streak) || 0;
+                merged.misiHarian = Object.assign({}, cleanIncoming.misiHarian || {}, existingServerObj.misiHarian, {
+                    streak: Math.max(sStr, iStr)
+                });
+            }
+            if (existingServerObj.loginStreak !== undefined || existingServerObj.streak !== undefined) {
+                let maxStr = Math.max(
+                    Number(existingServerObj.loginStreak) || 0,
+                    Number(existingServerObj.streak) || 0,
+                    Number(cleanIncoming.loginStreak) || 0,
+                    Number(cleanIncoming.streak) || 0
+                );
+                merged.loginStreak = maxStr;
+                merged.streak = maxStr;
+            }
+        }
+
         merged.xpTotal = Math.max(srvXP, locXP);
         merged.xp = merged.xpTotal;
 

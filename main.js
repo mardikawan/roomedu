@@ -5708,7 +5708,7 @@ window.sisipkanGambarKeFieldSoal = async function(targetEl, fileBlob, rangeOpsio
     let img = document.createElement("img");
     img.src = hasil.url;
     img.alt = "Gambar Soal";
-    img.style.cssText = "max-width:100%; height:auto; display:block; margin:8px 0; border-radius:6px;";
+    img.style.cssText = "max-width:100%; height:auto; display:inline-block; vertical-align:middle; margin:4px 8px; border-radius:6px;";
 
     if (ph.parentNode) {
         ph.parentNode.replaceChild(img, ph);
@@ -6259,161 +6259,384 @@ document.addEventListener('paste', function(e) {
 
 
 /* =========================================
-   KONTROL GAMBAR DALAM BLOK (KUNCI RASIO & TOMBOL PERKECIL/PERBESAR)
+   KONTROL GAMBAR UNIVERSAL (INLINE LIVE-REFLOW DRAG, WRAP TEKS, & RESIZE)
+   Berlaku di seluruh editor: Materi, Kuis, Latihan, Ujian, Catatan, Popup, & Notif
    ========================================= */
 window.selectedImg = null;
+window._justFinishedImgDrag = 0;
+
+window.SELECTOR_EDITOR_GAMBAR = '.quiz-editable-field, .latihan-editable-field, .content-block, .fb-content, #popup-content-box, #cg-editor-area, #ck-editor-area, #notif-admin-editor';
+
+window.pasangCssGambarInlineReflow = function() {
+    if (document.getElementById('css-gambar-inline-reflow')) return;
+    let st = document.createElement('style');
+    st.id = 'css-gambar-inline-reflow';
+    st.textContent =
+        '.content-block img:not(.pdf-slide-bg), .fb-content img, .quiz-editable-field img, .latihan-editable-field img, #cg-editor-area img, #ck-editor-area img, #notif-admin-editor img {' +
+            'max-width: 100%; height: auto; vertical-align: middle;' +
+        '}' +
+        'body.mode-edit-aktif .content-block img:not(.pdf-slide-bg),' +
+        'body.force-edit-mode .content-block img:not(.pdf-slide-bg),' +
+        'body.mode-edit-aktif .fb-content img,' +
+        'body.mode-edit-aktif .quiz-editable-field img,' +
+        '.latihan-editable-field img,' +
+        '#cg-editor-area img, #ck-editor-area img, #notif-admin-editor img {' +
+            'cursor: grab; user-select: none; -webkit-user-drag: none;' +
+        '}' +
+        'img.img-live-dragging {' +
+            'opacity: 0.62 !important; outline: 2.5px dashed #0284c7 !important; cursor: grabbing !important; box-shadow: 0 6px 18px rgba(2,132,199,0.28) !important;' +
+        '}' +
+        '#img-controls {' +
+            'position: fixed !important; z-index: 1000080 !important; flex-wrap: nowrap; white-space: nowrap;' +
+        '}';
+    document.head.appendChild(st);
+};
+
+window.apakahBolehEditGambar = function(imgEl) {
+    if (!imgEl || imgEl.tagName !== 'IMG') return false;
+    if (window.isDrawingMode) return false;
+    if (imgEl.closest('.draw-float-img-item') || imgEl.classList.contains('pdf-slide-bg')) return false;
+    let host = imgEl.closest(window.SELECTOR_EDITOR_GAMBAR);
+    if (!host) return false;
+
+    let isAdmin = sessionStorage.getItem('statusLogin') === 'admin';
+    let isEdit = document.body.classList.contains('mode-edit-aktif') || document.documentElement.classList.contains('force-edit-mode');
+    if (isEdit) return true;
+    if (isAdmin && (host.classList.contains('latihan-editable-field') || host.id === 'cg-editor-area' || host.id === 'ck-editor-area' || host.id === 'notif-admin-editor' || host.id === 'popup-content-box')) {
+        return true;
+    }
+    return false;
+};
+
+window.simpanPerubahanEditorGambar = function(hostEl) {
+    if (!hostEl) return;
+    if ((hostEl.classList.contains('quiz-editable-field') || hostEl.classList.contains('latihan-editable-field')) && typeof window.simpanFieldKuisDariElemen === 'function') {
+        window.simpanFieldKuisDariElemen(hostEl, true);
+    } else {
+        hostEl.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+};
 
 window.perbaruiPosisiKontrolGambar = function() {
     let c = document.getElementById('img-controls');
     if (!c || !window.selectedImg || !document.body.contains(window.selectedImg)) return;
+    if (c.parentElement !== document.body) document.body.appendChild(c);
+
     let rect = window.selectedImg.getBoundingClientRect();
     c.style.display = 'flex';
-    c.style.top = Math.max(10, (rect.top + window.scrollY - 38)) + 'px';
-    c.style.left = Math.max(10, (rect.left + window.scrollX)) + 'px';
+    let barW = c.offsetWidth || 320;
+    let topPos = rect.top - 42;
+    if (topPos < 10) topPos = Math.min(window.innerHeight - 46, rect.bottom + 8);
+    let leftPos = Math.max(8, Math.min(window.innerWidth - barW - 8, rect.left));
+
+    c.style.top = Math.round(topPos) + 'px';
+    c.style.left = Math.round(leftPos) + 'px';
+
     let infoSz = document.getElementById('lbl-size-img');
     if (infoSz) {
         infoSz.innerText = Math.round(window.selectedImg.offsetWidth) + 'px';
     }
 };
 
+window.bangunToolbarKontrolGambar = function() {
+    let c = document.getElementById('img-controls');
+    if (!c || document.getElementById('btn-mode-inline-img')) return;
+    c.innerHTML =
+        '<button type="button" onclick="window.ubahUkuranGambarTerpilih(-30)" title="Perkecil Gambar (Rasio Terkunci)" style="font-weight:900;">➖</button>' +
+        '<span id="lbl-size-img" style="color:#f1c40f; font-size:11px; font-weight:bold; padding:0 4px; display:flex; align-items:center;">100px</span>' +
+        '<button type="button" onclick="window.ubahUkuranGambarTerpilih(30)" title="Perbesar Gambar (Rasio Terkunci)" style="font-weight:900;">➕</button>' +
+        '<div style="width:1px;height:14px;background:rgba(255,255,255,0.3);margin:0 4px;"></div>' +
+        '<button type="button" id="btn-mode-inline-img" onclick="window.setModeLayoutGambar(\'inline\')" title="Masuk Baris Teks (Geser &amp; Teks Otomatis Bergeser)" style="font-size:11px; font-weight:700;">📝 Inline</button>' +
+        '<button type="button" onclick="window.setModeLayoutGambar(\'wrap-left\')" title="Wrap Teks Kiri (Teks Mengalir di Kanan)" style="font-size:11px;">◧ Kiri</button>' +
+        '<button type="button" onclick="window.setModeLayoutGambar(\'wrap-right\')" title="Wrap Teks Kanan (Teks Mengalir di Kiri)" style="font-size:11px;">◨ Kanan</button>' +
+        '<button type="button" onclick="window.setModeLayoutGambar(\'center\')" title="Rata Tengah (Baris Sendiri)" style="font-size:11px;">≡</button>' +
+        '<div style="width:1px;height:14px;background:rgba(255,255,255,0.3);margin:0 4px;"></div>' +
+        '<button type="button" id="btn-layout-img" onclick="window.toggleLayoutGambar()" style="font-size:11px; font-weight:bold;" title="Ubah ke Melayang Bebas (Float) / Kembali ke Inline">🕊️ Float</button>';
+};
+
 window.ubahUkuranGambarTerpilih = function(deltaPx) {
     if (!window.selectedImg) return;
     let curW = window.selectedImg.offsetWidth || 250;
-    let parentEl = window.selectedImg.closest('.quiz-editable-field, .content-block, .fb-content');
-    let maxW = parentEl ? (parentEl.clientWidth - 20) : 900;
-    let nextW = Math.max(40, Math.min(maxW, curW + deltaPx));
+    let hostEl = window.selectedImg.closest(window.SELECTOR_EDITOR_GAMBAR);
+    let maxW = hostEl ? Math.max(120, hostEl.clientWidth - 16) : 900;
+    let nextW = Math.max(36, Math.min(maxW, curW + deltaPx));
 
-    // Kunci rasio mutlak: hanya ubah width dan paksa height: auto
     window.selectedImg.removeAttribute('height');
     window.selectedImg.style.width = nextW + 'px';
     window.selectedImg.style.height = 'auto';
     window.selectedImg.style.maxWidth = '100%';
 
     window.perbaruiPosisiKontrolGambar();
-    if (parentEl && (parentEl.classList.contains('quiz-editable-field') || parentEl.classList.contains('latihan-editable-field'))) {
-        window.simpanFieldKuisDariElemen(parentEl, true);
-    } else if (parentEl) {
-        parentEl.dispatchEvent(new Event('input', { bubbles: true }));
+    window.simpanPerubahanEditorGambar(hostEl);
+};
+
+window.setModeLayoutGambar = function(mode) {
+    let img = window.selectedImg;
+    if (!img) return;
+    let hostEl = img.closest(window.SELECTOR_EDITOR_GAMBAR);
+
+    img.style.height = 'auto';
+    img.style.maxWidth = '100%';
+
+    if (mode === 'inline') {
+        img.style.position = '';
+        img.style.left = '';
+        img.style.top = '';
+        img.style.zIndex = '';
+        img.style.float = 'none';
+        img.style.display = 'inline-block';
+        img.style.verticalAlign = 'middle';
+        img.style.margin = '4px 8px';
+        img.style.cursor = 'grab';
+        img.setAttribute('data-img-layout', 'inline-reflow');
+        img.onpointerdown = null;
+    } else if (mode === 'wrap-left') {
+        img.style.position = '';
+        img.style.left = '';
+        img.style.top = '';
+        img.style.zIndex = '';
+        img.style.display = 'inline-block';
+        img.style.verticalAlign = 'top';
+        img.style.float = 'left';
+        img.style.margin = '4px 14px 8px 0';
+        img.style.cursor = 'grab';
+        img.setAttribute('data-img-layout', 'wrap-left');
+        img.onpointerdown = null;
+    } else if (mode === 'wrap-right') {
+        img.style.position = '';
+        img.style.left = '';
+        img.style.top = '';
+        img.style.zIndex = '';
+        img.style.display = 'inline-block';
+        img.style.verticalAlign = 'top';
+        img.style.float = 'right';
+        img.style.margin = '4px 0 8px 14px';
+        img.style.cursor = 'grab';
+        img.setAttribute('data-img-layout', 'wrap-right');
+        img.onpointerdown = null;
+    } else if (mode === 'center') {
+        img.style.position = '';
+        img.style.left = '';
+        img.style.top = '';
+        img.style.zIndex = '';
+        img.style.float = 'none';
+        img.style.display = 'block';
+        img.style.margin = '12px auto';
+        img.style.cursor = 'grab';
+        img.setAttribute('data-img-layout', 'center');
+        img.onpointerdown = null;
+    }
+
+    window.perbaruiPosisiKontrolGambar();
+    window.simpanPerubahanEditorGambar(hostEl);
+};
+
+window.alignGambar = function(p) {
+    if (p === 'left') window.setModeLayoutGambar('wrap-left');
+    else if (p === 'right') window.setModeLayoutGambar('wrap-right');
+    else window.setModeLayoutGambar('center');
+};
+
+window.toggleLayoutGambar = function() {
+    let img = window.selectedImg;
+    if (!img) return;
+    let isAbsolute = img.style.position === 'absolute';
+    if (isAbsolute) {
+        window.setModeLayoutGambar('inline');
+    } else {
+        let hostEl = img.closest(window.SELECTOR_EDITOR_GAMBAR);
+        if (hostEl && window.getComputedStyle(hostEl).position === 'static') {
+            hostEl.style.position = 'relative';
+        }
+        img.style.float = 'none';
+        img.style.position = 'absolute';
+        img.style.zIndex = '10';
+        img.style.margin = '0';
+        img.style.height = 'auto';
+        img.style.cursor = 'move';
+        img.setAttribute('data-img-layout', 'float');
+        img.onpointerdown = window.startDragGambarFloat;
+        window.perbaruiPosisiKontrolGambar();
+        window.simpanPerubahanEditorGambar(hostEl);
     }
 };
+
+window.ambilRangeTitikKursor = function(clientX, clientY) {
+    if (document.caretRangeFromPoint) {
+        return document.caretRangeFromPoint(clientX, clientY);
+    }
+    if (document.caretPositionFromPoint) {
+        let pos = document.caretPositionFromPoint(clientX, clientY);
+        if (pos && pos.offsetNode) {
+            let r = document.createRange();
+            r.setStart(pos.offsetNode, pos.offset);
+            r.collapse(true);
+            return r;
+        }
+    }
+    return null;
+};
+
+// Geser Gambar Secara Live di Dalam Baris Teks (Teks di Belakang Otomatis Bergeser)
+window.mulaiDragGambarInlineReflow = function(e, img) {
+    if (!img || img.style.position === 'absolute') return;
+    if (!window.apakahBolehEditGambar(img)) return;
+    if (e.button !== undefined && e.button !== 0 && e.pointerType === 'mouse') return;
+
+    let rect = img.getBoundingClientRect();
+    // Beri ruang 22px di tepi kanan/bawah untuk resize drag jika ada
+    if ((rect.right - e.clientX) <= 22 && (rect.bottom - e.clientY) <= 22) return;
+
+    let hostEl = img.closest(window.SELECTOR_EDITOR_GAMBAR);
+    if (!hostEl) return;
+
+    let startX = e.clientX;
+    let startY = e.clientY;
+    let dragging = false;
+    let lastProbeTs = 0;
+
+    function onMove(ev) {
+        let dist = Math.hypot(ev.clientX - startX, ev.clientY - startY);
+        if (!dragging) {
+            if (dist < 6) return;
+            dragging = true;
+            img.classList.add('img-live-dragging');
+            if (window.selectedImg !== img) {
+                document.querySelectorAll('img.img-selected').forEach(function(i) { i.classList.remove('img-selected'); });
+                window.selectedImg = img;
+                img.classList.add('img-selected');
+            }
+            // Jika sebelumnya berformat block tengah, otomatis ubah jadi inline agar masuk mulus ke baris teks
+            if (img.style.display === 'block' && img.style.float !== 'left' && img.style.float !== 'right') {
+                img.style.display = 'inline-block';
+                img.style.verticalAlign = 'middle';
+                img.style.margin = '4px 8px';
+            }
+        }
+
+        ev.preventDefault();
+        let now = Date.now();
+        if (now - lastProbeTs < 32) return;
+        lastProbeTs = now;
+
+        let prevPE = img.style.pointerEvents;
+        img.style.pointerEvents = 'none';
+        let rng = window.ambilRangeTitikKursor(ev.clientX, ev.clientY);
+        img.style.pointerEvents = prevPE;
+
+        if (!rng || !rng.startContainer) return;
+        let containerNode = rng.startContainer;
+        let elCheck = (containerNode.nodeType === 3) ? containerNode.parentElement : containerNode;
+        if (!elCheck || !hostEl.contains(elCheck)) return;
+        if (elCheck === img || img.contains(elCheck)) return;
+        if (elCheck.closest('button, input, textarea, select, canvas, .block-controls, .quiz-header, .quiz-nav-bar, [contenteditable="false"]')) return;
+
+        // Cegah pemindahan berulang di posisi yang persis sama
+        if (containerNode === img.parentNode) {
+            let idxImg = Array.prototype.indexOf.call(containerNode.childNodes, img);
+            if (rng.startOffset === idxImg || rng.startOffset === idxImg + 1) return;
+        }
+
+        try {
+            rng.collapse(true);
+            rng.insertNode(img);
+            window.perbaruiPosisiKontrolGambar();
+        } catch (err) {}
+    }
+
+    function onUp() {
+        document.removeEventListener('pointermove', onMove, true);
+        document.removeEventListener('pointerup', onUp, true);
+        document.removeEventListener('pointercancel', onUp, true);
+
+        if (dragging) {
+            img.classList.remove('img-live-dragging');
+            window._justFinishedImgDrag = Date.now();
+            try { hostEl.normalize(); } catch (err) {}
+            window.perbaruiPosisiKontrolGambar();
+            window.simpanPerubahanEditorGambar(hostEl);
+        }
+    }
+
+    document.addEventListener('pointermove', onMove, true);
+    document.addEventListener('pointerup', onUp, true);
+    document.addEventListener('pointercancel', onUp, true);
+};
+
+// Tangkap dragstart native browser agar tidak bentrok dengan Live-Reflow Drag
+document.addEventListener('dragstart', function(e) {
+    if (e.target && e.target.tagName === 'IMG' && window.apakahBolehEditGambar(e.target)) {
+        e.preventDefault();
+    }
+}, true);
+
+document.addEventListener('pointerdown', function(e) {
+    if (e.target && e.target.tagName === 'IMG' && window.apakahBolehEditGambar(e.target)) {
+        if (e.target.style.position !== 'absolute') {
+            window.mulaiDragGambarInlineReflow(e, e.target);
+        }
+    }
+}, true);
 
 document.addEventListener('click', function(e) {
     if (window.isDrawingMode) return;
 
-    if (e.target.tagName === 'IMG' && !e.target.closest('.draw-float-img-item') && !e.target.classList.contains('pdf-slide-bg') && (document.body.classList.contains('mode-edit-aktif') || document.documentElement.classList.contains('force-edit-mode')) && (e.target.closest('.content-block') || e.target.closest('.fb-content'))) {
-        document.querySelectorAll('.content-block img, .fb-content img').forEach(function(i) { i.classList.remove('img-selected'); });
+    if (e.target && e.target.tagName === 'IMG' && window.apakahBolehEditGambar(e.target)) {
+        document.querySelectorAll('img.img-selected').forEach(function(i) { i.classList.remove('img-selected'); });
         e.target.classList.add('img-selected');
         window.selectedImg = e.target;
-
-        // Pastikan rasio gambar selalu terkunci
         window.selectedImg.style.height = 'auto';
 
-        const c = document.getElementById('img-controls');
-        if (c) {
-            if (!document.getElementById('btn-layout-img')) {
-                c.innerHTML =
-                    '<button type="button" onclick="window.ubahUkuranGambarTerpilih(-35)" title="Perkecil Gambar (Rasio Terkunci)" style="font-weight:900;">➖</button>' +
-                    '<span id="lbl-size-img" style="color:#f1c40f; font-size:11px; font-weight:bold; padding:0 4px; display:flex; align-items:center;">100px</span>' +
-                    '<button type="button" onclick="window.ubahUkuranGambarTerpilih(35)" title="Perbesar Gambar (Rasio Terkunci)" style="font-weight:900;">➕</button>' +
-                    '<div style="width:1px;height:14px;background:rgba(255,255,255,0.3);margin:0 4px;"></div>' +
-                    '<button type="button" onclick="alignGambar(\'left\')" title="Rata Kiri">⫷</button>' +
-                    '<button type="button" onclick="alignGambar(\'center\')" title="Rata Tengah">≡</button>' +
-                    '<button type="button" onclick="alignGambar(\'right\')" title="Rata Kanan">⫸</button>' +
-                    '<div style="width:1px;height:14px;background:rgba(255,255,255,0.3);margin:0 4px;"></div>' +
-                    '<button type="button" id="btn-layout-img" onclick="window.toggleLayoutGambar()" style="font-size:11px; font-weight:bold;" title="Ubah Layout Gambar (Melayang / Sebaris)">🔄 Float</button>';
-            }
-            window.perbaruiPosisiKontrolGambar();
-        }
-    } else if (!e.target.closest('#img-controls') && e.type === 'click') {
-        if (window.selectedImg) {
-            window.selectedImg.classList.remove('img-selected');
-        }
+        window.pasangCssGambarInlineReflow();
+        window.bangunToolbarKontrolGambar();
+        window.perbaruiPosisiKontrolGambar();
+    } else if (!e.target.closest('#img-controls')) {
+        if (Date.now() - (window._justFinishedImgDrag || 0) < 250) return;
+        if (window.selectedImg) window.selectedImg.classList.remove('img-selected');
         window.selectedImg = null;
         let c = document.getElementById('img-controls');
         if (c) c.style.display = 'none';
     }
 });
+
+window.addEventListener('scroll', function() {
+    if (window.selectedImg) window.perbaruiPosisiKontrolGambar();
+}, true);
 
 document.addEventListener('keydown', function(e) {
     if ((e.key === 'Delete' || e.key === 'Backspace') && window.selectedImg && !window.isDrawingMode) {
         let activeTag = document.activeElement ? document.activeElement.tagName : '';
         if (activeTag === 'INPUT' || activeTag === 'TEXTAREA') return;
         e.preventDefault();
-        let p = window.selectedImg.closest('.quiz-editable-field') || window.selectedImg.closest('.content-block') || window.selectedImg.closest('.fb-content');
+        let hostEl = window.selectedImg.closest(window.SELECTOR_EDITOR_GAMBAR);
         window.selectedImg.remove();
         window.selectedImg = null;
         let c = document.getElementById('img-controls');
         if (c) c.style.display = 'none';
-        if (p && (p.classList.contains('quiz-editable-field') || p.classList.contains('latihan-editable-field'))) {
-            window.simpanFieldKuisDariElemen(p, true);
-        } else if (p) {
-            p.dispatchEvent(new Event('input', { bubbles: true }));
-        }
+        window.simpanPerubahanEditorGambar(hostEl);
     }
 });
 
-window.alignGambar = function(p) {
-    if (window.selectedImg) {
-        if (window.selectedImg.style.position === 'absolute') {
-            window.selectedImg.style.position = 'static';
-            window.selectedImg.style.zIndex = '';
-        }
-        window.selectedImg.style.display = 'block';
-        window.selectedImg.style.height = 'auto';
-        window.selectedImg.style.margin = p === 'left' ? '15px auto 15px 0' : (p === 'right' ? '15px 0 15px auto' : '15px auto');
-        window.perbaruiPosisiKontrolGambar();
-        triggerInput();
-    }
-};
-
-window.toggleLayoutGambar = function() {
-    if (window.selectedImg) {
-        let isAbsolute = window.selectedImg.style.position === 'absolute';
-        if (isAbsolute) {
-            window.selectedImg.style.position = 'static';
-            window.selectedImg.style.zIndex = '';
-            window.selectedImg.style.margin = '15px auto';
-            window.selectedImg.style.cursor = 'ew-resize';
-            window.selectedImg.onpointerdown = null;
-        } else {
-            let parentBlock = window.selectedImg.closest('.content-block, .fb-content');
-            if (parentBlock && window.getComputedStyle(parentBlock).position === 'static') {
-                parentBlock.style.position = 'relative';
-            }
-            window.selectedImg.style.position = 'absolute';
-            window.selectedImg.style.zIndex = '10';
-            window.selectedImg.style.margin = '0';
-            window.selectedImg.style.height = 'auto';
-            window.selectedImg.style.cursor = 'move';
-            window.selectedImg.onpointerdown = window.startDragGambarFloat;
-        }
-        window.perbaruiPosisiKontrolGambar();
-        triggerInput();
-    }
-};
-
 window.startDragGambarFloat = function(e) {
-    if (!document.body.classList.contains('mode-edit-aktif') && !document.documentElement.classList.contains('force-edit-mode')) return;
     let img = e.target;
-    if (img.style.position !== 'absolute') return;
+    if (!window.apakahBolehEditGambar(img) || img.style.position !== 'absolute') return;
 
     let rect = img.getBoundingClientRect();
-    // Jika pengguna menarik tepi kanan / sudut kanan-bawah (28px terakhir), jalankan RESIZE dengan rasio terkunci!
     let isResizeEdge = (rect.right - e.clientX) <= 28 || (rect.bottom - e.clientY) <= 28;
-    if (isResizeEdge) return; // Biarkan listener resize di canvas-draw.js yang menangani pengecilan ukuran
+    if (isResizeEdge) return;
 
     e.preventDefault();
     e.stopPropagation();
 
-    let parentBlock = img.closest('.content-block, .fb-content');
-    if (!parentBlock) return;
+    let hostEl = img.closest(window.SELECTOR_EDITOR_GAMBAR);
+    if (!hostEl) return;
 
     let startX = e.clientX;
     let startY = e.clientY;
     let initLeft = img.offsetLeft;
     let initTop = img.offsetTop;
 
-    img.setPointerCapture(e.pointerId);
+    try { img.setPointerCapture(e.pointerId); } catch (err) {}
 
     function move(ev) {
         img.style.left = (initLeft + (ev.clientX - startX)) + 'px';
@@ -6422,15 +6645,19 @@ window.startDragGambarFloat = function(e) {
     }
 
     function up(ev) {
-        img.releasePointerCapture(e.pointerId);
+        try { img.releasePointerCapture(e.pointerId); } catch (err) {}
         document.removeEventListener('pointermove', move);
         document.removeEventListener('pointerup', up);
-        if (parentBlock) parentBlock.dispatchEvent(new Event('input', { bubbles: true }));
+        window.simpanPerubahanEditorGambar(hostEl);
     }
 
     document.addEventListener('pointermove', move);
     document.addEventListener('pointerup', up);
 };
+
+document.addEventListener('DOMContentLoaded', function() {
+    window.pasangCssGambarInlineReflow();
+});
 
 /* =========================================
    KONTROL TABEL ALA MICROSOFT WORD (KETIK LANCAR, DRAG-SELECT, COPY-PASTE, & RESIZE KOLOM)
@@ -8458,6 +8685,15 @@ window.bukaModalProfilSiswa = function() {
     }
 
     window.bukaModal('modal-profil-siswa');
+
+    // Tarik data terbaru dari server setiap kali siswa membuka Profil agar perubahan Admin langsung tampil
+    if (typeof window.muatProfilSiswaSekarangRest === "function") {
+        window.muatProfilSiswaSekarangRest(true, function() {
+            if (typeof window.sinkronkanModeEditorKhususSiswa === "function") {
+                window.sinkronkanModeEditorKhususSiswa(false);
+            }
+        });
+    }
 };
 
 /* =========================================================================
@@ -9793,12 +10029,96 @@ window.muatDetailSiswaAdminAtur = function(forceServer) {
     }
 };
 
+window.cariKeyAsliLeaderboard = function(userKey) {
+    let targetLow = String(userKey || '').trim().toLowerCase();
+    let lbMap = window.leaderboardSiswaData || {};
+    if (lbMap[userKey]) return userKey;
+    let exactMatch = Object.keys(lbMap).find(function(k) {
+        return k.trim().toLowerCase() === targetLow;
+    });
+    return exactMatch || targetLow;
+};
+
+window.tulisDataAdminTerverifikasi = async function(guru, relPath, payload) {
+    let fullPath = 'data_guru/' + guru + '/' + relPath;
+
+    // Jalur 1 (Utama): kirimNilaiUjianAmanKeDB (jalur terautentikasi Firebase resmi)
+    if (typeof window.kirimNilaiUjianAmanKeDB === 'function') {
+        try {
+            let res1 = await new Promise(function(resolve, reject) {
+                let selesai = false;
+                let t = setTimeout(function() {
+                    if (!selesai) { selesai = true; reject(new Error('Timeout simpan Firebase')); }
+                }, 8000);
+                window.kirimNilaiUjianAmanKeDB(relPath, payload, function(res) {
+                    if (selesai) return;
+                    selesai = true;
+                    clearTimeout(t);
+                    if (res && typeof res === 'object' && res.error) reject(new Error(res.error));
+                    else resolve(res || true);
+                }, function(err) {
+                    if (selesai) return;
+                    selesai = true;
+                    clearTimeout(t);
+                    reject(err instanceof Error ? err : new Error(String(err || 'Gagal kirimNilaiUjianAmanKeDB')));
+                });
+            });
+            return res1;
+        } catch (err1) {
+            console.warn('Fallback ke tulisDataRestFirebase:', err1.message);
+        }
+    }
+
+    // Jalur 2 (Cadangan): tulisDataRestFirebase
+    if (typeof window.tulisDataRestFirebase === 'function') {
+        return await new Promise(function(resolve, reject) {
+            let selesai = false;
+            let t = setTimeout(function() {
+                if (!selesai) { selesai = true; reject(new Error('Timeout REST Firebase')); }
+            }, 8000);
+            let ret = window.tulisDataRestFirebase(fullPath, payload, 'PUT', function(res) {
+                if (selesai) return;
+                selesai = true;
+                clearTimeout(t);
+                if (res && typeof res === 'object' && res.error) reject(new Error(res.error));
+                else resolve(res || true);
+            }, function(err) {
+                if (selesai) return;
+                selesai = true;
+                clearTimeout(t);
+                reject(err instanceof Error ? err : new Error(String(err || 'Gagal REST PUT')));
+            });
+            if (ret && typeof ret.then === 'function') {
+                ret.then(function(res) {
+                    if (selesai) return;
+                    selesai = true;
+                    clearTimeout(t);
+                    if (res && typeof res === 'object' && res.error) reject(new Error(res.error));
+                    else resolve(res || true);
+                }).catch(function(err) {
+                    if (selesai) return;
+                    selesai = true;
+                    clearTimeout(t);
+                    reject(err);
+                });
+            }
+        });
+    }
+
+    throw new Error('Fungsi tulis Firebase belum siap.');
+};
+
 window.terapkanAdminAturDataSiswa = async function() {
     if (!window.apakahAdminBolehAturData()) return alert('🔒 Akses ditolak.');
 
     let sel = document.getElementById('adm-adj-siswa');
-    let userKey = sel ? sel.value : '';
-    if (!userKey) return alert('⚠️ Pilih akun siswa terlebih dahulu.');
+    let userKeyRaw = sel ? sel.value : '';
+    if (!userKeyRaw) return alert('⚠️ Pilih akun siswa terlebih dahulu.');
+
+    let targetKey = window.cariKeyAsliLeaderboard(userKeyRaw);
+    let cleanKey = (typeof window.sanitasiKeyRekapFirebase === 'function')
+        ? window.sanitasiKeyRekapFirebase(targetKey).toLowerCase()
+        : targetKey.trim().toLowerCase();
 
     let addXP = parseInt((document.getElementById('adm-adj-xp') || {}).value || '0', 10) || 0;
     let addCoin = parseInt((document.getElementById('adm-adj-coin') || {}).value || '0', 10) || 0;
@@ -9821,22 +10141,35 @@ window.terapkanAdminAturDataSiswa = async function() {
     if (btn) { btn.disabled = true; btn.innerText = '⏳ Menarik data server & menyimpan...'; }
 
     let guru = (window.guruAktif || sessionStorage.getItem('guruTarget') || 'mahardika').trim().toLowerCase();
-    let fullPath = 'data_guru/' + guru + '/leaderboard_siswa/' + userKey;
+    let relPath = 'leaderboard_siswa/' + targetKey;
+    let fullPath = 'data_guru/' + guru + '/' + relPath;
+
+    let bacaDariServer = function(pathStr) {
+        return new Promise(function(resolve) {
+            if (typeof window.bacaDataRestFirebase !== 'function') return resolve(null);
+            window.bacaDataRestFirebase(pathStr, function(val) {
+                resolve(val && typeof val === 'object' ? val : null);
+            }, function() {
+                resolve(null);
+            }, { forceRefresh: true, ttlMs: 0 });
+        });
+    };
 
     try {
-        let baseObj = null;
-        if (typeof window.bacaDataRestFirebase === 'function') {
-            baseObj = await new Promise(function(resolve) {
-                window.bacaDataRestFirebase(fullPath, function(val) {
-                    resolve(val && typeof val === 'object' ? val : null);
-                }, function() {
-                    resolve(null);
-                }, { forceRefresh: true, ttlMs: 0 });
-            });
+        // 1. Tarik data terbaru langsung dari server (cek targetKey, lalu cleanKey bila beda)
+        let baseObj = await bacaDariServer(fullPath);
+        if (!baseObj && cleanKey !== targetKey) {
+            let altObj = await bacaDariServer('data_guru/' + guru + '/leaderboard_siswa/' + cleanKey);
+            if (altObj) {
+                baseObj = altObj;
+                targetKey = cleanKey;
+                relPath = 'leaderboard_siswa/' + targetKey;
+                fullPath = 'data_guru/' + guru + '/' + relPath;
+            }
         }
 
-        let akunRef = (window.akunSiswaData && window.akunSiswaData[userKey]) || {};
-        let lokalRef = (window.leaderboardSiswaData && window.leaderboardSiswaData[userKey]) || {};
+        let akunRef = (window.akunSiswaData && (window.akunSiswaData[targetKey] || window.akunSiswaData[cleanKey])) || {};
+        let lokalRef = (window.leaderboardSiswaData && (window.leaderboardSiswaData[targetKey] || window.leaderboardSiswaData[cleanKey])) || {};
         let merged = JSON.parse(JSON.stringify(baseObj || lokalRef || {}));
 
         let prevOliAktif = Boolean(merged.aksesEditOlimpiade && merged.aksesEditOlimpiade.aktif);
@@ -9848,10 +10181,10 @@ window.terapkanAdminAturDataSiswa = async function() {
             return alert('⚠️ Isi minimal satu angka tambahan atau ubah pengaturan akses room OLIMPIADE BIOLOGI.');
         }
 
-        if (!merged.namaLengkap) merged.namaLengkap = akunRef.namaLengkap || userKey;
+        if (!merged.namaLengkap) merged.namaLengkap = akunRef.namaLengkap || targetKey;
         if (!merged.kelas) merged.kelas = akunRef.kelas || 'Umum';
 
-        // 1. XP & Coin terpisah
+        // 2. XP & Coin terpisah
         let curXP = Math.max(Number(merged.xpTotal) || 0, Number(merged.xp) || 0);
         let curCoin = (merged.coin !== undefined) ? (Number(merged.coin) || 0) : ((merged.xpTersedia !== undefined) ? (Number(merged.xpTersedia) || 0) : curXP);
         if (addXP !== 0) curXP = Math.max(0, curXP + addXP);
@@ -9862,7 +10195,7 @@ window.terapkanAdminAturDataSiswa = async function() {
         merged.xpTersedia = curCoin;
         merged.coinInitialized = true;
 
-        // 2. Stat Soal terpisah
+        // 3. Stat Soal terpisah
         if (!merged.statSoal || typeof merged.statSoal !== 'object') {
             merged.statSoal = { PG: 0, PGK: 0, IS: 0, Essay: 0 };
         }
@@ -9871,7 +10204,7 @@ window.terapkanAdminAturDataSiswa = async function() {
         merged.statSoal.IS = Math.max(0, (Number(merged.statSoal.IS) || 0) + addIS);
         merged.statSoal.Essay = Math.max(0, (Number(merged.statSoal.Essay) || 0) + addEssay);
 
-        // 3. Opsional: Event SAS
+        // 4. Opsional: Event SAS
         if (ikutSas && (addPG !== 0 || addIS !== 0)) {
             if (typeof window.pastikanDataEventSAS === 'function') window.pastikanDataEventSAS(merged);
             else if (!merged.eventSas2026) merged.eventSas2026 = { pg: 0, is: 0, claimedTiers: {}, updatedAt: 0 };
@@ -9880,12 +10213,16 @@ window.terapkanAdminAturDataSiswa = async function() {
             merged.eventSas2026.updatedAt = Date.now();
         }
 
-        // 4. Streak Login
+        // 5. Streak Login (sinkronkan ke semua field streak agar langsung tampil di Misi siswa)
         if (addStreak !== 0) {
-            window.adminTerapkanStreakKeLB(merged, addStreak);
+            let streakBaru = window.adminTerapkanStreakKeLB(merged, addStreak);
+            merged.streak = streakBaru;
+            merged.loginStreak = streakBaru;
+            if (!merged.misiHarian || typeof merged.misiHarian !== 'object') merged.misiHarian = {};
+            merged.misiHarian.streak = streakBaru;
         }
 
-        // 5. Akses Khusus Toolbar Edit Ruang OLIMPIADE BIOLOGI
+        // 6. Akses Khusus Toolbar Edit Ruang OLIMPIADE BIOLOGI
         merged.aksesEditOlimpiade = oliEnable
             ? {
                 aktif: true,
@@ -9896,30 +10233,51 @@ window.terapkanAdminAturDataSiswa = async function() {
             }
             : { aktif: false, scope: 'all', targetSlug: '', targetTitle: '', updatedAt: Date.now() };
 
-        await new Promise(function(resolve, reject) {
-            if (typeof window.tulisDataRestFirebase === 'function') {
-                window.tulisDataRestFirebase(fullPath, merged, 'PUT', resolve, reject);
-            } else {
-                reject(new Error('Mesin tulis Firebase REST belum siap.'));
-            }
-        });
+        // Penanda waktu edit Admin agar sesi siswa yang lama tidak bisa menimpa balik
+        let adjTs = Date.now();
+        merged._adminAdjTs = adjTs;
 
-        if (!window.leaderboardSiswaData) window.leaderboardSiswaData = {};
-        window.leaderboardSiswaData[userKey] = merged;
+        // 7. Tulis ke Firebase & VERIFIKASI BACA ULANG dari server
+        await window.tulisDataAdminTerverifikasi(guru, relPath, merged);
 
-        if (typeof window.tulisDataRestFirebase === 'function') {
-            window.tulisDataRestFirebase('data_guru/' + guru + '/sistem_refresh_lb', {
-                ts: Date.now(),
-                by: sessionStorage.getItem('username') || 'admin'
-            }, 'PUT');
+        if (typeof window.bersihkanCacheLeaderboardLokal === 'function') {
+            window.bersihkanCacheLeaderboardLokal();
         }
+
+        let srvVerify = await bacaDariServer(fullPath);
+        if (!srvVerify || Number(srvVerify._adminAdjTs) !== adjTs) {
+            // Coba jalur cadangan simpanLeaderboardSiswaKeDB jika jalur utama belum masuk
+            if (typeof window.simpanLeaderboardSiswaKeDB === 'function') {
+                window.simpanLeaderboardSiswaKeDB(targetKey, merged);
+                await new Promise(function(r) { setTimeout(r, 900); });
+                srvVerify = await bacaDariServer(fullPath);
+            }
+        }
+
+        if (!srvVerify || Number(srvVerify._adminAdjTs) !== adjTs) {
+            throw new Error('Firebase menolak penulisan data (kemungkinan sesi login Admin kedaluwarsa — coba Logout lalu Login Admin kembali).');
+        }
+
+        // 8. Perbarui memori lokal Admin & kirim sinyal refresh paksa ke perangkat siswa
+        if (!window.leaderboardSiswaData) window.leaderboardSiswaData = {};
+        window.leaderboardSiswaData[targetKey] = srvVerify;
+        window.leaderboardSiswaData[cleanKey] = srvVerify;
+        if (userKeyRaw) window.leaderboardSiswaData[userKeyRaw] = srvVerify;
+
+        try {
+            await window.tulisDataAdminTerverifikasi(guru, 'sistem_refresh_lb', {
+                ts: Date.now(),
+                by: sessionStorage.getItem('username') || 'admin',
+                target: targetKey
+            });
+        } catch (eSig) {}
 
         ['adm-adj-xp', 'adm-adj-coin', 'adm-adj-streak', 'adm-adj-pg', 'adm-adj-pgk', 'adm-adj-is', 'adm-adj-essay'].forEach(function(id) {
             let el = document.getElementById(id);
             if (el) el.value = '';
         });
 
-        window.renderPreviewDetailSiswaAdminAtur(userKey, merged);
+        window.renderPreviewDetailSiswaAdminAtur(targetKey, srvVerify);
         if (typeof window.renderTabelLeaderboard === 'function') window.renderTabelLeaderboard();
 
         if (statusEl) {
@@ -9927,7 +10285,7 @@ window.terapkanAdminAturDataSiswa = async function() {
             statusEl.style.background = '#dcfce7';
             statusEl.style.color = '#15803d';
             statusEl.style.border = '1px solid #22c55e';
-            statusEl.innerText = '✅ Data & akses ' + (merged.namaLengkap || userKey) + ' berhasil diperbarui dan disinkronkan!';
+            statusEl.innerText = '✅ Terverifikasi di server Firebase! Data ' + (srvVerify.namaLengkap || targetKey) + ' sudah berubah & tersinkron ke perangkat siswa.';
         }
     } catch (err) {
         console.error('Admin adjust error:', err);
@@ -9936,7 +10294,7 @@ window.terapkanAdminAturDataSiswa = async function() {
             statusEl.style.background = '#fee2e2';
             statusEl.style.color = '#b91c1c';
             statusEl.style.border = '1px solid #ef4444';
-            statusEl.innerText = '❌ Gagal menyimpan ke Firebase: ' + (err && err.message ? err.message : 'Periksa koneksi internet');
+            statusEl.innerText = '❌ BELUM TERSIMPAN KE SERVER: ' + (err && err.message ? err.message : 'Periksa koneksi / login ulang Admin.');
         }
     } finally {
         if (btn) { btn.disabled = false; btn.innerText = '💾 Terapkan & Sinkronkan ke Server'; }
