@@ -7907,6 +7907,11 @@ window.tambahXPSiswa = function(jumlahXP, aktivitas, arrSoalBenar) {
             });
         }
 
+        // Catat progres Event Ujian SAS (khusus Ruang Latihan dalam rentang jadwal WIB)
+        if (typeof window.catatProgresEventSAS === "function") {
+            window.catatProgresEventSAS(lb, aktivitas, arrSoalBenar);
+        }
+
         if (typeof window.simpanLeaderboardSiswaKeDB === "function") {
             window.simpanLeaderboardSiswaKeDB(uName, lb);
         }
@@ -8062,9 +8067,359 @@ window.bukaModalProfilSiswa = function() {
     document.getElementById('profil-input-gmail').value = akun.gmail || "";
     document.getElementById('profil-input-username-baru').value = uName;
     document.getElementById('profil-input-password-baru').value = "";
-    
+
+    if (typeof window.renderKartuEventSASDiProfil === "function") {
+        window.renderKartuEventSASDiProfil(uName);
+    }
+
     window.bukaModal('modal-profil-siswa');
 };
+
+/* =========================================================================
+   EVENT UJIAN SAS — 1 PROGRESS BAR DENGAN 6 CHECKPOINT KLAIM LANGSUNG
+   - Periode: 26 Nov 2026 (18:00 WIB) s.d. 3 Des 2026 (08:00 WIB)
+   - Sumber: Khusus soal PG & IS benar di Ruang Latihan
+   - Klaim: Langsung di Ruang Masuk Ujian, Ruang Masuk Latihan, & Profil (1x/tier)
+   ========================================================================= */
+window.EVENT_SAS_CONFIG = {
+    id: 'sas_nov_des_2026',
+    judul: 'Event Ujian SAS',
+    startMs: new Date('2026-11-26T18:00:00+07:00').getTime(),
+    endMs: new Date('2026-12-03T08:00:00+07:00').getTime(),
+    tiers: [
+        { id: 't1', pg: 100,  is: 10,  reward: 1000,   shortReward: '+1rb' },
+        { id: 't2', pg: 200,  is: 50,  reward: 2000,   shortReward: '+2rb' },
+        { id: 't3', pg: 500,  is: 100, reward: 3000,   shortReward: '+3rb' },
+        { id: 't4', pg: 1000, is: 200, reward: 10000,  shortReward: '+10rb' },
+        { id: 't5', pg: 1500, is: 500, reward: 250000, shortReward: '+250rb' },
+        { id: 't6', pg: 2500, is: 750, reward: 500000, shortReward: '+500rb' }
+    ]
+};
+
+window.pasangCssEventSAS = function() {
+    if (document.getElementById('event-sas-checkpoint-css')) return;
+    let st = document.createElement('style');
+    st.id = 'event-sas-checkpoint-css';
+    st.textContent =
+        '.sas-card{background:linear-gradient(135deg,#fffbeb 0%,#ffffff 100%);border:2px solid #f59e0b;border-radius:12px;padding:12px 13px;box-shadow:0 4px 12px rgba(245,158,11,0.12);font-family:Poppins,Quicksand,sans-serif;text-align:left;}' +
+        '.sas-head{display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:5px;}' +
+        '.sas-title{font-size:13px;font-weight:900;color:#92400e;}' +
+        '.sas-badge{padding:2px 8px;border-radius:12px;font-size:10px;font-weight:800;white-space:nowrap;}' +
+        '.sas-badge.is-wait{background:#fef3c7;color:#92400e;border:1px solid #f59e0b;}' +
+        '.sas-badge.is-live{background:#dcfce7;color:#15803d;border:1px solid #22c55e;}' +
+        '.sas-badge.is-end{background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;}' +
+        '.sas-meta{font-size:10.5px;color:#475569;line-height:1.45;margin-bottom:8px;}' +
+        '.sas-counts{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;}' +
+        '.sas-count-pill{flex:1;min-width:120px;background:#ffffff;border:1px solid #fde68a;border-radius:8px;padding:5px 8px;font-size:11px;font-weight:800;color:#1e293b;display:flex;justify-content:space-between;align-items:center;}' +
+        '.sas-track-wrap{position:relative;padding-top:2px;margin:6px 0 10px 0;}' +
+        '.sas-rail-bg{position:absolute;top:14px;left:8%;right:8%;height:7px;background:#e2e8f0;border-radius:6px;overflow:hidden;z-index:1;}' +
+        '.sas-rail-fill{height:100%;background:linear-gradient(90deg,#0284c7 0%,#16a34a 55%,#f59e0b 100%);border-radius:6px;transition:width 0.35s ease;}' +
+        '.sas-nodes-grid{position:relative;z-index:2;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:3px;}' +
+        '.sas-node{display:flex;flex-direction:column;align-items:center;text-align:center;}' +
+        '.sas-dot{width:28px;height:28px;border-radius:50%;border:2px solid #cbd5e1;background:#ffffff;color:#64748b;font-size:12px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0;cursor:default;transition:transform 0.15s,box-shadow 0.15s;}' +
+        '.sas-dot.is-ready{background:linear-gradient(135deg,#f59e0b,#ea580c);border-color:#fde047;color:#ffffff;cursor:pointer;box-shadow:0 0 0 3px rgba(245,158,11,0.35);animation:pulse-badge 1.2s infinite;}' +
+        '.sas-dot.is-ready:hover{transform:scale(1.12);}' +
+        '.sas-dot.is-claimed{background:#16a34a;border-color:#86efac;color:#ffffff;}' +
+        '.sas-rew{font-size:10px;font-weight:900;color:#b45309;margin-top:4px;line-height:1.15;}' +
+        '.sas-rew.is-claimed{color:#15803d;}' +
+        '.sas-req{font-size:8.5px;font-weight:700;color:#64748b;line-height:1.2;margin-top:2px;}' +
+        '.sas-foot-note{font-size:10.5px;color:#64748b;font-weight:700;text-align:center;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:8px;padding:6px 8px;}' +
+        'body.dark-mode-active .sas-card{background:#1e293b !important;border-color:#f59e0b !important;}' +
+        'body.dark-mode-active .sas-title{color:#fde047 !important;}' +
+        'body.dark-mode-active .sas-meta,body.dark-mode-active .sas-req{color:#cbd5e1 !important;}' +
+        'body.dark-mode-active .sas-count-pill,body.dark-mode-active .sas-foot-note{background:#0f172a !important;border-color:#334155 !important;color:#f1f5f9 !important;}';
+    document.head.appendChild(st);
+};
+
+window.dapatkanStatusEventSAS = function() {
+    let now = Date.now();
+    let cfg = window.EVENT_SAS_CONFIG;
+    if (now < cfg.startMs) return 'belum';
+    if (now > cfg.endMs) return 'selesai';
+    return 'aktif';
+};
+
+window.ambilObjekLbSiswaEventSAS = function(uNameOpt) {
+    let stat = sessionStorage.getItem('statusLogin');
+    let uName = (uNameOpt || sessionStorage.getItem('username') || '').trim();
+    let uLow = uName.toLowerCase();
+    if (stat !== 'siswa' || !uLow || uLow === 'sbd' || uLow === 'tamu' || uLow === 'mahardika') return null;
+    let cleanU = window.sanitasiKeyRekapFirebase ? window.sanitasiKeyRekapFirebase(uLow).toLowerCase() : uLow;
+    let lb = (window.leaderboardSiswaData && (window.leaderboardSiswaData[uName] || window.leaderboardSiswaData[cleanU])) || null;
+    return lb ? { uName: uName, cleanU: cleanU, lb: lb } : null;
+};
+
+window.pastikanDataEventSAS = function(lb) {
+    if (!lb || typeof lb !== 'object') return { pg: 0, is: 0, claimedTiers: {}, updatedAt: 0 };
+    if (!lb.eventSas2026 || typeof lb.eventSas2026 !== 'object') {
+        lb.eventSas2026 = { pg: 0, is: 0, claimedTiers: {}, updatedAt: 0 };
+    }
+    lb.eventSas2026.pg = Math.max(0, Number(lb.eventSas2026.pg) || 0);
+    lb.eventSas2026.is = Math.max(0, Number(lb.eventSas2026.is) || 0);
+    if (!lb.eventSas2026.claimedTiers || typeof lb.eventSas2026.claimedTiers !== 'object') {
+        lb.eventSas2026.claimedTiers = {};
+    }
+    return lb.eventSas2026;
+};
+
+window.hitungPersenGarisEventSAS = function(pgNow, isNow) {
+    let tiers = window.EVENT_SAS_CONFIG.tiers;
+    let prevPG = 0;
+    let prevIS = 0;
+    let segmenSelesai = 0;
+    let parsial = 0;
+
+    for (let i = 0; i < tiers.length; i++) {
+        let t = tiers[i];
+        if (pgNow >= t.pg && isNow >= t.is) {
+            segmenSelesai++;
+            prevPG = t.pg;
+            prevIS = t.is;
+        } else {
+            let fPG = Math.max(0, Math.min(1, (pgNow - prevPG) / Math.max(1, t.pg - prevPG)));
+            let fIS = Math.max(0, Math.min(1, (isNow - prevIS) / Math.max(1, t.is - prevIS)));
+            parsial = Math.min(0.92, (fPG + fIS) / 2);
+            break;
+        }
+    }
+
+    return Math.min(100, Math.round(((segmenSelesai + parsial) / tiers.length) * 100));
+};
+
+window.rekamProgresEventSASDariLatihan = function(tipeSoal) {
+    if (window.dapatkanStatusEventSAS() !== 'aktif') return;
+    if (window.antiMacroGuard && window.antiMacroGuard.macroFlagged) return;
+
+    let info = window.ambilObjekLbSiswaEventSAS();
+    let lb = info ? info.lb : null;
+    if (!lb) {
+        let uName = (sessionStorage.getItem('username') || '').trim();
+        if (sessionStorage.getItem('statusLogin') === 'siswa' && uName && typeof window.pastikanStrukturDualXPDanPet === 'function') {
+            lb = window.pastikanStrukturDualXPDanPet(uName);
+        }
+    }
+    if (!lb) return;
+
+    let ev = window.pastikanDataEventSAS(lb);
+    let rawT = String(tipeSoal || '').trim().toUpperCase();
+    if (rawT === 'PG' || rawT === 'MC') {
+        ev.pg++;
+    } else if (rawT === 'IS' || rawT === 'SHORT_ANSWER' || rawT === 'ISIAN' || rawT === 'ISIAN SINGKAT') {
+        ev.is++;
+    } else {
+        return;
+    }
+    ev.updatedAt = Date.now();
+};
+
+window.bangunHtmlWidgetEventSAS = function(uNameOpt) {
+    window.pasangCssEventSAS();
+    let cfg = window.EVENT_SAS_CONFIG;
+    let status = window.dapatkanStatusEventSAS();
+    let info = window.ambilObjekLbSiswaEventSAS(uNameOpt);
+    let ev = info ? window.pastikanDataEventSAS(info.lb) : { pg: 0, is: 0, claimedTiers: {} };
+
+    let badgeHtml = status === 'belum'
+        ? '<span class="sas-badge is-wait">⏳ Mulai 26 Nov 18:00 WIB</span>'
+        : (status === 'aktif'
+            ? '<span class="sas-badge is-live">🔥 Berlangsung</span>'
+            : '<span class="sas-badge is-end">🏁 Periode Selesai</span>');
+
+    let persenGaris = window.hitungPersenGarisEventSAS(ev.pg, ev.is);
+    let tierSiapList = [];
+    let tierBerikutnya = null;
+
+    let nodesHtml = cfg.tiers.map(function(t) {
+        let tercapai = (ev.pg >= t.pg && ev.is >= t.is);
+        let sudahKlaim = Boolean(ev.claimedTiers[t.id]);
+        let siapKlaim = Boolean(info && tercapai && !sudahKlaim);
+
+        if (siapKlaim) tierSiapList.push(t);
+        if (!tercapai && !tierBerikutnya) tierBerikutnya = t;
+
+        let dotCls = 'sas-dot' + (sudahKlaim ? ' is-claimed' : (siapKlaim ? ' is-ready' : ''));
+        let dotIco = sudahKlaim ? '✓' : (siapKlaim ? '🎁' : '🔒');
+        let clickAttr = siapKlaim ? (' onclick="window.klaimCheckpointEventSAS(\'' + t.id + '\')" title="Klik untuk klaim +' + t.reward.toLocaleString('id-ID') + ' XP &amp; Coin"') : (' title="Target: ' + t.pg + ' PG &amp; ' + t.is + ' IS benar (+' + t.reward.toLocaleString('id-ID') + ' XP/Coin)"');
+
+        return '<div class="sas-node">' +
+            '<button type="button" class="' + dotCls + '"' + clickAttr + '>' + dotIco + '</button>' +
+            '<div class="sas-rew' + (sudahKlaim ? ' is-claimed' : '') + '">' + t.shortReward + '</div>' +
+            '<div class="sas-req">' + t.pg + ' PG<br>' + t.is + ' IS</div>' +
+        '</div>';
+    }).join('');
+
+    let aksiBawahHtml = '';
+    if (!info) {
+        aksiBawahHtml = '<div class="sas-foot-note">Login dengan akun siswa untuk mencatat progres &amp; klaim bonus checkpoint.</div>';
+    } else if (tierSiapList.length > 0) {
+        let totalSiap = tierSiapList.reduce(function(sum, t) { return sum + t.reward; }, 0);
+        let labelTombol = tierSiapList.length === 1
+            ? ('🎁 Klaim Checkpoint +' + totalSiap.toLocaleString('id-ID') + ' XP &amp; Coin')
+            : ('🎁 Klaim ' + tierSiapList.length + ' Checkpoint (+' + totalSiap.toLocaleString('id-ID') + ' XP &amp; Coin)');
+        aksiBawahHtml = '<button type="button" class="btn-action" style="background:linear-gradient(135deg,#f59e0b,#ea580c);font-size:12px;padding:9px 12px;font-weight:900;box-shadow:0 4px 10px rgba(234,88,12,0.32);" onclick="window.klaimCheckpointEventSAS(\'ALL\')">' + labelTombol + '</button>';
+    } else if (!tierBerikutnya) {
+        aksiBawahHtml = '<div class="sas-foot-note" style="background:#dcfce7;border-color:#22c55e;color:#15803d;">🏆 Selamat! Seluruh 6 Checkpoint Event Ujian SAS sudah diklaim!</div>';
+    } else if (status === 'belum') {
+        aksiBawahHtml = '<div class="sas-foot-note">⏳ Progres mulai dihitung 26 Nov 2026 pukul 18:00 WIB dari Ruang Latihan.</div>';
+    } else if (status === 'selesai') {
+        aksiBawahHtml = '<div class="sas-foot-note">🏁 Periode pengumpulan soal telah berakhir (3 Des 2026 pukul 08:00 WIB).</div>';
+    } else {
+        let kurangPG = Math.max(0, tierBerikutnya.pg - ev.pg);
+        let kurangIS = Math.max(0, tierBerikutnya.is - ev.is);
+        aksiBawahHtml = '<div class="sas-foot-note">Target berikutnya (<b>+' + tierBerikutnya.reward.toLocaleString('id-ID') + ' XP &amp; Coin</b>): kurang <b style="color:#0284c7;">' + kurangPG + ' PG</b> &amp; <b style="color:#d97706;">' + kurangIS + ' IS</b> benar lagi.</div>';
+    }
+
+    return '<div class="sas-card">' +
+        '<div class="sas-head">' +
+            '<div class="sas-title">🎯 Event Ujian SAS (Bonus Tambahan)</div>' +
+            badgeHtml +
+        '</div>' +
+        '<div class="sas-meta">' +
+            'Periode <b>26 Nov 18:00 – 3 Des 08:00 WIB</b> • Khusus <b>Ruang Latihan</b> • Di luar XP normal.' +
+        '</div>' +
+        '<div class="sas-counts">' +
+            '<div class="sas-count-pill"><span>PG Benar</span><span style="color:#0284c7;">' + ev.pg + ' / 2500</span></div>' +
+            '<div class="sas-count-pill"><span>IS Benar</span><span style="color:#d97706;">' + ev.is + ' / 750</span></div>' +
+        '</div>' +
+        '<div class="sas-track-wrap">' +
+            '<div class="sas-rail-bg"><div class="sas-rail-fill" style="width:' + persenGaris + '%;"></div></div>' +
+            '<div class="sas-nodes-grid">' + nodesHtml + '</div>' +
+        '</div>' +
+        aksiBawahHtml +
+    '</div>';
+};
+
+window.renderKartuEventSASDiProfil = function(uNameOpt) {
+    let modal = document.getElementById('modal-profil-siswa');
+    if (!modal) return;
+    let body = modal.querySelector('.modal-body');
+    if (!body) return;
+
+    let card = document.getElementById('profil-event-sas-card');
+    if (!card) {
+        card = document.createElement('div');
+        card.id = 'profil-event-sas-card';
+        card.style.marginBottom = '15px';
+        let statPgEl = document.getElementById('profil-stat-pg');
+        let statCard = statPgEl ? statPgEl.closest('div[style*="margin-bottom:15px"]') : null;
+        if (statCard && statCard.nextSibling) body.insertBefore(card, statCard.nextSibling);
+        else body.appendChild(card);
+    }
+    card.innerHTML = window.bangunHtmlWidgetEventSAS(uNameOpt);
+};
+
+window.renderKartuEventSASDiMasukUjian = function() {
+    let modal = document.getElementById('modal-enter-ujian');
+    if (!modal) return;
+    let body = modal.querySelector('.modal-body');
+    if (!body) return;
+
+    let box = document.getElementById('ujian-event-sas-card');
+    if (!box) {
+        box = document.createElement('div');
+        box.id = 'ujian-event-sas-card';
+        box.style.marginTop = '4px';
+        body.appendChild(box);
+    }
+    box.innerHTML = window.bangunHtmlWidgetEventSAS();
+};
+
+window.segarkanSemuaWidgetEventSAS = function() {
+    if (document.getElementById('profil-event-sas-card')) window.renderKartuEventSASDiProfil();
+    if (document.getElementById('ujian-event-sas-card')) window.renderKartuEventSASDiMasukUjian();
+    if (typeof window.pastikanBannerEventSASLatihanAda === 'function') window.pastikanBannerEventSASLatihanAda();
+};
+
+window.klaimCheckpointEventSAS = async function(tierIdOrAll) {
+    let info = window.ambilObjekLbSiswaEventSAS();
+    if (!info || !info.lb) return alert('Silakan login dengan akun siswa terlebih dahulu.');
+    if (window._sedangKlaimEventSAS) return;
+    window._sedangKlaimEventSAS = true;
+
+    try {
+        let lb = info.lb;
+        let guru = (window.guruAktif || sessionStorage.getItem('guruTarget') || 'mahardika').toLowerCase();
+
+        // Verifikasi server agar anti-klaim ganda dari 2 tab/perangkat
+        if (typeof window.bacaDataRestFirebase === 'function') {
+            let srvObj = await new Promise(function(resolve) {
+                window.bacaDataRestFirebase('data_guru/' + guru + '/leaderboard_siswa/' + info.cleanU, function(val) {
+                    resolve(val && typeof val === 'object' ? val : null);
+                }, function() {
+                    resolve(null);
+                }, { forceRefresh: true, ttlMs: 0 });
+            });
+            if (srvObj && srvObj.eventSas2026) {
+                let locEv = window.pastikanDataEventSAS(lb);
+                let mergedTiers = Object.assign({}, locEv.claimedTiers || {}, srvObj.eventSas2026.claimedTiers || {});
+                lb.eventSas2026 = {
+                    pg: Math.max(locEv.pg, Number(srvObj.eventSas2026.pg) || 0),
+                    is: Math.max(locEv.is, Number(srvObj.eventSas2026.is) || 0),
+                    claimedTiers: mergedTiers,
+                    updatedAt: Date.now()
+                };
+            }
+        }
+
+        let ev = window.pastikanDataEventSAS(lb);
+        let kandidat = (tierIdOrAll === 'ALL')
+            ? window.EVENT_SAS_CONFIG.tiers
+            : window.EVENT_SAS_CONFIG.tiers.filter(function(t) { return t.id === tierIdOrAll; });
+
+        let diklaimSekarang = [];
+        let totalBonus = 0;
+
+        kandidat.forEach(function(t) {
+            if (ev.pg >= t.pg && ev.is >= t.is && !ev.claimedTiers[t.id]) {
+                ev.claimedTiers[t.id] = Date.now();
+                diklaimSekarang.push(t);
+                totalBonus += t.reward;
+            }
+        });
+
+        if (diklaimSekarang.length === 0 || totalBonus <= 0) {
+            window.segarkanSemuaWidgetEventSAS();
+            return alert('ℹ️ Checkpoint belum terpenuhi atau sudah pernah diklaim sebelumnya.');
+        }
+
+        let curTotal = Number(lb.xpTotal !== undefined ? lb.xpTotal : lb.xp) || 0;
+        let curCoin = Number(lb.coin !== undefined ? lb.coin : (lb.xpTersedia !== undefined ? lb.xpTersedia : lb.xp)) || 0;
+        lb.xpTotal = curTotal + totalBonus;
+        lb.xp = lb.xpTotal;
+        lb.coin = curCoin + totalBonus;
+        lb.xpTersedia = lb.coin;
+        ev.updatedAt = Date.now();
+
+        if (typeof window.simpanLeaderboardSiswaKeDB === 'function') {
+            window.simpanLeaderboardSiswaKeDB(info.uName, lb);
+        }
+
+        let totalEl = document.getElementById('profil-total-xp');
+        if (totalEl) totalEl.innerText = lb.xpTotal + ' XP';
+        if (typeof window.perbaruiUIHeaderProfilSiswa === 'function') window.perbaruiUIHeaderProfilSiswa();
+        if (typeof window.perbaruiTampilanSaldoXPPet === 'function') window.perbaruiTampilanSaldoXPPet();
+        window.segarkanSemuaWidgetEventSAS();
+
+        let daftarTeks = diklaimSekarang.map(function(t) { return t.pg + ' PG + ' + t.is + ' IS (+' + t.reward.toLocaleString('id-ID') + ')'; }).join('\n• ');
+        alert('🎉 Berhasil Klaim Event Ujian SAS!\n\n• ' + daftarTeks + '\n\nTotal tambahan masuk: +' + totalBonus.toLocaleString('id-ID') + ' XP & +' + totalBonus.toLocaleString('id-ID') + ' Coin!');
+    } finally {
+        window._sedangKlaimEventSAS = false;
+    }
+};
+
+// Pasang otomatis kartu checkpoint Event Ujian SAS setiap Modal Masuk Ujian dibuka
+document.addEventListener('DOMContentLoaded', function() {
+    window.pasangCssEventSAS();
+    let modalUjian = document.getElementById('modal-enter-ujian');
+    if (modalUjian) {
+        let obsUjianSas = new MutationObserver(function() {
+            if (modalUjian.style.display === 'flex') {
+                window.renderKartuEventSASDiMasukUjian();
+            }
+        });
+        obsUjianSas.observe(modalUjian, { attributes: true, attributeFilter: ['style'] });
+    }
+});
 
 window.simpanNamaPanggilanProfil = function() {
     let uName = sessionStorage.getItem("username");

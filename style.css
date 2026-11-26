@@ -2513,7 +2513,6 @@ body:not(.mode-edit-aktif):not(.force-edit-mode) .locked-hidden-nav-item {
 
 /* 1. Zoom Keseluruhan Layar Ala Google Chrome (Header, Navbar, Toolbar, Editor, Ruang Ujian, & Modal) */
 #header-wrap,
-#main-nav,
 #admin-menu-bar,
 .toolbar-wrapper,
 #main-editor-wrapper,
@@ -20577,4 +20576,19 @@ body.strict-mode-active #main-nav.navbar.main-left-drawer {
 
 @media (max-width: 640px) {
     .fc-hist-summary-grid { grid-template-columns: repeat(2, 1fr); }
+}
+/* Kunci tinggi penuh panel kiri Daftar Ruang Belajar di semua level zoom */
+#main-nav.main-left-drawer {
+    zoom: 1 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+}
+
+#main-nav.main-left-drawer .main-drawer-scroll {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
 }

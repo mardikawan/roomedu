@@ -882,6 +882,10 @@ window.berikanHadiahLangsungPerSoalLatihan = function(tipeSoal, anchorEl) {
         ? window.dapatkanPoinXPPerSoal(t)
         : (t === "PGK" ? 20 : (t === "IS" ? 50 : (t === "ESSAY" ? 100 : 10)));
 
+    if (typeof window.rekamProgresEventSASDariLatihan === "function") {
+        window.rekamProgresEventSASDariLatihan(t);
+    }
+
     let fnTambahXP = window.masterTambahXPSiswa || window.tambahXPSiswa;
     if (typeof fnTambahXP === "function") {
         fnTambahXP(poin, "latihan_per_soal", [{ type: t, sudahBenar: true }]);
@@ -912,6 +916,11 @@ window.tampilkanModalHasilAkhirLatihan = function() {
             let rincianBenar = window.sesiLatihanSiswa.soal.map(function(q, i) {
                 return { type: q.type || 'PG', sudahBenar: Boolean(window.sesiLatihanSiswa.hasilBenar[i]) };
             });
+            if (typeof window.rekamProgresEventSASDariLatihan === "function") {
+                rincianBenar.forEach(function(item) {
+                    if (item.sudahBenar) window.rekamProgresEventSASDariLatihan(item.type);
+                });
+            }
             let fnTambahXP = window.masterTambahXPSiswa || window.tambahXPSiswa;
             if (typeof fnTambahXP === "function") {
                 fnTambahXP(nilaiAkhir, 'latihan', rincianBenar);
@@ -954,7 +963,9 @@ window.tampilkanModalHasilAkhirLatihan = function() {
 
             window.bukaModal('modal-quiz-result');
             modal.style.zIndex = "999999";
-            window.evaluasiBonusPanenXPLatihan();
+            if (typeof window.tampilkanInfoProgresEventSASDiHasil === "function") {
+                window.tampilkanInfoProgresEventSASDiHasil();
+            }
         }
     }
 };
@@ -1133,76 +1144,58 @@ window.simpanJawabanLatihan = function(soalIdx, inputEl) {
     window.cekSelesaiLatihan();
 };
 
-window.pastikanBannerPanenXPLatihanAda = function() {
+window.pastikanBannerEventSASLatihanAda = function() {
     let modalLat = document.getElementById("modal-enter-latihan");
-    if (!modalLat || document.getElementById("banner-event-panen-xp")) return;
+    if (!modalLat) return;
     let inpJml = document.getElementById("latihan-jumlah-soal");
     if (!inpJml) return;
 
-    let banner = document.createElement("div");
-    banner.id = "banner-event-panen-xp";
-    banner.style.cssText = "background:linear-gradient(135deg, #fef9e7, #fdebd0); border:2px solid #f39c12; border-radius:10px; padding:12px; margin-top:4px;";
-    banner.innerHTML =
-        '<div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;">' +
-            '<div>' +
-                '<div style="font-size:13px; font-weight:900; color:#d35400;">🌾 ACARA KHUSUS: PANEN XP RAYA!</div>' +
-                '<div style="font-size:11px; color:#475569; line-height:1.4; margin-top:2px;">Kerjakan minimal <b>50 Soal</b> dan raih minimal <b>40 Benar</b> untuk mendapatkan <b>Tambahan Bonus +200 XP & +200 Coin</b> di luar skor dasarmu!</div>' +
-            '</div>' +
-            '<button type="button" class="btn-action" style="background:#d35400; color:#fff; width:auto; padding:6px 12px; font-size:11px; border-radius:18px; white-space:nowrap;" onclick="document.getElementById(\'latihan-jumlah-soal\').value=50; if(window.tampilkanBadgeHadiahKuis) window.tampilkanBadgeHadiahKuis(this, \'🌾 Mode Panen XP (50 Soal) Diaktifkan!\');">🔥 Set 50 Soal</button>' +
-        '</div>';
-    inpJml.parentElement.after(banner);
-};
-
-window.evaluasiBonusPanenXPLatihan = function() {
-    let sesi = window.sesiLatihanSiswa;
-    if (!sesi || sesi._panenClaimed) return;
-
-    let totalSoal = parseInt(document.getElementById("quiz-result-total") ? document.getElementById("quiz-result-total").innerText : "0", 10) || 0;
-    let totalBenar = parseInt(document.getElementById("quiz-result-correct") ? document.getElementById("quiz-result-correct").innerText : "0", 10) || 0;
-    let msgBox = document.getElementById("quiz-result-adaptive-msg");
-
-    if (totalSoal < 50) return;
-
-    let durasiDetik = sesi._startTimeMs ? ((Date.now() - sesi._startTimeMs) / 1000) : 999;
-    let rataDetikPerSoal = durasiDetik / Math.max(1, totalSoal);
-
-    if ((window.antiMacroGuard && window.antiMacroGuard.macroFlagged) || rataDetikPerSoal < 2.0) {
-        if (msgBox) {
-            msgBox.innerHTML += '<div style="margin-top:8px; padding:8px; background:#fee2e2; color:#991b1b; border:1px solid #ef4444; border-radius:6px; font-weight:800;">🚫 Bonus Panen XP Dibatalkan: Terdeteksi pengerjaan terlalu cepat / indikasi Macro (' + rataDetikPerSoal.toFixed(1) + ' dtk/soal).</div>';
-        }
-        return;
+    let banner = document.getElementById("banner-event-sas-latihan") || document.getElementById("banner-event-panen-xp");
+    if (!banner) {
+        banner = document.createElement("div");
+        banner.id = "banner-event-sas-latihan";
+        banner.style.marginTop = "4px";
+        inpJml.parentElement.after(banner);
+    } else {
+        banner.id = "banner-event-sas-latihan";
+        banner.style.cssText = "margin-top:4px;";
     }
 
-    if (totalSoal >= 50 && totalBenar >= 40) {
-        sesi._panenClaimed = true;
-        
-        // Hitung total XP dasar yang didapat siswa dari tipe soal yang dijawab benar
-        let baseXP = 0;
-        if (sesi.soal && sesi.hasilBenar) {
-            sesi.soal.forEach(function(q, i) {
-                if (sesi.hasilBenar[i]) {
-                    let t = String(q.type || "PG").toUpperCase();
-                    let p = (typeof window.dapatkanPoinXPPerSoal === "function") 
-                        ? window.dapatkanPoinXPPerSoal(t) 
-                        : (t === "PGK" ? 20 : (t === "IS" ? 50 : (t === "ESSAY" ? 100 : 10)));
-                    baseXP += p;
-                }
-            });
-        } else {
-            baseXP = totalBenar * 10; // Hitungan dasar cadangan jika parameter tidak valid
-        }
+    if (typeof window.bangunHtmlWidgetEventSAS === "function") {
+        banner.innerHTML = window.bangunHtmlWidgetEventSAS();
+    }
+};
 
-        let totalPanenXP = baseXP + 200;
+window.pastikanBannerPanenXPLatihanAda = window.pastikanBannerEventSASLatihanAda;
 
-        // Tambahkan Bonus +200-nya ke Database
-        if (typeof window.tambahXPSiswa === "function") window.tambahXPSiswa(200, "bonus_panen_xp");
-        
-        if (msgBox) {
-            msgBox.innerHTML += '<div style="margin-top:8px; padding:10px; background:linear-gradient(135deg, #fef9e7, #dcfce7); color:#15803d; border:2px solid #22c55e; border-radius:8px; font-weight:900; font-size:13px;">🌾 BONUS PANEN XP RAYA TERCAPAI! (' + totalBenar + '/' + totalSoal + ' Benar)<br>Skor Dasar: <b>' + baseXP + ' XP</b> + Bonus: <b>200 XP</b><br>Total Didapat: <b>' + totalPanenXP + ' XP & ' + totalPanenXP + ' Coin</b>!</div>';
-        }
-        if (typeof window.tampilkanBadgeHadiahKuis === "function") {
-            window.tampilkanBadgeHadiahKuis(null, "🌾 PANEN XP RAYA! Total " + totalPanenXP + " XP!");
-        }
+window.tampilkanInfoProgresEventSASDiHasil = function() {
+    if (sessionStorage.getItem("statusLogin") !== "siswa") return;
+    if (typeof window.dapatkanStatusEventSAS !== "function" || window.dapatkanStatusEventSAS() !== "aktif") return;
+    if (typeof window.ambilObjekLbSiswaEventSAS !== "function") return;
+
+    let msgBox = document.getElementById("quiz-result-adaptive-msg");
+    if (!msgBox) return;
+
+    let info = window.ambilObjekLbSiswaEventSAS();
+    if (!info || !info.lb) return;
+
+    let cfg = window.EVENT_SAS_CONFIG;
+    let ev = window.pastikanDataEventSAS(info.lb);
+    let siapList = cfg.tiers.filter(function(t) { return ev.pg >= t.pg && ev.is >= t.is && !ev.claimedTiers[t.id]; });
+    let nextTier = cfg.tiers.find(function(t) { return !(ev.pg >= t.pg && ev.is >= t.is); });
+
+    if (siapList.length > 0) {
+        let totBonus = siapList.reduce(function(s, t) { return s + t.reward; }, 0);
+        msgBox.innerHTML +=
+            '<div style="margin-top:8px; padding:10px; background:linear-gradient(135deg,#fef9e7,#dcfce7); color:#15803d; border:2px solid #22c55e; border-radius:8px; font-weight:800; font-size:12px;">' +
+                '🎁 CHECKPOINT EVENT UJIAN SAS SIAP DIKLAIM! (+' + totBonus.toLocaleString('id-ID') + ' XP &amp; Coin)<br>' +
+                'Buka <b>Ruang Masuk Ujian</b>, <b>Ruang Latihan</b>, atau <b>Profil</b> untuk klaim sekarang.' +
+            '</div>';
+    } else if (nextTier) {
+        msgBox.innerHTML +=
+            '<div style="margin-top:8px; padding:8px 10px; background:#fffbeb; color:#92400e; border:1px solid #f59e0b; border-radius:8px; font-size:11.5px; font-weight:700;">' +
+                '🎯 Progres Event Ujian SAS: <b style="color:#0284c7;">' + ev.pg + '/' + nextTier.pg + ' PG</b> • <b style="color:#d97706;">' + ev.is + '/' + nextTier.is + ' IS</b> (Hadiah berikutnya: +' + nextTier.reward.toLocaleString('id-ID') + ' XP &amp; Coin)' +
+            '</div>';
     }
 };
 
@@ -2193,12 +2186,13 @@ window.exportWordKuis = function(containerId, judul) {
 // 7. OBSERVER MODAL GERBANG LATIHAN & BANNER PANEN XP
 // =========================================================================
 document.addEventListener("DOMContentLoaded", function() {
-    window.pastikanBannerPanenXPLatihanAda();
+    window.pastikanBannerEventSASLatihanAda();
     let modalEnterLat = document.getElementById('modal-enter-latihan');
     if (modalEnterLat) {
         let obsEnterLat = new MutationObserver(function(mutations) {
             mutations.forEach(function(m) {
                 if (m.target.id === 'modal-enter-latihan' && m.target.style.display === 'flex') {
+                    window.pastikanBannerEventSASLatihanAda();
                     window.renderDropdownLatihan();
                     if (typeof window.muatPengaturanLatihanDariServer === 'function') {
                         window.muatPengaturanLatihanDariServer(false);
