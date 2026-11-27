@@ -423,42 +423,70 @@ window._navTreeRootNodes = [];
 window._navNodeBySlug = {};
 window._drawerExpandedSlugs = new Set();
 
-window.pasangPengaturanPanelKiri = function() {
+window.apakahPerangkatLaptopDrawer = function() {
+    let ua = navigator.userAgent || '';
+    let isMobileOrTablet = /Android|iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    return !isMobileOrTablet && window.innerWidth >= 960;
+};
+
+window.terapkanLebarPanelKiriLaptop = function() {
     let nav = document.getElementById('main-nav');
-    let isLaptop = window.matchMedia && window.matchMedia('(min-width: 960px) and (hover: hover) and (pointer: fine)').matches;
+    if (!nav) return;
 
-    if (nav && isLaptop && !nav.getAttribute('data-base-width-measured')) {
-        let wAsli = parseFloat(window.getComputedStyle(nav).width) || 280;
-        if (wAsli < 200 || wAsli > 380) wAsli = 280;
-        let wLaptop = Math.round(wAsli * 1.5);
-        document.documentElement.style.setProperty('--main-drawer-laptop-width', wLaptop + 'px');
-        nav.setAttribute('data-base-width-measured', String(wAsli));
+    if (window.apakahPerangkatLaptopDrawer()) {
+        let lebarTarget = Math.min(365, Math.round(window.innerWidth * 0.30));
+        nav.style.setProperty('width', lebarTarget + 'px', 'important');
+        nav.style.setProperty('max-width', lebarTarget + 'px', 'important');
+        nav.style.removeProperty('min-width');
+        nav.classList.add('is-laptop-wide-drawer');
+    } else {
+        nav.style.removeProperty('width');
+        nav.style.removeProperty('max-width');
+        nav.style.removeProperty('min-width');
+        nav.classList.remove('is-laptop-wide-drawer');
     }
+};
 
+window.pasangPengaturanPanelKiri = function() {
     if (!document.getElementById('css-main-drawer-upgrade')) {
         let st = document.createElement('style');
         st.id = 'css-main-drawer-upgrade';
         st.textContent =
             'html.drawer-scroll-locked, body.drawer-scroll-locked { overflow: hidden !important; overscroll-behavior: none !important; }' +
-            '#main-nav.main-left-drawer { overscroll-behavior: contain !important; }' +
-            '#main-nav.main-left-drawer .main-drawer-scroll { overscroll-behavior: contain !important; -webkit-overflow-scrolling: touch; }' +
+            'aside#main-nav.main-left-drawer, aside#main-nav.main-left-drawer * { box-sizing: border-box !important; }' +
+            'aside#main-nav.main-left-drawer { overscroll-behavior: contain !important; }' +
+            'aside#main-nav.main-left-drawer .main-drawer-scroll {' +
+                'overscroll-behavior: contain !important; -webkit-overflow-scrolling: touch;' +
+                'width: 100% !important; max-width: 100% !important; overflow-x: hidden !important;' +
+            '}' +
+            'aside#main-nav.main-left-drawer #dynamic-navbar, aside#main-nav.main-left-drawer .sub-menu-nav {' +
+                'width: 100% !important; max-width: 100% !important;' +
+            '}' +
+            'aside#main-nav.main-left-drawer .drawer-item-row {' +
+                'display: flex !important; align-items: center !important; width: 100% !important; max-width: 100% !important; min-width: 0 !important; gap: 6px !important;' +
+            '}' +
+            'aside#main-nav.main-left-drawer .drawer-nav-link { flex: 1 1 auto !important; min-width: 0 !important; overflow-wrap: break-word; }' +
+            'aside#main-nav.main-left-drawer .drawer-expand-btn { flex-shrink: 0 !important; margin-right: 2px !important; }' +
             '#main-nav-backdrop { overscroll-behavior: none !important; touch-action: none !important; }' +
-            '@media (min-width: 960px) and (hover: hover) and (pointer: fine) {' +
-                '#main-nav.main-left-drawer {' +
-                    'width: var(--main-drawer-laptop-width, 420px) !important;' +
-                    'max-width: min(var(--main-drawer-laptop-width, 420px), 85vw) !important;' +
-                '}' +
-                '#main-nav.main-left-drawer:not(.is-open) {' +
-                    'transform: translateX(-110%) !important;' +
-                    'pointer-events: none !important;' +
-                '}' +
-                '#main-nav.main-left-drawer.is-open {' +
-                    'left: 0 !important;' +
-                    'transform: translateX(0) !important;' +
-                    'pointer-events: auto !important;' +
-                '}' +
+            'aside#main-nav.main-left-drawer.is-laptop-wide-drawer:not(.is-open) {' +
+                'left: 0 !important;' +
+                'transform: translateX(-115%) !important;' +
+                'visibility: hidden !important;' +
+                'pointer-events: none !important;' +
+            '}' +
+            'aside#main-nav.main-left-drawer.is-laptop-wide-drawer.is-open {' +
+                'left: 0 !important;' +
+                'transform: translateX(0) !important;' +
+                'visibility: visible !important;' +
+                'pointer-events: auto !important;' +
             '}';
         document.head.appendChild(st);
+    }
+
+    window.terapkanLebarPanelKiriLaptop();
+    if (!window._drawerResizeBound) {
+        window._drawerResizeBound = true;
+        window.addEventListener('resize', window.terapkanLebarPanelKiriLaptop);
     }
 
     if (!window._drawerScrollLockBound) {
@@ -711,7 +739,46 @@ document.addEventListener("keydown", function(e) {
 // 7. Render & Operasi di Dalam Modal "⚙️ Pages"
 let dragSourcePageIndex = null;
 
+window.pasangCssWarnaLevelPages = function() {
+    if (document.getElementById("css-pages-level-colors")) return;
+    let st = document.createElement("style");
+    st.id = "css-pages-level-colors";
+    st.textContent =
+        '#sortable-list > li.page-item-card { color: #0f172a !important; transition: filter 0.15s ease; }' +
+        '#sortable-list > li.page-item-card .page-title-input { background: transparent !important; color: #0f172a !important; font-weight: 700 !important; }' +
+        '#sortable-list > li.page-item-card .page-title-input:focus { background: rgba(255, 255, 255, 0.92) !important; }' +
+        '#sortable-list > li.page-item-card .page-drag-handle { color: #334155 !important; }' +
+        '#sortable-list > li.page-item-card .page-level-badge { background: rgba(15, 23, 42, 0.09) !important; color: #0f172a !important; border: 1px solid rgba(15, 23, 42, 0.16) !important; }' +
+        '#sortable-list > li.page-item-card .page-btn-icon { background: rgba(255, 255, 255, 0.85); }' +
+
+        /* Lv 1 (level 0): Putih */
+        '#sortable-list > li.page-item-card[data-page-level="0"] { background: #ffffff !important; border: 1px solid #cbd5e1 !important; }' +
+        /* Lv 2 (level 1): Abu-abu tipis */
+        '#sortable-list > li.page-item-card[data-page-level="1"] { background: #eef2f6 !important; border: 1px solid #cbd5e1 !important; }' +
+        /* Lv 3 (level 2): Abu-abu agak gelap */
+        '#sortable-list > li.page-item-card[data-page-level="2"] { background: #cbd5e1 !important; border: 1px solid #94a3b8 !important; }' +
+        /* Lv 4 (level 3): Bintik-bintik abu-abu */
+        '#sortable-list > li.page-item-card[data-page-level="3"] { background-color: #ffffff !important; background-image: radial-gradient(#94a3b8 1.5px, transparent 1.5px) !important; background-size: 9px 9px !important; border: 1px solid #94a3b8 !important; }' +
+        /* Lv 5 (level 4): Border hitam agak tebal, dalamnya putih */
+        '#sortable-list > li.page-item-card[data-page-level="4"] { background: #ffffff !important; border: 3px solid #111111 !important; }' +
+        /* Lv 6 (level 5): Setengah putih setengah abu tipis */
+        '#sortable-list > li.page-item-card[data-page-level="5"] { background: linear-gradient(90deg, #ffffff 0%, #ffffff 50%, #e5ebf2 50%, #e5ebf2 100%) !important; border: 1px solid #cbd5e1 !important; }' +
+        /* Lv 7 (level 6): Setengah putih setengah abu agak gelap */
+        '#sortable-list > li.page-item-card[data-page-level="6"] { background: linear-gradient(90deg, #ffffff 0%, #ffffff 50%, #cbd5e1 50%, #cbd5e1 100%) !important; border: 1px solid #94a3b8 !important; }' +
+        /* Lv 8 (level 7): Garis-garis */
+        '#sortable-list > li.page-item-card[data-page-level="7"] { background: repeating-linear-gradient(0deg, #ffffff 0px, #ffffff 6px, #cbd5e1 6px, #cbd5e1 8px) !important; border: 1px solid #94a3b8 !important; }' +
+        /* Lv 9 (level 8): Garis diagonal */
+        '#sortable-list > li.page-item-card[data-page-level="8"] { background: repeating-linear-gradient(-45deg, #ffffff 0px, #ffffff 6px, #cbd5e1 6px, #cbd5e1 9px) !important; border: 1px solid #94a3b8 !important; }' +
+        /* Lv 10 (level 9): Warna kuning */
+        '#sortable-list > li.page-item-card[data-page-level="9"] { background: #fde047 !important; border: 1.5px solid #ca8a04 !important; }' +
+
+        /* Tetap bedakan border putus-putus untuk room terkunci Hidden */
+        '#sortable-list > li.page-item-card.locked-hidden-card { border-style: dashed !important; border-color: #ef4444 !important; }';
+    document.head.appendChild(st);
+};
+
 window.renderModalPages = function() {
+    window.pasangCssWarnaLevelPages();
     window.pastikanRoomHiddenTerkunci();
     let listEl = document.getElementById("sortable-list");
     if (!listEl) return;
@@ -720,18 +787,20 @@ window.renderModalPages = function() {
     window.pagesData.forEach(function(page, idx) {
         let isLockedHidden = Boolean(page.isLockedHidden);
         let isHome = (page.level === 0 && page.slug === "home");
-        let indentPx = page.level * 26;
-        let canAddSub = page.level < 9; 
-        
+        let lvl = Math.max(0, Math.min(9, Number(page.level) || 0));
+        let indentPx = lvl * 26;
+        let canAddSub = lvl < 9;
+
         let eyeIcon = (page.hidden || isLockedHidden) ? "🚫" : "👁️";
         let eyeTitle = isLockedHidden ? "Room khusus (Terkunci)" : (page.hidden ? "Klik untuk tampilkan" : "Klik untuk sembunyikan");
         let cardClass = "page-item-card" + (isLockedHidden ? " locked-hidden-card" : "");
-        let levelLabel = page.level === 0 ? "Main" : "Lv." + (page.level + 1);
+        let levelLabel = lvl === 0 ? "Main" : "Lv." + (lvl + 1);
 
-        // Gagang titik 6 dipasang fungsi khusus onmousedown & onmouseup agar hanya gagang ini yang bisa ditarik
-        let dragGrip = !isLockedHidden ? `onmousedown="this.closest('li').setAttribute('draggable', true)" onmouseup="this.closest('li').setAttribute('draggable', false)" onmouseleave="this.closest('li').setAttribute('draggable', false)"` : "";
+        let dragGrip = !isLockedHidden
+            ? 'onmousedown="this.closest(\'li\').setAttribute(\'draggable\', true)" onmouseup="this.closest(\'li\').setAttribute(\'draggable\', false)" onmouseleave="this.closest(\'li\').setAttribute(\'draggable\', false)"'
+            : "";
 
-        html += '<li class="' + cardClass + '" style="margin-left:' + indentPx + 'px;" draggable="false" data-page-index="' + idx + '" ondragstart="window.onPageDragStart(event, ' + idx + ')" ondragover="window.onPageDragOver(event)" ondrop="window.onPageDrop(event, ' + idx + ')">';
+        html += '<li class="' + cardClass + '" style="margin-left:' + indentPx + 'px;" draggable="false" data-page-index="' + idx + '" data-page-level="' + lvl + '" ondragstart="window.onPageDragStart(event, ' + idx + ')" ondragover="window.onPageDragOver(event)" ondrop="window.onPageDrop(event, ' + idx + ')">';
         html += '  <div class="page-item-left">';
         html += '    <span class="page-drag-handle" title="' + (isLockedHidden ? "Terkunci" : "Tarik titik ini untuk geser") + '" ' + dragGrip + '>' + (isLockedHidden ? "🔒" : "⋮⋮") + '</span>';
         html += '    <input type="text" class="page-title-input" value="' + (page.title || "").replace(/"/g, "&quot;") + '" ' + (isLockedHidden ? "readonly" : "") + ' onchange="window.ubahNamaHalaman(' + idx + ', this.value)">';
