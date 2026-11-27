@@ -744,41 +744,170 @@ window.pasangCssWarnaLevelPages = function() {
     let st = document.createElement("style");
     st.id = "css-pages-level-colors";
     st.textContent =
-        '#sortable-list > li.page-item-card { color: #0f172a !important; transition: filter 0.15s ease; }' +
-        '#sortable-list > li.page-item-card .page-title-input { background: transparent !important; color: #0f172a !important; font-weight: 700 !important; }' +
-        '#sortable-list > li.page-item-card .page-title-input:focus { background: rgba(255, 255, 255, 0.92) !important; }' +
-        '#sortable-list > li.page-item-card .page-drag-handle { color: #334155 !important; }' +
-        '#sortable-list > li.page-item-card .page-level-badge { background: rgba(15, 23, 42, 0.09) !important; color: #0f172a !important; border: 1px solid rgba(15, 23, 42, 0.16) !important; }' +
-        '#sortable-list > li.page-item-card .page-btn-icon { background: rgba(255, 255, 255, 0.85); }' +
+        /* Lebar Modal Pages +50% */
+        '#modal-pages > .modal-box { width: 820px !important; max-width: 94vw !important; }' +
+        '#modal-pages .modal-body { overflow-x: hidden !important; }' +
 
-        /* Lv 1 (level 0): Putih */
+        /* Tata letak kartu ringkas & anti-terpotong */
+        '#sortable-list > li.page-item-card {' +
+            'color: #0f172a !important; display: flex !important; align-items: center !important;' +
+            'justify-content: space-between !important; gap: 10px !important; padding: 8px 10px !important;' +
+            'transition: filter 0.15s ease; box-sizing: border-box !important;' +
+        '}' +
+        '#sortable-list > li.page-item-card .page-item-left {' +
+            'display: flex !important; align-items: center !important; gap: 8px !important;' +
+            'flex: 1 1 auto !important; min-width: 0 !important;' +
+        '}' +
+        '#sortable-list > li.page-item-card .page-drag-handle { color: #334155 !important; flex-shrink: 0 !important; }' +
+
+        /* Nama Page -> jarak -> Garis -> rapat ke Level kecil */
+        '.page-title-stack { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; justify-content: center; }' +
+        '#sortable-list > li.page-item-card .page-title-input {' +
+            'width: 100% !important; min-width: 0 !important; padding: 1px 4px !important; margin: 0 !important;' +
+            'background: transparent !important; color: #0f172a !important; font-weight: 700 !important;' +
+            'font-size: 13px !important; line-height: 1.25 !important; border: none !important; border-radius: 4px !important;' +
+            'box-sizing: border-box !important;' +
+        '}' +
+        '#sortable-list > li.page-item-card .page-title-input:focus { background: rgba(255, 255, 255, 0.92) !important; outline: 1px solid #38bdf8 !important; }' +
+        '.page-level-meta {' +
+            'margin-top: 6px; padding-top: 2px; border-top: 1px solid rgba(15, 23, 42, 0.2);' +
+            'font-size: 9.5px; line-height: 1.15; font-weight: 700; color: #475569;' +
+            'display: flex; align-items: center; gap: 6px; padding-left: 4px; letter-spacing: 0.2px;' +
+        '}' +
+        '.page-hidden-tag { color: #dc2626; font-weight: 800; }' +
+
+        /* Grup tombol aksi kanan ringkas */
+        '#sortable-list > li.page-item-card .page-item-actions {' +
+            'display: flex !important; align-items: center !important; gap: 5px !important; flex-shrink: 0 !important;' +
+        '}' +
+        '.page-go-btn {' +
+            'height: 28px; padding: 0 10px; border: none; border-radius: 14px; background: #27ae60; color: #ffffff;' +
+            'font-family: Poppins, sans-serif; font-size: 11px; font-weight: 800; white-space: nowrap;' +
+            'cursor: pointer; display: inline-flex; align-items: center; gap: 3px; flex-shrink: 0;' +
+        '}' +
+        '.page-go-btn:hover { background: #1e8449; }' +
+
+        /* Up & Down 1 kolom kecil atas-bawah */
+        '.page-move-stack { display: flex; flex-direction: column; gap: 2px; flex-shrink: 0; }' +
+        '.page-move-btn {' +
+            'width: 22px; height: 14px; padding: 0; border: 1px solid rgba(15, 23, 42, 0.18); border-radius: 4px;' +
+            'background: rgba(255, 255, 255, 0.92); color: #334155; font-size: 9px; line-height: 1;' +
+            'display: flex; align-items: center; justify-content: center; cursor: pointer;' +
+        '}' +
+        '.page-move-btn:hover { background: #0b3954; color: #ffffff; border-color: #0b3954; }' +
+
+        '.page-sub-btn {' +
+            'height: 28px; padding: 0 8px; border: 1px solid rgba(15, 23, 42, 0.16); border-radius: 6px;' +
+            'background: rgba(255, 255, 255, 0.92); color: #0369a1; font-size: 11px; font-weight: 800;' +
+            'white-space: nowrap; cursor: pointer; display: inline-flex; align-items: center;' +
+        '}' +
+        '.page-sub-btn:hover:not(:disabled) { background: #e0f2fe; border-color: #38bdf8; }' +
+        '.page-sub-btn:disabled { opacity: 0.4; cursor: not-allowed; }' +
+
+        '.page-more-btn {' +
+            'width: 28px; height: 28px; padding: 0; border: 1px solid rgba(15, 23, 42, 0.16); border-radius: 6px;' +
+            'background: rgba(255, 255, 255, 0.92); color: #334155; font-size: 16px; font-weight: 900;' +
+            'line-height: 1; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;' +
+        '}' +
+        '.page-more-btn:hover { background: #0b3954; color: #ffffff; border-color: #0b3954; }' +
+
+        /* Popover Menu Titik Tiga (Mata & Delete) */
+        '#pages-item-more-popover {' +
+            'display: none; position: fixed; z-index: 1000250; min-width: 175px; background: #ffffff;' +
+            'border: 1px solid #cbd5e1; border-radius: 10px; padding: 5px; box-shadow: 0 10px 28px rgba(15, 23, 42, 0.24);' +
+            'flex-direction: column; gap: 3px; font-family: Poppins, sans-serif;' +
+        '}' +
+        '.pages-more-opt {' +
+            'width: 100%; border: none; background: transparent; color: #1e293b; text-align: left;' +
+            'padding: 8px 10px; border-radius: 7px; font-size: 12px; font-weight: 700; cursor: pointer;' +
+            'display: flex; align-items: center; gap: 8px; white-space: nowrap;' +
+        '}' +
+        '.pages-more-opt:hover { background: #f1f5f9; }' +
+        '.pages-more-opt.is-danger { color: #dc2626; }' +
+        '.pages-more-opt.is-danger:hover { background: #fee2e2; }' +
+
+        /* Warna & Pola Hierarki Lv 1 s.d. Lv 10 */
         '#sortable-list > li.page-item-card[data-page-level="0"] { background: #ffffff !important; border: 1px solid #cbd5e1 !important; }' +
-        /* Lv 2 (level 1): Abu-abu tipis */
         '#sortable-list > li.page-item-card[data-page-level="1"] { background: #eef2f6 !important; border: 1px solid #cbd5e1 !important; }' +
-        /* Lv 3 (level 2): Abu-abu agak gelap */
         '#sortable-list > li.page-item-card[data-page-level="2"] { background: #cbd5e1 !important; border: 1px solid #94a3b8 !important; }' +
-        /* Lv 4 (level 3): Bintik-bintik abu-abu */
         '#sortable-list > li.page-item-card[data-page-level="3"] { background-color: #ffffff !important; background-image: radial-gradient(#94a3b8 1.5px, transparent 1.5px) !important; background-size: 9px 9px !important; border: 1px solid #94a3b8 !important; }' +
-        /* Lv 5 (level 4): Border hitam agak tebal, dalamnya putih */
         '#sortable-list > li.page-item-card[data-page-level="4"] { background: #ffffff !important; border: 3px solid #111111 !important; }' +
-        /* Lv 6 (level 5): Setengah putih setengah abu tipis */
         '#sortable-list > li.page-item-card[data-page-level="5"] { background: linear-gradient(90deg, #ffffff 0%, #ffffff 50%, #e5ebf2 50%, #e5ebf2 100%) !important; border: 1px solid #cbd5e1 !important; }' +
-        /* Lv 7 (level 6): Setengah putih setengah abu agak gelap */
         '#sortable-list > li.page-item-card[data-page-level="6"] { background: linear-gradient(90deg, #ffffff 0%, #ffffff 50%, #cbd5e1 50%, #cbd5e1 100%) !important; border: 1px solid #94a3b8 !important; }' +
-        /* Lv 8 (level 7): Garis-garis */
         '#sortable-list > li.page-item-card[data-page-level="7"] { background: repeating-linear-gradient(0deg, #ffffff 0px, #ffffff 6px, #cbd5e1 6px, #cbd5e1 8px) !important; border: 1px solid #94a3b8 !important; }' +
-        /* Lv 9 (level 8): Garis diagonal */
         '#sortable-list > li.page-item-card[data-page-level="8"] { background: repeating-linear-gradient(-45deg, #ffffff 0px, #ffffff 6px, #cbd5e1 6px, #cbd5e1 9px) !important; border: 1px solid #94a3b8 !important; }' +
-        /* Lv 10 (level 9): Warna kuning */
         '#sortable-list > li.page-item-card[data-page-level="9"] { background: #fde047 !important; border: 1.5px solid #ca8a04 !important; }' +
-
-        /* Tetap bedakan border putus-putus untuk room terkunci Hidden */
         '#sortable-list > li.page-item-card.locked-hidden-card { border-style: dashed !important; border-color: #ef4444 !important; }';
     document.head.appendChild(st);
 };
 
+window._activePageMoreIdx = -1;
+
+window.tutupMenuOpsiPage = function() {
+    let pop = document.getElementById("pages-item-more-popover");
+    if (pop) pop.style.display = "none";
+    window._activePageMoreIdx = -1;
+};
+
+window.bukaMenuOpsiPage = function(e, idx, btnEl) {
+    if (e) e.stopPropagation();
+    let page = window.pagesData && window.pagesData[idx];
+    if (!page || !btnEl) return;
+
+    let pop = document.getElementById("pages-item-more-popover");
+    if (!pop) {
+        pop = document.createElement("div");
+        pop.id = "pages-item-more-popover";
+        document.body.appendChild(pop);
+    }
+
+    if (pop.style.display === "flex" && window._activePageMoreIdx === idx) {
+        window.tutupMenuOpsiPage();
+        return;
+    }
+
+    let isLockedHidden = Boolean(page.isLockedHidden);
+    let isHome = (Number(page.level) === 0 && page.slug === "home");
+    let labelMata = isLockedHidden
+        ? "🔒 Terkunci (Hidden)"
+        : (page.hidden ? "👁️ Tampilkan di Menu" : "🚫 Sembunyikan");
+
+    let html = '<button type="button" class="pages-more-opt" onclick="window.tutupMenuOpsiPage(); window.toggleVisibilitasHalaman(' + idx + ')">' + labelMata + '</button>';
+    if (!isLockedHidden && !isHome) {
+        html += '<button type="button" class="pages-more-opt is-danger" onclick="window.tutupMenuOpsiPage(); window.hapusHalaman(' + idx + ')">🗑️ Hapus Halaman</button>';
+    }
+
+    pop.innerHTML = html;
+    pop.style.display = "flex";
+    window._activePageMoreIdx = idx;
+
+    let rect = btnEl.getBoundingClientRect();
+    let pw = pop.offsetWidth || 180;
+    let ph = pop.offsetHeight || 80;
+    let leftPos = Math.max(8, Math.min(window.innerWidth - pw - 8, rect.right - pw));
+    let topPos = rect.bottom + 5;
+    if (topPos + ph > window.innerHeight - 10) {
+        topPos = Math.max(8, rect.top - ph - 5);
+    }
+    pop.style.left = Math.round(leftPos) + "px";
+    pop.style.top = Math.round(topPos) + "px";
+};
+
+if (!window._pagesMoreCloseBound) {
+    window._pagesMoreCloseBound = true;
+    document.addEventListener("pointerdown", function(e) {
+        if (!e.target.closest("#pages-item-more-popover") && !e.target.closest(".page-more-btn")) {
+            window.tutupMenuOpsiPage();
+        }
+    }, true);
+    document.addEventListener("scroll", function() {
+        if (window._activePageMoreIdx !== -1) window.tutupMenuOpsiPage();
+    }, true);
+}
+
 window.renderModalPages = function() {
     window.pasangCssWarnaLevelPages();
+    window.tutupMenuOpsiPage();
     window.pastikanRoomHiddenTerkunci();
     let listEl = document.getElementById("sortable-list");
     if (!listEl) return;
@@ -786,15 +915,14 @@ window.renderModalPages = function() {
     let html = "";
     window.pagesData.forEach(function(page, idx) {
         let isLockedHidden = Boolean(page.isLockedHidden);
-        let isHome = (page.level === 0 && page.slug === "home");
         let lvl = Math.max(0, Math.min(9, Number(page.level) || 0));
-        let indentPx = lvl * 26;
+        let indentPx = lvl * 24;
         let canAddSub = lvl < 9;
 
-        let eyeIcon = (page.hidden || isLockedHidden) ? "🚫" : "👁️";
-        let eyeTitle = isLockedHidden ? "Room khusus (Terkunci)" : (page.hidden ? "Klik untuk tampilkan" : "Klik untuk sembunyikan");
         let cardClass = "page-item-card" + (isLockedHidden ? " locked-hidden-card" : "");
-        let levelLabel = lvl === 0 ? "Main" : "Lv." + (lvl + 1);
+        let levelLabel = lvl === 0 ? "Main (Lv.1)" : "Lv." + (lvl + 1);
+        let hiddenTag = (page.hidden || isLockedHidden) ? '<span class="page-hidden-tag">• 🚫 Tersembunyi</span>' : "";
+        let safeSlug = String(page.slug || "").replace(/'/g, "\\'");
 
         let dragGrip = !isLockedHidden
             ? 'onmousedown="this.closest(\'li\').setAttribute(\'draggable\', true)" onmouseup="this.closest(\'li\').setAttribute(\'draggable\', false)" onmouseleave="this.closest(\'li\').setAttribute(\'draggable\', false)"'
@@ -803,20 +931,21 @@ window.renderModalPages = function() {
         html += '<li class="' + cardClass + '" style="margin-left:' + indentPx + 'px;" draggable="false" data-page-index="' + idx + '" data-page-level="' + lvl + '" ondragstart="window.onPageDragStart(event, ' + idx + ')" ondragover="window.onPageDragOver(event)" ondrop="window.onPageDrop(event, ' + idx + ')">';
         html += '  <div class="page-item-left">';
         html += '    <span class="page-drag-handle" title="' + (isLockedHidden ? "Terkunci" : "Tarik titik ini untuk geser") + '" ' + dragGrip + '>' + (isLockedHidden ? "🔒" : "⋮⋮") + '</span>';
-        html += '    <input type="text" class="page-title-input" value="' + (page.title || "").replace(/"/g, "&quot;") + '" ' + (isLockedHidden ? "readonly" : "") + ' onchange="window.ubahNamaHalaman(' + idx + ', this.value)">';
-        html += '    <span class="page-level-badge">' + levelLabel + '</span>';
-        html += '    <button class="page-btn-icon" style="background:#27ae60; color:white; margin-left:8px; font-size:11px; padding:2px 8px; border-radius:12px;" onclick="window.navigasiHalaman(event, \'' + page.slug + '\'); window.tutupModal(\'modal-pages\');" title="Langsung Buka Halaman Ini">GO 🚀</button>';
+        html += '    <div class="page-title-stack">';
+        html += '      <input type="text" class="page-title-input" value="' + (page.title || "").replace(/"/g, "&quot;") + '" ' + (isLockedHidden ? "readonly" : "") + ' onchange="window.ubahNamaHalaman(' + idx + ', this.value)">';
+        html += '      <div class="page-level-meta"><span>' + levelLabel + '</span>' + hiddenTag + '</div>';
+        html += '    </div>';
         html += '  </div>';
         html += '  <div class="page-item-actions">';
+        html += '    <button type="button" class="page-go-btn" onclick="window.navigasiHalaman(event, \'' + safeSlug + '\'); window.tutupModal(\'modal-pages\');" title="Langsung Buka Halaman Ini">GO 🚀</button>';
         if (!isLockedHidden) {
-            html += '    <button class="page-btn-icon" title="Geser Naik" onclick="window.geserUrutanHalaman(' + idx + ', -1)">↑</button>';
-            html += '    <button class="page-btn-icon" title="Geser Turun" onclick="window.geserUrutanHalaman(' + idx + ', 1)">↓</button>';
+            html += '    <div class="page-move-stack">';
+            html += '      <button type="button" class="page-move-btn" title="Geser Naik" onclick="window.geserUrutanHalaman(' + idx + ', -1)">▲</button>';
+            html += '      <button type="button" class="page-move-btn" title="Geser Turun" onclick="window.geserUrutanHalaman(' + idx + ', 1)">▼</button>';
+            html += '    </div>';
         }
-        html += '    <button class="page-btn-icon" title="' + eyeTitle + '" onclick="window.toggleVisibilitasHalaman(' + idx + ')">' + eyeIcon + '</button>';
-        html += '    <button class="page-btn-icon" style="color:#2980b9;" title="Tambah Sub-Room" ' + (!canAddSub ? "disabled" : "") + ' onclick="window.tambahSubHalaman(' + idx + ')"><b>+Sub</b></button>';
-        if (!isLockedHidden && !isHome) {
-            html += '    <button class="page-btn-icon delete-btn" title="Hapus Room" onclick="window.hapusHalaman(' + idx + ')">🗑️</button>';
-        }
+        html += '    <button type="button" class="page-sub-btn" title="Tambah Sub-Room" ' + (!canAddSub ? "disabled" : "") + ' onclick="window.tambahSubHalaman(' + idx + ')">+Sub</button>';
+        html += '    <button type="button" class="page-more-btn" title="Opsi Lain (Sembunyikan / Hapus)" onclick="window.bukaMenuOpsiPage(event, ' + idx + ', this)">⋮</button>';
         html += '  </div>';
         html += '</li>';
     });
