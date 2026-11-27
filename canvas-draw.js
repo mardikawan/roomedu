@@ -1,42 +1,188 @@
 /* =========================================================================
-   MODUL GOODNOTES ULTRA-HD RETINA DRAW (IPAD PALM REJECT, BEZIER SMOOTHING,
-   SMART SHAPE, LASO PRO, LASER POINTER, GAMBAR BEBAS, & SLIDE PDF HD)
+   MODUL GOODNOTES ULTRA-HD & IFP BOARD DRAW ENGINE
+   - Mode Khusus IFP Merah Putih (Otomatis + Tombol Toggle di Toolbar)
+   - Koordinat Presisi Anti-Geser (Kalibrasi CSS Zoom & Local Offset)
+   - Pengunci Pointer Tunggal (Anti-Loncat Multi-Touch IR) & Scroll 2 Jari
+   - Goresan Bezier Bertahap Zero-Lag + GPU Offscreen Snapshot (Tanpa putImageData)
+   - Toolbar Kompak Fit-Layar, Collapse Warna/Ukuran/Laso, Auto-Shape, & Slide PDF
    ========================================================================= */
 
-window.DRAW_DPR = Math.max(2.5, Math.min((window.devicePixelRatio || 2) * 1.5, 3.5));
+window.DRAW_IFP_MODE_KEY = 'mahardika_draw_ifp_mode_v1';
+window.DRAW_CUSTOM_COLORS_KEY = 'mahardika_draw_custom_colors_v1';
+window.DRAW_LAST_LASSO_KEY = 'mahardika_draw_last_lasso_v1';
 
-// Pengonversi koordinat presisi (kebal terhadap CSS zoom A4, zoom +/-, & pinch zoom iPad)
-window.ambilKoordinatKanvas = function(cvs, clientX, clientY) {
-    let r = cvs.getBoundingClientRect();
-    let dpr = parseFloat(cvs.getAttribute('data-dpr')) || window.DRAW_DPR || 2.5;
-    let cssW = parseFloat(cvs.getAttribute('data-css-w')) || (cvs.width / dpr) || r.width || 1;
-    let cssH = parseFloat(cvs.getAttribute('data-css-h')) || (cvs.height / dpr) || r.height || 1;
-    let scaleX = r.width > 0 ? (cssW / r.width) : 1;
-    let scaleY = r.height > 0 ? (cssH / r.height) : 1;
-    return {
-        x: (clientX - r.left) * scaleX,
-        y: (clientY - r.top) * scaleY,
-        scaleX: scaleX,
-        scaleY: scaleY
-    };
+window.deteksiPerangkatIFP = function() {
+    let ua = navigator.userAgent || '';
+    let isAppleMobile = /iPad|iPhone|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    if (isAppleMobile) return false;
+    let isTouch = (navigator.maxTouchPoints && navigator.maxTouchPoints > 0) || ('ontouchstart' in window);
+    let isAndroidWide = /Android/i.test(ua) && Math.max(window.screen.width || 0, window.innerWidth || 0) >= 900;
+    let isWinTouch = /Windows/i.test(ua) && isTouch && Math.max(window.screen.width || 0, window.innerWidth || 0) >= 1200;
+    return Boolean(isAndroidWide || isWinTouch);
 };
+
+window.ifpMode = (function() {
+    try {
+        let saved = localStorage.getItem(window.DRAW_IFP_MODE_KEY);
+        if (saved === '1') return true;
+        if (saved === '0') return false;
+    } catch (e) {}
+    return window.deteksiPerangkatIFP();
+})();
+
+window.hitungDrawDPR = function() {
+    if (window.ifpMode) return Math.min(window.devicePixelRatio || 1.5, 1.75);
+    return Math.max(2.2, Math.min((window.devicePixelRatio || 2) * 1.4, 3.2));
+};
+
+window.DRAW_DPR = window.hitungDrawDPR();
 window.isDrawingMode = false;
-let currentDrawCtx = null, isPenDown = false, activeTool = 'pen';
+
+let currentDrawCtx = null;
+let isPenDown = false;
+let activeTool = 'pen';
+let activePointerId = null;
+let penStartTime = 0;
+let lastMidPt = null;
+
 window.penSize = 3.6;
 window.penColor = '#e74c3c';
-window.pencilOnly = true;
+window.pencilOnly = !window.ifpMode;
 window.drawUndoStack = [];
 window.drawRedoStack = [];
+window.drawBackupCanvas = null;
+window.drawPoints = [];
 window.shapeHoldTimer = null;
 window.isShapeRecognized = false;
+window.activeSmartShape = null;
+window.draggingSmartVertex = undefined;
 
 let laserStrokes = [], currentLaserStroke = null;
 let globalLaserCvs = document.getElementById('laser-canvas');
 let globalLaserCtx = globalLaserCvs ? globalLaserCvs.getContext('2d') : null;
 let laserLastActiveTime = 0;
 
-let lassoPath = [], isFloating = false, lassoTargetCanvas = null, lassoSavedImageData = null, floatUI = null;
+let lassoPath = [], isFloating = false, lassoTargetCanvas = null, floatUI = null;
 window.lassoClipboardDataUrl = null;
+window.lassoAttachedFloats = [];
+window.lassoClipboardImages = [];
+
+// =========================================================================
+// 0. MESIN KALIBRASI KOORDINAT ANTI-GESER (IFP, IPAD, ZOOM A4, & BROWSER)
+// =========================================================================
+window.deteksiModeZoomRectBrowser = function() {
+    if (window._cachedZoomRectMode) return window._cachedZoomRectMode;
+    try {
+        let outer = document.createElement('div');
+        outer.style.cssText = 'position:fixed;left:0;top:0;width:100px;height:100px;zoom:2;visibility:hidden;pointer-events:none;z-index:-1;';
+        let inner = document.createElement('div');
+        inner.style.cssText = 'position:absolute;left:10px;top:10px;width:50px;height:50px;';
+        outer.appendChild(inner);
+        document.body.appendChild(outer);
+        let r = inner.getBoundingClientRect();
+        outer.remove();
+        window._cachedZoomRectMode = (r.width > 75) ? 'scaled' : 'unscaled';
+    } catch (e) {
+        window._cachedZoomRectMode = 'scaled';
+    }
+    return window._cachedZoomRectMode;
+};
+
+window.hitungEffectiveZoomElemen = function(el) {
+    let z = 1;
+    let cur = el;
+    while (cur && cur.nodeType === 1) {
+        let cz = parseFloat(window.getComputedStyle(cur).zoom);
+        if (!isNaN(cz) && cz > 0 && Math.abs(cz - 1) > 0.001) {
+            z *= cz;
+        }
+        cur = cur.parentElement;
+    }
+    return z;
+};
+
+window.ambilVisualRectKanvas = function(cvs) {
+    let r = cvs.getBoundingClientRect();
+    let effZ = window.hitungEffectiveZoomElemen(cvs);
+    if (Math.abs(effZ - 1) > 0.001 && window.deteksiModeZoomRectBrowser() === 'unscaled') {
+        return {
+            left: r.left * effZ,
+            top: r.top * effZ,
+            width: r.width * effZ,
+            height: r.height * effZ,
+            right: r.right * effZ,
+            bottom: r.bottom * effZ
+        };
+    }
+    return r;
+};
+
+window.ambilKoordinatKanvas = function(cvs, clientX, clientY, rawEvt) {
+    let r = window.ambilVisualRectKanvas(cvs);
+    let dpr = parseFloat(cvs.getAttribute('data-dpr')) || window.DRAW_DPR || 2;
+    let cssW = parseFloat(cvs.getAttribute('data-css-w')) || (cvs.width / dpr) || cvs.clientWidth || r.width || 1;
+    let cssH = parseFloat(cvs.getAttribute('data-css-h')) || (cvs.height / dpr) || cvs.clientHeight || r.height || 1;
+    let scaleX = r.width > 0 ? (cssW / r.width) : 1;
+    let scaleY = r.height > 0 ? (cssH / r.height) : 1;
+
+    let rectX = (clientX - r.left) * scaleX;
+    let rectY = (clientY - r.top) * scaleY;
+
+    // Pada IFP / Chromium non-WebKit, e.offsetX/offsetY langsung dihitung di ruang lokal kanvas (kebal bug CSS zoom & WebView)
+    let ua = navigator.userAgent || '';
+    let isAppleWebKit = /iPad|iPhone|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) || (/Safari/i.test(ua) && !/Chrome|Chromium|Edg|Android/i.test(ua));
+    let pakaiOffset = !isAppleWebKit && rawEvt && rawEvt.target === cvs && Number.isFinite(rawEvt.offsetX) && Number.isFinite(rawEvt.offsetY);
+
+    if (pakaiOffset) {
+        let localW = cvs.clientWidth || cvs.offsetWidth || cssW;
+        let localH = cvs.clientHeight || cvs.offsetHeight || cssH;
+        let ox = rawEvt.offsetX * (cssW / Math.max(1, localW));
+        let oy = rawEvt.offsetY * (cssH / Math.max(1, localH));
+
+        // Validasi batas wajar agar tidak pernah keluar skala saat browser unik menskalakan offsetX
+        let pointerDiDalamRect = (clientX >= r.left - 8 && clientX <= r.right + 8 && clientY >= r.top - 8 && clientY <= r.bottom + 8);
+        let offsetWajar = !pointerDiDalamRect || (ox >= -20 && ox <= cssW + 20 && oy >= -20 && oy <= cssH + 20);
+        if (offsetWajar) {
+            return { x: ox, y: oy, scaleX: scaleX, scaleY: scaleY };
+        }
+    }
+
+    return { x: rectX, y: rectY, scaleX: scaleX, scaleY: scaleY };
+};
+
+// Salinan GPU offscreen super cepat (menggantikan getImageData/putImageData yang lambat di IFP)
+window.buatSalinanKanvasGPU = function(cvs) {
+    let snap = document.createElement('canvas');
+    snap.width = cvs.width;
+    snap.height = cvs.height;
+    let sCtx = snap.getContext('2d');
+    sCtx.drawImage(cvs, 0, 0);
+    return snap;
+};
+
+window.pulihkanKanvasDariGPU = function(ctx, snapCvs) {
+    if (!ctx || !snapCvs) return;
+    let cvs = ctx.canvas;
+    let dpr = parseFloat(cvs.getAttribute('data-dpr')) || window.DRAW_DPR || 2;
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1.0;
+    ctx.clearRect(0, 0, cvs.width, cvs.height);
+    ctx.drawImage(snapCvs, 0, 0, cvs.width, cvs.height);
+    ctx.restore();
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+};
+
+window.catatUndoGPU = function(cvs) {
+    if (!cvs || cvs.width === 0 || cvs.height === 0) return;
+    window.drawUndoStack.push({ cvs: cvs, snap: window.buatSalinanKanvasGPU(cvs) });
+    if (window.drawUndoStack.length > 22) {
+        let dropped = window.drawUndoStack.shift();
+        if (dropped && dropped.snap) { dropped.snap.width = 0; dropped.snap.height = 0; }
+    }
+    window.drawRedoStack = [];
+};
 
 // =========================================================================
 // 1. MESIN SLIDE PDF HD (KONVERSI, NAVIGASI, SWIPE, FOKUS, & EXPORT A4)
@@ -57,37 +203,32 @@ window.prosesUploadPDFMateri = async function(input) {
         let pdfDoc = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
         let numPages = pdfDoc.numPages;
         let slidesArr = [];
-
-        // Resolusi HD 1.5x A4 Landscape (1684 x 1191 px) agar teks & diagram sangat tajam
         let targetW = 1684, targetH = 1191;
 
         for (let pageNum = 1; pageNum <= numPages; pageNum++) {
-            if (st) st.innerHTML = "<span style='color:#f39c12; font-weight:bold;'>⏳ Memproses & Mengunggah Slide HD " + pageNum + " / " + numPages + "...</span>";
+            if (st) st.innerHTML = "<span style='color:#f39c12; font-weight:bold;'>⏳ Memproses &amp; Mengunggah Slide HD " + pageNum + " / " + numPages + "...</span>";
             let page = await pdfDoc.getPage(pageNum);
             let unscaledViewport = page.getViewport({ scale: 1 });
-
             let scale = Math.min(targetW / unscaledViewport.width, targetH / unscaledViewport.height);
             let viewport = page.getViewport({ scale: scale });
 
             let offCanvas = document.createElement('canvas');
             offCanvas.width = targetW;
             offCanvas.height = targetH;
-            let offCtx = offCanvas.getContext('2d', { willReadFrequently: true });
+            let offCtx = offCanvas.getContext('2d');
             offCtx.imageSmoothingEnabled = true;
             offCtx.imageSmoothingQuality = 'high';
-
             offCtx.fillStyle = '#ffffff';
             offCtx.fillRect(0, 0, targetW, targetH);
+
             let offsetX = (targetW - viewport.width) / 2;
             let offsetY = (targetH - viewport.height) / 2;
-
             offCtx.save();
             offCtx.translate(offsetX, offsetY);
             await page.render({ canvasContext: offCtx, viewport: viewport }).promise;
             offCtx.restore();
 
             let base64Image = offCanvas.toDataURL('image/jpeg', 0.88);
-
             let formData = new FormData();
             formData.append("file", base64Image);
             formData.append("upload_preset", uploadPreset);
@@ -102,11 +243,8 @@ window.prosesUploadPDFMateri = async function(input) {
             } else {
                 throw new Error(data.error ? data.error.message : "Gagal mengunggah slide ke Cloudinary");
             }
-
             offCanvas.width = 0;
             offCanvas.height = 0;
-            offCtx = null;
-            base64Image = null;
         }
 
         let pdfBlockObj = {
@@ -116,7 +254,6 @@ window.prosesUploadPDFMateri = async function(input) {
 
         window.contentBlocksData.push(pdfBlockObj);
         window.renderBlocks();
-
         if (typeof window.simpanKeDB === 'function') window.simpanKeDB();
         if (st) st.innerHTML = "<span style='color:#2ecc71; font-weight:bold;'>✓ PDF HD Berhasil Disimpan Permanen!</span>";
     } catch (err) {
@@ -147,10 +284,9 @@ window.lompatKeSlidePDF = function(blockIdx, nilaiInput) {
     let blok = window.contentBlocksData[blockIdx];
     if (!blok || blok.type !== 'pdf_slides' || !Array.isArray(blok.slides)) return;
 
-    let targetIdx = parseInt(nilaiInput) - 1;
+    let targetIdx = parseInt(nilaiInput, 10) - 1;
     if (isNaN(targetIdx) || targetIdx < 0) targetIdx = 0;
     else if (targetIdx >= blok.slides.length) targetIdx = blok.slides.length - 1;
-
     if (targetIdx === blok.activeSlide) return;
 
     let curCvs = document.querySelector('.drawing-layer[data-index="' + blockIdx + '"][data-slide-index="' + blok.activeSlide + '"]');
@@ -164,27 +300,19 @@ window.lompatKeSlidePDF = function(blockIdx, nilaiInput) {
 };
 
 window.pdfSwipeStartX = null;
-window.mulaiSwipeSlidePDF = function(e, blockIdx) {
+window.mulaiSwipeSlidePDF = function(e) {
     if (window.isDrawingMode) return;
     window.pdfSwipeStartX = e.clientX;
 };
-
 window.akhirSwipeSlidePDF = function(e, blockIdx) {
-    if (window.isDrawingMode) return;
-    if (window.pdfSwipeStartX === null) return;
+    if (window.isDrawingMode || window.pdfSwipeStartX === null) return;
     let dx = e.clientX - window.pdfSwipeStartX;
     window.pdfSwipeStartX = null;
-    if (Math.abs(dx) > 75) {
-        window.gantiSlidePDF(blockIdx, dx < 0 ? 1 : -1);
-    }
+    if (Math.abs(dx) > 75) window.gantiSlidePDF(blockIdx, dx < 0 ? 1 : -1);
 };
 
 window.toggleFokusSlidePDF = function(blockIdx) {
-    if (window.focusedPdfBlockIndex === blockIdx) {
-        window.focusedPdfBlockIndex = -1;
-    } else {
-        window.focusedPdfBlockIndex = blockIdx;
-    }
+    window.focusedPdfBlockIndex = (window.focusedPdfBlockIndex === blockIdx) ? -1 : blockIdx;
     window.renderBlocks();
 };
 
@@ -232,17 +360,18 @@ window.exportSlidePDFKeA4 = async function(blockIdx) {
             let fi = fImgs[j];
             let im = await loadImgAsync(fi.src);
             if (im) {
-                let px = (parseFloat(fi.xPct) || 10) / 100 * expW;
-                let py = (parseFloat(fi.yPct) || 10) / 100 * expH;
-                let pw = (parseFloat(fi.wPct) || 25) / 100 * expW;
-                let ph = (parseFloat(fi.hPct) || 25) / 100 * expH;
-                ctx.drawImage(im, px, py, pw, ph);
+                ctx.drawImage(
+                    im,
+                    (parseFloat(fi.xPct) || 10) / 100 * expW,
+                    (parseFloat(fi.yPct) || 10) / 100 * expH,
+                    (parseFloat(fi.wPct) || 25) / 100 * expW,
+                    (parseFloat(fi.hPct) || 25) / 100 * expH
+                );
             }
         }
 
         let drawImg = await loadImgAsync(s.drawing);
         if (drawImg) ctx.drawImage(drawImg, 0, 0, expW, expH);
-
         compositePages.push(c.toDataURL('image/jpeg', 0.92));
     }
 
@@ -268,11 +397,11 @@ window.exportSlidePDFKeA4 = async function(blockIdx) {
 };
 
 // =========================================================================
-// 2. INISIALISASI KANVAS RETINA HIGH-DPI & KURVA BEZIER HALUS (ANTI-PECAH)
+// 2. INISIALISASI KANVAS RETINA, AUTO-RESIZE OBSERVER, & UNDO/REDO GPU
 // =========================================================================
 window.siapkanKonteksRetina = function(cvs) {
     let dpr = parseFloat(cvs.getAttribute('data-dpr')) || window.DRAW_DPR || 2;
-    let ctx = cvs.getContext('2d', { willReadFrequently: true });
+    let ctx = cvs.getContext('2d');
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
@@ -281,7 +410,6 @@ window.siapkanKonteksRetina = function(cvs) {
     return ctx;
 };
 
-// Fungsi Penghalus Kurva Bezier Kuadratik (Membuat Goresan Pena Setajam Vektor GoodNotes)
 window.gambarKurvaHalus = function(ctx, pts) {
     if (!pts || pts.length === 0) return;
     ctx.beginPath();
@@ -308,10 +436,10 @@ window.ambilDataDrawingTarget = function(cvs) {
     let slideIdx = cvs.getAttribute('data-slide-index');
     let qIdx = cvs.getAttribute('data-q-index');
 
-    if (fbIdx !== null && window.floatingBoxesData[fbIdx]) {
+    if (fbIdx !== null && window.floatingBoxesData && window.floatingBoxesData[fbIdx]) {
         return window.floatingBoxesData[fbIdx].drawing || "";
     }
-    if (blockIdx !== null && window.contentBlocksData[blockIdx]) {
+    if (blockIdx !== null && window.contentBlocksData && window.contentBlocksData[blockIdx]) {
         let blok = window.contentBlocksData[blockIdx];
         if (blok.type === 'pdf_slides' && slideIdx !== null && blok.slides && blok.slides[slideIdx]) {
             return blok.slides[slideIdx].drawing || "";
@@ -330,9 +458,9 @@ window.simpanDataDrawingTarget = function(cvs, dataUrl) {
     let slideIdx = cvs.getAttribute('data-slide-index');
     let qIdx = cvs.getAttribute('data-q-index');
 
-    if (fbIdx !== null && window.floatingBoxesData[fbIdx]) {
+    if (fbIdx !== null && window.floatingBoxesData && window.floatingBoxesData[fbIdx]) {
         window.floatingBoxesData[fbIdx].drawing = dataUrl;
-    } else if (blockIdx !== null && window.contentBlocksData[blockIdx]) {
+    } else if (blockIdx !== null && window.contentBlocksData && window.contentBlocksData[blockIdx]) {
         let blok = window.contentBlocksData[blockIdx];
         if (blok.type === 'pdf_slides' && slideIdx !== null && blok.slides && blok.slides[slideIdx]) {
             blok.slides[slideIdx].drawing = dataUrl;
@@ -344,9 +472,26 @@ window.simpanDataDrawingTarget = function(cvs, dataUrl) {
     }
 };
 
+window._drawResizeObserver = null;
+window._drawResizeTimer = null;
+
 function inisialisasiSemuaCanvas() {
+    window.DRAW_DPR = window.hitungDrawDPR();
     document.querySelectorAll('.drawing-layer').forEach(function(cvs) {
         inisialisasiSatuCanvas(cvs);
+        if (window.ResizeObserver && cvs.parentElement && !cvs.parentElement.getAttribute('data-draw-ro')) {
+            if (!window._drawResizeObserver) {
+                window._drawResizeObserver = new ResizeObserver(function() {
+                    if (isPenDown || isFloating) return;
+                    clearTimeout(window._drawResizeTimer);
+                    window._drawResizeTimer = setTimeout(function() {
+                        if (!isPenDown && !isFloating) inisialisasiSemuaCanvas();
+                    }, 180);
+                });
+            }
+            cvs.parentElement.setAttribute('data-draw-ro', '1');
+            window._drawResizeObserver.observe(cvs.parentElement);
+        }
     });
 }
 window.inisialisasiSemuaCanvas = inisialisasiSemuaCanvas;
@@ -358,17 +503,24 @@ function inisialisasiSatuCanvas(cvs) {
     let ch = p.clientHeight || p.offsetHeight;
     if (cw === 0 || ch === 0) return;
 
-    let dpr = window.DRAW_DPR || 2.5;
-    // Batas aman tekstur GPU browser/iPad (maks 4096px) agar tidak blank pada blok sangat panjang
+    let dpr = window.hitungDrawDPR();
     let maxSide = Math.max(cw, ch);
-    if (maxSide * dpr > 4096) {
-        dpr = Math.max(1.5, 4096 / maxSide);
+    let maxTex = window.ifpMode ? 3072 : 4096;
+    if (maxSide * dpr > maxTex) {
+        dpr = Math.max(1.25, maxTex / maxSide);
     }
+
     let targetW = Math.round(cw * dpr);
     let targetH = Math.round(ch * dpr);
     let sv = window.ambilDataDrawingTarget(cvs);
 
-    if (cvs.width !== targetW || cvs.height !== targetH || (!cvs.getAttribute('data-loaded') && sv)) {
+    let needResize = (Math.abs(cvs.width - targetW) > 2 || Math.abs(cvs.height - targetH) > 2);
+    if (needResize || (!cvs.getAttribute('data-loaded') && sv)) {
+        let liveBackup = null;
+        if (needResize && cvs.width > 0 && cvs.height > 0 && cvs.getAttribute('data-loaded') === 'true' && !sv) {
+            liveBackup = window.buatSalinanKanvasGPU(cvs);
+        }
+
         cvs.width = targetW;
         cvs.height = targetH;
         cvs.setAttribute('data-css-w', cw);
@@ -379,14 +531,19 @@ function inisialisasiSatuCanvas(cvs) {
         ctx.clearRect(0, 0, cw, ch);
 
         if (sv) {
-            let i = new Image();
-            i.onload = function() {
+            let img = new Image();
+            img.onload = function() {
                 let c2 = window.siapkanKonteksRetina(cvs);
                 c2.globalCompositeOperation = 'source-over';
-                c2.drawImage(i, 0, 0, cw, ch);
+                c2.globalAlpha = 1.0;
+                c2.drawImage(img, 0, 0, cw, ch);
                 cvs.setAttribute('data-loaded', 'true');
             };
-            i.src = sv;
+            img.src = sv;
+        } else if (liveBackup) {
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.drawImage(liveBackup, 0, 0, cw, ch);
+            cvs.setAttribute('data-loaded', 'true');
         } else {
             cvs.setAttribute('data-loaded', 'true');
         }
@@ -395,108 +552,39 @@ function inisialisasiSatuCanvas(cvs) {
 
 window.undoDraw = function() {
     if (window.drawUndoStack.length === 0) return;
+    if (window.activeSmartShape) window.burnActiveSmartShape();
+    stampLasso();
+
     let action = window.drawUndoStack.pop();
-    let currentData = action.cvs.toDataURL("image/png");
-    window.drawRedoStack.push({ cvs: action.cvs, data: currentData });
+    if (!action || !action.cvs || !document.body.contains(action.cvs)) return;
 
-    let dpr = parseFloat(action.cvs.getAttribute('data-dpr')) || window.DRAW_DPR || 2;
-    let cw = action.cvs.width / dpr;
-    let ch = action.cvs.height / dpr;
+    window.drawRedoStack.push({ cvs: action.cvs, snap: window.buatSalinanKanvasGPU(action.cvs) });
     let ctx = window.siapkanKonteksRetina(action.cvs);
-    ctx.clearRect(0, 0, cw, ch);
+    window.pulihkanKanvasDariGPU(ctx, action.snap);
 
-    if (action.data) {
-        let img = new Image();
-        img.onload = function() {
-            let c2 = window.siapkanKonteksRetina(action.cvs);
-            c2.globalCompositeOperation = 'source-over';
-            c2.globalAlpha = 1.0;
-            c2.drawImage(img, 0, 0, cw, ch);
-            window.simpanDataDrawingTarget(action.cvs, action.data);
-            if (window.simpanKeDB) window.simpanKeDB();
-        };
-        img.src = action.data;
-    } else {
-        window.simpanDataDrawingTarget(action.cvs, "");
-        if (window.simpanKeDB) window.simpanKeDB();
-    }
+    window.simpanDataDrawingTarget(action.cvs, action.cvs.toDataURL('image/png'));
+    if (window.simpanKeDB) window.simpanKeDB();
 };
 
 window.redoDraw = function() {
     if (window.drawRedoStack.length === 0) return;
+    if (window.activeSmartShape) window.burnActiveSmartShape();
+    stampLasso();
+
     let action = window.drawRedoStack.pop();
-    let currentData = action.cvs.toDataURL("image/png");
-    window.drawUndoStack.push({ cvs: action.cvs, data: currentData });
+    if (!action || !action.cvs || !document.body.contains(action.cvs)) return;
 
-    let dpr = parseFloat(action.cvs.getAttribute('data-dpr')) || window.DRAW_DPR || 2;
-    let cw = action.cvs.width / dpr;
-    let ch = action.cvs.height / dpr;
+    window.drawUndoStack.push({ cvs: action.cvs, snap: window.buatSalinanKanvasGPU(action.cvs) });
     let ctx = window.siapkanKonteksRetina(action.cvs);
-    ctx.clearRect(0, 0, cw, ch);
+    window.pulihkanKanvasDariGPU(ctx, action.snap);
 
-    if (action.data) {
-        let img = new Image();
-        img.onload = function() {
-            let c2 = window.siapkanKonteksRetina(action.cvs);
-            c2.globalCompositeOperation = 'source-over';
-            c2.globalAlpha = 1.0;
-            c2.drawImage(img, 0, 0, cw, ch);
-            window.simpanDataDrawingTarget(action.cvs, action.data);
-            if (window.simpanKeDB) window.simpanKeDB();
-        };
-        img.src = action.data;
-    } else {
-        window.simpanDataDrawingTarget(action.cvs, "");
-        if (window.simpanKeDB) window.simpanKeDB();
-    }
+    window.simpanDataDrawingTarget(action.cvs, action.cvs.toDataURL('image/png'));
+    if (window.simpanKeDB) window.simpanKeDB();
 };
 
 // =========================================================================
-// 3. KONTROL TOOLBAR DRAW, LASER POINTER HD, & SENTUHAN IPAD PALM REJECT
+// 3. TOOLBAR DRAW KOMPAK FIT-LAYAR, MODE IFP, PALM REJECT, & LASER HD
 // =========================================================================
-window.toggleDrawingMode = function() {
-    window.isDrawingMode = !window.isDrawingMode;
-    if (window.isDrawingMode) {
-        document.body.classList.add('drawing-mode-active');
-        if (window.pencilOnly) document.body.classList.add('palm-reject-on');
-        document.querySelectorAll('.content-block, .fb-content').forEach(function(el) { el.removeAttribute('contenteditable'); });
-        inisialisasiSemuaCanvas();
-        resizeLaserCanvas();
-        if (window.updateToolbarPosition) window.updateToolbarPosition();
-    } else {
-        document.body.classList.remove('drawing-mode-active', 'palm-reject-on');
-        window.tutupMenuKonteksDraw();
-        if (document.body.classList.contains('mode-edit-aktif')) {
-            document.querySelectorAll('.content-block.a4-portrait-block, .fb-content').forEach(function(el) { el.setAttribute('contenteditable', 'true'); });
-        }
-        stampLasso();
-        if (window.simpanKeDB) window.simpanKeDB();
-        let pt = document.getElementById('pen-tools');
-        if (pt) pt.style.transform = 'none';
-    }
-};
-
-window.isUpdatingToolbar = false;
-window.updateToolbarPosition = function() {
-    if (!window.isDrawingMode || !window.visualViewport) return;
-    if (window.isUpdatingToolbar) return;
-
-    window.isUpdatingToolbar = true;
-    window.requestAnimationFrame(function() {
-        const tools = document.getElementById('pen-tools');
-        const vv = window.visualViewport;
-        if (tools) {
-            tools.style.transform = 'translate(' + vv.offsetLeft + 'px, ' + vv.offsetTop + 'px) scale(' + (1 / vv.scale) + ')';
-        }
-        window.isUpdatingToolbar = false;
-    });
-};
-
-if (window.visualViewport) {
-    window.visualViewport.addEventListener('scroll', window.updateToolbarPosition, { passive: true });
-    window.visualViewport.addEventListener('resize', window.updateToolbarPosition, { passive: true });
-}
-
 window.DRAW_PRESET_COLORS = [
     '#111111', '#e74c3c', '#f97316', '#f1c40f',
     '#39ff14', '#16a34a', '#0284c7', '#192a56', '#8e44ad'
@@ -508,12 +596,10 @@ window.DRAW_SIZE_OPTIONS = [
     { label: 'L',  val: 7.2 },
     { label: 'XL', val: 10.8 }
 ];
-window.DRAW_CUSTOM_COLORS_KEY = 'mahardika_draw_custom_colors_v1';
-window.DRAW_LAST_LASSO_KEY = 'mahardika_draw_last_lasso_v1';
 window.activeCustomColorSlot = -1;
 window.lastLassoTool = (function() {
     try {
-        let saved = localStorage.getItem('mahardika_draw_last_lasso_v1');
+        let saved = localStorage.getItem(window.DRAW_LAST_LASSO_KEY);
         if (saved === 'lasso' || saved === 'lasso-box') return saved;
     } catch (e) {}
     return 'lasso';
@@ -532,9 +618,7 @@ window.muatWarnaKustomDraw = function() {
 };
 
 window.simpanWarnaKustomDraw = function(arr) {
-    try {
-        localStorage.setItem(window.DRAW_CUSTOM_COLORS_KEY, JSON.stringify(arr));
-    } catch (e) {}
+    try { localStorage.setItem(window.DRAW_CUSTOM_COLORS_KEY, JSON.stringify(arr)); } catch (e) {}
 };
 
 window.tutupSemuaPopoverDraw = function() {
@@ -559,7 +643,110 @@ window.bukaPopoverDrawDiBawah = function(popoverId, anchorBtn) {
     pop.style.top = Math.round(topPos) + 'px';
 };
 
+window.sinkronStatusBodyModeDraw = function() {
+    document.body.classList.toggle('ifp-mode-on', Boolean(window.ifpMode));
+    document.body.classList.toggle('palm-reject-on', Boolean(window.pencilOnly && !window.ifpMode));
+
+    let btnIfp = document.getElementById('btn-ifp-mode-toggle');
+    if (btnIfp) btnIfp.classList.toggle('is-on', Boolean(window.ifpMode));
+
+    let btnPalm = document.getElementById('btn-palm-reject-toggle');
+    if (btnPalm) btnPalm.classList.toggle('is-on', Boolean(window.pencilOnly && !window.ifpMode));
+
+    let chk = document.getElementById('palm-reject');
+    if (chk) chk.checked = Boolean(window.pencilOnly && !window.ifpMode);
+};
+
+window.toggleIfpMode = function(forceVal) {
+    let next = (typeof forceVal === 'boolean') ? forceVal : !window.ifpMode;
+    window.ifpMode = next;
+    try { localStorage.setItem(window.DRAW_IFP_MODE_KEY, next ? '1' : '0'); } catch (e) {}
+
+    // Mode IFP dan Palm Reject iPad saling eksklusif agar tidak saling menghalangi
+    if (next) {
+        window.pencilOnly = false;
+    }
+    window.DRAW_DPR = window.hitungDrawDPR();
+    window.sinkronStatusBodyModeDraw();
+
+    if (window.isDrawingMode) {
+        inisialisasiSemuaCanvas();
+    }
+
+    let st = document.getElementById('save-status-bar');
+    if (st) {
+        st.innerHTML = next
+            ? "<span style='color:#2dd4bf; font-weight:700;'>🖥️ Mode IFP Aktif (1 Jari/Stylus Tulis • 2 Jari Scroll)</span>"
+            : "<span style='color:#38bdf8;'>✏️ Mode Standar / iPad Aktif</span>";
+    }
+};
+
+window.togglePalmReject = function(isActive) {
+    window.pencilOnly = Boolean(isActive);
+    if (window.pencilOnly && window.ifpMode) {
+        window.ifpMode = false;
+        try { localStorage.setItem(window.DRAW_IFP_MODE_KEY, '0'); } catch (e) {}
+    }
+    window.sinkronStatusBodyModeDraw();
+};
+
+window.toggleDrawingMode = function() {
+    window.inisialisasiToolbarDrawKompak();
+    window.isDrawingMode = !window.isDrawingMode;
+    if (window.isDrawingMode) {
+        document.body.classList.add('drawing-mode-active');
+        window.sinkronStatusBodyModeDraw();
+        document.querySelectorAll('.content-block, .fb-content').forEach(function(el) { el.removeAttribute('contenteditable'); });
+        inisialisasiSemuaCanvas();
+        resizeLaserCanvas();
+        if (window.updateToolbarPosition) window.updateToolbarPosition();
+    } else {
+        document.body.classList.remove('drawing-mode-active', 'palm-reject-on', 'ifp-mode-on');
+        window.tutupMenuKonteksDraw();
+        window.tutupSemuaPopoverDraw();
+        if (window.activeSmartShape) window.burnActiveSmartShape();
+        stampLasso();
+        if (document.body.classList.contains('mode-edit-aktif')) {
+            document.querySelectorAll('.content-block.a4-portrait-block, .fb-content').forEach(function(el) { el.setAttribute('contenteditable', 'true'); });
+        }
+        if (window.simpanKeDB) window.simpanKeDB();
+        let pt = document.getElementById('pen-tools');
+        if (pt) pt.style.transform = 'none';
+    }
+};
+
+window.isUpdatingToolbar = false;
+window.updateToolbarPosition = function() {
+    if (!window.isDrawingMode || !window.visualViewport) return;
+    if (window.ifpMode) {
+        let tools = document.getElementById('pen-tools');
+        if (tools) tools.style.transform = 'none';
+        return;
+    }
+    if (window.isUpdatingToolbar) return;
+
+    window.isUpdatingToolbar = true;
+    window.requestAnimationFrame(function() {
+        const tools = document.getElementById('pen-tools');
+        const vv = window.visualViewport;
+        if (tools) {
+            if (Math.abs((vv.scale || 1) - 1) < 0.02 && Math.abs(vv.offsetTop || 0) < 2) {
+                tools.style.transform = 'none';
+            } else {
+                tools.style.transform = 'translate(' + vv.offsetLeft + 'px, ' + vv.offsetTop + 'px) scale(' + (1 / vv.scale) + ')';
+            }
+        }
+        window.isUpdatingToolbar = false;
+    });
+};
+
+if (window.visualViewport) {
+    window.visualViewport.addEventListener('scroll', window.updateToolbarPosition, { passive: true });
+    window.visualViewport.addEventListener('resize', window.updateToolbarPosition, { passive: true });
+}
+
 window.setDrawingTool = function(t) {
+    if (window.activeSmartShape) window.burnActiveSmartShape();
     stampLasso();
     activeTool = t;
     if (t === 'lasso' || t === 'lasso-box') {
@@ -616,9 +803,7 @@ window.setPenColor = function(c, btn, customSlotIdx, tutupPopover) {
     if (picker && c && c.length === 7 && c.charAt(0) === '#') {
         picker.value = c;
     }
-    if (tutupPopover !== false) {
-        window.tutupSemuaPopoverDraw();
-    }
+    if (tutupPopover !== false) window.tutupSemuaPopoverDraw();
 };
 
 window.klikSlotWarnaKustom = function(slotIdx, btn) {
@@ -663,15 +848,18 @@ window.setPenSize = function(s, btn, labelOpt) {
     window.tutupSemuaPopoverDraw();
 };
 
-window.togglePalmReject = function(isActive) {
-    window.pencilOnly = Boolean(isActive);
-    if (window.pencilOnly) document.body.classList.add('palm-reject-on');
-    else document.body.classList.remove('palm-reject-on');
-
-    let btnPalm = document.getElementById('btn-palm-reject-toggle');
-    if (btnPalm) btnPalm.classList.toggle('is-on', window.pencilOnly);
-    let chk = document.getElementById('palm-reject');
-    if (chk) chk.checked = window.pencilOnly;
+window.clearSemuaCoretan = function() {
+    if (confirm("Hapus semua coretan di halaman ini?")) {
+        if (window.activeSmartShape) window.burnActiveSmartShape();
+        stampLasso();
+        document.querySelectorAll('.drawing-layer').forEach(function(cvs) {
+            let dpr = parseFloat(cvs.getAttribute('data-dpr')) || window.DRAW_DPR || 2;
+            let ctx = window.siapkanKonteksRetina(cvs);
+            ctx.clearRect(0, 0, cvs.width / dpr, cvs.height / dpr);
+            window.simpanDataDrawingTarget(cvs, "");
+        });
+        if (window.simpanKeDB) window.simpanKeDB();
+    }
 };
 
 window.pasangCssToolbarDrawFit = function() {
@@ -679,6 +867,14 @@ window.pasangCssToolbarDrawFit = function() {
     let st = document.createElement('style');
     st.id = 'css-pen-tools-fit';
     st.textContent =
+        /* Kunci touch-action:none saat menulis dengan jari/stylus pasif (IFP atau Palm Reject OFF) */
+        'body.drawing-mode-active.ifp-mode-on .drawing-layer,' +
+        'body.drawing-mode-active:not(.palm-reject-on) .drawing-layer {' +
+            'touch-action: none !important; -webkit-user-select: none !important; user-select: none !important;' +
+        '}' +
+        'body.drawing-mode-active.palm-reject-on .drawing-layer {' +
+            'touch-action: pan-x pan-y pinch-zoom !important;' +
+        '}' +
         '#pen-tools {' +
             'width: 100vw !important; max-width: 100vw !important; left: 0 !important; right: 0 !important;' +
             'box-sizing: border-box !important; overflow: hidden !important; overflow-x: hidden !important;' +
@@ -701,6 +897,7 @@ window.pasangCssToolbarDrawFit = function() {
         '.pt-btn.is-clear { color: #fca5a5; border-color: rgba(248,113,113,0.55); }' +
         '.pt-btn.is-close { background: #dc2626 !important; border-color: #ef4444 !important; color: #ffffff !important; }' +
         '.pt-btn.is-palm.is-on { background: #0f766e !important; border-color: #2dd4bf !important; color: #ffffff !important; }' +
+        '.pt-btn.is-ifp.is-on { background: #0284c7 !important; border-color: #fde047 !important; color: #ffffff !important; box-shadow: 0 0 0 1px rgba(253,224,71,0.55); }' +
         '.pt-color-trigger { padding: 0 6px !important; gap: 4px !important; }' +
         '.pt-color-dot { width: 18px; height: 18px; border-radius: 50%; border: 2px solid #ffffff; display: inline-block; flex-shrink: 0; }' +
         '.pt-caret { font-size: 9px; opacity: 0.85; line-height: 1; }' +
@@ -726,17 +923,16 @@ window.pasangCssToolbarDrawFit = function() {
         '.draw-popover-panel .sz-btn.active { background: #ffffff; color: #0b3954; }' +
         '.draw-float-img-item.is-lasso-attached { outline: 2.5px dashed #38bdf8 !important; box-shadow: 0 6px 20px rgba(56,189,248,0.35) !important; }' +
         '.draw-float-img-crop { position: absolute; top: -10px; right: 18px; width: 24px; height: 24px; border-radius: 50%; border: 2px solid #ffffff; background: #0284c7; color: #ffffff; font-size: 11px; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 6; box-shadow: 0 2px 6px rgba(0,0,0,0.3); padding: 0; }' +
-        /* Hilangkan tulisan tombol otomatis di layar tablet/HP/laptop sempit agar 100% pas tanpa scroll */
-        '@media (max-width: 1160px) { #pen-tools .pt-lbl { display: none !important; } #pen-tools .pt-btn { padding: 0 6px !important; min-width: 28px; } #pen-tools .pt-lasso-main { padding: 0 6px !important; } }' +
-        '@media (max-width: 560px) { #pen-tools { padding: 4px 5px !important; gap: 2px !important; } #pen-tools .pt-group { gap: 2px !important; } #pen-tools .pt-sep { display: none !important; } #pen-tools .pt-btn { height: 28px !important; min-width: 25px !important; padding: 0 4px !important; font-size: 12px !important; } #pen-tools .pt-lasso-main, #pen-tools .pt-lasso-drop { height: 26px !important; padding: 0 4px !important; } .pt-color-dot { width: 15px !important; height: 15px !important; } }';
+        '@media (max-width: 1240px) { #pen-tools .pt-lbl { display: none !important; } #pen-tools .pt-btn { padding: 0 6px !important; min-width: 28px; } #pen-tools .pt-lasso-main { padding: 0 6px !important; } }' +
+        '@media (max-width: 580px) { #pen-tools { padding: 4px 5px !important; gap: 2px !important; } #pen-tools .pt-group { gap: 2px !important; } #pen-tools .pt-sep { display: none !important; } #pen-tools .pt-btn { height: 28px !important; min-width: 24px !important; padding: 0 4px !important; font-size: 11.5px !important; } #pen-tools .pt-lasso-main, #pen-tools .pt-lasso-drop { height: 26px !important; padding: 0 4px !important; } .pt-color-dot { width: 15px !important; height: 15px !important; } }';
     document.head.appendChild(st);
 };
 
 window.inisialisasiToolbarDrawKompak = function() {
     window.pasangCssToolbarDrawFit();
     let penTools = document.getElementById('pen-tools');
-    if (!penTools || penTools.getAttribute('data-compact-v2') === '1') return;
-    penTools.setAttribute('data-compact-v2', '1');
+    if (!penTools || penTools.getAttribute('data-compact-v3') === '1') return;
+    penTools.setAttribute('data-compact-v3', '1');
 
     let lastLasso = window.lastLassoTool || 'lasso';
     let lassoIco = (lastLasso === 'lasso-box') ? '⬚' : '✂️';
@@ -771,13 +967,14 @@ window.inisialisasiToolbarDrawKompak = function() {
         '</div>' +
 
         '<div class="pt-group">' +
-            '<button type="button" id="btn-palm-reject-toggle" class="pt-btn is-palm' + (window.pencilOnly ? ' is-on' : '') + '" onclick="window.togglePalmReject(!window.pencilOnly)" title="Palm Reject (iPad Apple Pencil)">✋<span class="pt-lbl"> Palm</span></button>' +
-            '<input type="checkbox" id="palm-reject" style="display:none;" ' + (window.pencilOnly ? 'checked' : '') + '>' +
+            '<button type="button" id="btn-ifp-mode-toggle" class="pt-btn is-ifp' + (window.ifpMode ? ' is-on' : '') + '" onclick="window.toggleIfpMode()" title="Mode Khusus IFP / Smartboard (Stylus Pasif &amp; Kalibrasi Presisi)">🖥️<span class="pt-lbl"> IFP</span></button>' +
+            '<button type="button" id="btn-palm-reject-toggle" class="pt-btn is-palm' + (window.pencilOnly && !window.ifpMode ? ' is-on' : '') + '" onclick="window.togglePalmReject(!window.pencilOnly)" title="Palm Reject (Khusus iPad Apple Pencil)">✋<span class="pt-lbl"> Palm</span></button>' +
+            '<input type="checkbox" id="palm-reject" style="display:none;" ' + (window.pencilOnly && !window.ifpMode ? 'checked' : '') + '>' +
             '<button type="button" class="pt-btn is-clear" onclick="window.clearSemuaCoretan()" title="Hapus Semua Coretan">🗑️<span class="pt-lbl"> Clear</span></button>' +
             '<button type="button" class="pt-btn is-close" onclick="window.toggleDrawingMode()" title="Tutup Mode Draw">✕<span class="pt-lbl"> Tutup</span></button>' +
         '</div>';
 
-    // Popover 1: Pilihan Warna (9 Preset + 3 Slot Kustom + Pemilih Warna)
+    // Popover 1: Pilihan Warna
     let oldPopCol = document.getElementById('draw-popover-color');
     if (oldPopCol) oldPopCol.remove();
     let popCol = document.createElement('div');
@@ -807,7 +1004,7 @@ window.inisialisasiToolbarDrawKompak = function() {
         '<div style="font-size:9.5px; color:#94a3b8;">Tip: pilih slot putus-putus lalu tekan 🎨 untuk simpan warna sendiri.</div>';
     document.body.appendChild(popCol);
 
-    // Popover 2: Pilihan Ukuran Pena (XS - XL)
+    // Popover 2: Pilihan Ukuran Pena
     let oldPopSz = document.getElementById('draw-popover-size');
     if (oldPopSz) oldPopSz.remove();
     let popSz = document.createElement('div');
@@ -823,7 +1020,7 @@ window.inisialisasiToolbarDrawKompak = function() {
         '</div>';
     document.body.appendChild(popSz);
 
-    // Popover 3: Pilihan Jenis Laso (Freehand / Kotak)
+    // Popover 3: Pilihan Jenis Laso
     let oldPopLas = document.getElementById('draw-popover-lasso');
     if (oldPopLas) oldPopLas.remove();
     let popLas = document.createElement('div');
@@ -848,32 +1045,19 @@ if (document.readyState === 'loading') {
     window.inisialisasiToolbarDrawKompak();
 }
 
-window.clearSemuaCoretan = function() {
-    if (confirm("Hapus semua coretan di halaman ini?")) {
-        document.querySelectorAll('.drawing-layer').forEach(function(cvs) {
-            let dpr = parseFloat(cvs.getAttribute('data-dpr')) || window.DRAW_DPR || 2;
-            let ctx = window.siapkanKonteksRetina(cvs);
-            ctx.clearRect(0, 0, cvs.width / dpr, cvs.height / dpr);
-            window.simpanDataDrawingTarget(cvs, "");
-        });
-        if (window.simpanKeDB) window.simpanKeDB();
-    }
-};
-
 function resizeLaserCanvas() {
     if (globalLaserCvs) {
-        let dpr = window.DRAW_DPR || 2;
+        let dpr = Math.min(window.devicePixelRatio || 1, 2);
         globalLaserCvs.width = Math.round(window.innerWidth * dpr);
         globalLaserCvs.height = Math.round(window.innerHeight * dpr);
         globalLaserCvs.style.width = window.innerWidth + 'px';
         globalLaserCvs.style.height = window.innerHeight + 'px';
-        if (globalLaserCtx) {
-            globalLaserCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        }
+        if (globalLaserCtx) globalLaserCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
 }
 window.addEventListener('resize', function() {
-    setTimeout(inisialisasiSemuaCanvas, 250);
+    window._cachedZoomRectMode = null;
+    setTimeout(inisialisasiSemuaCanvas, 220);
     resizeLaserCanvas();
     stampLasso();
 });
@@ -892,7 +1076,6 @@ function renderLaser() {
         return;
     }
     globalLaserCtx.clearRect(0, 0, window.innerWidth, window.innerHeight);
-
     if (laserStrokes.length === 0) {
         window.isLaserLoopRunning = false;
         return;
@@ -928,13 +1111,34 @@ function renderLaser() {
     requestAnimationFrame(renderLaser);
 }
 
+// =========================================================================
+// 3.5 PENGELOLA SENTUHAN MULTI-TOUCH (IPAD PALM REJECT & SCROLL 2 JARI IFP)
+// =========================================================================
 window.activeTouches = 0;
 window.longPressDrawTimer = null;
 window.drawContextTarget = null;
+let twoFingerScrollPrev = null;
+
+window.batalGoresanSementaraKarenaDuaJari = function() {
+    if (!isPenDown) return;
+    let baruMulai = (Date.now() - penStartTime) < 220;
+    isPenDown = false;
+    activePointerId = null;
+    clearTimeout(window.shapeHoldTimer);
+
+    if (baruMulai && currentDrawCtx && window.drawBackupCanvas) {
+        window.pulihkanKanvasDariGPU(currentDrawCtx, window.drawBackupCanvas);
+        if (window.drawUndoStack.length > 0 && window.drawUndoStack[window.drawUndoStack.length - 1].cvs === currentDrawCtx.canvas) {
+            window.drawUndoStack.pop();
+        }
+    }
+    currentDrawCtx = null;
+};
 
 document.addEventListener('touchstart', function(e) {
     if (!window.isDrawingMode) return;
-    if (e.target.closest('#pen-tools') || e.target.closest('#draw-context-menu') || e.target.closest('.lasso-float')) return;
+    if (e.target.closest('#pen-tools') || e.target.closest('.draw-popover-panel') || e.target.closest('#draw-context-menu') || e.target.closest('.lasso-float')) return;
+
     window.activeTouches = e.touches.length;
 
     let hasStylus = false;
@@ -948,6 +1152,20 @@ document.addEventListener('touchstart', function(e) {
         return;
     }
 
+    if (e.touches.length >= 2) {
+        clearTimeout(window.longPressDrawTimer);
+        window.batalGoresanSementaraKarenaDuaJari();
+        if (window.ifpMode || !window.pencilOnly) {
+            twoFingerScrollPrev = {
+                x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+                y: (e.touches[0].clientY + e.touches[1].clientY) / 2
+            };
+            e.preventDefault();
+        }
+        return;
+    }
+
+    twoFingerScrollPrev = null;
     if (e.touches.length === 1) {
         let touch = e.touches[0];
         let targetCvs = e.target.closest('.drawing-layer');
@@ -956,30 +1174,44 @@ document.addEventListener('touchstart', function(e) {
             let startY = touch.clientY;
             clearTimeout(window.longPressDrawTimer);
             window.longPressDrawTimer = setTimeout(function() {
-                window.bukaMenuKonteksDraw(startX, startY, targetCvs);
-            }, 550);
+                if (!isPenDown || (window.drawPoints && window.drawPoints.length < 4)) {
+                    window.batalGoresanSementaraKarenaDuaJari();
+                    window.bukaMenuKonteksDraw(startX, startY, targetCvs);
+                }
+            }, 600);
         }
-        if (!window.pencilOnly) {
+        if (window.ifpMode || !window.pencilOnly) {
             e.preventDefault();
         }
-    } else {
-        clearTimeout(window.longPressDrawTimer);
     }
 }, { passive: false });
 
-document.addEventListener('touchmove', function() {
+document.addEventListener('touchmove', function(e) {
+    if (!window.isDrawingMode) return;
     if (window.longPressDrawTimer) {
         clearTimeout(window.longPressDrawTimer);
         window.longPressDrawTimer = null;
     }
-}, { passive: true });
 
-document.addEventListener('touchend', function() {
+    if (e.touches.length === 2 && twoFingerScrollPrev && (window.ifpMode || !window.pencilOnly)) {
+        let mx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+        let my = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+        window.scrollBy(twoFingerScrollPrev.x - mx, twoFingerScrollPrev.y - my);
+        twoFingerScrollPrev = { x: mx, y: my };
+        e.preventDefault();
+    }
+}, { passive: false });
+
+function akhiriSentuhanDraw(e) {
+    window.activeTouches = (e && e.touches) ? e.touches.length : 0;
+    if (window.activeTouches < 2) twoFingerScrollPrev = null;
     if (window.longPressDrawTimer) {
         clearTimeout(window.longPressDrawTimer);
         window.longPressDrawTimer = null;
     }
-});
+}
+document.addEventListener('touchend', akhiriSentuhanDraw, { passive: true });
+document.addEventListener('touchcancel', akhiriSentuhanDraw, { passive: true });
 
 document.addEventListener('contextmenu', function(e) {
     if (!window.isDrawingMode) return;
@@ -993,25 +1225,25 @@ document.addEventListener('contextmenu', function(e) {
 window.bukaMenuKonteksDraw = function(clientX, clientY, targetCvs) {
     let menu = document.getElementById('draw-context-menu');
     if (!menu || !targetCvs) return;
-    let rect = targetCvs.getBoundingClientRect();
+    let pt = window.ambilKoordinatKanvas(targetCvs, clientX, clientY);
+    let dpr = parseFloat(targetCvs.getAttribute('data-dpr')) || window.DRAW_DPR || 2;
+    let cssW = parseFloat(targetCvs.getAttribute('data-css-w')) || (targetCvs.width / dpr) || 1;
+    let cssH = parseFloat(targetCvs.getAttribute('data-css-h')) || (targetCvs.height / dpr) || 1;
+
     window.drawContextTarget = {
         cvs: targetCvs,
-        blockIdx: parseInt(targetCvs.getAttribute('data-index')),
-        slideIdx: targetCvs.getAttribute('data-slide-index') !== null ? parseInt(targetCvs.getAttribute('data-slide-index')) : -1,
-        xPct: Math.max(2, Math.min(80, ((clientX - rect.left) / rect.width) * 100)),
-        yPct: Math.max(2, Math.min(80, ((clientY - rect.top) / rect.height) * 100))
+        blockIdx: parseInt(targetCvs.getAttribute('data-index'), 10),
+        slideIdx: targetCvs.getAttribute('data-slide-index') !== null ? parseInt(targetCvs.getAttribute('data-slide-index'), 10) : -1,
+        xPct: Math.max(2, Math.min(80, (pt.x / cssW) * 100)),
+        yPct: Math.max(2, Math.min(80, (pt.y / cssH) * 100))
     };
 
     let btnPasteLasso = document.getElementById('btn-ctx-paste-lasso');
-    if (btnPasteLasso) {
-        btnPasteLasso.style.display = window.lassoClipboardDataUrl ? 'flex' : 'none';
-    }
+    if (btnPasteLasso) btnPasteLasso.style.display = window.lassoClipboardDataUrl ? 'flex' : 'none';
 
     menu.style.display = 'block';
-    let mx = Math.min(clientX, window.innerWidth - 210);
-    let my = Math.min(clientY, window.innerHeight - 130);
-    menu.style.left = Math.max(10, mx) + 'px';
-    menu.style.top = Math.max(10, my) + 'px';
+    menu.style.left = Math.max(10, Math.min(clientX, window.innerWidth - 210)) + 'px';
+    menu.style.top = Math.max(10, Math.min(clientY, window.innerHeight - 130)) + 'px';
 };
 
 window.tutupMenuKonteksDraw = function() {
@@ -1020,20 +1252,21 @@ window.tutupMenuKonteksDraw = function() {
 };
 
 // =========================================================================
-// 4. EVENT POINTER MENGGAMBAR & MESIN SMART SHAPE VEKTOR
+// 4. EVENT POINTER MENGGAMBAR ZERO-LAG & MESIN SMART SHAPE VEKTOR
 // =========================================================================
 document.addEventListener('pointerdown', function(e) {
     if (!e.target.closest('#draw-context-menu')) {
         window.tutupMenuKonteksDraw();
     }
 
+    // Resize sudut kanan-bawah gambar inline saat TIDAK sedang Mode Draw
     if (!window.isDrawingMode && e.target.tagName === 'IMG' && !e.target.closest('.draw-float-img-item') && !e.target.classList.contains('pdf-slide-bg') && (document.body.classList.contains('mode-edit-aktif') || document.documentElement.classList.contains('force-edit-mode'))) {
         let i = e.target;
         let iRect = i.getBoundingClientRect();
         let isNearCorner = (iRect.right - e.clientX) <= 22 && (iRect.bottom - e.clientY) <= 22;
         if (!isNearCorner) return;
         let sX = e.clientX, sW = i.offsetWidth;
-        let parentEl = i.closest('.content-block, .fb-content');
+        let parentEl = i.closest('.quiz-editable-field, .latihan-editable-field, .content-block, .fb-content');
         let maxW = parentEl ? (parentEl.clientWidth - 20) : 900;
         function m(me) {
             let newW = Math.max(40, Math.min(maxW, sW + (me.clientX - sX)));
@@ -1046,7 +1279,8 @@ document.addEventListener('pointerdown', function(e) {
         function up() {
             document.removeEventListener('pointermove', m);
             document.removeEventListener('pointerup', up);
-            if (parentEl) parentEl.dispatchEvent(new Event('input', { bubbles: true }));
+            if (typeof window.simpanPerubahanEditorGambar === 'function') window.simpanPerubahanEditorGambar(parentEl);
+            else if (parentEl) parentEl.dispatchEvent(new Event('input', { bubbles: true }));
         }
         document.addEventListener('pointermove', m);
         document.addEventListener('pointerup', up);
@@ -1056,12 +1290,18 @@ document.addEventListener('pointerdown', function(e) {
 
     if (!window.isDrawingMode) return;
     if (e.target.closest('#pen-tools') || e.target.closest('.draw-popover-panel') || e.target.closest('#draw-context-menu') || e.target.closest('.pdf-slide-nav-bar') || e.target.closest('.draw-float-img-item')) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
 
+    // Abaikan jari saat Palm Reject iPad aktif, atau saat sedang scroll 2 jari
     if (e.pointerType === 'touch') {
-        if (window.pencilOnly || window.activeTouches > 1) {
-            isPenDown = false;
+        if ((!window.ifpMode && window.pencilOnly) || window.activeTouches > 1) {
             return;
         }
+    }
+
+    // Tolak pointer kedua saat sedang aktif menulis (anti-lompat di panel sentuh IR 20 titik)
+    if (isPenDown && activePointerId !== null && e.pointerId !== activePointerId) {
+        return;
     }
 
     if (isFloating && floatUI) {
@@ -1070,18 +1310,20 @@ document.addEventListener('pointerdown', function(e) {
     }
 
     if (e.target.classList.contains('drawing-layer')) {
-        clearTimeout(window.longPressDrawTimer);
         let c = e.target;
-        let pt = window.ambilKoordinatKanvas(c, e.clientX, e.clientY);
+        inisialisasiSatuCanvas(c);
+        let pt = window.ambilKoordinatKanvas(c, e.clientX, e.clientY, e);
         let x = pt.x, y = pt.y;
 
         if (window.activeSmartShape && window.activeSmartShape.ctx.canvas === c) {
             let hit = -1;
             window.activeSmartShape.vertices.forEach(function(v, idx) {
-                if (Math.hypot(x - v.x, y - v.y) < 18) hit = idx;
+                if (Math.hypot(x - v.x, y - v.y) < (window.ifpMode ? 24 : 18)) hit = idx;
             });
             if (hit !== -1) {
                 window.draggingSmartVertex = hit;
+                activePointerId = e.pointerId;
+                try { c.setPointerCapture(e.pointerId); } catch (err) {}
                 return;
             } else {
                 window.burnActiveSmartShape();
@@ -1089,8 +1331,11 @@ document.addEventListener('pointerdown', function(e) {
         }
 
         isPenDown = true;
+        activePointerId = e.pointerId;
+        penStartTime = Date.now();
         window.isShapeRecognized = false;
         clearTimeout(window.shapeHoldTimer);
+        try { c.setPointerCapture(e.pointerId); } catch (err) {}
 
         if (activeTool === 'laser') {
             laserLastActiveTime = Date.now();
@@ -1104,18 +1349,25 @@ document.addEventListener('pointerdown', function(e) {
                 currentDrawCtx.globalCompositeOperation = 'source-over';
                 lassoTargetCanvas = c;
                 lassoPath = [{ x: x, y: y }];
-                lassoSavedImageData = currentDrawCtx.getImageData(0, 0, c.width, c.height);
+                window.drawBackupCanvas = window.buatSalinanKanvasGPU(c);
             } else if (activeTool === 'highlighter' || activeTool === 'line' || activeTool === 'pen' || activeTool === 'eraser') {
-                window.drawUndoStack.push({ cvs: c, data: c.toDataURL("image/png") });
-                window.drawRedoStack = [];
-
-                currentDrawCtx.globalCompositeOperation = activeTool === 'eraser' ? 'destination-out' : 'source-over';
-                currentDrawCtx.strokeStyle = window.penColor;
-                currentDrawCtx.lineWidth = activeTool === 'eraser' ? (window.penSize * 5) : window.penSize;
-                window.drawSnapshot = currentDrawCtx.getImageData(0, 0, c.width, c.height);
+                window.catatUndoGPU(c);
+                window.drawBackupCanvas = window.buatSalinanKanvasGPU(c);
                 window.drawPoints = [{ x: x, y: y }];
-                currentDrawCtx.beginPath();
-                currentDrawCtx.moveTo(x, y);
+                lastMidPt = { x: x, y: y };
+
+                currentDrawCtx.globalCompositeOperation = (activeTool === 'eraser') ? 'destination-out' : 'source-over';
+                currentDrawCtx.globalAlpha = 1.0;
+                currentDrawCtx.strokeStyle = window.penColor;
+                currentDrawCtx.fillStyle = window.penColor;
+                currentDrawCtx.lineWidth = (activeTool === 'eraser') ? (window.penSize * 5) : window.penSize;
+
+                // Titik awal instan agar ketukan titik / koma langsung tergambar tajam
+                if (activeTool === 'pen' || activeTool === 'eraser') {
+                    currentDrawCtx.beginPath();
+                    currentDrawCtx.arc(x, y, currentDrawCtx.lineWidth / 2, 0, Math.PI * 2);
+                    currentDrawCtx.fill();
+                }
             }
         }
     }
@@ -1126,8 +1378,7 @@ window.getPerpendicularDist = function(p, p1, p2) {
     let dot = A * C + B * D, len_sq = C * C + D * D, param = -1, xx, yy;
     if (len_sq !== 0) param = dot / len_sq;
     if (param < 0) { xx = p1.x; yy = p1.y; } else if (param > 1) { xx = p2.x; yy = p2.y; } else { xx = p1.x + param * C; yy = p1.y + param * D; }
-    let dx = p.x - xx, dy = p.y - yy;
-    return Math.sqrt(dx * dx + dy * dy);
+    return Math.hypot(p.x - xx, p.y - yy);
 };
 
 window.simplifyDouglasPeucker = function(points, epsilon) {
@@ -1140,9 +1391,8 @@ window.simplifyDouglasPeucker = function(points, epsilon) {
         let left = window.simplifyDouglasPeucker(points.slice(0, index + 1), epsilon);
         let right = window.simplifyDouglasPeucker(points.slice(index), epsilon);
         return left.slice(0, left.length - 1).concat(right);
-    } else {
-        return [points[0], points[end]];
     }
+    return [points[0], points[end]];
 };
 
 window.jarakAntarTitik = function(p1, p2) {
@@ -1172,6 +1422,8 @@ window.recognizeShape = function() {
     });
     let w = maxX - minX, h = maxY - minY;
     let diag = Math.hypot(w, h);
+    if (diag < 20) return;
+
     let isClosed = window.jarakAntarTitik(start, end) < Math.max(45, diag * 0.25);
 
     let epsilon = Math.max(w, h) * 0.08;
@@ -1185,22 +1437,17 @@ window.recognizeShape = function() {
     let type = 'polygon';
     let vertices = simplified;
 
-    // Hitung seberapa dekat coretan dengan elips/lingkaran (Circularity Fit)
     let isMiripLingkaran = false;
     if (isClosed && w > 18 && h > 18) {
-        let cx = minX + w / 2;
-        let cy = minY + h / 2;
-        let rx = w / 2;
-        let ry = h / 2;
-        let sumDev = 0;
-        let maxNormR = 0;
+        let cx = minX + w / 2, cy = minY + h / 2;
+        let rx = w / 2, ry = h / 2;
+        let sumDev = 0, maxNormR = 0;
         pts.forEach(function(p) {
             let normR = Math.hypot((p.x - cx) / rx, (p.y - cy) / ry);
             sumDev += Math.abs(normR - 1);
             if (normR > maxNormR) maxNormR = normR;
         });
         let mad = sumDev / pts.length;
-        // Jika bentuk membulat (tidak bersudut tajam seperti persegi/segitiga) atau sudut >= 6, jadikan lingkaran/oval
         if ((simplified.length >= 6 && mad < 0.26) || (simplified.length === 5 && mad < 0.13 && maxNormR < 1.24)) {
             isMiripLingkaran = true;
         }
@@ -1219,8 +1466,7 @@ window.recognizeShape = function() {
         }
     } else if (isClosed && simplified.length >= 4 && simplified.length <= 5) {
         let nPoints = simplified.length - 1;
-        let cx = minX + w / 2;
-        let cy = minY + h / 2;
+        let cx = minX + w / 2, cy = minY + h / 2;
 
         if (nPoints === 3) {
             let s1 = window.jarakAntarTitik(simplified[0], simplified[1]);
@@ -1229,11 +1475,10 @@ window.recognizeShape = function() {
             let a1 = window.sudutAntarTigaTitik(simplified[2], simplified[0], simplified[1]);
             let a2 = window.sudutAntarTigaTitik(simplified[0], simplified[1], simplified[2]);
             let a3 = window.sudutAntarTigaTitik(simplified[1], simplified[2], simplified[0]);
-
             let sisiUrut = [s1, s2, s3].sort(function(a, b) { return a - b; });
             let sudutUrut = [a1, a2, a3].sort(function(a, b) { return a - b; });
 
-            if (sisiUrut[2] / sisiUrut[0] < 1.15) {
+            if (sisiUrut[2] / Math.max(1, sisiUrut[0]) < 1.15) {
                 let r = Math.max(w, h) / 2;
                 vertices = [
                     { x: cx, y: cy - r },
@@ -1242,10 +1487,8 @@ window.recognizeShape = function() {
                     { x: cx, y: cy - r }
                 ];
             } else if (Math.abs(sudutUrut[2] - 90) < 15) {
-                if (Math.abs(a1 - 90) < 15 || Math.abs(a2 - 90) < 15 || Math.abs(a3 - 90) < 15) {
-                    vertices = [{ x: minX, y: minY }, { x: maxX, y: maxY }, { x: minX, y: maxY }, { x: minX, y: minY }];
-                }
-            } else if ((sisiUrut[1] / sisiUrut[0] < 1.15) || (sisiUrut[2] / sisiUrut[1] < 1.15)) {
+                vertices = [{ x: minX, y: minY }, { x: maxX, y: maxY }, { x: minX, y: maxY }, { x: minX, y: minY }];
+            } else if ((sisiUrut[1] / Math.max(1, sisiUrut[0]) < 1.15) || (sisiUrut[2] / Math.max(1, sisiUrut[1]) < 1.15)) {
                 vertices = [{ x: cx, y: minY }, { x: maxX, y: maxY }, { x: minX, y: maxY }, { x: cx, y: minY }];
             }
         } else if (nPoints === 4) {
@@ -1253,16 +1496,15 @@ window.recognizeShape = function() {
             let s2 = window.jarakAntarTitik(simplified[1], simplified[2]);
             let s3 = window.jarakAntarTitik(simplified[2], simplified[3]);
             let s4 = window.jarakAntarTitik(simplified[3], simplified[0]);
-
             let d1 = window.jarakAntarTitik(simplified[0], simplified[2]);
             let d2 = window.jarakAntarTitik(simplified[1], simplified[3]);
 
-            let isPersegiPanjang = (Math.abs(s1 - s3) / s1 < 0.2) && (Math.abs(s2 - s4) / s2 < 0.2) && (Math.abs(d1 - d2) / d1 < 0.2);
-            let isJajargenjang = (Math.abs(s1 - s3) / s1 < 0.2) && (Math.abs(s2 - s4) / s2 < 0.2) && (Math.abs(d1 - d2) / d1 >= 0.2);
-            let isLayangLayang = ((Math.abs(s1 - s2) / s1 < 0.15) && (Math.abs(s3 - s4) / s3 < 0.15)) || ((Math.abs(s1 - s4) / s1 < 0.15) && (Math.abs(s2 - s3) / s2 < 0.15));
+            let isPersegiPanjang = (Math.abs(s1 - s3) / Math.max(1, s1) < 0.2) && (Math.abs(s2 - s4) / Math.max(1, s2) < 0.2) && (Math.abs(d1 - d2) / Math.max(1, d1) < 0.2);
+            let isJajargenjang = (Math.abs(s1 - s3) / Math.max(1, s1) < 0.2) && (Math.abs(s2 - s4) / Math.max(1, s2) < 0.2) && (Math.abs(d1 - d2) / Math.max(1, d1) >= 0.2);
+            let isLayangLayang = ((Math.abs(s1 - s2) / Math.max(1, s1) < 0.15) && (Math.abs(s3 - s4) / Math.max(1, s3) < 0.15)) || ((Math.abs(s1 - s4) / Math.max(1, s1) < 0.15) && (Math.abs(s2 - s3) / Math.max(1, s2) < 0.15));
 
             if (isPersegiPanjang) {
-                let rasio = Math.max(w, h) / Math.min(w, h);
+                let rasio = Math.max(w, h) / Math.max(1, Math.min(w, h));
                 if (rasio < 1.15) {
                     let s = Math.max(w, h);
                     vertices = [{ x: cx - s / 2, y: cy - s / 2 }, { x: cx + s / 2, y: cy - s / 2 }, { x: cx + s / 2, y: cy + s / 2 }, { x: cx - s / 2, y: cy + s / 2 }, { x: cx - s / 2, y: cy - s / 2 }];
@@ -1286,7 +1528,6 @@ window.recognizeShape = function() {
         size: window.penSize,
         ctx: currentDrawCtx
     };
-
     window.isShapeRecognized = true;
     window.renderActiveSmartShape();
 };
@@ -1296,8 +1537,9 @@ window.renderActiveSmartShape = function() {
     if (!shape) return;
     let ctx = shape.ctx;
 
-    ctx.putImageData(window.drawSnapshot, 0, 0);
+    window.pulihkanKanvasDariGPU(ctx, window.drawBackupCanvas);
     ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1.0;
 
     ctx.beginPath();
     ctx.strokeStyle = shape.color;
@@ -1308,13 +1550,11 @@ window.renderActiveSmartShape = function() {
     if (shape.type === 'oval' || shape.type === 'circle') {
         let v = shape.vertices;
         let cx = (v[3].x + v[1].x) / 2, cy = (v[0].y + v[2].y) / 2;
-        let rx = Math.abs(v[1].x - v[3].x) / 2, ry = Math.abs(v[2].y - v[0].y) / 2;
+        let rx = Math.max(1, Math.abs(v[1].x - v[3].x) / 2), ry = Math.max(1, Math.abs(v[2].y - v[0].y) / 2);
         ctx.ellipse(cx, cy, rx, ry, 0, 0, 2 * Math.PI);
     } else {
         ctx.moveTo(shape.vertices[0].x, shape.vertices[0].y);
-        for (let i = 1; i < shape.vertices.length; i++) {
-            ctx.lineTo(shape.vertices[i].x, shape.vertices[i].y);
-        }
+        for (let i = 1; i < shape.vertices.length; i++) ctx.lineTo(shape.vertices[i].x, shape.vertices[i].y);
     }
     ctx.stroke();
 
@@ -1323,7 +1563,7 @@ window.renderActiveSmartShape = function() {
     ctx.strokeStyle = '#ffffff';
     shape.vertices.forEach(function(v) {
         ctx.beginPath();
-        ctx.arc(v.x, v.y, 6, 0, 2 * Math.PI);
+        ctx.arc(v.x, v.y, window.ifpMode ? 8 : 6, 0, 2 * Math.PI);
         ctx.fill();
         ctx.stroke();
     });
@@ -1333,7 +1573,9 @@ window.burnActiveSmartShape = function() {
     if (!window.activeSmartShape) return;
     let shape = window.activeSmartShape;
     let ctx = shape.ctx;
-    ctx.putImageData(window.drawSnapshot, 0, 0);
+    window.pulihkanKanvasDariGPU(ctx, window.drawBackupCanvas);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1.0;
 
     ctx.beginPath();
     ctx.strokeStyle = shape.color;
@@ -1344,37 +1586,51 @@ window.burnActiveSmartShape = function() {
     if (shape.type === 'oval' || shape.type === 'circle') {
         let v = shape.vertices;
         let cx = (v[3].x + v[1].x) / 2, cy = (v[0].y + v[2].y) / 2;
-        let rx = Math.abs(v[1].x - v[3].x) / 2, ry = Math.abs(v[2].y - v[0].y) / 2;
+        let rx = Math.max(1, Math.abs(v[1].x - v[3].x) / 2), ry = Math.max(1, Math.abs(v[2].y - v[0].y) / 2);
         ctx.ellipse(cx, cy, rx, ry, 0, 0, 2 * Math.PI);
     } else {
         ctx.moveTo(shape.vertices[0].x, shape.vertices[0].y);
-        for (let i = 1; i < shape.vertices.length; i++) {
-            ctx.lineTo(shape.vertices[i].x, shape.vertices[i].y);
-        }
+        for (let i = 1; i < shape.vertices.length; i++) ctx.lineTo(shape.vertices[i].x, shape.vertices[i].y);
     }
     ctx.stroke();
 
-    let dataToSave = ctx.canvas.toDataURL("image/png");
-    window.simpanDataDrawingTarget(ctx.canvas, dataToSave);
+    window.simpanDataDrawingTarget(ctx.canvas, ctx.canvas.toDataURL('image/png'));
     if (window.simpanKeDB) window.simpanKeDB();
-
     window.activeSmartShape = null;
     currentDrawCtx = null;
+};
+
+window.tambahSegmenPenaHalus = function(ctx, pt) {
+    let pts = window.drawPoints;
+    let prev = pts[pts.length - 1];
+    if (prev && Math.hypot(pt.x - prev.x, pt.y - prev.y) < 0.8) return false;
+
+    pts.push(pt);
+    let midX = (prev.x + pt.x) / 2;
+    let midY = (prev.y + pt.y) / 2;
+
+    ctx.beginPath();
+    ctx.moveTo(lastMidPt.x, lastMidPt.y);
+    ctx.quadraticCurveTo(prev.x, prev.y, midX, midY);
+    ctx.stroke();
+    lastMidPt = { x: midX, y: midY };
+    return true;
 };
 
 document.addEventListener('pointermove', function(e) {
     if (!window.isDrawingMode) return;
 
     if (window.draggingSmartVertex !== undefined && window.activeSmartShape) {
-        let ptDrag = window.ambilKoordinatKanvas(window.activeSmartShape.ctx.canvas, e.clientX, e.clientY);
-        let x = ptDrag.x, y = ptDrag.y;
-        window.activeSmartShape.vertices[window.draggingSmartVertex] = { x: x, y: y };
+        if (activePointerId !== null && e.pointerId !== activePointerId) return;
+        let cvs = window.activeSmartShape.ctx.canvas;
+        let ptDrag = window.ambilKoordinatKanvas(cvs, e.clientX, e.clientY, e);
+        window.activeSmartShape.vertices[window.draggingSmartVertex] = { x: ptDrag.x, y: ptDrag.y };
 
         if (window.activeSmartShape.type === 'polygon' && window.activeSmartShape.isClosed) {
             if (window.draggingSmartVertex === 0) {
-                window.activeSmartShape.vertices[window.activeSmartShape.vertices.length - 1] = { x: x, y: y };
+                window.activeSmartShape.vertices[window.activeSmartShape.vertices.length - 1] = { x: ptDrag.x, y: ptDrag.y };
             } else if (window.draggingSmartVertex === window.activeSmartShape.vertices.length - 1) {
-                window.activeSmartShape.vertices[0] = { x: x, y: y };
+                window.activeSmartShape.vertices[0] = { x: ptDrag.x, y: ptDrag.y };
             }
         }
         window.renderActiveSmartShape();
@@ -1382,8 +1638,8 @@ document.addEventListener('pointermove', function(e) {
     }
 
     if (!isPenDown) return;
-    if (e.pointerType === 'touch' && (window.pencilOnly || window.activeTouches > 1)) {
-        isPenDown = false;
+    if (activePointerId !== null && e.pointerId !== activePointerId) return;
+    if (e.pointerType === 'touch' && ((!window.ifpMode && window.pencilOnly) || window.activeTouches > 1)) {
         return;
     }
 
@@ -1391,41 +1647,43 @@ document.addEventListener('pointermove', function(e) {
         laserLastActiveTime = Date.now();
         currentLaserStroke.points.push({ x: e.clientX, y: e.clientY });
     } else if (currentDrawCtx) {
-        let ptMove = window.ambilKoordinatKanvas(currentDrawCtx.canvas, e.clientX, e.clientY);
+        let cvs = currentDrawCtx.canvas;
+        let ptMove = window.ambilKoordinatKanvas(cvs, e.clientX, e.clientY, e);
         let x = ptMove.x, y = ptMove.y;
 
         if (activeTool === 'lasso') {
             lassoPath.push({ x: x, y: y });
-            currentDrawCtx.putImageData(lassoSavedImageData, 0, 0);
+            window.pulihkanKanvasDariGPU(currentDrawCtx, window.drawBackupCanvas);
             currentDrawCtx.beginPath();
             currentDrawCtx.moveTo(lassoPath[0].x, lassoPath[0].y);
             for (let i = 1; i < lassoPath.length; i++) currentDrawCtx.lineTo(lassoPath[i].x, lassoPath[i].y);
             currentDrawCtx.strokeStyle = '#3498db';
-            currentDrawCtx.lineWidth = 1.5;
+            currentDrawCtx.lineWidth = 1.6;
             currentDrawCtx.setLineDash([5, 5]);
             currentDrawCtx.stroke();
             currentDrawCtx.setLineDash([]);
         } else if (activeTool === 'lasso-box') {
             lassoPath[1] = { x: x, y: y };
-            currentDrawCtx.putImageData(lassoSavedImageData, 0, 0);
+            window.pulihkanKanvasDariGPU(currentDrawCtx, window.drawBackupCanvas);
             currentDrawCtx.beginPath();
             let startX = lassoPath[0].x, startY = lassoPath[0].y;
             currentDrawCtx.rect(startX, startY, x - startX, y - startY);
             currentDrawCtx.strokeStyle = '#3498db';
-            currentDrawCtx.lineWidth = 1.5;
+            currentDrawCtx.lineWidth = 1.6;
             currentDrawCtx.setLineDash([5, 5]);
             currentDrawCtx.stroke();
             currentDrawCtx.setLineDash([]);
         } else if (activeTool === 'highlighter') {
             window.drawPoints.push({ x: x, y: y });
-            currentDrawCtx.putImageData(window.drawSnapshot, 0, 0);
-            currentDrawCtx.globalAlpha = 0.38;
+            window.pulihkanKanvasDariGPU(currentDrawCtx, window.drawBackupCanvas);
+            currentDrawCtx.globalCompositeOperation = 'source-over';
+            currentDrawCtx.globalAlpha = 0.36;
             currentDrawCtx.strokeStyle = window.penColor;
             currentDrawCtx.lineWidth = window.penSize * 4;
             window.gambarKurvaHalus(currentDrawCtx, window.drawPoints);
             currentDrawCtx.globalAlpha = 1.0;
         } else if (activeTool === 'line') {
-            currentDrawCtx.putImageData(window.drawSnapshot, 0, 0);
+            window.pulihkanKanvasDariGPU(currentDrawCtx, window.drawBackupCanvas);
             currentDrawCtx.beginPath();
             currentDrawCtx.moveTo(window.drawPoints[0].x, window.drawPoints[0].y);
             currentDrawCtx.lineTo(x, y);
@@ -1434,47 +1692,74 @@ document.addEventListener('pointermove', function(e) {
             currentDrawCtx.stroke();
         } else if (activeTool === 'pen') {
             if (!window.isShapeRecognized) {
-                // Tangkap seluruh sampel Apple Pencil 120Hz (Coalesced Events) jika didukung iPad
-                let events = (typeof e.getCoalescedEvents === 'function') ? e.getCoalescedEvents() : [e];
-                if (!events || events.length === 0) events = [e];
-                events.forEach(function(ev) {
-                    let ptEv = window.ambilKoordinatKanvas(currentDrawCtx.canvas, ev.clientX, ev.clientY);
-                    window.drawPoints.push({ x: ptEv.x, y: ptEv.y });
-                });
-
-                currentDrawCtx.putImageData(window.drawSnapshot, 0, 0);
+                currentDrawCtx.globalCompositeOperation = 'source-over';
                 currentDrawCtx.strokeStyle = window.penColor;
                 currentDrawCtx.lineWidth = window.penSize;
-                window.gambarKurvaHalus(currentDrawCtx, window.drawPoints);
 
-                clearTimeout(window.shapeHoldTimer);
-                window.shapeHoldTimer = setTimeout(window.recognizeShape, 650);
+                // Hanya pakai coalesced events untuk stylus aktif (Apple Pencil) jika koordinatnya tervalidasi cocok
+                let daftarEv = [e];
+                if (!window.ifpMode && e.pointerType === 'pen' && typeof e.getCoalescedEvents === 'function') {
+                    let coalesced = e.getCoalescedEvents();
+                    if (coalesced && coalesced.length > 0) {
+                        let lastC = coalesced[coalesced.length - 1];
+                        if (Math.hypot(lastC.clientX - e.clientX, lastC.clientY - e.clientY) <= 6) {
+                            daftarEv = coalesced;
+                        }
+                    }
+                }
+
+                let adaGerakBesar = false;
+                daftarEv.forEach(function(ev) {
+                    let ptEv = window.ambilKoordinatKanvas(cvs, ev.clientX, ev.clientY, ev);
+                    let prev = window.drawPoints[window.drawPoints.length - 1];
+                    if (!prev || Math.hypot(ptEv.x - prev.x, ptEv.y - prev.y) > (window.ifpMode ? 4 : 1.5)) {
+                        adaGerakBesar = true;
+                    }
+                    window.tambahSegmenPenaHalus(currentDrawCtx, ptEv);
+                });
+
+                if (adaGerakBesar) {
+                    clearTimeout(window.shapeHoldTimer);
+                    window.shapeHoldTimer = setTimeout(window.recognizeShape, 650);
+                }
             }
         } else if (activeTool === 'eraser') {
-            currentDrawCtx.lineTo(x, y);
-            currentDrawCtx.stroke();
+            currentDrawCtx.globalCompositeOperation = 'destination-out';
+            currentDrawCtx.lineWidth = window.penSize * 5;
+            window.tambahSegmenPenaHalus(currentDrawCtx, ptMove);
         }
     }
 });
 
-document.addEventListener('pointerup', function() {
+function akhiriGoresanPointer(e) {
     if (!window.isDrawingMode) return;
+    if (activePointerId !== null && e && e.pointerId !== activePointerId) return;
 
     if (window.draggingSmartVertex !== undefined) {
+        if (window.activeSmartShape && e) {
+            try { window.activeSmartShape.ctx.canvas.releasePointerCapture(e.pointerId); } catch (err) {}
+        }
         window.draggingSmartVertex = undefined;
+        activePointerId = null;
         return;
     }
 
     if (!isPenDown) return;
     isPenDown = false;
+    activePointerId = null;
     clearTimeout(window.shapeHoldTimer);
+
+    if (currentDrawCtx && e) {
+        try { currentDrawCtx.canvas.releasePointerCapture(e.pointerId); } catch (err) {}
+    }
+
     if (isFloating) return;
 
     if (activeTool === 'laser' && currentLaserStroke) {
         laserLastActiveTime = Date.now();
         currentLaserStroke = null;
     } else if ((activeTool === 'lasso' || activeTool === 'lasso-box') && currentDrawCtx && lassoPath.length > 0) {
-        currentDrawCtx.putImageData(lassoSavedImageData, 0, 0);
+        window.pulihkanKanvasDariGPU(currentDrawCtx, window.drawBackupCanvas);
 
         if (activeTool === 'lasso-box' && lassoPath[1]) {
             let sx = lassoPath[0].x, sy = lassoPath[0].y;
@@ -1489,10 +1774,20 @@ document.addEventListener('pointerup', function() {
         }
     } else if (activeTool !== 'laser' && activeTool !== 'lasso' && activeTool !== 'lasso-box' && currentDrawCtx) {
         if (window.isShapeRecognized && window.activeSmartShape) {
-            // Menunggu pengguna selesai menggeser titik Smart Shape
+            // Menunggu pengguna selesai mengatur titik Smart Shape
         } else {
+            // Sambungkan ekor segmen terakhir agar tepat di titik lepas pena
+            if ((activeTool === 'pen' || activeTool === 'eraser') && window.drawPoints.length > 1 && lastMidPt) {
+                let lastPt = window.drawPoints[window.drawPoints.length - 1];
+                currentDrawCtx.beginPath();
+                currentDrawCtx.moveTo(lastMidPt.x, lastMidPt.y);
+                currentDrawCtx.lineTo(lastPt.x, lastPt.y);
+                currentDrawCtx.stroke();
+            }
+
             currentDrawCtx.globalCompositeOperation = 'source-over';
-            let dataToSave = currentDrawCtx.canvas.toDataURL("image/png");
+            currentDrawCtx.globalAlpha = 1.0;
+            let dataToSave = currentDrawCtx.canvas.toDataURL('image/png');
             window.simpanDataDrawingTarget(currentDrawCtx.canvas, dataToSave);
 
             let st = document.getElementById('save-status-bar');
@@ -1501,14 +1796,14 @@ document.addEventListener('pointerup', function() {
         }
     }
     if (activeTool !== 'laser' && !window.activeSmartShape) currentDrawCtx = null;
-});
+}
+
+document.addEventListener('pointerup', akhiriGoresanPointer);
+document.addEventListener('pointercancel', akhiriGoresanPointer);
 
 // =========================================================================
 // 5. FITUR LASO PRO RETINA (BAWA CORETAN + GAMBAR, COPY, PASTE 1:1, WARNA)
 // =========================================================================
-window.lassoAttachedFloats = [];
-window.lassoClipboardImages = [];
-
 window.titikDalamPoligon = function(px, py, poly) {
     let inside = false;
     for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
@@ -1541,25 +1836,19 @@ window.sinkronPosisiGambarLaso = function() {
     if (!floatUI || !lassoTargetCanvas || !window.lassoAttachedFloats.length) return;
     let fR = floatUI.getBoundingClientRect();
     let pt = window.ambilKoordinatKanvas(lassoTargetCanvas, fR.left, fR.top);
-    let dpr = parseFloat(lassoTargetCanvas.getAttribute('data-dpr')) || window.DRAW_DPR || 2.5;
+    let dpr = parseFloat(lassoTargetCanvas.getAttribute('data-dpr')) || window.DRAW_DPR || 2;
     let cssW = parseFloat(lassoTargetCanvas.getAttribute('data-css-w')) || (lassoTargetCanvas.width / dpr) || 1;
     let cssH = parseFloat(lassoTargetCanvas.getAttribute('data-css-h')) || (lassoTargetCanvas.height / dpr) || 1;
 
-    let boxX = pt.x;
-    let boxY = pt.y;
+    let boxX = pt.x, boxY = pt.y;
     let boxW = fR.width * pt.scaleX;
     let boxH = fR.height * pt.scaleY;
 
     window.lassoAttachedFloats.forEach(function(item) {
-        let nx = boxX + (item.relX * boxW);
-        let ny = boxY + (item.relY * boxH);
-        let nw = Math.max(12, item.relW * boxW);
-        let nh = Math.max(12, item.relH * boxH);
-
-        let xPct = (nx / cssW) * 100;
-        let yPct = (ny / cssH) * 100;
-        let wPct = (nw / cssW) * 100;
-        let hPct = (nh / cssH) * 100;
+        let xPct = ((boxX + (item.relX * boxW)) / cssW) * 100;
+        let yPct = ((boxY + (item.relY * boxH)) / cssH) * 100;
+        let wPct = (Math.max(12, item.relW * boxW) / cssW) * 100;
+        let hPct = (Math.max(12, item.relH * boxH) / cssH) * 100;
 
         item.curXPct = xPct;
         item.curYPct = yPct;
@@ -1576,7 +1865,7 @@ window.sinkronPosisiGambarLaso = function() {
 };
 
 function createFloatingLasso(cvs) {
-    let dpr = parseFloat(cvs.getAttribute('data-dpr')) || window.DRAW_DPR || 2.5;
+    let dpr = parseFloat(cvs.getAttribute('data-dpr')) || window.DRAW_DPR || 2;
     let cssW = parseFloat(cvs.getAttribute('data-css-w')) || (cvs.width / dpr);
     let cssH = parseFloat(cvs.getAttribute('data-css-h')) || (cvs.height / dpr);
     let ctx = window.siapkanKonteksRetina(cvs);
@@ -1591,7 +1880,8 @@ function createFloatingLasso(cvs) {
     let w = Math.round(maX - miX), h = Math.round(maY - miY);
     if (w < 8 || h < 8) return;
 
-    // 1. Cari gambar tempel (.draw-float-img-item) & gambar di dalam materi yang masuk area laso
+    window.catatUndoGPU(cvs);
+
     let blockIdxAttr = cvs.getAttribute('data-index');
     let slideIdxAttr = cvs.getAttribute('data-slide-index');
     let blockIdx = blockIdxAttr !== null ? parseInt(blockIdxAttr, 10) : -1;
@@ -1602,9 +1892,8 @@ function createFloatingLasso(cvs) {
     if (blockIdx >= 0 && parentEl) {
         let arrImages = window.ambilArrayFloatImgTarget(blockIdx, slideIdx);
         let floatLayer = parentEl.querySelector('.draw-float-layer');
-
-        // A. Cek gambar yang ada di dalam .content-block (ubah jadi float di posisi persis sama agar bisa digeser bebas bersama laso)
         let contentBlock = parentEl.querySelector('.content-block');
+
         if (contentBlock && arrImages && floatLayer) {
             let inlineImgs = Array.from(contentBlock.querySelectorAll('img')).filter(function(im) {
                 return !im.classList.contains('pdf-slide-bg') && !im.closest('.draw-float-img-item');
@@ -1633,8 +1922,7 @@ function createFloatingLasso(cvs) {
                     };
                     let newIdx = arrImages.length;
                     arrImages.push(newImObj);
-                    let newEl = window.buatElemenFloatImgDOM(blockIdx, slideIdx, newIdx, newImObj);
-                    floatLayer.appendChild(newEl);
+                    floatLayer.appendChild(window.buatElemenFloatImgDOM(blockIdx, slideIdx, newIdx, newImObj));
                     im.remove();
                     adaDipromosikan = true;
                 }
@@ -1645,7 +1933,6 @@ function createFloatingLasso(cvs) {
             }
         }
 
-        // B. Cek seluruh .draw-float-img-item pada blok/slide ini
         if (arrImages && floatLayer) {
             let floatEls = Array.from(floatLayer.querySelectorAll('.draw-float-img-item'));
             floatEls.forEach(function(el, fIdx) {
@@ -1663,19 +1950,14 @@ function createFloatingLasso(cvs) {
 
                 if (window.titikDalamPoligon(cx, cy, lassoPath) || overlapRatio >= 0.35) {
                     capturedFloats.push({
-                        blockIdx: blockIdx,
-                        slideIdx: slideIdx,
-                        imgIdx: fIdx,
-                        el: el,
-                        dataRef: imData,
-                        fx: fx, fy: fy, fw: fw, fh: fh
+                        blockIdx: blockIdx, slideIdx: slideIdx, imgIdx: fIdx,
+                        el: el, dataRef: imData, fx: fx, fy: fy, fw: fw, fh: fh
                     });
                 }
             });
         }
     }
 
-    // 2. Perluas kotak seleksi agar mencakup coretan + gambar yang terbawa
     let uMinX = miX, uMinY = miY, uMaxX = maX, uMaxY = maY;
     capturedFloats.forEach(function(cf) {
         if (cf.fx < uMinX) uMinX = cf.fx;
@@ -1686,7 +1968,6 @@ function createFloatingLasso(cvs) {
     let uW = Math.max(8, Math.round(uMaxX - uMinX));
     let uH = Math.max(8, Math.round(uMaxY - uMinY));
 
-    // 3. Potong coretan pena di dalam poligon laso ke kanvas melayang
     let tCvs = document.createElement('canvas');
     tCvs.width = Math.round(uW * dpr);
     tCvs.height = Math.round(uH * dpr);
@@ -1716,19 +1997,13 @@ function createFloatingLasso(cvs) {
     ctx.fill();
     ctx.globalCompositeOperation = 'source-over';
 
-    // Hitung koordinat relatif setiap gambar terhadap kotak laso
     let attached = capturedFloats.map(function(cf) {
         cf.el.classList.add('is-lasso-attached');
         return {
-            blockIdx: cf.blockIdx,
-            slideIdx: cf.slideIdx,
-            imgIdx: cf.imgIdx,
-            el: cf.el,
-            dataRef: cf.dataRef,
-            relX: (cf.fx - uMinX) / uW,
-            relY: (cf.fy - uMinY) / uH,
-            relW: cf.fw / uW,
-            relH: cf.fh / uH,
+            blockIdx: cf.blockIdx, slideIdx: cf.slideIdx, imgIdx: cf.imgIdx,
+            el: cf.el, dataRef: cf.dataRef,
+            relX: (cf.fx - uMinX) / uW, relY: (cf.fy - uMinY) / uH,
+            relW: cf.fw / uW, relH: cf.fh / uH,
             curXPct: parseFloat(cf.dataRef.xPct) || 0,
             curYPct: parseFloat(cf.dataRef.yPct) || 0,
             curWPct: parseFloat(cf.dataRef.wPct) || 25,
@@ -1766,8 +2041,8 @@ window.bangunElemenLassoFloat = function(targetCvs, sourceCanvas, localX, localY
         '<button onclick="window.convertLassoToMath()" style="background:#8e44ad;" title="Ubah ke Rumus">∑ Math</button>';
     floatUI.appendChild(btnBar);
 
-    let r = targetCvs.getBoundingClientRect();
-    let dpr = parseFloat(targetCvs.getAttribute('data-dpr')) || window.DRAW_DPR || 2.5;
+    let r = window.ambilVisualRectKanvas(targetCvs);
+    let dpr = parseFloat(targetCvs.getAttribute('data-dpr')) || window.DRAW_DPR || 2;
     let cssW = parseFloat(targetCvs.getAttribute('data-css-w')) || (targetCvs.width / dpr) || r.width || 1;
     let cssH = parseFloat(targetCvs.getAttribute('data-css-h')) || (targetCvs.height / dpr) || r.height || 1;
     let invX = r.width / cssW;
@@ -1783,7 +2058,7 @@ window.bangunElemenLassoFloat = function(targetCvs, sourceCanvas, localX, localY
         e.stopPropagation(); e.preventDefault();
         isDraggingFloat = true; sX = e.clientX; sY = e.clientY;
         sL = parseFloat(floatUI.style.left) || 0; sT = parseFloat(floatUI.style.top) || 0;
-        sourceCanvas.setPointerCapture(e.pointerId);
+        try { sourceCanvas.setPointerCapture(e.pointerId); } catch (err) {}
     });
     sourceCanvas.addEventListener('pointermove', function(e) {
         if (!isDraggingFloat) return; e.stopPropagation(); e.preventDefault();
@@ -1793,7 +2068,7 @@ window.bangunElemenLassoFloat = function(targetCvs, sourceCanvas, localX, localY
     });
     sourceCanvas.addEventListener('pointerup', function(e) {
         if (!isDraggingFloat) return; isDraggingFloat = false;
-        sourceCanvas.releasePointerCapture(e.pointerId);
+        try { sourceCanvas.releasePointerCapture(e.pointerId); } catch (err) {}
         window.sinkronPosisiGambarLaso();
         e.stopPropagation(); e.preventDefault();
     });
@@ -1804,20 +2079,17 @@ window.bangunElemenLassoFloat = function(targetCvs, sourceCanvas, localX, localY
         isResizingLasso = true; rSX = e.clientX; rSY = e.clientY;
         rSW = parseFloat(floatUI.style.width) || (w * invX);
         rSH = parseFloat(floatUI.style.height) || (h * invY);
-        resizeHandle.setPointerCapture(e.pointerId);
+        try { resizeHandle.setPointerCapture(e.pointerId); } catch (err) {}
     });
     resizeHandle.addEventListener('pointermove', function(e) {
         if (!isResizingLasso) return; e.stopPropagation(); e.preventDefault();
-        let newW = Math.max(25, rSW + (e.clientX - rSX));
-        let newH = Math.max(25, rSH + (e.clientY - rSY));
-        floatUI.style.width = newW + 'px';
-        floatUI.style.height = newH + 'px';
+        floatUI.style.width = Math.max(25, rSW + (e.clientX - rSX)) + 'px';
+        floatUI.style.height = Math.max(25, rSH + (e.clientY - rSY)) + 'px';
         window.sinkronPosisiGambarLaso();
     });
     resizeHandle.addEventListener('pointerup', function(e) {
-        if (!isResizingLasso) return;
-        isResizingLasso = false;
-        resizeHandle.releasePointerCapture(e.pointerId);
+        if (!isResizingLasso) return; isResizingLasso = false;
+        try { resizeHandle.releasePointerCapture(e.pointerId); } catch (err) {}
         window.sinkronPosisiGambarLaso();
         e.stopPropagation(); e.preventDefault();
     });
@@ -1845,7 +2117,7 @@ window.copySelectionLasso = function() {
     if (cvs) {
         let fR = floatUI.getBoundingClientRect();
         let pt = window.ambilKoordinatKanvas(lassoTargetCanvas, fR.left, fR.top);
-        let dpr = parseFloat(lassoTargetCanvas.getAttribute('data-dpr')) || window.DRAW_DPR || 2.5;
+        let dpr = parseFloat(lassoTargetCanvas.getAttribute('data-dpr')) || window.DRAW_DPR || 2;
 
         window.lassoClipboardDataUrl = cvs.toDataURL('image/png');
         window.lassoClipboardW = fR.width * pt.scaleX;
@@ -1875,7 +2147,7 @@ window.duplikatGambarClipboardLasoKeKanvas = function(targetCvs, pasteX, pasteY,
     let arrImages = window.ambilArrayFloatImgTarget(blockIdx, slideIdx);
     if (!arrImages) return [];
 
-    let dpr = parseFloat(targetCvs.getAttribute('data-dpr')) || window.DRAW_DPR || 2.5;
+    let dpr = parseFloat(targetCvs.getAttribute('data-dpr')) || window.DRAW_DPR || 2;
     let cssW = parseFloat(targetCvs.getAttribute('data-css-w')) || (targetCvs.width / dpr) || 1;
     let cssH = parseFloat(targetCvs.getAttribute('data-css-h')) || (targetCvs.height / dpr) || 1;
 
@@ -1899,25 +2171,18 @@ window.duplikatGambarClipboardLasoKeKanvas = function(targetCvs, pasteX, pasteY,
         floatLayer.appendChild(newEl);
 
         attachedBaru.push({
-            blockIdx: blockIdx,
-            slideIdx: slideIdx,
-            imgIdx: newIdx,
-            el: newEl,
-            dataRef: imObj,
+            blockIdx: blockIdx, slideIdx: slideIdx, imgIdx: newIdx,
+            el: newEl, dataRef: imObj,
             relX: ci.relX, relY: ci.relY, relW: ci.relW, relH: ci.relH,
-            curXPct: parseFloat(imObj.xPct),
-            curYPct: parseFloat(imObj.yPct),
-            curWPct: parseFloat(imObj.wPct),
-            curHPct: parseFloat(imObj.hPct)
+            curXPct: parseFloat(imObj.xPct), curYPct: parseFloat(imObj.yPct),
+            curWPct: parseFloat(imObj.wPct), curHPct: parseFloat(imObj.hPct)
         });
     });
     return attachedBaru;
 };
 
 window.pasteSelectionLasso = function() {
-    if (isFloating && floatUI) {
-        window.copySelectionLasso();
-    }
+    if (isFloating && floatUI) window.copySelectionLasso();
     if (!window.lassoClipboardDataUrl || !lassoTargetCanvas) return;
     let targetCvs = lassoTargetCanvas;
     stampLasso();
@@ -1933,9 +2198,9 @@ window.pasteSelectionLasso = function() {
         nCtx.imageSmoothingQuality = 'high';
         nCtx.drawImage(img, 0, 0);
 
-        let dpr = parseFloat(targetCvs.getAttribute('data-dpr')) || window.DRAW_DPR || 2.5;
-        let cssW = parseFloat(targetCvs.getAttribute('data-css-w')) || (targetCvs.width / dpr) || targetCvs.getBoundingClientRect().width;
-        let cssH = parseFloat(targetCvs.getAttribute('data-css-h')) || (targetCvs.height / dpr) || targetCvs.getBoundingClientRect().height;
+        let dpr = parseFloat(targetCvs.getAttribute('data-dpr')) || window.DRAW_DPR || 2;
+        let cssW = parseFloat(targetCvs.getAttribute('data-css-w')) || (targetCvs.width / dpr) || 1;
+        let cssH = parseFloat(targetCvs.getAttribute('data-css-h')) || (targetCvs.height / dpr) || 1;
         let clipDpr = window.lassoClipboardDpr || dpr;
 
         let pasteW = window.lassoClipboardW || (img.width / clipDpr);
@@ -1968,9 +2233,9 @@ window.pasteHasilLasoDiTitik = function() {
         nCtx.imageSmoothingQuality = 'high';
         nCtx.drawImage(img, 0, 0);
 
-        let dpr = parseFloat(t.cvs.getAttribute('data-dpr')) || window.DRAW_DPR || 2.5;
-        let cssW = parseFloat(t.cvs.getAttribute('data-css-w')) || (t.cvs.width / dpr) || t.cvs.getBoundingClientRect().width;
-        let cssH = parseFloat(t.cvs.getAttribute('data-css-h')) || (t.cvs.height / dpr) || t.cvs.getBoundingClientRect().height;
+        let dpr = parseFloat(t.cvs.getAttribute('data-dpr')) || window.DRAW_DPR || 2;
+        let cssW = parseFloat(t.cvs.getAttribute('data-css-w')) || (t.cvs.width / dpr) || 1;
+        let cssH = parseFloat(t.cvs.getAttribute('data-css-h')) || (t.cvs.height / dpr) || 1;
         let clipDpr = window.lassoClipboardDpr || dpr;
 
         let pasteW = window.lassoClipboardW || (img.width / clipDpr);
@@ -2029,6 +2294,7 @@ function stampLasso() {
     let drawH = fR.height * ptTopLeft.scaleY;
 
     ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1.0;
     ctx.drawImage(floatUI.querySelector('canvas'), ptTopLeft.x, ptTopLeft.y, drawW, drawH);
 
     if (window.lassoAttachedFloats && window.lassoAttachedFloats.length > 0) {
@@ -2054,7 +2320,7 @@ function stampLasso() {
 
 window.convertLassoToMath = function() {
     if (!isFloating || !floatUI) return;
-    let dummyMath = "$$ E = mc^2 $$<br>$$ x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a} $$";
+    let dummyMath = "\\[ E = mc^2 \\]<br>\\[ x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a} \\]";
     floatUI.remove();
     floatUI = null;
     isFloating = false;
@@ -2069,7 +2335,7 @@ window.convertLassoToMath = function() {
 };
 
 // =========================================================================
-// 6. GAMBAR BEBAS GESER (DRAGGABLE & RESIZABLE STICKER DI ATAS BLOK / PDF)
+// 6. GAMBAR BEBAS GESER (DRAGGABLE, RESIZABLE, & CROP DI ATAS BLOK / PDF)
 // =========================================================================
 window.renderFloatImagesHTML = function(blockIdx, slideIdx, arrImages) {
     if (!Array.isArray(arrImages) || arrImages.length === 0) return "";
@@ -2118,18 +2384,10 @@ window.ambilArrayFloatImgTarget = function(blockIdx, slideIdx) {
 
 window.tambahkanGambarBebasKeTarget = function(dataUrl) {
     let t = window.drawContextTarget;
-    if (!t || isNaN(t.blockIdx)) {
-        t = { blockIdx: 0, slideIdx: -1, xPct: 15, yPct: 15 };
-    }
+    if (!t || isNaN(t.blockIdx)) t = { blockIdx: 0, slideIdx: -1, xPct: 15, yPct: 15 };
     let arr = window.ambilArrayFloatImgTarget(t.blockIdx, t.slideIdx);
     if (!arr) return;
-    arr.push({
-        src: dataUrl,
-        xPct: t.xPct || 15,
-        yPct: t.yPct || 15,
-        wPct: 30,
-        hPct: 30
-    });
+    arr.push({ src: dataUrl, xPct: t.xPct || 15, yPct: t.yPct || 15, wPct: 30, hPct: 30 });
     window.renderBlocks();
     if (window.simpanKeDB) window.simpanKeDB();
 };
@@ -2144,9 +2402,7 @@ window.pasteGambarDariClipboardDraw = async function() {
                 let imgType = item.types.find(function(type) { return type.indexOf('image/') === 0; });
                 if (imgType) {
                     let blob = await item.getType(imgType);
-                    window.kompresGambar(blob, function(dataUrl) {
-                        window.tambahkanGambarBebasKeTarget(dataUrl);
-                    });
+                    window.kompresGambar(blob, function(dataUrl) { window.tambahkanGambarBebasKeTarget(dataUrl); });
                     return;
                 }
             }
@@ -2165,34 +2421,32 @@ window.pilihGambarDariDeviceDraw = function() {
 window.prosesFileGambarDraw = function(input) {
     let f = input.files && input.files[0];
     if (!f) return;
-    window.kompresGambar(f, function(dataUrl) {
-        window.tambahkanGambarBebasKeTarget(dataUrl);
-    });
+    window.kompresGambar(f, function(dataUrl) { window.tambahkanGambarBebasKeTarget(dataUrl); });
     input.value = "";
 };
 
 window.mulaiDragFloatImg = function(e, blockIdx, slideIdx, imgIdx, el) {
-    if (e.target.classList.contains('draw-float-img-del') || e.target.classList.contains('draw-float-img-crop') || e.target.classList.contains('draw-float-img-resize')) return;  
+    if (e.target.classList.contains('draw-float-img-del') || e.target.classList.contains('draw-float-img-crop') || e.target.classList.contains('draw-float-img-resize')) return;
     e.stopPropagation(); e.preventDefault();
     let parentLayer = el.parentElement;
-    let pRect = parentLayer.getBoundingClientRect();
+    let pRect = window.ambilVisualRectKanvas(parentLayer);
     let startX = e.clientX, startY = e.clientY;
     let arr = window.ambilArrayFloatImgTarget(blockIdx, slideIdx);
     if (!arr || !arr[imgIdx]) return;
     let initXPct = parseFloat(arr[imgIdx].xPct) || 0;
     let initYPct = parseFloat(arr[imgIdx].yPct) || 0;
 
-    el.setPointerCapture(e.pointerId);
+    try { el.setPointerCapture(e.pointerId); } catch (err) {}
     function move(ev) {
-        let dxPct = ((ev.clientX - startX) / pRect.width) * 100;
-        let dyPct = ((ev.clientY - startY) / pRect.height) * 100;
+        let dxPct = ((ev.clientX - startX) / Math.max(1, pRect.width)) * 100;
+        let dyPct = ((ev.clientY - startY) / Math.max(1, pRect.height)) * 100;
         arr[imgIdx].xPct = Math.max(0, Math.min(92, initXPct + dxPct)).toFixed(2);
         arr[imgIdx].yPct = Math.max(0, Math.min(92, initYPct + dyPct)).toFixed(2);
         el.style.left = arr[imgIdx].xPct + '%';
         el.style.top = arr[imgIdx].yPct + '%';
     }
     function up(ev) {
-        el.releasePointerCapture(e.pointerId);
+        try { el.releasePointerCapture(ev.pointerId); } catch (err) {}
         document.removeEventListener('pointermove', move);
         document.removeEventListener('pointerup', up);
         if (window.simpanKeDB) window.simpanKeDB();
@@ -2204,7 +2458,7 @@ window.mulaiDragFloatImg = function(e, blockIdx, slideIdx, imgIdx, el) {
 window.mulaiResizeFloatImg = function(e, blockIdx, slideIdx, imgIdx, el) {
     e.stopPropagation(); e.preventDefault();
     let parentLayer = el.parentElement;
-    let pRect = parentLayer.getBoundingClientRect();
+    let pRect = window.ambilVisualRectKanvas(parentLayer);
     let startX = e.clientX;
     let arr = window.ambilArrayFloatImgTarget(blockIdx, slideIdx);
     if (!arr || !arr[imgIdx]) return;
@@ -2212,9 +2466,9 @@ window.mulaiResizeFloatImg = function(e, blockIdx, slideIdx, imgIdx, el) {
     let initHPct = parseFloat(arr[imgIdx].hPct) || 25;
     let aspectRatio = initHPct / (initWPct || 1);
 
-    e.target.setPointerCapture(e.pointerId);
+    try { e.target.setPointerCapture(e.pointerId); } catch (err) {}
     function move(ev) {
-        let dwPct = ((ev.clientX - startX) / pRect.width) * 100;
+        let dwPct = ((ev.clientX - startX) / Math.max(1, pRect.width)) * 100;
         let nextWPct = Math.max(5, Math.min(95, initWPct + dwPct));
         let nextHPct = Math.max(5, Math.min(95, nextWPct * aspectRatio));
         arr[imgIdx].wPct = nextWPct.toFixed(2);
@@ -2223,7 +2477,7 @@ window.mulaiResizeFloatImg = function(e, blockIdx, slideIdx, imgIdx, el) {
         el.style.height = arr[imgIdx].hPct + '%';
     }
     function up(ev) {
-        e.target.releasePointerCapture(e.pointerId);
+        try { e.target.releasePointerCapture(ev.pointerId); } catch (err) {}
         document.removeEventListener('pointermove', move);
         document.removeEventListener('pointerup', up);
         if (window.simpanKeDB) window.simpanKeDB();
