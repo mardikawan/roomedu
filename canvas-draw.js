@@ -3,7 +3,23 @@
    SMART SHAPE, LASO PRO, LASER POINTER, GAMBAR BEBAS, & SLIDE PDF HD)
    ========================================================================= */
 
-window.DRAW_DPR = Math.min(window.devicePixelRatio || 1, 2.5);
+window.DRAW_DPR = Math.max(2.5, Math.min((window.devicePixelRatio || 2) * 1.5, 3.5));
+
+// Pengonversi koordinat presisi (kebal terhadap CSS zoom A4, zoom +/-, & pinch zoom iPad)
+window.ambilKoordinatKanvas = function(cvs, clientX, clientY) {
+    let r = cvs.getBoundingClientRect();
+    let dpr = parseFloat(cvs.getAttribute('data-dpr')) || window.DRAW_DPR || 2.5;
+    let cssW = parseFloat(cvs.getAttribute('data-css-w')) || (cvs.width / dpr) || r.width || 1;
+    let cssH = parseFloat(cvs.getAttribute('data-css-h')) || (cvs.height / dpr) || r.height || 1;
+    let scaleX = r.width > 0 ? (cssW / r.width) : 1;
+    let scaleY = r.height > 0 ? (cssH / r.height) : 1;
+    return {
+        x: (clientX - r.left) * scaleX,
+        y: (clientY - r.top) * scaleY,
+        scaleX: scaleX,
+        scaleY: scaleY
+    };
+};
 window.isDrawingMode = false;
 let currentDrawCtx = null, isPenDown = false, activeTool = 'pen';
 window.penSize = 3.6;
@@ -342,7 +358,12 @@ function inisialisasiSatuCanvas(cvs) {
     let ch = p.clientHeight || p.offsetHeight;
     if (cw === 0 || ch === 0) return;
 
-    let dpr = window.DRAW_DPR || 2;
+    let dpr = window.DRAW_DPR || 2.5;
+    // Batas aman tekstur GPU browser/iPad (maks 4096px) agar tidak blank pada blok sangat panjang
+    let maxSide = Math.max(cw, ch);
+    if (maxSide * dpr > 4096) {
+        dpr = Math.max(1.5, 4096 / maxSide);
+    }
     let targetW = Math.round(cw * dpr);
     let targetH = Math.round(ch * dpr);
     let sv = window.ambilDataDrawingTarget(cvs);
@@ -476,31 +497,356 @@ if (window.visualViewport) {
     window.visualViewport.addEventListener('resize', window.updateToolbarPosition, { passive: true });
 }
 
+window.DRAW_PRESET_COLORS = [
+    '#111111', '#e74c3c', '#f97316', '#f1c40f',
+    '#39ff14', '#16a34a', '#0284c7', '#192a56', '#8e44ad'
+];
+window.DRAW_SIZE_OPTIONS = [
+    { label: 'XS', val: 1 },
+    { label: 'S',  val: 1.8 },
+    { label: 'M',  val: 3.6 },
+    { label: 'L',  val: 7.2 },
+    { label: 'XL', val: 10.8 }
+];
+window.DRAW_CUSTOM_COLORS_KEY = 'mahardika_draw_custom_colors_v1';
+window.DRAW_LAST_LASSO_KEY = 'mahardika_draw_last_lasso_v1';
+window.activeCustomColorSlot = -1;
+window.lastLassoTool = (function() {
+    try {
+        let saved = localStorage.getItem('mahardika_draw_last_lasso_v1');
+        if (saved === 'lasso' || saved === 'lasso-box') return saved;
+    } catch (e) {}
+    return 'lasso';
+})();
+
+window.muatWarnaKustomDraw = function() {
+    let def = ['#ec4899', '#14b8a6', '#7f8c8d'];
+    try {
+        let raw = localStorage.getItem(window.DRAW_CUSTOM_COLORS_KEY);
+        if (raw) {
+            let arr = JSON.parse(raw);
+            if (Array.isArray(arr) && arr.length === 3) return arr;
+        }
+    } catch (e) {}
+    return def;
+};
+
+window.simpanWarnaKustomDraw = function(arr) {
+    try {
+        localStorage.setItem(window.DRAW_CUSTOM_COLORS_KEY, JSON.stringify(arr));
+    } catch (e) {}
+};
+
+window.tutupSemuaPopoverDraw = function() {
+    document.querySelectorAll('.draw-popover-panel').forEach(function(p) {
+        p.style.display = 'none';
+    });
+};
+
+window.bukaPopoverDrawDiBawah = function(popoverId, anchorBtn) {
+    let pop = document.getElementById(popoverId);
+    if (!pop || !anchorBtn) return;
+    let sudahBuka = (pop.style.display === 'flex' || pop.style.display === 'block');
+    window.tutupSemuaPopoverDraw();
+    if (sudahBuka) return;
+
+    pop.style.display = 'flex';
+    let rect = anchorBtn.getBoundingClientRect();
+    let pw = pop.offsetWidth || 200;
+    let leftPos = Math.max(8, Math.min(window.innerWidth - pw - 8, rect.left + (rect.width / 2) - (pw / 2)));
+    let topPos = Math.min(window.innerHeight - 160, rect.bottom + 8);
+    pop.style.left = Math.round(leftPos) + 'px';
+    pop.style.top = Math.round(topPos) + 'px';
+};
+
 window.setDrawingTool = function(t) {
     stampLasso();
     activeTool = t;
-    document.querySelectorAll('#pen-tools button.tool-btn').forEach(function(b) { b.classList.remove('active'); });
-    let btn = document.getElementById('btn-' + t);
-    if (btn) btn.classList.add('active');
+    if (t === 'lasso' || t === 'lasso-box') {
+        window.lastLassoTool = t;
+        try { localStorage.setItem(window.DRAW_LAST_LASSO_KEY, t); } catch (e) {}
+    }
+
+    document.querySelectorAll('#pen-tools .pt-tool-btn, #pen-tools .pt-lasso-group').forEach(function(b) {
+        b.classList.remove('active');
+    });
+
+    if (t === 'lasso' || t === 'lasso-box') {
+        let grp = document.getElementById('pt-lasso-group');
+        if (grp) grp.classList.add('active');
+        let ico = document.getElementById('pt-lasso-main-ico');
+        let lbl = document.getElementById('pt-lasso-main-lbl');
+        if (ico) ico.innerText = (t === 'lasso-box') ? '⬚' : '✂️';
+        if (lbl) lbl.innerText = (t === 'lasso-box') ? 'Kotak' : 'Laso';
+        document.querySelectorAll('#draw-popover-lasso .pt-pop-opt').forEach(function(opt) {
+            opt.classList.toggle('active', opt.getAttribute('data-lasso-type') === t);
+        });
+    } else {
+        let btn = document.getElementById('btn-' + t);
+        if (btn) btn.classList.add('active');
+    }
+    window.tutupSemuaPopoverDraw();
 };
 
-window.setPenColor = function(c, btn) {
+window.klikTombolLasoUtama = function(btnEl) {
+    let sedangLaso = (activeTool === 'lasso' || activeTool === 'lasso-box');
+    if (sedangLaso) {
+        window.bukaPopoverDrawDiBawah('draw-popover-lasso', btnEl);
+    } else {
+        window.setDrawingTool(window.lastLassoTool || 'lasso');
+    }
+};
+
+window.setPenColor = function(c, btn, customSlotIdx, tutupPopover) {
     window.penColor = c;
-    document.querySelectorAll('.col-btn').forEach(function(b) { b.classList.remove('active'); });
-    if (btn) btn.classList.add('active');
+    window.activeCustomColorSlot = (typeof customSlotIdx === 'number') ? customSlotIdx : -1;
+
+    let sw = document.getElementById('pt-active-color-dot');
+    if (sw) sw.style.background = c;
+
+    document.querySelectorAll('#draw-popover-color .col-btn').forEach(function(b) {
+        b.classList.remove('active');
+        b.style.borderColor = b.classList.contains('is-custom-slot') ? 'rgba(255,255,255,0.65)' : 'rgba(255,255,255,0.22)';
+    });
+    if (btn) {
+        btn.classList.add('active');
+        btn.style.borderColor = '#ffffff';
+    }
+    let picker = document.getElementById('draw-custom-color-input');
+    if (picker && c && c.length === 7 && c.charAt(0) === '#') {
+        picker.value = c;
+    }
+    if (tutupPopover !== false) {
+        window.tutupSemuaPopoverDraw();
+    }
 };
 
-window.setPenSize = function(s, btn) {
+window.klikSlotWarnaKustom = function(slotIdx, btn) {
+    let customCols = window.muatWarnaKustomDraw();
+    let warnaSlot = customCols[slotIdx] || '#ec4899';
+    let sudahAktif = btn.classList.contains('active') && window.activeCustomColorSlot === slotIdx;
+
+    if (sudahAktif) {
+        window.setPenColor(warnaSlot, btn, slotIdx, false);
+        let picker = document.getElementById('draw-custom-color-input');
+        if (picker) {
+            picker.value = warnaSlot;
+            picker.click();
+        }
+    } else {
+        window.setPenColor(warnaSlot, btn, slotIdx, true);
+    }
+};
+
+window.terapkanWarnaDariPickerDraw = function(hexColor) {
+    if (!hexColor) return;
+    let targetSlot = (window.activeCustomColorSlot >= 0 && window.activeCustomColorSlot < 3) ? window.activeCustomColorSlot : 0;
+    let customCols = window.muatWarnaKustomDraw();
+    customCols[targetSlot] = hexColor;
+    window.simpanWarnaKustomDraw(customCols);
+
+    let slotBtn = document.querySelector('#draw-popover-color .col-btn[data-custom-slot="' + targetSlot + '"]');
+    if (slotBtn) slotBtn.style.background = hexColor;
+    window.setPenColor(hexColor, slotBtn, targetSlot, false);
+};
+
+window.setPenSize = function(s, btn, labelOpt) {
     window.penSize = s;
-    document.querySelectorAll('.sz-btn').forEach(function(b) { b.classList.remove('active'); });
-    if (btn) btn.classList.add('active');
+    let found = window.DRAW_SIZE_OPTIONS.find(function(o) { return o.val === s; });
+    let lbl = labelOpt || (found ? found.label : 'M');
+    let lblEl = document.getElementById('pt-active-size-lbl');
+    if (lblEl) lblEl.innerText = lbl;
+
+    document.querySelectorAll('#draw-popover-size .sz-btn').forEach(function(b) {
+        b.classList.toggle('active', parseFloat(b.getAttribute('data-size')) === s);
+    });
+    window.tutupSemuaPopoverDraw();
 };
 
 window.togglePalmReject = function(isActive) {
-    window.pencilOnly = isActive;
-    if (isActive) document.body.classList.add('palm-reject-on');
+    window.pencilOnly = Boolean(isActive);
+    if (window.pencilOnly) document.body.classList.add('palm-reject-on');
     else document.body.classList.remove('palm-reject-on');
+
+    let btnPalm = document.getElementById('btn-palm-reject-toggle');
+    if (btnPalm) btnPalm.classList.toggle('is-on', window.pencilOnly);
+    let chk = document.getElementById('palm-reject');
+    if (chk) chk.checked = window.pencilOnly;
 };
+
+window.pasangCssToolbarDrawFit = function() {
+    if (document.getElementById('css-pen-tools-fit')) return;
+    let st = document.createElement('style');
+    st.id = 'css-pen-tools-fit';
+    st.textContent =
+        '#pen-tools {' +
+            'width: 100vw !important; max-width: 100vw !important; left: 0 !important; right: 0 !important;' +
+            'box-sizing: border-box !important; overflow: hidden !important; overflow-x: hidden !important;' +
+            'padding: 6px 8px !important; gap: 4px !important; flex-wrap: nowrap !important;' +
+            'justify-content: space-between !important; align-items: center !important;' +
+            'background: #1e293b !important; border-bottom: 1px solid rgba(255,255,255,0.12) !important;' +
+        '}' +
+        '.pt-group { display: flex; align-items: center; gap: 4px; flex-shrink: 1; min-width: 0; }' +
+        '.pt-sep { width: 1px; height: 20px; background: rgba(255,255,255,0.18); flex-shrink: 0; }' +
+        '.pt-btn {' +
+            'display: inline-flex; align-items: center; justify-content: center; gap: 4px;' +
+            'height: 32px; padding: 0 8px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2);' +
+            'background: rgba(255,255,255,0.08); color: #f8fafc; font-family: Poppins, sans-serif;' +
+            'font-size: 11.5px; font-weight: 700; cursor: pointer; white-space: nowrap; flex-shrink: 0;' +
+            'transition: background 0.15s, border-color 0.15s;' +
+        '}' +
+        '.pt-btn:hover { background: rgba(255,255,255,0.18); }' +
+        '.pt-btn.active { background: #38bdf8 !important; color: #0b3954 !important; border-color: #7dd3fc !important; }' +
+        '.pt-btn.is-icon-only { padding: 0 7px; min-width: 30px; }' +
+        '.pt-btn.is-clear { color: #fca5a5; border-color: rgba(248,113,113,0.55); }' +
+        '.pt-btn.is-close { background: #dc2626 !important; border-color: #ef4444 !important; color: #ffffff !important; }' +
+        '.pt-btn.is-palm.is-on { background: #0f766e !important; border-color: #2dd4bf !important; color: #ffffff !important; }' +
+        '.pt-color-trigger { padding: 0 6px !important; gap: 4px !important; }' +
+        '.pt-color-dot { width: 18px; height: 18px; border-radius: 50%; border: 2px solid #ffffff; display: inline-block; flex-shrink: 0; }' +
+        '.pt-caret { font-size: 9px; opacity: 0.85; line-height: 1; }' +
+        '.pt-lasso-group { display: inline-flex; align-items: center; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.08); overflow: hidden; flex-shrink: 0; }' +
+        '.pt-lasso-group.active { background: #38bdf8 !important; border-color: #7dd3fc !important; }' +
+        '.pt-lasso-group.active button { color: #0b3954 !important; }' +
+        '.pt-lasso-main { height: 30px; padding: 0 7px; border: none; background: transparent; color: #f8fafc; font-family: Poppins, sans-serif; font-size: 11.5px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }' +
+        '.pt-lasso-drop { height: 30px; padding: 0 5px; border: none; border-left: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.12); color: #f8fafc; font-size: 10px; cursor: pointer; }' +
+        '.draw-popover-panel {' +
+            'display: none; position: fixed; z-index: 1000260; background: #1e293b; color: #ffffff;' +
+            'border: 1.5px solid rgba(255,255,255,0.22); border-radius: 12px; padding: 10px;' +
+            'box-shadow: 0 12px 30px rgba(0,0,0,0.45); flex-direction: column; gap: 8px;' +
+            'font-family: Poppins, sans-serif;' +
+        '}' +
+        '.pt-color-grid { display: grid; grid-template-columns: repeat(5, 28px); gap: 7px; align-items: center; justify-items: center; }' +
+        '.draw-popover-panel .col-btn { width: 26px; height: 26px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.22); cursor: pointer; padding: 0; }' +
+        '.draw-popover-panel .col-btn.active { transform: scale(1.12); box-shadow: 0 0 0 2px #38bdf8; }' +
+        '.pt-pop-opt { display: flex; align-items: center; gap: 8px; padding: 7px 11px; border: none; border-radius: 8px; background: rgba(255,255,255,0.06); color: #f8fafc; font-family: Poppins, sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; text-align: left; }' +
+        '.pt-pop-opt:hover { background: rgba(255,255,255,0.16); }' +
+        '.pt-pop-opt.active { background: #38bdf8; color: #0b3954; }' +
+        '.pt-size-row { display: flex; gap: 6px; }' +
+        '.draw-popover-panel .sz-btn { min-width: 34px; height: 30px; border-radius: 7px; border: 1px solid rgba(255,255,255,0.25); background: rgba(255,255,255,0.08); color: #ffffff; font-weight: 800; font-size: 11px; cursor: pointer; }' +
+        '.draw-popover-panel .sz-btn.active { background: #ffffff; color: #0b3954; }' +
+        '.draw-float-img-item.is-lasso-attached { outline: 2.5px dashed #38bdf8 !important; box-shadow: 0 6px 20px rgba(56,189,248,0.35) !important; }' +
+        '.draw-float-img-crop { position: absolute; top: -10px; right: 18px; width: 24px; height: 24px; border-radius: 50%; border: 2px solid #ffffff; background: #0284c7; color: #ffffff; font-size: 11px; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 6; box-shadow: 0 2px 6px rgba(0,0,0,0.3); padding: 0; }' +
+        /* Hilangkan tulisan tombol otomatis di layar tablet/HP/laptop sempit agar 100% pas tanpa scroll */
+        '@media (max-width: 1160px) { #pen-tools .pt-lbl { display: none !important; } #pen-tools .pt-btn { padding: 0 6px !important; min-width: 28px; } #pen-tools .pt-lasso-main { padding: 0 6px !important; } }' +
+        '@media (max-width: 560px) { #pen-tools { padding: 4px 5px !important; gap: 2px !important; } #pen-tools .pt-group { gap: 2px !important; } #pen-tools .pt-sep { display: none !important; } #pen-tools .pt-btn { height: 28px !important; min-width: 25px !important; padding: 0 4px !important; font-size: 12px !important; } #pen-tools .pt-lasso-main, #pen-tools .pt-lasso-drop { height: 26px !important; padding: 0 4px !important; } .pt-color-dot { width: 15px !important; height: 15px !important; } }';
+    document.head.appendChild(st);
+};
+
+window.inisialisasiToolbarDrawKompak = function() {
+    window.pasangCssToolbarDrawFit();
+    let penTools = document.getElementById('pen-tools');
+    if (!penTools || penTools.getAttribute('data-compact-v2') === '1') return;
+    penTools.setAttribute('data-compact-v2', '1');
+
+    let lastLasso = window.lastLassoTool || 'lasso';
+    let lassoIco = (lastLasso === 'lasso-box') ? '⬚' : '✂️';
+    let lassoLbl = (lastLasso === 'lasso-box') ? 'Kotak' : 'Laso';
+
+    penTools.innerHTML =
+        '<div class="pt-group">' +
+            '<button type="button" class="pt-btn is-icon-only" onclick="window.undoDraw()" title="Undo">↩️</button>' +
+            '<button type="button" class="pt-btn is-icon-only" onclick="window.redoDraw()" title="Redo">↪️</button>' +
+            '<span class="pt-sep"></span>' +
+            '<button type="button" id="btn-pt-color" class="pt-btn pt-color-trigger" onclick="window.bukaPopoverDrawDiBawah(\'draw-popover-color\', this)" title="Pilih &amp; Ubah Warna">' +
+                '<span id="pt-active-color-dot" class="pt-color-dot" style="background:' + (window.penColor || '#e74c3c') + ';"></span>' +
+                '<span class="pt-caret">▾</span>' +
+            '</button>' +
+            '<button type="button" id="btn-pt-size" class="pt-btn" onclick="window.bukaPopoverDrawDiBawah(\'draw-popover-size\', this)" title="Ukuran Pena">' +
+                '<span id="pt-active-size-lbl">M</span><span class="pt-caret">▾</span>' +
+            '</button>' +
+        '</div>' +
+
+        '<div class="pt-group">' +
+            '<button type="button" id="btn-pen" class="pt-btn pt-tool-btn active" onclick="window.setDrawingTool(\'pen\')" title="Pena">✏️<span class="pt-lbl"> Pena</span></button>' +
+            '<button type="button" id="btn-highlighter" class="pt-btn pt-tool-btn" onclick="window.setDrawingTool(\'highlighter\')" title="Stabilo">🖍️<span class="pt-lbl"> Stabilo</span></button>' +
+            '<button type="button" id="btn-line" class="pt-btn pt-tool-btn" onclick="window.setDrawingTool(\'line\')" title="Garis Lurus">📏<span class="pt-lbl"> Garis</span></button>' +
+            '<button type="button" id="btn-laser" class="pt-btn pt-tool-btn" onclick="window.setDrawingTool(\'laser\')" title="Laser Pointer">🔴<span class="pt-lbl"> Laser</span></button>' +
+            '<button type="button" id="btn-eraser" class="pt-btn pt-tool-btn" onclick="window.setDrawingTool(\'eraser\')" title="Penghapus">🧽<span class="pt-lbl"> Hapus</span></button>' +
+            '<div id="pt-lasso-group" class="pt-lasso-group">' +
+                '<button type="button" class="pt-lasso-main" onclick="window.klikTombolLasoUtama(this.parentElement)" title="Laso (Otomatis pakai jenis terakhir)">' +
+                    '<span id="pt-lasso-main-ico">' + lassoIco + '</span><span id="pt-lasso-main-lbl" class="pt-lbl">' + lassoLbl + '</span>' +
+                '</button>' +
+                '<button type="button" class="pt-lasso-drop" onclick="event.stopPropagation(); window.bukaPopoverDrawDiBawah(\'draw-popover-lasso\', this.parentElement)" title="Pilih Jenis Laso (Freehand / Kotak)">▾</button>' +
+            '</div>' +
+        '</div>' +
+
+        '<div class="pt-group">' +
+            '<button type="button" id="btn-palm-reject-toggle" class="pt-btn is-palm' + (window.pencilOnly ? ' is-on' : '') + '" onclick="window.togglePalmReject(!window.pencilOnly)" title="Palm Reject (iPad Apple Pencil)">✋<span class="pt-lbl"> Palm</span></button>' +
+            '<input type="checkbox" id="palm-reject" style="display:none;" ' + (window.pencilOnly ? 'checked' : '') + '>' +
+            '<button type="button" class="pt-btn is-clear" onclick="window.clearSemuaCoretan()" title="Hapus Semua Coretan">🗑️<span class="pt-lbl"> Clear</span></button>' +
+            '<button type="button" class="pt-btn is-close" onclick="window.toggleDrawingMode()" title="Tutup Mode Draw">✕<span class="pt-lbl"> Tutup</span></button>' +
+        '</div>';
+
+    // Popover 1: Pilihan Warna (9 Preset + 3 Slot Kustom + Pemilih Warna)
+    let oldPopCol = document.getElementById('draw-popover-color');
+    if (oldPopCol) oldPopCol.remove();
+    let popCol = document.createElement('div');
+    popCol.id = 'draw-popover-color';
+    popCol.className = 'draw-popover-panel';
+
+    let customCols = window.muatWarnaKustomDraw();
+    let presetHtml = window.DRAW_PRESET_COLORS.map(function(hex) {
+        let isDef = (hex.toLowerCase() === (window.penColor || '#e74c3c').toLowerCase());
+        return '<button type="button" class="col-btn' + (isDef ? ' active' : '') + '" style="background:' + hex + ';" onclick="window.setPenColor(\'' + hex + '\', this)" title="' + hex + '"></button>';
+    }).join('');
+    let customHtml = customCols.map(function(hex, idx) {
+        return '<button type="button" class="col-btn is-custom-slot" data-custom-slot="' + idx + '" style="background:' + hex + '; border:2px dashed rgba(255,255,255,0.7);" onclick="window.klikSlotWarnaKustom(' + idx + ', this)" title="Slot Kustom ' + (idx + 1) + ' (klik lagi saat aktif untuk ubah warna)"></button>';
+    }).join('');
+
+    popCol.innerHTML =
+        '<div style="font-size:10.5px; font-weight:700; color:#94a3b8;">🎨 Pilih Warna</div>' +
+        '<div class="pt-color-grid">' + presetHtml + '</div>' +
+        '<div style="height:1px; background:rgba(255,255,255,0.14);"></div>' +
+        '<div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">' +
+            '<div style="display:flex; gap:7px; align-items:center;">' + customHtml + '</div>' +
+            '<label title="Ubah Warna Slot Kustom" style="display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:50%; background:conic-gradient(#ef4444,#f59e0b,#22c55e,#3b82f6,#a855f7,#ef4444); border:2px solid #ffffff; cursor:pointer; position:relative; overflow:hidden;">' +
+                '<span style="font-size:12px; pointer-events:none;">🎨</span>' +
+                '<input type="color" id="draw-custom-color-input" value="' + customCols[0] + '" style="position:absolute; inset:0; opacity:0; width:100%; height:100%; cursor:pointer;" oninput="window.terapkanWarnaDariPickerDraw(this.value)" onchange="window.terapkanWarnaDariPickerDraw(this.value)">' +
+            '</label>' +
+        '</div>' +
+        '<div style="font-size:9.5px; color:#94a3b8;">Tip: pilih slot putus-putus lalu tekan 🎨 untuk simpan warna sendiri.</div>';
+    document.body.appendChild(popCol);
+
+    // Popover 2: Pilihan Ukuran Pena (XS - XL)
+    let oldPopSz = document.getElementById('draw-popover-size');
+    if (oldPopSz) oldPopSz.remove();
+    let popSz = document.createElement('div');
+    popSz.id = 'draw-popover-size';
+    popSz.className = 'draw-popover-panel';
+    popSz.innerHTML =
+        '<div style="font-size:10.5px; font-weight:700; color:#94a3b8;">Ketebalan Pena</div>' +
+        '<div class="pt-size-row">' +
+            window.DRAW_SIZE_OPTIONS.map(function(o) {
+                let act = (o.val === window.penSize) ? ' active' : '';
+                return '<button type="button" class="sz-btn' + act + '" data-size="' + o.val + '" onclick="window.setPenSize(' + o.val + ', this, \'' + o.label + '\')">' + o.label + '</button>';
+            }).join('') +
+        '</div>';
+    document.body.appendChild(popSz);
+
+    // Popover 3: Pilihan Jenis Laso (Freehand / Kotak)
+    let oldPopLas = document.getElementById('draw-popover-lasso');
+    if (oldPopLas) oldPopLas.remove();
+    let popLas = document.createElement('div');
+    popLas.id = 'draw-popover-lasso';
+    popLas.className = 'draw-popover-panel';
+    popLas.innerHTML =
+        '<div style="font-size:10.5px; font-weight:700; color:#94a3b8;">Jenis Seleksi Laso</div>' +
+        '<button type="button" class="pt-pop-opt' + (lastLasso === 'lasso' ? ' active' : '') + '" data-lasso-type="lasso" onclick="window.setDrawingTool(\'lasso\')">✂️ Freehand (Bebas)</button>' +
+        '<button type="button" class="pt-pop-opt' + (lastLasso === 'lasso-box' ? ' active' : '') + '" data-lasso-type="lasso-box" onclick="window.setDrawingTool(\'lasso-box\')">⬚ Kotak (Persegi)</button>';
+    document.body.appendChild(popLas);
+};
+
+document.addEventListener('pointerdown', function(e) {
+    if (!e.target.closest('.draw-popover-panel') && !e.target.closest('#btn-pt-color') && !e.target.closest('#btn-pt-size') && !e.target.closest('#pt-lasso-group')) {
+        window.tutupSemuaPopoverDraw();
+    }
+}, true);
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', window.inisialisasiToolbarDrawKompak);
+} else {
+    window.inisialisasiToolbarDrawKompak();
+}
 
 window.clearSemuaCoretan = function() {
     if (confirm("Hapus semua coretan di halaman ini?")) {
@@ -682,7 +1028,11 @@ document.addEventListener('pointerdown', function(e) {
     }
 
     if (!window.isDrawingMode && e.target.tagName === 'IMG' && !e.target.closest('.draw-float-img-item') && !e.target.classList.contains('pdf-slide-bg') && (document.body.classList.contains('mode-edit-aktif') || document.documentElement.classList.contains('force-edit-mode'))) {
-        let i = e.target, sX = e.clientX, sW = i.offsetWidth;
+        let i = e.target;
+        let iRect = i.getBoundingClientRect();
+        let isNearCorner = (iRect.right - e.clientX) <= 22 && (iRect.bottom - e.clientY) <= 22;
+        if (!isNearCorner) return;
+        let sX = e.clientX, sW = i.offsetWidth;
         let parentEl = i.closest('.content-block, .fb-content');
         let maxW = parentEl ? (parentEl.clientWidth - 20) : 900;
         function m(me) {
@@ -705,7 +1055,7 @@ document.addEventListener('pointerdown', function(e) {
     }
 
     if (!window.isDrawingMode) return;
-    if (e.target.closest('#pen-tools') || e.target.closest('#draw-context-menu') || e.target.closest('.pdf-slide-nav-bar') || e.target.closest('.draw-float-img-item')) return;
+    if (e.target.closest('#pen-tools') || e.target.closest('.draw-popover-panel') || e.target.closest('#draw-context-menu') || e.target.closest('.pdf-slide-nav-bar') || e.target.closest('.draw-float-img-item')) return;
 
     if (e.pointerType === 'touch') {
         if (window.pencilOnly || window.activeTouches > 1) {
@@ -722,7 +1072,8 @@ document.addEventListener('pointerdown', function(e) {
     if (e.target.classList.contains('drawing-layer')) {
         clearTimeout(window.longPressDrawTimer);
         let c = e.target;
-        let r = c.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+        let pt = window.ambilKoordinatKanvas(c, e.clientX, e.clientY);
+        let x = pt.x, y = pt.y;
 
         if (window.activeSmartShape && window.activeSmartShape.ctx.canvas === c) {
             let hit = -1;
@@ -811,7 +1162,6 @@ window.recognizeShape = function() {
     if (!isPenDown || !currentDrawCtx || window.isShapeRecognized || window.drawPoints.length < 10) return;
     let pts = window.drawPoints;
     let start = pts[0], end = pts[pts.length - 1];
-    let isClosed = window.jarakAntarTitik(start, end) < 40;
 
     let minX = pts[0].x, maxX = pts[0].x, minY = pts[0].y, maxY = pts[0].y;
     pts.forEach(function(p) {
@@ -821,9 +1171,11 @@ window.recognizeShape = function() {
         if (p.y > maxY) maxY = p.y;
     });
     let w = maxX - minX, h = maxY - minY;
+    let diag = Math.hypot(w, h);
+    let isClosed = window.jarakAntarTitik(start, end) < Math.max(45, diag * 0.25);
 
     let epsilon = Math.max(w, h) * 0.08;
-    if (epsilon < 15) epsilon = 15;
+    if (epsilon < 14) epsilon = 14;
     let simplified = window.simplifyDouglasPeucker(pts, epsilon);
 
     if (isClosed && simplified.length > 2) {
@@ -833,16 +1185,37 @@ window.recognizeShape = function() {
     let type = 'polygon';
     let vertices = simplified;
 
-    if (isClosed && simplified.length > 6) {
-        let rasio = Math.max(w, h) / Math.min(w, h);
-        if (rasio < 1.15) {
+    // Hitung seberapa dekat coretan dengan elips/lingkaran (Circularity Fit)
+    let isMiripLingkaran = false;
+    if (isClosed && w > 18 && h > 18) {
+        let cx = minX + w / 2;
+        let cy = minY + h / 2;
+        let rx = w / 2;
+        let ry = h / 2;
+        let sumDev = 0;
+        let maxNormR = 0;
+        pts.forEach(function(p) {
+            let normR = Math.hypot((p.x - cx) / rx, (p.y - cy) / ry);
+            sumDev += Math.abs(normR - 1);
+            if (normR > maxNormR) maxNormR = normR;
+        });
+        let mad = sumDev / pts.length;
+        // Jika bentuk membulat (tidak bersudut tajam seperti persegi/segitiga) atau sudut >= 6, jadikan lingkaran/oval
+        if ((simplified.length >= 6 && mad < 0.26) || (simplified.length === 5 && mad < 0.13 && maxNormR < 1.24)) {
+            isMiripLingkaran = true;
+        }
+    }
+
+    if (isMiripLingkaran) {
+        let rasio = Math.max(w, h) / Math.max(1, Math.min(w, h));
+        let cx = minX + w / 2, cy = minY + h / 2;
+        if (rasio < 1.25) {
             type = 'circle';
-            let radius = Math.max(w, h) / 2;
-            let cx = minX + w / 2, cy = minY + h / 2;
+            let radius = (w + h) / 4;
             vertices = [{ x: cx, y: cy - radius }, { x: cx + radius, y: cy }, { x: cx, y: cy + radius }, { x: cx - radius, y: cy }];
         } else {
             type = 'oval';
-            vertices = [{ x: minX + w / 2, y: minY }, { x: maxX, y: minY + h / 2 }, { x: minX + w / 2, y: maxY }, { x: minX, y: minY + h / 2 }];
+            vertices = [{ x: cx, y: minY }, { x: maxX, y: cy }, { x: cx, y: maxY }, { x: minX, y: cy }];
         }
     } else if (isClosed && simplified.length >= 4 && simplified.length <= 5) {
         let nPoints = simplified.length - 1;
@@ -993,8 +1366,8 @@ document.addEventListener('pointermove', function(e) {
     if (!window.isDrawingMode) return;
 
     if (window.draggingSmartVertex !== undefined && window.activeSmartShape) {
-        let r = window.activeSmartShape.ctx.canvas.getBoundingClientRect();
-        let x = e.clientX - r.left, y = e.clientY - r.top;
+        let ptDrag = window.ambilKoordinatKanvas(window.activeSmartShape.ctx.canvas, e.clientX, e.clientY);
+        let x = ptDrag.x, y = ptDrag.y;
         window.activeSmartShape.vertices[window.draggingSmartVertex] = { x: x, y: y };
 
         if (window.activeSmartShape.type === 'polygon' && window.activeSmartShape.isClosed) {
@@ -1018,8 +1391,8 @@ document.addEventListener('pointermove', function(e) {
         laserLastActiveTime = Date.now();
         currentLaserStroke.points.push({ x: e.clientX, y: e.clientY });
     } else if (currentDrawCtx) {
-        let r = currentDrawCtx.canvas.getBoundingClientRect();
-        let x = e.clientX - r.left, y = e.clientY - r.top;
+        let ptMove = window.ambilKoordinatKanvas(currentDrawCtx.canvas, e.clientX, e.clientY);
+        let x = ptMove.x, y = ptMove.y;
 
         if (activeTool === 'lasso') {
             lassoPath.push({ x: x, y: y });
@@ -1065,7 +1438,8 @@ document.addEventListener('pointermove', function(e) {
                 let events = (typeof e.getCoalescedEvents === 'function') ? e.getCoalescedEvents() : [e];
                 if (!events || events.length === 0) events = [e];
                 events.forEach(function(ev) {
-                    window.drawPoints.push({ x: ev.clientX - r.left, y: ev.clientY - r.top });
+                    let ptEv = window.ambilKoordinatKanvas(currentDrawCtx.canvas, ev.clientX, ev.clientY);
+                    window.drawPoints.push({ x: ptEv.x, y: ptEv.y });
                 });
 
                 currentDrawCtx.putImageData(window.drawSnapshot, 0, 0);
@@ -1130,12 +1504,81 @@ document.addEventListener('pointerup', function() {
 });
 
 // =========================================================================
-// 5. FITUR LASO PRO RETINA (COPY, PASTE, RESIZE, HAPUS, & MATH AI)
+// 5. FITUR LASO PRO RETINA (BAWA CORETAN + GAMBAR, COPY, PASTE 1:1, WARNA)
 // =========================================================================
+window.lassoAttachedFloats = [];
+window.lassoClipboardImages = [];
+
+window.titikDalamPoligon = function(px, py, poly) {
+    let inside = false;
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+        let xi = poly[i].x, yi = poly[i].y;
+        let xj = poly[j].x, yj = poly[j].y;
+        let intersect = ((yi > py) !== (yj > py)) && (px < (xj - xi) * (py - yi) / ((yj - yi) || 0.0001) + xi);
+        if (intersect) inside = !inside;
+    }
+    return inside;
+};
+
+window.buatElemenFloatImgDOM = function(blockIdx, slideIdx, imgIdx, im) {
+    let div = document.createElement('div');
+    div.className = 'draw-float-img-item';
+    div.setAttribute('data-float-idx', imgIdx);
+    div.style.left = (im.xPct || 10) + '%';
+    div.style.top = (im.yPct || 10) + '%';
+    div.style.width = (im.wPct || 28) + '%';
+    div.style.height = (im.hPct || 28) + '%';
+    div.setAttribute('onpointerdown', 'window.mulaiDragFloatImg(event, ' + blockIdx + ', ' + slideIdx + ', ' + imgIdx + ', this)');
+    div.innerHTML =
+        '<button type="button" class="draw-float-img-crop" onpointerdown="event.stopPropagation()" onclick="window.cropFloatImg(' + blockIdx + ', ' + slideIdx + ', ' + imgIdx + ')" title="Crop Gambar (Kotak / Freehand)">✂️</button>' +
+        '<button type="button" class="draw-float-img-del" onpointerdown="event.stopPropagation()" onclick="window.hapusFloatImg(' + blockIdx + ', ' + slideIdx + ', ' + imgIdx + ')">✕</button>' +
+        '<img src="' + im.src + '" alt="Gambar Tempel">' +
+        '<div class="draw-float-img-resize" onpointerdown="window.mulaiResizeFloatImg(event, ' + blockIdx + ', ' + slideIdx + ', ' + imgIdx + ', this.parentElement)"></div>';
+    return div;
+};
+
+window.sinkronPosisiGambarLaso = function() {
+    if (!floatUI || !lassoTargetCanvas || !window.lassoAttachedFloats.length) return;
+    let fR = floatUI.getBoundingClientRect();
+    let pt = window.ambilKoordinatKanvas(lassoTargetCanvas, fR.left, fR.top);
+    let dpr = parseFloat(lassoTargetCanvas.getAttribute('data-dpr')) || window.DRAW_DPR || 2.5;
+    let cssW = parseFloat(lassoTargetCanvas.getAttribute('data-css-w')) || (lassoTargetCanvas.width / dpr) || 1;
+    let cssH = parseFloat(lassoTargetCanvas.getAttribute('data-css-h')) || (lassoTargetCanvas.height / dpr) || 1;
+
+    let boxX = pt.x;
+    let boxY = pt.y;
+    let boxW = fR.width * pt.scaleX;
+    let boxH = fR.height * pt.scaleY;
+
+    window.lassoAttachedFloats.forEach(function(item) {
+        let nx = boxX + (item.relX * boxW);
+        let ny = boxY + (item.relY * boxH);
+        let nw = Math.max(12, item.relW * boxW);
+        let nh = Math.max(12, item.relH * boxH);
+
+        let xPct = (nx / cssW) * 100;
+        let yPct = (ny / cssH) * 100;
+        let wPct = (nw / cssW) * 100;
+        let hPct = (nh / cssH) * 100;
+
+        item.curXPct = xPct;
+        item.curYPct = yPct;
+        item.curWPct = wPct;
+        item.curHPct = hPct;
+
+        if (item.el) {
+            item.el.style.left = xPct.toFixed(2) + '%';
+            item.el.style.top = yPct.toFixed(2) + '%';
+            item.el.style.width = wPct.toFixed(2) + '%';
+            item.el.style.height = hPct.toFixed(2) + '%';
+        }
+    });
+};
+
 function createFloatingLasso(cvs) {
-    let dpr = parseFloat(cvs.getAttribute('data-dpr')) || window.DRAW_DPR || 2;
-    let cssW = cvs.width / dpr;
-    let cssH = cvs.height / dpr;
+    let dpr = parseFloat(cvs.getAttribute('data-dpr')) || window.DRAW_DPR || 2.5;
+    let cssW = parseFloat(cvs.getAttribute('data-css-w')) || (cvs.width / dpr);
+    let cssH = parseFloat(cvs.getAttribute('data-css-h')) || (cvs.height / dpr);
     let ctx = window.siapkanKonteksRetina(cvs);
 
     let miX = cssW, miY = cssH, maX = 0, maY = 0;
@@ -1148,11 +1591,107 @@ function createFloatingLasso(cvs) {
     let w = Math.round(maX - miX), h = Math.round(maY - miY);
     if (w < 8 || h < 8) return;
 
+    // 1. Cari gambar tempel (.draw-float-img-item) & gambar di dalam materi yang masuk area laso
+    let blockIdxAttr = cvs.getAttribute('data-index');
+    let slideIdxAttr = cvs.getAttribute('data-slide-index');
+    let blockIdx = blockIdxAttr !== null ? parseInt(blockIdxAttr, 10) : -1;
+    let slideIdx = slideIdxAttr !== null ? parseInt(slideIdxAttr, 10) : -1;
+    let parentEl = cvs.parentElement;
+    let capturedFloats = [];
+
+    if (blockIdx >= 0 && parentEl) {
+        let arrImages = window.ambilArrayFloatImgTarget(blockIdx, slideIdx);
+        let floatLayer = parentEl.querySelector('.draw-float-layer');
+
+        // A. Cek gambar yang ada di dalam .content-block (ubah jadi float di posisi persis sama agar bisa digeser bebas bersama laso)
+        let contentBlock = parentEl.querySelector('.content-block');
+        if (contentBlock && arrImages && floatLayer) {
+            let inlineImgs = Array.from(contentBlock.querySelectorAll('img')).filter(function(im) {
+                return !im.classList.contains('pdf-slide-bg') && !im.closest('.draw-float-img-item');
+            });
+            let adaDipromosikan = false;
+
+            inlineImgs.forEach(function(im) {
+                let ir = im.getBoundingClientRect();
+                if (ir.width < 4 || ir.height < 4) return;
+                let pTL = window.ambilKoordinatKanvas(cvs, ir.left, ir.top);
+                let pBR = window.ambilKoordinatKanvas(cvs, ir.right, ir.bottom);
+                let ix = pTL.x, iy = pTL.y, iw = pBR.x - pTL.x, ih = pBR.y - pTL.y;
+                let cx = ix + iw / 2, cy = iy + ih / 2;
+
+                let ovW = Math.max(0, Math.min(maX, ix + iw) - Math.max(miX, ix));
+                let ovH = Math.max(0, Math.min(maY, iy + ih) - Math.max(miY, iy));
+                let overlapRatio = (ovW * ovH) / Math.max(1, iw * ih);
+
+                if (window.titikDalamPoligon(cx, cy, lassoPath) || overlapRatio >= 0.35) {
+                    let newImObj = {
+                        src: im.src,
+                        xPct: ((ix / cssW) * 100).toFixed(2),
+                        yPct: ((iy / cssH) * 100).toFixed(2),
+                        wPct: ((iw / cssW) * 100).toFixed(2),
+                        hPct: ((ih / cssH) * 100).toFixed(2)
+                    };
+                    let newIdx = arrImages.length;
+                    arrImages.push(newImObj);
+                    let newEl = window.buatElemenFloatImgDOM(blockIdx, slideIdx, newIdx, newImObj);
+                    floatLayer.appendChild(newEl);
+                    im.remove();
+                    adaDipromosikan = true;
+                }
+            });
+
+            if (adaDipromosikan && window.contentBlocksData[blockIdx]) {
+                window.contentBlocksData[blockIdx].html = contentBlock.innerHTML;
+            }
+        }
+
+        // B. Cek seluruh .draw-float-img-item pada blok/slide ini
+        if (arrImages && floatLayer) {
+            let floatEls = Array.from(floatLayer.querySelectorAll('.draw-float-img-item'));
+            floatEls.forEach(function(el, fIdx) {
+                let imData = arrImages[fIdx];
+                if (!imData) return;
+                let fx = (parseFloat(imData.xPct) || 0) / 100 * cssW;
+                let fy = (parseFloat(imData.yPct) || 0) / 100 * cssH;
+                let fw = (parseFloat(imData.wPct) || 25) / 100 * cssW;
+                let fh = (parseFloat(imData.hPct) || 25) / 100 * cssH;
+                let cx = fx + fw / 2, cy = fy + fh / 2;
+
+                let ovW = Math.max(0, Math.min(maX, fx + fw) - Math.max(miX, fx));
+                let ovH = Math.max(0, Math.min(maY, fy + fh) - Math.max(miY, fy));
+                let overlapRatio = (ovW * ovH) / Math.max(1, fw * fh);
+
+                if (window.titikDalamPoligon(cx, cy, lassoPath) || overlapRatio >= 0.35) {
+                    capturedFloats.push({
+                        blockIdx: blockIdx,
+                        slideIdx: slideIdx,
+                        imgIdx: fIdx,
+                        el: el,
+                        dataRef: imData,
+                        fx: fx, fy: fy, fw: fw, fh: fh
+                    });
+                }
+            });
+        }
+    }
+
+    // 2. Perluas kotak seleksi agar mencakup coretan + gambar yang terbawa
+    let uMinX = miX, uMinY = miY, uMaxX = maX, uMaxY = maY;
+    capturedFloats.forEach(function(cf) {
+        if (cf.fx < uMinX) uMinX = cf.fx;
+        if (cf.fy < uMinY) uMinY = cf.fy;
+        if (cf.fx + cf.fw > uMaxX) uMaxX = cf.fx + cf.fw;
+        if (cf.fy + cf.fh > uMaxY) uMaxY = cf.fy + cf.fh;
+    });
+    let uW = Math.max(8, Math.round(uMaxX - uMinX));
+    let uH = Math.max(8, Math.round(uMaxY - uMinY));
+
+    // 3. Potong coretan pena di dalam poligon laso ke kanvas melayang
     let tCvs = document.createElement('canvas');
-    tCvs.width = Math.round(w * dpr);
-    tCvs.height = Math.round(h * dpr);
+    tCvs.width = Math.round(uW * dpr);
+    tCvs.height = Math.round(uH * dpr);
     tCvs.setAttribute('data-dpr', dpr);
-    tCvs.className = "lasso-float-canvas";
+    tCvs.className = 'lasso-float-canvas';
 
     let tCtx = tCvs.getContext('2d');
     tCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -1160,12 +1699,12 @@ function createFloatingLasso(cvs) {
     tCtx.imageSmoothingQuality = 'high';
     tCtx.beginPath();
     lassoPath.forEach(function(p, i) {
-        if (i === 0) tCtx.moveTo(p.x - miX, p.y - miY);
-        else tCtx.lineTo(p.x - miX, p.y - miY);
+        if (i === 0) tCtx.moveTo(p.x - uMinX, p.y - uMinY);
+        else tCtx.lineTo(p.x - uMinX, p.y - uMinY);
     });
     tCtx.closePath();
     tCtx.clip();
-    tCtx.drawImage(cvs, 0, 0, cvs.width, cvs.height, -miX, -miY, cssW, cssH);
+    tCtx.drawImage(cvs, 0, 0, cvs.width, cvs.height, -uMinX, -uMinY, cssW, cssH);
 
     ctx.globalCompositeOperation = 'destination-out';
     ctx.beginPath();
@@ -1177,13 +1716,35 @@ function createFloatingLasso(cvs) {
     ctx.fill();
     ctx.globalCompositeOperation = 'source-over';
 
-    window.bangunElemenLassoFloat(cvs, tCvs, miX, miY, w, h);
+    // Hitung koordinat relatif setiap gambar terhadap kotak laso
+    let attached = capturedFloats.map(function(cf) {
+        cf.el.classList.add('is-lasso-attached');
+        return {
+            blockIdx: cf.blockIdx,
+            slideIdx: cf.slideIdx,
+            imgIdx: cf.imgIdx,
+            el: cf.el,
+            dataRef: cf.dataRef,
+            relX: (cf.fx - uMinX) / uW,
+            relY: (cf.fy - uMinY) / uH,
+            relW: cf.fw / uW,
+            relH: cf.fh / uH,
+            curXPct: parseFloat(cf.dataRef.xPct) || 0,
+            curYPct: parseFloat(cf.dataRef.yPct) || 0,
+            curWPct: parseFloat(cf.dataRef.wPct) || 25,
+            curHPct: parseFloat(cf.dataRef.hPct) || 25
+        };
+    });
+
+    window.bangunElemenLassoFloat(cvs, tCvs, uMinX, uMinY, uW, uH, attached);
     lassoPath = [];
 }
 
-window.bangunElemenLassoFloat = function(targetCvs, sourceCanvas, localX, localY, w, h) {
+window.bangunElemenLassoFloat = function(targetCvs, sourceCanvas, localX, localY, w, h, attachedFloatsOpt) {
     stampLasso();
     lassoTargetCanvas = targetCvs;
+    window.lassoAttachedFloats = Array.isArray(attachedFloatsOpt) ? attachedFloatsOpt : [];
+
     floatUI = document.createElement('div');
     floatUI.className = 'lasso-float';
     floatUI.appendChild(sourceCanvas);
@@ -1195,17 +1756,27 @@ window.bangunElemenLassoFloat = function(targetCvs, sourceCanvas, localX, localY
 
     let btnBar = document.createElement('div');
     btnBar.className = 'lasso-btn-bar';
-    btnBar.innerHTML = '<button onclick="window.copySelectionLasso()" title="Salin Coretan">📋 Copy</button>' +
-        '<button onclick="window.pasteSelectionLasso()" title="Gandakan Coretan">📥 Paste</button>' +
-        '<button onclick="window.hapusSelectionLasso()" style="background:#e74c3c;" title="Hapus Coretan">🗑️ Hapus</button>' +
+    btnBar.innerHTML = '<button onclick="window.copySelectionLasso()" title="Salin Coretan &amp; Gambar">📋 Copy</button>' +
+        '<button onclick="window.pasteSelectionLasso()" title="Gandakan Coretan &amp; Gambar">📥 Paste</button>' +
+        '<label title="Ubah Warna Coretan Laso" style="display:inline-flex; align-items:center; gap:3px; background:#0284c7; color:#ffffff; padding:4px 8px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer; position:relative; overflow:hidden; margin:0;">' +
+            '<span>🎨 Warna</span>' +
+            '<input type="color" value="' + (window.penColor || '#e74c3c') + '" style="position:absolute; inset:0; opacity:0; width:100%; height:100%; cursor:pointer;" oninput="window.ubahWarnaSelectionLasso(this.value)" onchange="window.ubahWarnaSelectionLasso(this.value)">' +
+        '</label>' +
+        '<button onclick="window.hapusSelectionLasso()" style="background:#e74c3c;" title="Hapus Seleksi">🗑️ Hapus</button>' +
         '<button onclick="window.convertLassoToMath()" style="background:#8e44ad;" title="Ubah ke Rumus">∑ Math</button>';
     floatUI.appendChild(btnBar);
 
     let r = targetCvs.getBoundingClientRect();
-    floatUI.style.width = w + 'px';
-    floatUI.style.height = h + 'px';
-    floatUI.style.left = (r.left + localX + window.scrollX) + 'px';
-    floatUI.style.top = (r.top + localY + window.scrollY) + 'px';
+    let dpr = parseFloat(targetCvs.getAttribute('data-dpr')) || window.DRAW_DPR || 2.5;
+    let cssW = parseFloat(targetCvs.getAttribute('data-css-w')) || (targetCvs.width / dpr) || r.width || 1;
+    let cssH = parseFloat(targetCvs.getAttribute('data-css-h')) || (targetCvs.height / dpr) || r.height || 1;
+    let invX = r.width / cssW;
+    let invY = r.height / cssH;
+
+    floatUI.style.width = (w * invX) + 'px';
+    floatUI.style.height = (h * invY) + 'px';
+    floatUI.style.left = (r.left + (localX * invX) + window.scrollX) + 'px';
+    floatUI.style.top = (r.top + (localY * invY) + window.scrollY) + 'px';
 
     let isDraggingFloat = false, sX, sY, sL, sT;
     sourceCanvas.addEventListener('pointerdown', function(e) {
@@ -1216,18 +1787,23 @@ window.bangunElemenLassoFloat = function(targetCvs, sourceCanvas, localX, localY
     });
     sourceCanvas.addEventListener('pointermove', function(e) {
         if (!isDraggingFloat) return; e.stopPropagation(); e.preventDefault();
-        floatUI.style.left = (sL + (e.clientX - sX)) + 'px'; floatUI.style.top = (sT + (e.clientY - sY)) + 'px';
+        floatUI.style.left = (sL + (e.clientX - sX)) + 'px';
+        floatUI.style.top = (sT + (e.clientY - sY)) + 'px';
+        window.sinkronPosisiGambarLaso();
     });
     sourceCanvas.addEventListener('pointerup', function(e) {
-        if (!isDraggingFloat) return; isDraggingFloat = false; sourceCanvas.releasePointerCapture(e.pointerId); e.stopPropagation(); e.preventDefault();
+        if (!isDraggingFloat) return; isDraggingFloat = false;
+        sourceCanvas.releasePointerCapture(e.pointerId);
+        window.sinkronPosisiGambarLaso();
+        e.stopPropagation(); e.preventDefault();
     });
 
     let isResizingLasso = false, rSX, rSY, rSW, rSH;
     resizeHandle.addEventListener('pointerdown', function(e) {
         e.stopPropagation(); e.preventDefault();
         isResizingLasso = true; rSX = e.clientX; rSY = e.clientY;
-        rSW = parseFloat(floatUI.style.width) || w;
-        rSH = parseFloat(floatUI.style.height) || h;
+        rSW = parseFloat(floatUI.style.width) || (w * invX);
+        rSH = parseFloat(floatUI.style.height) || (h * invY);
         resizeHandle.setPointerCapture(e.pointerId);
     });
     resizeHandle.addEventListener('pointermove', function(e) {
@@ -1236,11 +1812,13 @@ window.bangunElemenLassoFloat = function(targetCvs, sourceCanvas, localX, localY
         let newH = Math.max(25, rSH + (e.clientY - rSY));
         floatUI.style.width = newW + 'px';
         floatUI.style.height = newH + 'px';
+        window.sinkronPosisiGambarLaso();
     });
     resizeHandle.addEventListener('pointerup', function(e) {
         if (!isResizingLasso) return;
         isResizingLasso = false;
         resizeHandle.releasePointerCapture(e.pointerId);
+        window.sinkronPosisiGambarLaso();
         e.stopPropagation(); e.preventDefault();
     });
 
@@ -1248,20 +1826,96 @@ window.bangunElemenLassoFloat = function(targetCvs, sourceCanvas, localX, localY
     isFloating = true;
 };
 
+window.ubahWarnaSelectionLasso = function(hexColor) {
+    if (!isFloating || !floatUI || !hexColor) return;
+    let cvs = floatUI.querySelector('canvas');
+    if (!cvs) return;
+    let ctx = cvs.getContext('2d');
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalCompositeOperation = 'source-in';
+    ctx.fillStyle = hexColor;
+    ctx.fillRect(0, 0, cvs.width, cvs.height);
+    ctx.restore();
+};
+
 window.copySelectionLasso = function() {
-    if (!isFloating || !floatUI) return;
+    if (!isFloating || !floatUI || !lassoTargetCanvas) return;
     let cvs = floatUI.querySelector('canvas');
     if (cvs) {
+        let fR = floatUI.getBoundingClientRect();
+        let pt = window.ambilKoordinatKanvas(lassoTargetCanvas, fR.left, fR.top);
+        let dpr = parseFloat(lassoTargetCanvas.getAttribute('data-dpr')) || window.DRAW_DPR || 2.5;
+
         window.lassoClipboardDataUrl = cvs.toDataURL('image/png');
-        window.lassoClipboardW = parseFloat(floatUI.style.width) || cvs.width;
-        window.lassoClipboardH = parseFloat(floatUI.style.height) || cvs.height;
+        window.lassoClipboardW = fR.width * pt.scaleX;
+        window.lassoClipboardH = fR.height * pt.scaleY;
+        window.lassoClipboardX = pt.x;
+        window.lassoClipboardY = pt.y;
+        window.lassoClipboardDpr = dpr;
+        window.lassoClipboardImages = (window.lassoAttachedFloats || []).map(function(it) {
+            return { src: it.dataRef.src, relX: it.relX, relY: it.relY, relW: it.relW, relH: it.relH };
+        });
+
         let st = document.getElementById('save-status-bar');
-        if (st) st.innerHTML = "<span style='color:#2ecc71;'>📋 Coretan Laso Disalin!</span>";
+        if (st) st.innerHTML = "<span style='color:#2ecc71;'>📋 Seleksi Laso Disalin!</span>";
     }
 };
 
+window.duplikatGambarClipboardLasoKeKanvas = function(targetCvs, pasteX, pasteY, pasteW, pasteH) {
+    if (!Array.isArray(window.lassoClipboardImages) || window.lassoClipboardImages.length === 0) return [];
+    let bAttr = targetCvs.getAttribute('data-index');
+    let sAttr = targetCvs.getAttribute('data-slide-index');
+    let blockIdx = bAttr !== null ? parseInt(bAttr, 10) : -1;
+    let slideIdx = sAttr !== null ? parseInt(sAttr, 10) : -1;
+    let parentEl = targetCvs.parentElement;
+    let floatLayer = parentEl ? parentEl.querySelector('.draw-float-layer') : null;
+    if (blockIdx < 0 || !floatLayer) return [];
+
+    let arrImages = window.ambilArrayFloatImgTarget(blockIdx, slideIdx);
+    if (!arrImages) return [];
+
+    let dpr = parseFloat(targetCvs.getAttribute('data-dpr')) || window.DRAW_DPR || 2.5;
+    let cssW = parseFloat(targetCvs.getAttribute('data-css-w')) || (targetCvs.width / dpr) || 1;
+    let cssH = parseFloat(targetCvs.getAttribute('data-css-h')) || (targetCvs.height / dpr) || 1;
+
+    let attachedBaru = [];
+    window.lassoClipboardImages.forEach(function(ci) {
+        let nx = pasteX + (ci.relX * pasteW);
+        let ny = pasteY + (ci.relY * pasteH);
+        let nw = Math.max(12, ci.relW * pasteW);
+        let nh = Math.max(12, ci.relH * pasteH);
+        let imObj = {
+            src: ci.src,
+            xPct: ((nx / cssW) * 100).toFixed(2),
+            yPct: ((ny / cssH) * 100).toFixed(2),
+            wPct: ((nw / cssW) * 100).toFixed(2),
+            hPct: ((nh / cssH) * 100).toFixed(2)
+        };
+        let newIdx = arrImages.length;
+        arrImages.push(imObj);
+        let newEl = window.buatElemenFloatImgDOM(blockIdx, slideIdx, newIdx, imObj);
+        newEl.classList.add('is-lasso-attached');
+        floatLayer.appendChild(newEl);
+
+        attachedBaru.push({
+            blockIdx: blockIdx,
+            slideIdx: slideIdx,
+            imgIdx: newIdx,
+            el: newEl,
+            dataRef: imObj,
+            relX: ci.relX, relY: ci.relY, relW: ci.relW, relH: ci.relH,
+            curXPct: parseFloat(imObj.xPct),
+            curYPct: parseFloat(imObj.yPct),
+            curWPct: parseFloat(imObj.wPct),
+            curHPct: parseFloat(imObj.hPct)
+        });
+    });
+    return attachedBaru;
+};
+
 window.pasteSelectionLasso = function() {
-    if (isFloating && floatUI && !window.lassoClipboardDataUrl) {
+    if (isFloating && floatUI) {
         window.copySelectionLasso();
     }
     if (!window.lassoClipboardDataUrl || !lassoTargetCanvas) return;
@@ -1278,7 +1932,23 @@ window.pasteSelectionLasso = function() {
         nCtx.imageSmoothingEnabled = true;
         nCtx.imageSmoothingQuality = 'high';
         nCtx.drawImage(img, 0, 0);
-        window.bangunElemenLassoFloat(targetCvs, newCvs, 40, 40, window.lassoClipboardW || img.width, window.lassoClipboardH || img.height);
+
+        let dpr = parseFloat(targetCvs.getAttribute('data-dpr')) || window.DRAW_DPR || 2.5;
+        let cssW = parseFloat(targetCvs.getAttribute('data-css-w')) || (targetCvs.width / dpr) || targetCvs.getBoundingClientRect().width;
+        let cssH = parseFloat(targetCvs.getAttribute('data-css-h')) || (targetCvs.height / dpr) || targetCvs.getBoundingClientRect().height;
+        let clipDpr = window.lassoClipboardDpr || dpr;
+
+        let pasteW = window.lassoClipboardW || (img.width / clipDpr);
+        let pasteH = window.lassoClipboardH || (img.height / clipDpr);
+        let pasteX = (typeof window.lassoClipboardX === 'number') ? (window.lassoClipboardX + 18) : 40;
+        let pasteY = (typeof window.lassoClipboardY === 'number') ? (window.lassoClipboardY + 18) : 40;
+        pasteX = Math.max(8, Math.min(Math.max(8, cssW - pasteW), pasteX));
+        pasteY = Math.max(8, Math.min(Math.max(8, cssH - pasteH), pasteY));
+
+        window.lassoClipboardX = pasteX;
+        window.lassoClipboardY = pasteY;
+        let attachedPaste = window.duplikatGambarClipboardLasoKeKanvas(targetCvs, pasteX, pasteY, pasteW, pasteH);
+        window.bangunElemenLassoFloat(targetCvs, newCvs, pasteX, pasteY, pasteW, pasteH, attachedPaste);
     };
     img.src = window.lassoClipboardDataUrl;
 };
@@ -1297,10 +1967,19 @@ window.pasteHasilLasoDiTitik = function() {
         nCtx.imageSmoothingEnabled = true;
         nCtx.imageSmoothingQuality = 'high';
         nCtx.drawImage(img, 0, 0);
-        let r = t.cvs.getBoundingClientRect();
-        let lx = (t.xPct / 100) * r.width;
-        let ly = (t.yPct / 100) * r.height;
-        window.bangunElemenLassoFloat(t.cvs, newCvs, lx, ly, window.lassoClipboardW || img.width, window.lassoClipboardH || img.height);
+
+        let dpr = parseFloat(t.cvs.getAttribute('data-dpr')) || window.DRAW_DPR || 2.5;
+        let cssW = parseFloat(t.cvs.getAttribute('data-css-w')) || (t.cvs.width / dpr) || t.cvs.getBoundingClientRect().width;
+        let cssH = parseFloat(t.cvs.getAttribute('data-css-h')) || (t.cvs.height / dpr) || t.cvs.getBoundingClientRect().height;
+        let clipDpr = window.lassoClipboardDpr || dpr;
+
+        let pasteW = window.lassoClipboardW || (img.width / clipDpr);
+        let pasteH = window.lassoClipboardH || (img.height / clipDpr);
+        let lx = (t.xPct / 100) * cssW;
+        let ly = (t.yPct / 100) * cssH;
+
+        let attachedPaste = window.duplikatGambarClipboardLasoKeKanvas(t.cvs, lx, ly, pasteW, pasteH);
+        window.bangunElemenLassoFloat(t.cvs, newCvs, lx, ly, pasteW, pasteH, attachedPaste);
     };
     img.src = window.lassoClipboardDataUrl;
 };
@@ -1310,22 +1989,61 @@ window.hapusSelectionLasso = function() {
     floatUI.remove();
     floatUI = null;
     isFloating = false;
+
+    let adaGambarDihapus = false;
+    if (window.lassoAttachedFloats && window.lassoAttachedFloats.length > 0) {
+        let byTarget = {};
+        window.lassoAttachedFloats.forEach(function(it) {
+            if (it.el && it.el.parentNode) it.el.remove();
+            let key = it.blockIdx + ':' + it.slideIdx;
+            if (!byTarget[key]) byTarget[key] = { b: it.blockIdx, s: it.slideIdx, refs: [] };
+            byTarget[key].refs.push(it.dataRef);
+        });
+        Object.values(byTarget).forEach(function(g) {
+            let arr = window.ambilArrayFloatImgTarget(g.b, g.s);
+            if (arr) {
+                for (let i = arr.length - 1; i >= 0; i--) {
+                    if (g.refs.indexOf(arr[i]) !== -1) arr.splice(i, 1);
+                }
+                adaGambarDihapus = true;
+            }
+        });
+        window.lassoAttachedFloats = [];
+    }
+
     if (lassoTargetCanvas) {
         window.simpanDataDrawingTarget(lassoTargetCanvas, lassoTargetCanvas.toDataURL('image/png'));
+        if (adaGambarDihapus && typeof window.renderBlocks === 'function') window.renderBlocks();
         if (window.simpanKeDB) window.simpanKeDB();
     }
 };
 
 function stampLasso() {
     if (!isFloating || !floatUI || !lassoTargetCanvas) return;
+    window.sinkronPosisiGambarLaso();
+
     let ctx = window.siapkanKonteksRetina(lassoTargetCanvas);
-    let cR = lassoTargetCanvas.getBoundingClientRect();
     let fR = floatUI.getBoundingClientRect();
-    let targetW = parseFloat(floatUI.style.width) || fR.width;
-    let targetH = parseFloat(floatUI.style.height) || fR.height;
+    let ptTopLeft = window.ambilKoordinatKanvas(lassoTargetCanvas, fR.left, fR.top);
+    let drawW = fR.width * ptTopLeft.scaleX;
+    let drawH = fR.height * ptTopLeft.scaleY;
 
     ctx.globalCompositeOperation = 'source-over';
-    ctx.drawImage(floatUI.querySelector('canvas'), fR.left - cR.left, fR.top - cR.top, targetW, targetH);
+    ctx.drawImage(floatUI.querySelector('canvas'), ptTopLeft.x, ptTopLeft.y, drawW, drawH);
+
+    if (window.lassoAttachedFloats && window.lassoAttachedFloats.length > 0) {
+        window.lassoAttachedFloats.forEach(function(it) {
+            if (it.el) it.el.classList.remove('is-lasso-attached');
+            if (it.dataRef) {
+                it.dataRef.xPct = Number(it.curXPct).toFixed(2);
+                it.dataRef.yPct = Number(it.curYPct).toFixed(2);
+                it.dataRef.wPct = Number(it.curWPct).toFixed(2);
+                it.dataRef.hPct = Number(it.curHPct).toFixed(2);
+            }
+        });
+        window.lassoAttachedFloats = [];
+    }
+
     floatUI.remove();
     floatUI = null;
     isFloating = false;
@@ -1358,12 +2076,33 @@ window.renderFloatImagesHTML = function(blockIdx, slideIdx, arrImages) {
     let html = "";
     arrImages.forEach(function(im, imgIdx) {
         html += '<div class="draw-float-img-item" style="left:' + (im.xPct || 10) + '%; top:' + (im.yPct || 10) + '%; width:' + (im.wPct || 28) + '%; height:' + (im.hPct || 28) + '%;" onpointerdown="window.mulaiDragFloatImg(event, ' + blockIdx + ', ' + slideIdx + ', ' + imgIdx + ', this)">' +
+            '<button type="button" class="draw-float-img-crop" onpointerdown="event.stopPropagation()" onclick="window.cropFloatImg(' + blockIdx + ', ' + slideIdx + ', ' + imgIdx + ')" title="Crop Gambar (Kotak / Freehand)">✂️</button>' +
             '<button type="button" class="draw-float-img-del" onpointerdown="event.stopPropagation()" onclick="window.hapusFloatImg(' + blockIdx + ', ' + slideIdx + ', ' + imgIdx + ')">✕</button>' +
             '<img src="' + im.src + '" alt="Gambar Tempel">' +
             '<div class="draw-float-img-resize" onpointerdown="window.mulaiResizeFloatImg(event, ' + blockIdx + ', ' + slideIdx + ', ' + imgIdx + ', this.parentElement)"></div>' +
         '</div>';
     });
     return html;
+};
+
+window.cropFloatImg = function(blockIdx, slideIdx, imgIdx) {
+    let arr = window.ambilArrayFloatImgTarget(blockIdx, slideIdx);
+    if (!arr || !arr[imgIdx] || typeof window.bukaModalCropGambar !== 'function') return;
+    let item = arr[imgIdx];
+
+    window.bukaModalCropGambar(item.src, function(res) {
+        if (!res || !res.dataUrl) return;
+        let oldW = parseFloat(item.wPct) || 25;
+        let oldH = parseFloat(item.hPct) || 25;
+        let ratioW = res.width / Math.max(1, res.origWidth || res.width);
+        let ratioH = res.height / Math.max(1, res.origHeight || res.height);
+
+        item.src = res.finalUrl || res.dataUrl;
+        item.wPct = Math.max(6, Math.min(95, oldW * ratioW)).toFixed(2);
+        item.hPct = Math.max(6, Math.min(95, oldH * ratioH)).toFixed(2);
+        window.renderBlocks();
+        if (window.simpanKeDB) window.simpanKeDB();
+    });
 };
 
 window.ambilArrayFloatImgTarget = function(blockIdx, slideIdx) {
@@ -1433,7 +2172,7 @@ window.prosesFileGambarDraw = function(input) {
 };
 
 window.mulaiDragFloatImg = function(e, blockIdx, slideIdx, imgIdx, el) {
-    if (e.target.classList.contains('draw-float-img-del') || e.target.classList.contains('draw-float-img-resize')) return;
+    if (e.target.classList.contains('draw-float-img-del') || e.target.classList.contains('draw-float-img-crop') || e.target.classList.contains('draw-float-img-resize')) return;  
     e.stopPropagation(); e.preventDefault();
     let parentLayer = el.parentElement;
     let pRect = parentLayer.getBoundingClientRect();

@@ -6351,7 +6351,481 @@ window.bangunToolbarKontrolGambar = function() {
         '<button type="button" onclick="window.setModeLayoutGambar(\'wrap-right\')" title="Wrap Teks Kanan (Teks Mengalir di Kiri)" style="font-size:11px;">◨ Kanan</button>' +
         '<button type="button" onclick="window.setModeLayoutGambar(\'center\')" title="Rata Tengah (Baris Sendiri)" style="font-size:11px;">≡</button>' +
         '<div style="width:1px;height:14px;background:rgba(255,255,255,0.3);margin:0 4px;"></div>' +
+        '<button type="button" onclick="window.cropGambarTerpilih()" style="font-size:11px; font-weight:800; color:#7dd3fc;" title="Crop Gambar (Kotak atau Freehand)">✂️ Crop</button>' +
         '<button type="button" id="btn-layout-img" onclick="window.toggleLayoutGambar()" style="font-size:11px; font-weight:bold;" title="Ubah ke Melayang Bebas (Float) / Kembali ke Inline">🕊️ Float</button>';
+};
+
+/* =========================================================================
+   MESIN CROP GAMBAR UNIVERSAL (MODE KOTAK & MODE FREEHAND / LASO)
+   - Mendukung Mouse, Jari, & Apple Pencil
+   - Freehand menghasilkan PNG transparan tepat mengikuti garis potongan
+   - Otomatis unggah hasil crop ke Cloudinary jika gambar dari soal / cloud
+   ========================================================================= */
+window._imgCropState = {
+    mode: 'rect',
+    img: null,
+    dispW: 0,
+    dispH: 0,
+    rect: null,
+    freePath: [],
+    dragAction: null,
+    dragStart: null,
+    initRect: null,
+    onApply: null,
+    origSrc: ''
+};
+
+window.muatGambarUntukCrop = async function(src) {
+    function loadImg(url, useCors) {
+        return new Promise(function(resolve, reject) {
+            let im = new Image();
+            if (useCors) im.crossOrigin = 'anonymous';
+            im.onload = function() { resolve(im); };
+            im.onerror = reject;
+            im.src = url;
+        });
+    }
+
+    if (!src) throw new Error('Sumber gambar kosong.');
+    if (src.indexOf('data:') === 0 || src.indexOf('blob:') === 0) {
+        return await loadImg(src, false);
+    }
+
+    try {
+        let sep = (src.indexOf('?') === -1) ? '?' : '&';
+        return await loadImg(src + sep + 'crop_cors=' + Date.now(), true);
+    } catch (e1) {
+        let resp = await fetch(src);
+        let blob = await resp.blob();
+        let objUrl = URL.createObjectURL(blob);
+        let im = await loadImg(objUrl, false);
+        setTimeout(function() { URL.revokeObjectURL(objUrl); }, 15000);
+        return im;
+    }
+};
+
+window.pastikanModalCropGambarAda = function() {
+    let modal = document.getElementById('modal-crop-gambar');
+    if (modal) return modal;
+
+    modal = document.createElement('div');
+    modal.id = 'modal-crop-gambar';
+    modal.className = 'modal-overlay';
+    modal.style.zIndex = '1000280';
+    modal.onclick = function(e) {
+        if (e.target === modal) window.tutupModal('modal-crop-gambar');
+    };
+
+    modal.innerHTML =
+        '<div class="modal-box" style="width:740px; max-width:95vw; max-height:92vh; display:flex; flex-direction:column; border-radius:14px; overflow:hidden;">' +
+            '<div class="modal-header" style="background:#0b3954; color:#ffffff; padding:12px 16px;">' +
+                '<div>' +
+                    '<h3 style="margin:0; font-size:15px;">✂️ Crop Gambar (Kotak &amp; Freehand)</h3>' +
+                    '<div id="crop-mode-hint" style="font-size:11px; color:#bae6fd; margin-top:2px;">Geser 4 titik sudut atau tarik area kotak untuk memotong gambar.</div>' +
+                '</div>' +
+                '<button type="button" class="close-btn" style="color:#ffffff;" onclick="window.tutupModal(\'modal-crop-gambar\')">✕</button>' +
+            '</div>' +
+            '<div class="modal-body" style="padding:14px; background:#0f172a; display:flex; flex-direction:column; gap:10px; align-items:center;">' +
+                '<div style="display:flex; justify-content:space-between; align-items:center; width:100%; gap:8px; flex-wrap:wrap;">' +
+                    '<div style="display:flex; gap:6px; background:#1e293b; padding:4px; border-radius:10px;">' +
+                        '<button type="button" id="btn-crop-mode-rect" onclick="window.setModeCropGambar(\'rect\')" style="padding:6px 14px; border:none; border-radius:7px; background:#38bdf8; color:#0b3954; font-weight:800; font-size:12px; cursor:pointer;">⬚ Kotak</button>' +
+                        '<button type="button" id="btn-crop-mode-free" onclick="window.setModeCropGambar(\'freehand\')" style="padding:6px 14px; border:none; border-radius:7px; background:transparent; color:#cbd5e1; font-weight:800; font-size:12px; cursor:pointer;">✂️ Freehand (Laso)</button>' +
+                    '</div>' +
+                    '<button type="button" onclick="window.resetAreaCropGambar()" style="padding:6px 12px; border:1px solid #475569; border-radius:8px; background:#1e293b; color:#e2e8f0; font-size:11.5px; font-weight:700; cursor:pointer;">↺ Reset Area</button>' +
+                '</div>' +
+
+                '<div style="width:100%; display:flex; justify-content:center; align-items:center; background:#020617; border:1px solid #334155; border-radius:10px; padding:10px; overflow:hidden; min-height:240px;">' +
+                    '<canvas id="crop-gambar-canvas" style="display:block; max-width:100%; touch-action:none; cursor:crosshair; border-radius:4px;"></canvas>' +
+                '</div>' +
+
+                '<div style="display:flex; justify-content:flex-end; gap:8px; width:100%;">' +
+                    '<button type="button" class="btn-action" style="background:#475569; width:auto; padding:9px 18px; font-size:12.5px;" onclick="window.tutupModal(\'modal-crop-gambar\')">Batal</button>' +
+                    '<button type="button" id="btn-terapkan-crop-gambar" class="btn-action" style="background:#16a34a; width:auto; padding:9px 22px; font-size:12.5px; font-weight:800;" onclick="window.terapkanCropGambarSekarang()">✅ Terapkan Crop</button>' +
+                '</div>' +
+            '</div>' +
+        '</div>';
+
+    document.body.appendChild(modal);
+    window.pasangEventKanvasCrop();
+    return modal;
+};
+
+window.setModeCropGambar = function(mode) {
+    let st = window._imgCropState;
+    st.mode = (mode === 'freehand') ? 'freehand' : 'rect';
+
+    let bRect = document.getElementById('btn-crop-mode-rect');
+    let bFree = document.getElementById('btn-crop-mode-free');
+    let hint = document.getElementById('crop-mode-hint');
+
+    if (bRect) {
+        bRect.style.background = (st.mode === 'rect') ? '#38bdf8' : 'transparent';
+        bRect.style.color = (st.mode === 'rect') ? '#0b3954' : '#cbd5e1';
+    }
+    if (bFree) {
+        bFree.style.background = (st.mode === 'freehand') ? '#38bdf8' : 'transparent';
+        bFree.style.color = (st.mode === 'freehand') ? '#0b3954' : '#cbd5e1';
+    }
+    if (hint) {
+        hint.innerText = (st.mode === 'freehand')
+            ? 'Coret melingkar bebas pada bagian gambar yang ingin diambil (hasil otomatis transparan).'
+            : 'Geser 4 titik sudut, geser kotak di tengah, atau tarik ulang area kotak crop.';
+    }
+    window.gambarKanvasCrop();
+};
+
+window.resetAreaCropGambar = function() {
+    let st = window._imgCropState;
+    let w = st.dispW || 300;
+    let h = st.dispH || 200;
+    st.rect = { x: w * 0.08, y: h * 0.08, w: w * 0.84, h: h * 0.84 };
+    st.freePath = [];
+    window.gambarKanvasCrop();
+};
+
+window.gambarKanvasCrop = function() {
+    let st = window._imgCropState;
+    let cvs = document.getElementById('crop-gambar-canvas');
+    if (!cvs || !st.img) return;
+
+    let ctx = cvs.getContext('2d');
+    let w = st.dispW, h = st.dispH;
+    ctx.clearRect(0, 0, w, h);
+    ctx.drawImage(st.img, 0, 0, w, h);
+
+    if (st.mode === 'rect' && st.rect) {
+        let r = st.rect;
+        // Redupkan bagian luar kotak crop
+        ctx.save();
+        ctx.fillStyle = 'rgba(2, 6, 23, 0.58)';
+        ctx.beginPath();
+        ctx.rect(0, 0, w, h);
+        ctx.rect(r.x, r.y, r.w, r.h);
+        ctx.fill('evenodd');
+
+        // Bingkai & garis bantu 3x3
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(r.x, r.y, r.w, r.h);
+
+        ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+        ctx.lineWidth = 1;
+        for (let k = 1; k <= 2; k++) {
+            ctx.beginPath();
+            ctx.moveTo(r.x + (r.w * k / 3), r.y);
+            ctx.lineTo(r.x + (r.w * k / 3), r.y + r.h);
+            ctx.moveTo(r.x, r.y + (r.h * k / 3));
+            ctx.lineTo(r.x + r.w, r.y + (r.h * k / 3));
+            ctx.stroke();
+        }
+
+        // 4 Titik sudut
+        let corners = [
+            { x: r.x, y: r.y },
+            { x: r.x + r.w, y: r.y },
+            { x: r.x + r.w, y: r.y + r.h },
+            { x: r.x, y: r.y + r.h }
+        ];
+        corners.forEach(function(pt) {
+            ctx.beginPath();
+            ctx.arc(pt.x, pt.y, 7, 0, Math.PI * 2);
+            ctx.fillStyle = '#38bdf8';
+            ctx.fill();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#ffffff';
+            ctx.stroke();
+        });
+        ctx.restore();
+    } else if (st.mode === 'freehand') {
+        if (st.freePath && st.freePath.length > 2) {
+            ctx.save();
+            ctx.fillStyle = 'rgba(2, 6, 23, 0.58)';
+            ctx.beginPath();
+            ctx.rect(0, 0, w, h);
+            ctx.moveTo(st.freePath[0].x, st.freePath[0].y);
+            for (let i = 1; i < st.freePath.length; i++) {
+                ctx.lineTo(st.freePath[i].x, st.freePath[i].y);
+            }
+            ctx.closePath();
+            ctx.fill('evenodd');
+
+            ctx.beginPath();
+            ctx.moveTo(st.freePath[0].x, st.freePath[0].y);
+            for (let j = 1; j < st.freePath.length; j++) {
+                ctx.lineTo(st.freePath[j].x, st.freePath[j].y);
+            }
+            ctx.closePath();
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 2.5;
+            ctx.setLineDash([6, 4]);
+            ctx.stroke();
+            ctx.restore();
+        }
+    }
+};
+
+window.pasangEventKanvasCrop = function() {
+    let cvs = document.getElementById('crop-gambar-canvas');
+    if (!cvs || cvs.getAttribute('data-crop-bound') === '1') return;
+    cvs.setAttribute('data-crop-bound', '1');
+
+    function getPt(ev) {
+        let rc = cvs.getBoundingClientRect();
+        let sx = cvs.width / Math.max(1, rc.width);
+        let sy = cvs.height / Math.max(1, rc.height);
+        return {
+            x: Math.max(0, Math.min(cvs.width, (ev.clientX - rc.left) * sx)),
+            y: Math.max(0, Math.min(cvs.height, (ev.clientY - rc.top) * sy))
+        };
+    }
+
+    cvs.addEventListener('pointerdown', function(ev) {
+        let st = window._imgCropState;
+        if (!st.img) return;
+        ev.preventDefault();
+        let pt = getPt(ev);
+        try { cvs.setPointerCapture(ev.pointerId); } catch (e) {}
+
+        if (st.mode === 'freehand') {
+            st.dragAction = 'freehand';
+            st.freePath = [pt];
+            window.gambarKanvasCrop();
+            return;
+        }
+
+        let r = st.rect;
+        let hitRad = 18;
+        if (Math.hypot(pt.x - r.x, pt.y - r.y) <= hitRad) st.dragAction = 'tl';
+        else if (Math.hypot(pt.x - (r.x + r.w), pt.y - r.y) <= hitRad) st.dragAction = 'tr';
+        else if (Math.hypot(pt.x - (r.x + r.w), pt.y - (r.y + r.h)) <= hitRad) st.dragAction = 'br';
+        else if (Math.hypot(pt.x - r.x, pt.y - (r.y + r.h)) <= hitRad) st.dragAction = 'bl';
+        else if (pt.x >= r.x && pt.x <= r.x + r.w && pt.y >= r.y && pt.y <= r.y + r.h) st.dragAction = 'move';
+        else {
+            st.dragAction = 'new';
+            st.rect = { x: pt.x, y: pt.y, w: 1, h: 1 };
+        }
+        st.dragStart = pt;
+        st.initRect = Object.assign({}, st.rect);
+        window.gambarKanvasCrop();
+    });
+
+    cvs.addEventListener('pointermove', function(ev) {
+        let st = window._imgCropState;
+        if (!st.dragAction || !st.img) return;
+        ev.preventDefault();
+        let pt = getPt(ev);
+
+        if (st.dragAction === 'freehand') {
+            let last = st.freePath[st.freePath.length - 1];
+            if (!last || Math.hypot(pt.x - last.x, pt.y - last.y) >= 3) {
+                st.freePath.push(pt);
+                window.gambarKanvasCrop();
+            }
+            return;
+        }
+
+        let r0 = st.initRect;
+        let w = st.dispW, h = st.dispH;
+        let minSz = 24;
+
+        if (st.dragAction === 'move') {
+            let nx = Math.max(0, Math.min(w - r0.w, r0.x + (pt.x - st.dragStart.x)));
+            let ny = Math.max(0, Math.min(h - r0.h, r0.y + (pt.y - st.dragStart.y)));
+            st.rect = { x: nx, y: ny, w: r0.w, h: r0.h };
+        } else if (st.dragAction === 'new') {
+            let x1 = Math.min(st.dragStart.x, pt.x);
+            let y1 = Math.min(st.dragStart.y, pt.y);
+            let x2 = Math.max(st.dragStart.x, pt.x);
+            let y2 = Math.max(st.dragStart.y, pt.y);
+            st.rect = { x: x1, y: y1, w: Math.max(minSz, x2 - x1), h: Math.max(minSz, y2 - y1) };
+        } else if (st.dragAction === 'tl') {
+            let rx = r0.x + r0.w, by = r0.y + r0.h;
+            let nx = Math.min(rx - minSz, pt.x), ny = Math.min(by - minSz, pt.y);
+            st.rect = { x: nx, y: ny, w: rx - nx, h: by - ny };
+        } else if (st.dragAction === 'tr') {
+            let by = r0.y + r0.h;
+            let ny = Math.min(by - minSz, pt.y), nw = Math.max(minSz, pt.x - r0.x);
+            st.rect = { x: r0.x, y: ny, w: Math.min(w - r0.x, nw), h: by - ny };
+        } else if (st.dragAction === 'br') {
+            let nw = Math.max(minSz, pt.x - r0.x), nh = Math.max(minSz, pt.y - r0.y);
+            st.rect = { x: r0.x, y: r0.y, w: Math.min(w - r0.x, nw), h: Math.min(h - r0.y, nh) };
+        } else if (st.dragAction === 'bl') {
+            let rx = r0.x + r0.w;
+            let nx = Math.min(rx - minSz, pt.x), nh = Math.max(minSz, pt.y - r0.y);
+            st.rect = { x: nx, y: r0.y, w: rx - nx, h: Math.min(h - r0.y, nh) };
+        }
+        window.gambarKanvasCrop();
+    });
+
+    function endDrag(ev) {
+        let st = window._imgCropState;
+        if (!st.dragAction) return;
+        st.dragAction = null;
+        try { cvs.releasePointerCapture(ev.pointerId); } catch (e) {}
+    }
+
+    cvs.addEventListener('pointerup', endDrag);
+    cvs.addEventListener('pointercancel', endDrag);
+};
+
+window.bukaModalCropGambar = async function(imgSrc, onApplyCallback) {
+    window.pastikanModalCropGambarAda();
+    let st = window._imgCropState;
+    st.onApply = onApplyCallback;
+    st.origSrc = imgSrc;
+    st.mode = 'rect';
+    st.freePath = [];
+
+    window.bukaModal('modal-crop-gambar');
+    let btnOk = document.getElementById('btn-terapkan-crop-gambar');
+    if (btnOk) { btnOk.disabled = true; btnOk.innerText = '⏳ Memuat gambar...'; }
+
+    try {
+        let img = await window.muatGambarUntukCrop(imgSrc);
+        st.img = img;
+
+        let maxW = Math.min(680, Math.max(260, window.innerWidth - 70));
+        let maxH = Math.min(460, Math.max(220, window.innerHeight - 250));
+        let scale = Math.min(maxW / Math.max(1, img.naturalWidth), maxH / Math.max(1, img.naturalHeight), 1);
+
+        st.dispW = Math.max(120, Math.round(img.naturalWidth * scale));
+        st.dispH = Math.max(90, Math.round(img.naturalHeight * scale));
+
+        let cvs = document.getElementById('crop-gambar-canvas');
+        if (cvs) {
+            cvs.width = st.dispW;
+            cvs.height = st.dispH;
+        }
+        window.resetAreaCropGambar();
+        window.setModeCropGambar('rect');
+    } catch (err) {
+        alert('❌ Gambar tidak bisa dimuat untuk di-crop: ' + (err && err.message ? err.message : 'CORS / Jaringan'));
+        window.tutupModal('modal-crop-gambar');
+    } finally {
+        if (btnOk) { btnOk.disabled = false; btnOk.innerText = '✅ Terapkan Crop'; }
+    }
+};
+
+window.terapkanCropGambarSekarang = async function() {
+    let st = window._imgCropState;
+    if (!st.img) return;
+
+    let scaleX = st.img.naturalWidth / Math.max(1, st.dispW);
+    let scaleY = st.img.naturalHeight / Math.max(1, st.dispH);
+    let isFree = (st.mode === 'freehand');
+
+    let sx = 0, sy = 0, sw = 0, sh = 0;
+    if (isFree) {
+        if (!st.freePath || st.freePath.length < 4) {
+            return alert('⚠️ Coret bentuk bebas pada gambar terlebih dahulu untuk Crop Freehand.');
+        }
+        let minX = st.dispW, minY = st.dispH, maxX = 0, maxY = 0;
+        st.freePath.forEach(function(p) {
+            if (p.x < minX) minX = p.x;
+            if (p.x > maxX) maxX = p.x;
+            if (p.y < minY) minY = p.y;
+            if (p.y > maxY) maxY = p.y;
+        });
+        sx = Math.max(0, Math.round(minX * scaleX));
+        sy = Math.max(0, Math.round(minY * scaleY));
+        sw = Math.max(10, Math.round((maxX - minX) * scaleX));
+        sh = Math.max(10, Math.round((maxY - minY) * scaleY));
+    } else {
+        if (!st.rect || st.rect.w < 10 || st.rect.h < 10) {
+            return alert('⚠️ Area kotak crop terlalu kecil.');
+        }
+        sx = Math.max(0, Math.round(st.rect.x * scaleX));
+        sy = Math.max(0, Math.round(st.rect.y * scaleY));
+        sw = Math.max(10, Math.round(st.rect.w * scaleX));
+        sh = Math.max(10, Math.round(st.rect.h * scaleY));
+    }
+
+    // Batasi dimensi output maks 1200px agar tetap tajam dan ringan
+    let maxOut = 1200;
+    let outScale = Math.max(sw, sh) > maxOut ? (maxOut / Math.max(sw, sh)) : 1;
+    let outW = Math.max(10, Math.round(sw * outScale));
+    let outH = Math.max(10, Math.round(sh * outScale));
+
+    let outCvs = document.createElement('canvas');
+    outCvs.width = outW;
+    outCvs.height = outH;
+    let ctx = outCvs.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+
+    if (isFree) {
+        ctx.save();
+        ctx.beginPath();
+        st.freePath.forEach(function(p, idx) {
+            let px = ((p.x * scaleX) - sx) * outScale;
+            let py = ((p.y * scaleY) - sy) * outScale;
+            if (idx === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+        });
+        ctx.closePath();
+        ctx.clip();
+        ctx.drawImage(st.img, sx, sy, sw, sh, 0, 0, outW, outH);
+        ctx.restore();
+    } else {
+        ctx.drawImage(st.img, sx, sy, sw, sh, 0, 0, outW, outH);
+    }
+
+    let mimeType = isFree ? 'image/png' : 'image/jpeg';
+    let dataUrl = isFree ? outCvs.toDataURL('image/png') : outCvs.toDataURL('image/jpeg', 0.86);
+
+    let btnOk = document.getElementById('btn-terapkan-crop-gambar');
+    if (btnOk) { btnOk.disabled = true; btnOk.innerText = '⏳ Menyimpan hasil crop...'; }
+
+    let finalUrl = dataUrl;
+    let perluCloud = (st.origSrc && st.origSrc.indexOf('http') === 0 && navigator.onLine !== false);
+    if (perluCloud) {
+        try {
+            let blobOut = await new Promise(function(resolve) {
+                outCvs.toBlob(function(b) { resolve(b); }, mimeType, 0.88);
+            });
+            if (blobOut) {
+                let fd = new FormData();
+                fd.append('file', blobOut, 'crop_' + Date.now() + (isFree ? '.png' : '.jpg'));
+                fd.append('upload_preset', 'studykawan_video');
+                let res = await fetch('https://api.cloudinary.com/v1_1/rtkfvwvg/image/upload', { method: 'POST', body: fd });
+                let j = await res.json().catch(function() { return {}; });
+                if (res.ok && j && j.secure_url) finalUrl = j.secure_url;
+            }
+        } catch (eCloud) {}
+    }
+
+    if (btnOk) { btnOk.disabled = false; btnOk.innerText = '✅ Terapkan Crop'; }
+    window.tutupModal('modal-crop-gambar');
+
+    if (typeof st.onApply === 'function') {
+        st.onApply({
+            dataUrl: dataUrl,
+            finalUrl: finalUrl,
+            isFreehand: isFree,
+            width: sw,
+            height: sh,
+            origWidth: st.img.naturalWidth,
+            origHeight: st.img.naturalHeight
+        });
+    }
+};
+
+window.cropGambarTerpilih = function() {
+    let img = window.selectedImg;
+    if (!img || !document.body.contains(img)) return;
+    let hostEl = img.closest(window.SELECTOR_EDITOR_GAMBAR);
+    let oldVisualW = img.offsetWidth || 250;
+
+    window.bukaModalCropGambar(img.src, function(res) {
+        if (!res || !res.dataUrl) return;
+        let propW = Math.max(40, Math.round(oldVisualW * (res.width / Math.max(1, res.origWidth || res.width))));
+        img.src = res.finalUrl || res.dataUrl;
+        img.style.width = propW + 'px';
+        img.style.height = 'auto';
+        img.style.maxWidth = '100%';
+        window.perbaruiPosisiKontrolGambar();
+        window.simpanPerubahanEditorGambar(hostEl);
+    });
 };
 
 window.ubahUkuranGambarTerpilih = function(deltaPx) {
