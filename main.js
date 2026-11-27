@@ -2193,9 +2193,11 @@ window.renderBlocks = function() {
             let qi = '<div class="quiz-container" id="inline-kuis-' + index + '" style="margin:0; border:none; box-shadow:none; padding:20px;">' +
                     '<div class="quiz-header" style="justify-content:flex-end; padding-bottom:0; border-bottom:none; margin-bottom:15px;">' +
                         '<div style="display:flex; gap:5px; flex-wrap:wrap;">' +
-                            '<button class="btn-action" style="background:#2c3e50;width:auto;font-size:11px;padding:6px 12px;" onclick="cetakKuisPDF(\'inline-kuis-' + index + '\',\'' + judulBersihKuis + '\')">🖨️ PDF</button>' +
-                            '<button class="btn-action" style="background:#2980b9;width:auto;font-size:11px;padding:6px 12px;" onclick="exportWordKuis(\'inline-kuis-' + index + '\',\'' + judulBersihKuis + '\')">📄 Word</button>' +
-                            (isEdit ? '<button class="btn-action" style="background:#2e7d32;width:auto;font-size:11px;padding:6px 12px;" onclick="bukaAIQuizModal(' + index + ')">🤖 Ekstrak</button>' : '') +
+                            '<button type="button" class="btn-action" style="background:#2c3e50;width:auto;font-size:11px;padding:6px 12px;" onclick="cetakKuisPDF(\'inline-kuis-' + index + '\',\'' + judulBersihKuis + '\')">🖨️ PDF</button>' +
+                            '<button type="button" class="btn-action" style="background:#2980b9;width:auto;font-size:11px;padding:6px 12px;" onclick="exportWordKuis(\'inline-kuis-' + index + '\',\'' + judulBersihKuis + '\')">📄 Word</button>' +
+                            (isEdit ? '<button type="button" class="btn-action" style="background:#0284c7;width:auto;font-size:11px;padding:6px 12px;" onclick="window.bukaModalFormSoalInline(' + index + ', -1)">➕ Tambah</button>' : '') +
+                            (isEdit ? '<button type="button" class="btn-action" style="background:#d97706;width:auto;font-size:11px;padding:6px 12px;" onclick="window.bukaModalEditMassalKuisInline(' + index + ')">✏️ Edit Semua</button>' : '') +
+                            (isEdit ? '<button type="button" class="btn-action" style="background:#2e7d32;width:auto;font-size:11px;padding:6px 12px;" onclick="bukaAIQuizModal(' + index + ')">🤖 Ekstrak</button>' : '') +
                         '</div>' +
                     '</div>';
 
@@ -2204,19 +2206,24 @@ window.renderBlocks = function() {
                     if (q.drawing === undefined) q.drawing = "";
                     let isBahasOpen = !!q.isBahasOpen;
 
-                    let qTextHtml = isEdit
-                        ? '<div class="quiz-question-text" style="display:flex; gap:6px; align-items:flex-start; padding-right:76px;">' +
-                              '<span style="font-weight:bold; flex-shrink:0;">' + (qIdx + 1) + '.</span>' +
-                              '<div class="quiz-editable-field" contenteditable="true" data-quiz-block="' + index + '" data-quiz-q="' + qIdx + '" data-quiz-field="q" style="flex:1; min-width:0; outline:none;" oninput="updateSoalInline(' + index + ',' + qIdx + ',\'q\',this)" onblur="updateSoalInline(' + index + ',' + qIdx + ',\'q\',this,null,true)">' + (q.question || '') + '</div>' +
-                          '</div>'
-                        : '<div class="quiz-question-text">' + (qIdx + 1) + '. ' + (q.question || '') + '</div>';
-
                     qi += '<div class="quiz-question-card" id="inline-q-' + index + '-' + qIdx + '">';
                     if (isEdit) {
-                        qi += '<button type="button" onclick="window.pilihGambarUntukSoalInline(' + index + ',' + qIdx + ',\'q\',null)" title="Sisipkan Gambar ke Soal" style="position:absolute; top:10px; right:42px; background:#e0f2fe; color:#0284c7; border:1px solid #7dd3fc; border-radius:6px; padding:3px 7px; font-size:12px; cursor:pointer; z-index:5;">🖼️</button>';
-                        qi += '<button class="btn-delete-q" onclick="hapusSoalSistem(' + qIdx + ', \'inline\', ' + index + ')" title="Hapus Soal">🗑️</button>';
+                        qi += '<div class="quiz-question-text" style="display:flex; gap:8px; align-items:flex-start; justify-content:space-between;">' +
+                              '<div style="display:flex; gap:6px; align-items:flex-start; flex:1; min-width:0;">' +
+                                  '<span style="font-weight:bold; flex-shrink:0;">' + (qIdx + 1) + '.</span>' +
+                                  '<div class="quiz-editable-field" contenteditable="true" data-quiz-block="' + index + '" data-quiz-q="' + qIdx + '" data-quiz-field="q" style="flex:1; min-width:0; outline:none;" oninput="updateSoalInline(' + index + ',' + qIdx + ',\'q\',this)" onblur="updateSoalInline(' + index + ',' + qIdx + ',\'q\',this,null,true)">' + (q.question || '') + '</div>' +
+                              '</div>' +
+                              '<div style="display:flex; gap:4px; align-items:center; flex-shrink:0;">' +
+                                  '<button type="button" onclick="window.geserSoalInline(' + index + ',' + qIdx + ',-1)" title="Geser Soal Naik" ' + (qIdx === 0 ? 'disabled' : '') + ' style="background:#f1f5f9; color:#334155; border:1px solid #cbd5e1; border-radius:6px; padding:3px 6px; font-size:11px; cursor:pointer;' + (qIdx === 0 ? ' opacity:0.4;' : '') + '">▲</button>' +
+                                  '<button type="button" onclick="window.geserSoalInline(' + index + ',' + qIdx + ',1)" title="Geser Soal Turun" ' + (qIdx === blok.questions.length - 1 ? 'disabled' : '') + ' style="background:#f1f5f9; color:#334155; border:1px solid #cbd5e1; border-radius:6px; padding:3px 6px; font-size:11px; cursor:pointer;' + (qIdx === blok.questions.length - 1 ? ' opacity:0.4;' : '') + '">▼</button>' +
+                                  '<button type="button" onclick="window.bukaModalFormSoalInline(' + index + ',' + qIdx + ')" title="Edit Tipe, Opsi, &amp; Detail Soal" style="background:#fef3c7; color:#b45309; border:1px solid #fcd34d; border-radius:6px; padding:3px 7px; font-size:11.5px; cursor:pointer; font-weight:700;">✏️</button>' +
+                                  '<button type="button" onclick="window.pilihGambarUntukSoalInline(' + index + ',' + qIdx + ',\'q\',null)" title="Sisipkan Gambar ke Soal" style="background:#e0f2fe; color:#0284c7; border:1px solid #7dd3fc; border-radius:6px; padding:3px 7px; font-size:11.5px; cursor:pointer;">🖼️</button>' +
+                                  '<button type="button" onclick="hapusSoalSistem(' + qIdx + ', \'inline\', ' + index + ')" title="Hapus Soal" style="background:#fee2e2; color:#dc2626; border:1px solid #fca5a5; border-radius:6px; padding:3px 7px; font-size:11.5px; cursor:pointer;">🗑️</button>' +
+                              '</div>' +
+                          '</div>';
+                    } else {
+                        qi += '<div class="quiz-question-text">' + (qIdx + 1) + '. ' + (q.question || '') + '</div>';
                     }
-                    qi += qTextHtml;
 
                     if (q.type === 'short_answer' || (!q.options && q.correctAnswers)) {
                         let altStr = q.correctAnswers ? q.correctAnswers.join(' | ') : '';
@@ -2298,7 +2305,14 @@ window.renderBlocks = function() {
                 });
                 qi += '</div>';
             } else {
-                qi += '<p style="color:#888;">Belum ada soal.</p>';
+                qi += '<p style="color:#888; text-align:center; padding:12px 0;">Belum ada soal. Klik tombol di bawah untuk menambah soal.</p>';
+            }
+            if (isEdit) {
+                qi += '<div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin-top:16px; padding-top:14px; border-top:1.5px dashed #cbd5e1;">' +
+                    '<button type="button" class="btn-action" style="background:#0284c7; width:auto; font-size:12px; padding:8px 15px; border-radius:8px;" onclick="window.bukaModalFormSoalInline(' + index + ', -1)">➕ Tambah 1 Soal</button>' +
+                    '<button type="button" class="btn-action" style="background:#8e44ad; width:auto; font-size:12px; padding:8px 15px; border-radius:8px;" onclick="window.tarikBankLatihanKeKuisInline(' + index + ')">📥 Tarik dari Bank Latihan</button>' +
+                    '<button type="button" class="btn-action" style="background:#d97706; width:auto; font-size:12px; padding:8px 15px; border-radius:8px;" onclick="window.bukaModalEditMassalKuisInline(' + index + ')">✏️ Edit Semua Soal</button>' +
+                '</div>';
             }
             qi += '</div>';
 
@@ -6057,14 +6071,526 @@ window.pilihGambarUntukSoalInline = function(blockIdx, qIdx, tipeField, optIdx) 
     inp.click();
 };
 
+window.simpanDaftarSoalKuisInline = function(blockIdx) {
+    let blok = window.contentBlocksData && window.contentBlocksData[blockIdx];
+    if (!blok) return;
+    let slugNow = window.babAktif || "home";
+    let guruNow = (window.guruAktif || sessionStorage.getItem("guruTarget") || "mahardika").trim().toLowerCase();
+
+    if (typeof window.sinkronCacheRoomSetelahEditKuis === "function") {
+        window.sinkronCacheRoomSetelahEditKuis(slugNow);
+    }
+    window.renderBlocks();
+    if (typeof window.simpanKeDB === "function") {
+        window.simpanKeDB(slugNow);
+    }
+    if (typeof window.tulisDataRestFirebase === "function") {
+        let qPath = "data_guru/" + guruNow + "/materi_koleksi/" + slugNow + "/blocksObj/" + blockIdx + "/questions";
+        window.tulisDataRestFirebase(qPath, JSON.parse(JSON.stringify(blok.questions || [])), "PUT", function() {
+            if (typeof window.sinkronCacheRoomSetelahEditKuis === "function") {
+                window.sinkronCacheRoomSetelahEditKuis(slugNow);
+            }
+        });
+    }
+};
+
 window.hapusSoalSistem = function(qIdx, mode, blockIdx) {
     if (mode === "inline" && window.contentBlocksData[blockIdx] && window.contentBlocksData[blockIdx].questions) {
-        if (confirm("Hapus soal ini dari kuis materi?")) {
+        if (confirm("Hapus soal nomor " + (qIdx + 1) + " dari kuis ini?")) {
             window.contentBlocksData[blockIdx].questions.splice(qIdx, 1);
-            window.renderBlocks();
-            if (window.simpanKeDB) window.simpanKeDB();
+            window.simpanDaftarSoalKuisInline(blockIdx);
         }
     }
+};
+
+window.geserSoalInline = function(blockIdx, qIdx, arah) {
+    let blok = window.contentBlocksData && window.contentBlocksData[blockIdx];
+    if (!blok || !Array.isArray(blok.questions)) return;
+    let targetIdx = qIdx + arah;
+    if (targetIdx < 0 || targetIdx >= blok.questions.length) return;
+    let tmp = blok.questions[qIdx];
+    blok.questions[qIdx] = blok.questions[targetIdx];
+    blok.questions[targetIdx] = tmp;
+    window.simpanDaftarSoalKuisInline(blockIdx);
+};
+
+window.tarikBankLatihanKeKuisInline = function(blockIdx) {
+    window.targetQuizBlockIndex = blockIdx;
+    if (typeof window.bukaModalAmbilSoal === "function") {
+        window.bukaModalAmbilSoal(true);
+    } else {
+        alert("Mesin Bank Soal belum siap, silakan refresh halaman.");
+    }
+};
+
+/* =========================================================================
+   FORM TAMBAH & EDIT 1 SOAL KUIS INLINE (PG, PGK, IS, ESSAY)
+   ========================================================================= */
+window._inlineQuizFormState = {
+    blockIdx: -1,
+    qIdx: -1,
+    options: ["", "", "", ""],
+    correctIndex: 0,
+    correctIndices: [0]
+};
+
+window.pastikanModalFormSoalInlineAda = function() {
+    let modal = document.getElementById("modal-form-soal-inline");
+    if (modal) return modal;
+
+    modal = document.createElement("div");
+    modal.id = "modal-form-soal-inline";
+    modal.className = "modal-overlay";
+    modal.style.zIndex = "1000200";
+    modal.onclick = function(e) {
+        if (e.target === modal) window.tutupModal("modal-form-soal-inline");
+    };
+
+    modal.innerHTML =
+        '<div class="modal-box" style="width:620px; max-width:95vw; max-height:90vh; display:flex; flex-direction:column; border-radius:14px; overflow:hidden;">' +
+            '<div class="modal-header" style="background:linear-gradient(135deg,#0b3954,#145374); color:#ffffff; padding:13px 16px;">' +
+                '<h3 id="judul-form-soal-inline" style="margin:0; font-size:15.5px;">➕ Tambah Soal Kuis</h3>' +
+                '<button type="button" class="close-btn" style="color:#ffffff;" onclick="window.tutupModal(\'modal-form-soal-inline\')">✕</button>' +
+            '</div>' +
+            '<div class="modal-body" style="padding:16px; background:#f8fafc; display:flex; flex-direction:column; gap:12px; overflow-y:auto;">' +
+                '<div>' +
+                    '<label style="font-size:11.5px; font-weight:800; color:#334155; display:block; margin-bottom:4px;">Tipe Soal</label>' +
+                    '<select id="fsi-tipe" class="input-box" style="margin:0; padding:8px; font-weight:700;" onchange="window.onUbahTipeFormSoalInline()">' +
+                        '<option value="mc">Pilihan Ganda (PG - 1 Jawaban Benar)</option>' +
+                        '<option value="pgk">Pilihan Ganda Kompleks (PGK - Multi Jawaban)</option>' +
+                        '<option value="short_answer">Isian Singkat (IS)</option>' +
+                        '<option value="essay">Uraian / Essay</option>' +
+                    '</select>' +
+                '</div>' +
+
+                '<div>' +
+                    '<label style="font-size:11.5px; font-weight:800; color:#334155; display:block; margin-bottom:4px;">Pertanyaan</label>' +
+                    '<textarea id="fsi-question" class="input-box" rows="3" style="margin:0; padding:9px; font-size:13px; resize:vertical;" placeholder="Ketik teks pertanyaan di sini..."></textarea>' +
+                '</div>' +
+
+                '<div id="fsi-opsi-wrap" style="background:#ffffff; border:1px solid #cbd5e1; border-radius:10px; padding:12px; display:flex; flex-direction:column; gap:8px;">' +
+                    '<div style="display:flex; justify-content:space-between; align-items:center;">' +
+                        '<span id="fsi-opsi-label" style="font-size:11.5px; font-weight:800; color:#0b3954;">Opsi Jawaban (Pilih kunci yang benar)</span>' +
+                        '<button type="button" onclick="window.tambahOpsiFormSoalInline()" style="background:#e0f2fe; color:#0369a1; border:1px solid #7dd3fc; border-radius:6px; padding:4px 10px; font-size:11px; font-weight:800; cursor:pointer;">+ Tambah Opsi</button>' +
+                    '</div>' +
+                    '<div id="fsi-opsi-list" style="display:flex; flex-direction:column; gap:6px;"></div>' +
+                '</div>' +
+
+                '<div id="fsi-kunci-teks-wrap" style="display:none;">' +
+                    '<label id="fsi-kunci-teks-label" style="font-size:11.5px; font-weight:800; color:#334155; display:block; margin-bottom:4px;">Kunci Jawaban (Pisahkan alternatif dengan tanda | )</label>' +
+                    '<textarea id="fsi-kunci-teks" class="input-box" rows="2" style="margin:0; padding:8px; font-size:13px;" placeholder="Contoh: Fotosintesis | fotosintesis"></textarea>' +
+                '</div>' +
+
+                '<div>' +
+                    '<label style="font-size:11.5px; font-weight:800; color:#334155; display:block; margin-bottom:4px;">Pembahasan (Opsional)</label>' +
+                    '<textarea id="fsi-explanation" class="input-box" rows="3" style="margin:0; padding:9px; font-size:13px; resize:vertical;" placeholder="Ketik penjelasan jawaban di sini..."></textarea>' +
+                '</div>' +
+
+                '<div style="display:flex; justify-content:flex-end; gap:8px; padding-top:4px;">' +
+                    '<button type="button" class="btn-action" style="background:#64748b; width:auto; padding:9px 16px; font-size:12.5px;" onclick="window.tutupModal(\'modal-form-soal-inline\')">Batal</button>' +
+                    '<button type="button" class="btn-action" style="background:#16a34a; width:auto; padding:9px 20px; font-size:12.5px; font-weight:800;" onclick="window.simpanFormSoalInline()">💾 Simpan Soal</button>' +
+                '</div>' +
+            '</div>' +
+        '</div>';
+
+    document.body.appendChild(modal);
+    return modal;
+};
+
+window.bacaOpsiSementaraFormSoal = function() {
+    let st = window._inlineQuizFormState;
+    let inputs = document.querySelectorAll("#fsi-opsi-list .fsi-opt-input");
+    if (inputs.length > 0) {
+        st.options = Array.from(inputs).map(function(inp) { return inp.value; });
+    }
+    let tipe = (document.getElementById("fsi-tipe") || {}).value || "mc";
+    if (tipe === "mc") {
+        let checked = document.querySelector("#fsi-opsi-list input[name='fsi-radio-key']:checked");
+        if (checked) st.correctIndex = parseInt(checked.value, 10) || 0;
+    } else if (tipe === "pgk") {
+        let checkedAll = document.querySelectorAll("#fsi-opsi-list .fsi-chk-key:checked");
+        st.correctIndices = Array.from(checkedAll).map(function(cb) { return parseInt(cb.value, 10); });
+    }
+};
+
+window.renderOpsiFormSoalInline = function() {
+    let st = window._inlineQuizFormState;
+    let tipe = (document.getElementById("fsi-tipe") || {}).value || "mc";
+    let listEl = document.getElementById("fsi-opsi-list");
+    let lblEl = document.getElementById("fsi-opsi-label");
+    if (!listEl) return;
+
+    if (lblEl) {
+        lblEl.innerText = tipe === "pgk"
+            ? "Opsi Jawaban (Centang semua jawaban benar)"
+            : "Opsi Jawaban (Pilih 1 kunci jawaban benar)";
+    }
+
+    let html = "";
+    st.options.forEach(function(val, i) {
+        let huruf = String.fromCharCode(65 + i);
+        let safeVal = String(val || "").replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+        let ctrl = tipe === "pgk"
+            ? '<input type="checkbox" class="fsi-chk-key" value="' + i + '" ' + (st.correctIndices.indexOf(i) !== -1 ? "checked" : "") + ' style="width:17px; height:17px; accent-color:#16a34a; cursor:pointer; flex-shrink:0;" title="Tandai Kunci Benar">'
+            : '<input type="radio" name="fsi-radio-key" value="' + i + '" ' + (st.correctIndex === i ? "checked" : "") + ' style="width:17px; height:17px; accent-color:#16a34a; cursor:pointer; flex-shrink:0;" title="Pilih Kunci Benar">';
+
+        html += '<div style="display:flex; align-items:center; gap:7px;">' +
+            ctrl +
+            '<span style="font-weight:800; color:#0b3954; width:18px; flex-shrink:0;">' + huruf + '.</span>' +
+            '<input type="text" class="input-box fsi-opt-input" value="' + safeVal + '" placeholder="Isi opsi ' + huruf + '..." style="margin:0; padding:7px 9px; flex:1; font-size:12.5px;">' +
+            (st.options.length > 2 ? '<button type="button" onclick="window.hapusOpsiFormSoalInline(' + i + ')" title="Hapus Opsi" style="background:#fee2e2; color:#dc2626; border:1px solid #fca5a5; border-radius:6px; width:28px; height:30px; cursor:pointer; font-weight:800; flex-shrink:0;">✕</button>' : '') +
+        '</div>';
+    });
+    listEl.innerHTML = html;
+};
+
+window.onUbahTipeFormSoalInline = function() {
+    window.bacaOpsiSementaraFormSoal();
+    let tipe = (document.getElementById("fsi-tipe") || {}).value || "mc";
+    let opsiWrap = document.getElementById("fsi-opsi-wrap");
+    let kunciWrap = document.getElementById("fsi-kunci-teks-wrap");
+    let kunciLbl = document.getElementById("fsi-kunci-teks-label");
+
+    let isOpsi = (tipe === "mc" || tipe === "pgk");
+    if (opsiWrap) opsiWrap.style.display = isOpsi ? "flex" : "none";
+    if (kunciWrap) kunciWrap.style.display = isOpsi ? "none" : "block";
+    if (kunciLbl) {
+        kunciLbl.innerText = tipe === "essay"
+            ? "Kunci / Poin Penilaian Essay"
+            : "Kunci Jawaban Isian Singkat (Pisahkan alternatif dengan tanda | )";
+    }
+    if (isOpsi) {
+        if (!window._inlineQuizFormState.options || window._inlineQuizFormState.options.length < 2) {
+            window._inlineQuizFormState.options = ["", "", "", ""];
+        }
+        window.renderOpsiFormSoalInline();
+    }
+};
+
+window.tambahOpsiFormSoalInline = function() {
+    window.bacaOpsiSementaraFormSoal();
+    if (window._inlineQuizFormState.options.length >= 8) return alert("Maksimal 8 opsi jawaban.");
+    window._inlineQuizFormState.options.push("");
+    window.renderOpsiFormSoalInline();
+};
+
+window.hapusOpsiFormSoalInline = function(optIdx) {
+    window.bacaOpsiSementaraFormSoal();
+    let st = window._inlineQuizFormState;
+    if (st.options.length <= 2) return;
+    st.options.splice(optIdx, 1);
+    if (st.correctIndex >= st.options.length) st.correctIndex = 0;
+    st.correctIndices = st.correctIndices.filter(function(idx) { return idx !== optIdx; }).map(function(idx) { return idx > optIdx ? idx - 1 : idx; });
+    window.renderOpsiFormSoalInline();
+};
+
+window.bukaModalFormSoalInline = function(blockIdx, qIdx) {
+    let blok = window.contentBlocksData && window.contentBlocksData[blockIdx];
+    if (!blok) return;
+    if (!Array.isArray(blok.questions)) blok.questions = [];
+
+    window.pastikanModalFormSoalInlineAda();
+    let isEditExisting = (typeof qIdx === "number" && qIdx >= 0 && blok.questions[qIdx]);
+    let q = isEditExisting ? blok.questions[qIdx] : null;
+
+    let st = window._inlineQuizFormState;
+    st.blockIdx = blockIdx;
+    st.qIdx = isEditExisting ? qIdx : -1;
+
+    let tipeAwal = "mc";
+    if (q) {
+        if (q.type === "pgk") tipeAwal = "pgk";
+        else if (q.type === "essay") tipeAwal = "essay";
+        else if (q.type === "short_answer" || (!q.options && q.correctAnswers)) tipeAwal = "short_answer";
+    }
+
+    st.options = (q && Array.isArray(q.options) && q.options.length >= 2) ? q.options.slice() : ["", "", "", "", ""];
+    st.correctIndex = (q && typeof q.correctIndex === "number") ? q.correctIndex : 0;
+    st.correctIndices = (q && Array.isArray(q.correctIndices)) ? q.correctIndices.slice() : [0];
+
+    document.getElementById("judul-form-soal-inline").innerText = isEditExisting
+        ? ("✏️ Edit Soal Nomor " + (qIdx + 1))
+        : "➕ Tambah Soal Kuis Baru";
+    document.getElementById("fsi-tipe").value = tipeAwal;
+    document.getElementById("fsi-question").value = q ? String(q.question || "").replace(/<br\s*\/?>/gi, "\n") : "";
+    document.getElementById("fsi-kunci-teks").value = (q && Array.isArray(q.correctAnswers)) ? q.correctAnswers.join(" | ") : "";
+    document.getElementById("fsi-explanation").value = q ? String(q.explanation || "").replace(/<br\s*\/?>/gi, "\n") : "";
+
+    let opsiWrap = document.getElementById("fsi-opsi-wrap");
+    let kunciWrap = document.getElementById("fsi-kunci-teks-wrap");
+    let isOpsi = (tipeAwal === "mc" || tipeAwal === "pgk");
+    if (opsiWrap) opsiWrap.style.display = isOpsi ? "flex" : "none";
+    if (kunciWrap) kunciWrap.style.display = isOpsi ? "none" : "block";
+    if (isOpsi) window.renderOpsiFormSoalInline();
+
+    window.bukaModal("modal-form-soal-inline");
+    setTimeout(function() {
+        let qEl = document.getElementById("fsi-question");
+        if (qEl) qEl.focus();
+    }, 80);
+};
+
+window.simpanFormSoalInline = function() {
+    window.bacaOpsiSementaraFormSoal();
+    let st = window._inlineQuizFormState;
+    let blok = window.contentBlocksData && window.contentBlocksData[st.blockIdx];
+    if (!blok) return;
+    if (!Array.isArray(blok.questions)) blok.questions = [];
+
+    let tipe = (document.getElementById("fsi-tipe") || {}).value || "mc";
+    let qText = ((document.getElementById("fsi-question") || {}).value || "").trim().replace(/\r?\n/g, "<br>");
+    let expText = ((document.getElementById("fsi-explanation") || {}).value || "").trim().replace(/\r?\n/g, "<br>");
+
+    if (!qText) return alert("⚠️ Teks pertanyaan wajib diisi!");
+
+    let prevObj = (st.qIdx >= 0 && blok.questions[st.qIdx]) ? blok.questions[st.qIdx] : {};
+    let newQ = {
+        type: tipe,
+        question: qText,
+        options: [],
+        correctIndex: 0,
+        correctIndices: [],
+        correctAnswers: [],
+        explanation: expText,
+        drawing: prevObj.drawing || "",
+        isBahasOpen: Boolean(prevObj.isBahasOpen)
+    };
+
+    if (tipe === "mc" || tipe === "pgk") {
+        let opsiBersih = st.options.map(function(s) { return String(s || "").trim(); }).filter(function(s) { return s.length > 0; });
+        if (opsiBersih.length < 2) return alert("⚠️ Isi minimal 2 opsi jawaban!");
+        newQ.options = opsiBersih;
+
+        if (tipe === "mc") {
+            let idxKunci = Math.max(0, Math.min(opsiBersih.length - 1, st.correctIndex || 0));
+            newQ.correctIndex = idxKunci;
+        } else {
+            let validIndices = st.correctIndices.filter(function(idx) { return idx >= 0 && idx < opsiBersih.length; });
+            if (validIndices.length === 0) return alert("⚠️ Centang minimal 1 kunci jawaban benar untuk PGK!");
+            newQ.correctIndices = Array.from(new Set(validIndices)).sort(function(a, b) { return a - b; });
+        }
+    } else {
+        let rawKunci = ((document.getElementById("fsi-kunci-teks") || {}).value || "").trim();
+        newQ.correctAnswers = rawKunci ? rawKunci.split("|").map(function(s) { return s.trim(); }).filter(Boolean) : [];
+    }
+
+    if (st.qIdx >= 0 && blok.questions[st.qIdx]) {
+        blok.questions[st.qIdx] = newQ;
+    } else {
+        blok.questions.push(newQ);
+    }
+
+    window.tutupModal("modal-form-soal-inline");
+    window.simpanDaftarSoalKuisInline(st.blockIdx);
+};
+
+/* =========================================================================
+   EDIT SEMUA SOAL KUIS INLINE SEKALIGUS (FORMAT TEKS MASSAL)
+   ========================================================================= */
+window._editMassalQuizBlockIdx = -1;
+
+window.konversiKuisInlineKeTeks = function(questions) {
+    if (!Array.isArray(questions) || questions.length === 0) return "";
+    return questions.map(function(q) {
+        let lines = [];
+        lines.push("Soal: " + String(q.question || "").replace(/<br\s*\/?>/gi, "\n"));
+        let tipe = q.type || "mc";
+
+        if (tipe === "short_answer" || (!q.options && q.correctAnswers)) {
+            lines.push("Tipe: IS");
+            lines.push("Kunci: " + (Array.isArray(q.correctAnswers) ? q.correctAnswers.join(" | ") : ""));
+        } else if (tipe === "essay") {
+            lines.push("Tipe: Essay");
+            lines.push("Kunci: " + (Array.isArray(q.correctAnswers) ? q.correctAnswers.join(" | ") : ""));
+        } else if (tipe === "pgk") {
+            lines.push("Tipe: PGK");
+            let idxs = Array.isArray(q.correctIndices) ? q.correctIndices : [];
+            (q.options || []).forEach(function(opt, i) {
+                let huruf = String.fromCharCode(65 + i);
+                lines.push(huruf + ". " + String(opt || "") + (idxs.indexOf(i) !== -1 ? " (benar)" : " (salah)"));
+            });
+            if (idxs.length > 0) {
+                lines.push("Kunci: " + idxs.map(function(i) { return String.fromCharCode(65 + i); }).join(", "));
+            }
+        } else {
+            (q.options || []).forEach(function(opt, i) {
+                let huruf = String.fromCharCode(65 + i);
+                lines.push(huruf + ". " + String(opt || ""));
+            });
+            let kHuruf = String.fromCharCode(65 + (typeof q.correctIndex === "number" ? q.correctIndex : 0));
+            lines.push("Kunci: " + kHuruf);
+        }
+
+        if (q.explanation) {
+            lines.push("Pembahasan: " + String(q.explanation).replace(/<br\s*\/?>/gi, "\n"));
+        }
+        return lines.join("\n");
+    }).join("\n\n---\n\n");
+};
+
+window.bukaModalEditMassalKuisInline = function(blockIdx) {
+    let blok = window.contentBlocksData && window.contentBlocksData[blockIdx];
+    if (!blok) return;
+    window._editMassalQuizBlockIdx = blockIdx;
+
+    let modal = document.getElementById("modal-edit-massal-kuis");
+    if (!modal) {
+        modal = document.createElement("div");
+        modal.id = "modal-edit-massal-kuis";
+        modal.className = "modal-overlay";
+        modal.style.zIndex = "1000200";
+        modal.onclick = function(e) {
+            if (e.target === modal) window.tutupModal("modal-edit-massal-kuis");
+        };
+        modal.innerHTML =
+            '<div class="modal-box" style="width:700px; max-width:95vw; max-height:90vh; display:flex; flex-direction:column; border-radius:14px; overflow:hidden;">' +
+                '<div class="modal-header" style="background:linear-gradient(135deg,#b45309,#d97706); color:#ffffff; padding:13px 16px;">' +
+                    '<div>' +
+                        '<h3 style="margin:0; font-size:15.5px;">✏️ Edit Semua Soal Kuis (Format Teks)</h3>' +
+                        '<div style="font-size:11px; color:#fef3c7; margin-top:2px;">Edit, hapus, atau tambah soal baru sekaligus — pisahkan antar soal dengan baris kosong atau ---</div>' +
+                    '</div>' +
+                    '<button type="button" class="close-btn" style="color:#ffffff;" onclick="window.tutupModal(\'modal-edit-massal-kuis\')">✕</button>' +
+                '</div>' +
+                '<div class="modal-body" style="padding:16px; background:#f8fafc; display:flex; flex-direction:column; gap:10px;">' +
+                    '<textarea id="ta-edit-massal-kuis" class="input-box" rows="16" style="margin:0; padding:12px; font-family:monospace; font-size:12.5px; line-height:1.5; resize:vertical;" placeholder="Soal: ...\nA. ...\nB. ...\nKunci: A\nPembahasan: ..."></textarea>' +
+                    '<div style="display:flex; justify-content:flex-end; gap:8px;">' +
+                        '<button type="button" class="btn-action" style="background:#64748b; width:auto; padding:9px 16px; font-size:12.5px;" onclick="window.tutupModal(\'modal-edit-massal-kuis\')">Batal</button>' +
+                        '<button type="button" class="btn-action" style="background:#16a34a; width:auto; padding:9px 22px; font-size:12.5px; font-weight:800;" onclick="window.simpanEditMassalKuisInline()">💾 Simpan Semua Perubahan</button>' +
+                    '</div>' +
+                '</div>' +
+            '</div>';
+        document.body.appendChild(modal);
+    }
+
+    document.getElementById("ta-edit-massal-kuis").value = window.konversiKuisInlineKeTeks(blok.questions || []);
+    window.bukaModal("modal-edit-massal-kuis");
+};
+
+window.simpanEditMassalKuisInline = function() {
+    let blockIdx = window._editMassalQuizBlockIdx;
+    let blok = window.contentBlocksData && window.contentBlocksData[blockIdx];
+    if (!blok) return;
+
+    let raw = (document.getElementById("ta-edit-massal-kuis").value || "").trim();
+    if (!raw) {
+        if (!confirm("Kotak teks kosong. Kosongkan semua soal di kuis ini?")) return;
+        blok.questions = [];
+        window.tutupModal("modal-edit-massal-kuis");
+        window.simpanDaftarSoalKuisInline(blockIdx);
+        return;
+    }
+
+    let oldQuestions = Array.isArray(blok.questions) ? blok.questions : [];
+    let blocks = raw.split(/\n\s*\n|\n---\n/);
+    let parsedQuestions = [];
+    let reBenarAkhir = /[\(\[]\s*benar\s*[\)\]][\.\;\,\s]*(?![\s\S])/i;
+    let reSalahAkhir = /[\(\[]\s*salah\s*[\)\]][\.\;\,\s]*(?![\s\S])/i;
+
+    blocks.forEach(function(b, bIdx) {
+        let lines = b.trim().split("\n").map(function(l) { return l.trim(); }).filter(function(l) { return l.length > 0 && l !== "---"; });
+        if (lines.length === 0) return;
+
+        let prevQ = oldQuestions[bIdx] || {};
+        let qObj = {
+            type: "mc",
+            question: "",
+            options: [],
+            correctIndex: 0,
+            correctIndices: [],
+            correctAnswers: [],
+            explanation: "",
+            drawing: prevQ.drawing || "",
+            isBahasOpen: Boolean(prevQ.isBahasOpen)
+        };
+        let isParsingOptions = false;
+        let isParsingExp = false;
+
+        lines.forEach(function(line) {
+            let low = line.toLowerCase();
+            if (low.indexOf("soal:") === 0) {
+                isParsingOptions = false;
+                isParsingExp = false;
+                qObj.question = line.substring(5).trim();
+            } else if (low.indexOf("tipe:") === 0) {
+                let t = low.substring(5).trim();
+                if (t === "is" || t === "isian singkat" || t === "isian") qObj.type = "short_answer";
+                else if (t === "essay" || t === "esai" || t === "uraian") qObj.type = "essay";
+                else if (t === "pgk" || t.indexOf("kompleks") !== -1) qObj.type = "pgk";
+            } else if (low.indexOf("kunci:") === 0) {
+                isParsingOptions = false;
+                isParsingExp = false;
+                let k = line.substring(6).trim();
+                if (qObj.type === "short_answer" || qObj.type === "essay" || qObj.options.length === 0) {
+                    if (qObj.type === "mc") qObj.type = "short_answer";
+                    qObj.correctAnswers = k.split("|").map(function(s) { return s.trim(); }).filter(Boolean);
+                } else {
+                    let normHuruf = (typeof window.normalisasiKunciPGK === "function")
+                        ? window.normalisasiKunciPGK(k, qObj.options)
+                        : k.toUpperCase().replace(/[^A-H]/g, "").split("");
+                    if (qObj.type === "pgk" || normHuruf.length > 1) {
+                        qObj.type = "pgk";
+                        if (normHuruf.length > 0) {
+                            qObj.correctIndices = normHuruf.map(function(ch) { return ch.charCodeAt(0) - 65; }).filter(function(idx) { return idx >= 0 && idx < 10; });
+                        }
+                    } else if (normHuruf.length === 1) {
+                        let code = normHuruf[0].charCodeAt(0) - 65;
+                        if (code >= 0 && code < 10) qObj.correctIndex = code;
+                    }
+                }
+            } else if (low.indexOf("pembahasan:") === 0) {
+                isParsingOptions = false;
+                isParsingExp = true;
+                qObj.explanation = line.substring(11).trim();
+            } else if (/^[a-hA-H][\.\)]/.test(line)) {
+                isParsingOptions = true;
+                isParsingExp = false;
+                let optLabel = line.charAt(0).toUpperCase();
+                let optText = line.substring(2).trim();
+                let optIdx = optLabel.charCodeAt(0) - 65;
+
+                if (reBenarAkhir.test(optText)) {
+                    qObj.type = "pgk";
+                    optText = optText.replace(reBenarAkhir, "").trim();
+                    qObj.correctIndices.push(optIdx);
+                } else if (reSalahAkhir.test(optText)) {
+                    qObj.type = "pgk";
+                    optText = optText.replace(reSalahAkhir, "").trim();
+                }
+                qObj.options.push(optText);
+            } else {
+                if (isParsingExp) {
+                    qObj.explanation += (qObj.explanation ? "<br>" : "") + line;
+                } else if (isParsingOptions && qObj.options.length > 0) {
+                    let lastIdx = qObj.options.length - 1;
+                    let gabungan = qObj.options[lastIdx] + " " + line;
+                    if (reBenarAkhir.test(gabungan)) {
+                        qObj.type = "pgk";
+                        gabungan = gabungan.replace(reBenarAkhir, "").trim();
+                        qObj.correctIndices.push(lastIdx);
+                    } else if (reSalahAkhir.test(gabungan)) {
+                        qObj.type = "pgk";
+                        gabungan = gabungan.replace(reSalahAkhir, "").trim();
+                    }
+                    qObj.options[lastIdx] = gabungan;
+                } else if (qObj.question && qObj.options.length === 0) {
+                    qObj.question += "<br>" + line;
+                }
+            }
+        });
+
+        if (qObj.type === "pgk") {
+            qObj.correctIndices = Array.from(new Set(qObj.correctIndices)).sort(function(a, b) { return a - b; });
+        }
+        if (qObj.question) parsedQuestions.push(qObj);
+    });
+
+    if (parsedQuestions.length === 0) {
+        return alert("⚠️ Format soal tidak dikenali. Pastikan setiap soal diawali kata 'Soal:'.");
+    }
+
+    blok.questions = parsedQuestions;
+    window.tutupModal("modal-edit-massal-kuis");
+    window.simpanDaftarSoalKuisInline(blockIdx);
 };
 
 window._tempThemeLogoUrl = "";
