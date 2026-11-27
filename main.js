@@ -830,7 +830,7 @@ window.pasangCssWarnaLevelPages = function() {
         '#sortable-list > li.page-item-card[data-page-level="0"] { background: #ffffff !important; border: 1px solid #cbd5e1 !important; }' +
         '#sortable-list > li.page-item-card[data-page-level="1"] { background: #eef2f6 !important; border: 1px solid #cbd5e1 !important; }' +
         '#sortable-list > li.page-item-card[data-page-level="2"] { background: #cbd5e1 !important; border: 1px solid #94a3b8 !important; }' +
-        '#sortable-list > li.page-item-card[data-page-level="3"] { background-color: #ffffff !important; background-image: radial-gradient(#94a3b8 1.5px, transparent 1.5px) !important; background-size: 9px 9px !important; border: 1px solid #94a3b8 !important; }' +
+        '#sortable-list > li.page-item-card[data-page-level="3"] '#sortable-list > li.page-item-card[data-page-level="3"] { background-color: #ffffff !important; background-image: radial-gradient(#cbd5e1 1.15px, transparent 1.15px) !important; background-size: 16px 16px !important; border: 1px solid #cbd5e1 !important; }' +
         '#sortable-list > li.page-item-card[data-page-level="4"] { background: #ffffff !important; border: 3px solid #111111 !important; }' +
         '#sortable-list > li.page-item-card[data-page-level="5"] { background: linear-gradient(90deg, #ffffff 0%, #ffffff 50%, #e5ebf2 50%, #e5ebf2 100%) !important; border: 1px solid #cbd5e1 !important; }' +
         '#sortable-list > li.page-item-card[data-page-level="6"] { background: linear-gradient(90deg, #ffffff 0%, #ffffff 50%, #cbd5e1 50%, #cbd5e1 100%) !important; border: 1px solid #94a3b8 !important; }' +
