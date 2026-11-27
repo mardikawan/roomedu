@@ -1,10 +1,10 @@
 /* =========================================================================
-   MODUL GOODNOTES ULTRA-HD & IFP BOARD DRAW ENGINE
-   - Mode Khusus IFP Merah Putih (Otomatis + Tombol Toggle di Toolbar)
-   - Koordinat Presisi Anti-Geser (Kalibrasi CSS Zoom & Local Offset)
-   - Pengunci Pointer Tunggal (Anti-Loncat Multi-Touch IR) & Scroll 2 Jari
-   - Goresan Bezier Bertahap Zero-Lag + GPU Offscreen Snapshot (Tanpa putImageData)
-   - Toolbar Kompak Fit-Layar, Collapse Warna/Ukuran/Laso, Auto-Shape, & Slide PDF
+   MODUL GOODNOTES ULTRA-HD & IFP BOARD DRAW ENGINE (CLEAN V4)
+   - Kalibrasi Koordinat Empiris (Kebal CSS Zoom A4, Zoom +/-, iPad, & IFP)
+   - Dual-Layer Live Stroke Canvas + EMA Jitter Smoothing (Halus & Zero-Lag)
+   - Mode Khusus IFP Merah Putih (Otomatis + Toggle Toolbar) & Scroll 2 Jari
+   - Debounced Auto-Save (Bebas Stutter Antar-Huruf)
+   - Toolbar Fit-Layar, Collapse Warna/Ukuran/Laso, Laso Bawa Gambar, & PDF HD
    ========================================================================= */
 
 window.DRAW_IFP_MODE_KEY = 'mahardika_draw_ifp_mode_v1';
@@ -31,31 +31,39 @@ window.ifpMode = (function() {
 })();
 
 window.hitungDrawDPR = function() {
-    if (window.ifpMode) return Math.min(window.devicePixelRatio || 1.5, 1.75);
-    return Math.max(2.2, Math.min((window.devicePixelRatio || 2) * 1.4, 3.2));
+    if (window.ifpMode) return Math.min(Math.max(window.devicePixelRatio || 1.5, 1.5), 2.0);
+    return Math.max(2.0, Math.min((window.devicePixelRatio || 2) * 1.35, 3.0));
 };
 
 window.DRAW_DPR = window.hitungDrawDPR();
 window.isDrawingMode = false;
 
 let currentDrawCtx = null;
+let currentLiveCvs = null;
+let currentLiveCtx = null;
 let isPenDown = false;
 let activeTool = 'pen';
 let activePointerId = null;
 let penStartTime = 0;
-let lastMidPt = null;
+let eraserLastMid = null;
+let smoothLastPt = null;
+let holdAnchorPt = null;
+let liveRenderQueued = false;
 
 window.penSize = 3.6;
 window.penColor = '#e74c3c';
 window.pencilOnly = !window.ifpMode;
 window.drawUndoStack = [];
 window.drawRedoStack = [];
-window.drawBackupCanvas = null;
 window.drawPoints = [];
+window.rawDrawPoints = [];
 window.shapeHoldTimer = null;
 window.isShapeRecognized = false;
 window.activeSmartShape = null;
 window.draggingSmartVertex = undefined;
+
+let dirtyDrawCanvases = new Set();
+let drawSaveDebounceTimer = null;
 
 let laserStrokes = [], currentLaserStroke = null;
 let globalLaserCvs = document.getElementById('laser-canvas');
@@ -68,24 +76,33 @@ window.lassoAttachedFloats = [];
 window.lassoClipboardImages = [];
 
 // =========================================================================
-// 0. MESIN KALIBRASI KOORDINAT ANTI-GESER (IFP, IPAD, ZOOM A4, & BROWSER)
+// 0. KALIBRASI KOORDINAT EMPIRIS (NOL ERROR PADA ZOOM A4, IFP, IPAD, MAC)
 // =========================================================================
-window.deteksiModeZoomRectBrowser = function() {
-    if (window._cachedZoomRectMode) return window._cachedZoomRectMode;
+window.deteksiPerilakuZoomRect = function() {
+    if (window._zoomRectBehavior) return window._zoomRectBehavior;
+    let res = { scalePos: false, scaleSize: false };
     try {
         let outer = document.createElement('div');
-        outer.style.cssText = 'position:fixed;left:0;top:0;width:100px;height:100px;zoom:2;visibility:hidden;pointer-events:none;z-index:-1;';
+        outer.style.cssText = 'position:fixed;left:0;top:0;width:120px;height:120px;zoom:2;opacity:0.001;pointer-events:none;z-index:2147483646;';
         let inner = document.createElement('div');
-        inner.style.cssText = 'position:absolute;left:10px;top:10px;width:50px;height:50px;';
+        inner.style.cssText = 'position:absolute;left:30px;top:30px;width:20px;height:20px;pointer-events:auto;';
         outer.appendChild(inner);
         document.body.appendChild(outer);
+
         let r = inner.getBoundingClientRect();
+        res.scaleSize = (r.width > 0 && r.width < 30);
+        let testW = res.scaleSize ? (r.width * 2) : r.width;
+        let testH = res.scaleSize ? (r.height * 2) : r.height;
+
+        let hitAsIs = document.elementFromPoint(r.left + testW / 2, r.top + testH / 2);
+        if (hitAsIs !== inner) {
+            let hitMul = document.elementFromPoint(r.left * 2 + testW / 2, r.top * 2 + testH / 2);
+            if (hitMul === inner) res.scalePos = true;
+        }
         outer.remove();
-        window._cachedZoomRectMode = (r.width > 75) ? 'scaled' : 'unscaled';
-    } catch (e) {
-        window._cachedZoomRectMode = 'scaled';
-    }
-    return window._cachedZoomRectMode;
+    } catch (e) {}
+    window._zoomRectBehavior = res;
+    return res;
 };
 
 window.hitungEffectiveZoomElemen = function(el) {
@@ -101,23 +118,23 @@ window.hitungEffectiveZoomElemen = function(el) {
     return z;
 };
 
-window.ambilVisualRectKanvas = function(cvs) {
-    let r = cvs.getBoundingClientRect();
-    let effZ = window.hitungEffectiveZoomElemen(cvs);
-    if (Math.abs(effZ - 1) > 0.001 && window.deteksiModeZoomRectBrowser() === 'unscaled') {
-        return {
-            left: r.left * effZ,
-            top: r.top * effZ,
-            width: r.width * effZ,
-            height: r.height * effZ,
-            right: r.right * effZ,
-            bottom: r.bottom * effZ
-        };
-    }
-    return r;
+window.ambilVisualRectKanvas = function(el) {
+    let r = el.getBoundingClientRect();
+    let effZ = window.hitungEffectiveZoomElemen(el);
+    if (Math.abs(effZ - 1) <= 0.001) return r;
+
+    let beh = window.deteksiPerilakuZoomRect();
+    if (!beh.scalePos && !beh.scaleSize) return r;
+
+    let left = beh.scalePos ? (r.left * effZ) : r.left;
+    let top = beh.scalePos ? (r.top * effZ) : r.top;
+    let width = beh.scaleSize ? (r.width * effZ) : r.width;
+    let height = beh.scaleSize ? (r.height * effZ) : r.height;
+    return { left: left, top: top, width: width, height: height, right: left + width, bottom: top + height };
 };
 
-window.ambilKoordinatKanvas = function(cvs, clientX, clientY, rawEvt) {
+// Murni menggunakan rasio viewport visual -> ruang piksel logis kanvas (tanpa offsetX yang rawan bug CSS zoom)
+window.ambilKoordinatKanvas = function(cvs, clientX, clientY) {
     let r = window.ambilVisualRectKanvas(cvs);
     let dpr = parseFloat(cvs.getAttribute('data-dpr')) || window.DRAW_DPR || 2;
     let cssW = parseFloat(cvs.getAttribute('data-css-w')) || (cvs.width / dpr) || cvs.clientWidth || r.width || 1;
@@ -125,38 +142,22 @@ window.ambilKoordinatKanvas = function(cvs, clientX, clientY, rawEvt) {
     let scaleX = r.width > 0 ? (cssW / r.width) : 1;
     let scaleY = r.height > 0 ? (cssH / r.height) : 1;
 
-    let rectX = (clientX - r.left) * scaleX;
-    let rectY = (clientY - r.top) * scaleY;
-
-    // Pada IFP / Chromium non-WebKit, e.offsetX/offsetY langsung dihitung di ruang lokal kanvas (kebal bug CSS zoom & WebView)
-    let ua = navigator.userAgent || '';
-    let isAppleWebKit = /iPad|iPhone|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) || (/Safari/i.test(ua) && !/Chrome|Chromium|Edg|Android/i.test(ua));
-    let pakaiOffset = !isAppleWebKit && rawEvt && rawEvt.target === cvs && Number.isFinite(rawEvt.offsetX) && Number.isFinite(rawEvt.offsetY);
-
-    if (pakaiOffset) {
-        let localW = cvs.clientWidth || cvs.offsetWidth || cssW;
-        let localH = cvs.clientHeight || cvs.offsetHeight || cssH;
-        let ox = rawEvt.offsetX * (cssW / Math.max(1, localW));
-        let oy = rawEvt.offsetY * (cssH / Math.max(1, localH));
-
-        // Validasi batas wajar agar tidak pernah keluar skala saat browser unik menskalakan offsetX
-        let pointerDiDalamRect = (clientX >= r.left - 8 && clientX <= r.right + 8 && clientY >= r.top - 8 && clientY <= r.bottom + 8);
-        let offsetWajar = !pointerDiDalamRect || (ox >= -20 && ox <= cssW + 20 && oy >= -20 && oy <= cssH + 20);
-        if (offsetWajar) {
-            return { x: ox, y: oy, scaleX: scaleX, scaleY: scaleY };
-        }
-    }
-
-    return { x: rectX, y: rectY, scaleX: scaleX, scaleY: scaleY };
+    return {
+        x: (clientX - r.left) * scaleX,
+        y: (clientY - r.top) * scaleY,
+        scaleX: scaleX,
+        scaleY: scaleY
+    };
 };
 
-// Salinan GPU offscreen super cepat (menggantikan getImageData/putImageData yang lambat di IFP)
+// =========================================================================
+// 0.5 LAPISAN KANVAS LIVE STROKE, GPU SNAPSHOT, & DEBOUNCED SAVE
+// =========================================================================
 window.buatSalinanKanvasGPU = function(cvs) {
     let snap = document.createElement('canvas');
     snap.width = cvs.width;
     snap.height = cvs.height;
-    let sCtx = snap.getContext('2d');
-    sCtx.drawImage(cvs, 0, 0);
+    snap.getContext('2d').drawImage(cvs, 0, 0);
     return snap;
 };
 
@@ -182,6 +183,80 @@ window.catatUndoGPU = function(cvs) {
         if (dropped && dropped.snap) { dropped.snap.width = 0; dropped.snap.height = 0; }
     }
     window.drawRedoStack = [];
+};
+
+window.siapkanLiveCanvasUntuk = function(mainCvs) {
+    if (!mainCvs || !mainCvs.parentElement) return null;
+    let p = mainCvs.parentElement;
+    let live = p.querySelector(':scope > canvas.drawing-live-layer');
+    if (!live) {
+        live = document.createElement('canvas');
+        live.className = 'drawing-live-layer';
+        p.appendChild(live);
+    }
+
+    let dpr = parseFloat(mainCvs.getAttribute('data-dpr')) || window.DRAW_DPR || 2;
+    let cssW = parseFloat(mainCvs.getAttribute('data-css-w')) || (mainCvs.width / dpr);
+    let cssH = parseFloat(mainCvs.getAttribute('data-css-h')) || (mainCvs.height / dpr);
+
+    if (live.width !== mainCvs.width || live.height !== mainCvs.height) {
+        live.width = mainCvs.width;
+        live.height = mainCvs.height;
+    }
+    live.setAttribute('data-dpr', dpr);
+    live.setAttribute('data-css-w', cssW);
+    live.setAttribute('data-css-h', cssH);
+
+    let mainZ = parseInt(window.getComputedStyle(mainCvs).zIndex, 10);
+    live.style.zIndex = String((isNaN(mainZ) ? 10 : mainZ) + 1);
+    live.style.display = 'block';
+
+    let lCtx = live.getContext('2d');
+    lCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    lCtx.imageSmoothingEnabled = true;
+    lCtx.imageSmoothingQuality = 'high';
+    lCtx.lineCap = 'round';
+    lCtx.lineJoin = 'round';
+    lCtx.clearRect(0, 0, cssW, cssH);
+    return { cvs: live, ctx: lCtx };
+};
+
+window.bersihkanLiveCanvas = function(liveCvs) {
+    let target = liveCvs || currentLiveCvs;
+    if (!target) return;
+    let ctx = target.getContext('2d');
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, target.width, target.height);
+    ctx.restore();
+};
+
+window.jadwalkanSimpanDraw = function(cvs) {
+    if (cvs) dirtyDrawCanvases.add(cvs);
+    let st = document.getElementById('save-status-bar');
+    if (st) st.innerHTML = "<span style='color:#e67e22;'>✍️ Menyimpan coretan...</span>";
+
+    clearTimeout(drawSaveDebounceTimer);
+    drawSaveDebounceTimer = setTimeout(function() {
+        window.flushSimpanDraw(true);
+    }, 450);
+};
+
+window.flushSimpanDraw = function(kirimKeDB) {
+    clearTimeout(drawSaveDebounceTimer);
+    drawSaveDebounceTimer = null;
+    if (dirtyDrawCanvases.size === 0) return;
+
+    dirtyDrawCanvases.forEach(function(cvs) {
+        if (cvs && document.body.contains(cvs) && cvs.width > 0 && cvs.height > 0) {
+            window.simpanDataDrawingTarget(cvs, cvs.toDataURL('image/png'));
+        }
+    });
+    dirtyDrawCanvases.clear();
+
+    if (kirimKeDB !== false && typeof window.simpanKeDB === 'function') {
+        window.simpanKeDB();
+    }
 };
 
 // =========================================================================
@@ -264,6 +339,7 @@ window.prosesUploadPDFMateri = async function(input) {
 };
 
 window.gantiSlidePDF = function(blockIdx, arah) {
+    window.flushSimpanDraw(false);
     let blok = window.contentBlocksData[blockIdx];
     if (!blok || blok.type !== 'pdf_slides' || !Array.isArray(blok.slides)) return;
 
@@ -281,6 +357,7 @@ window.gantiSlidePDF = function(blockIdx, arah) {
 };
 
 window.lompatKeSlidePDF = function(blockIdx, nilaiInput) {
+    window.flushSimpanDraw(false);
     let blok = window.contentBlocksData[blockIdx];
     if (!blok || blok.type !== 'pdf_slides' || !Array.isArray(blok.slides)) return;
 
@@ -312,11 +389,13 @@ window.akhirSwipeSlidePDF = function(e, blockIdx) {
 };
 
 window.toggleFokusSlidePDF = function(blockIdx) {
+    window.flushSimpanDraw(false);
     window.focusedPdfBlockIndex = (window.focusedPdfBlockIndex === blockIdx) ? -1 : blockIdx;
     window.renderBlocks();
 };
 
 window.exportSlidePDFKeA4 = async function(blockIdx) {
+    window.flushSimpanDraw(false);
     let blok = window.contentBlocksData[blockIdx];
     if (!blok || !Array.isArray(blok.slides) || blok.slides.length === 0) return;
 
@@ -397,7 +476,7 @@ window.exportSlidePDFKeA4 = async function(blockIdx) {
 };
 
 // =========================================================================
-// 2. INISIALISASI KANVAS RETINA, AUTO-RESIZE OBSERVER, & UNDO/REDO GPU
+// 2. INISIALISASI KANVAS RETINA, KURVA BEZIER HALUS, & UNDO/REDO GPU
 // =========================================================================
 window.siapkanKonteksRetina = function(cvs) {
     let dpr = parseFloat(cvs.getAttribute('data-dpr')) || window.DRAW_DPR || 2;
@@ -413,10 +492,14 @@ window.siapkanKonteksRetina = function(cvs) {
 window.gambarKurvaHalus = function(ctx, pts) {
     if (!pts || pts.length === 0) return;
     ctx.beginPath();
-    ctx.moveTo(pts[0].x, pts[0].y);
     if (pts.length === 1) {
-        ctx.lineTo(pts[0].x + 0.1, pts[0].y + 0.1);
-    } else if (pts.length === 2) {
+        ctx.arc(pts[0].x, pts[0].y, Math.max(0.5, ctx.lineWidth / 2), 0, Math.PI * 2);
+        ctx.fillStyle = ctx.strokeStyle;
+        ctx.fill();
+        return;
+    }
+    ctx.moveTo(pts[0].x, pts[0].y);
+    if (pts.length === 2) {
         ctx.lineTo(pts[1].x, pts[1].y);
     } else {
         for (let i = 1; i < pts.length - 1; i++) {
@@ -482,10 +565,10 @@ function inisialisasiSemuaCanvas() {
         if (window.ResizeObserver && cvs.parentElement && !cvs.parentElement.getAttribute('data-draw-ro')) {
             if (!window._drawResizeObserver) {
                 window._drawResizeObserver = new ResizeObserver(function() {
-                    if (isPenDown || isFloating) return;
+                    if (isPenDown || isFloating || window.activeSmartShape) return;
                     clearTimeout(window._drawResizeTimer);
                     window._drawResizeTimer = setTimeout(function() {
-                        if (!isPenDown && !isFloating) inisialisasiSemuaCanvas();
+                        if (!isPenDown && !isFloating && !window.activeSmartShape) inisialisasiSemuaCanvas();
                     }, 180);
                 });
             }
@@ -499,8 +582,9 @@ window.inisialisasiSemuaCanvas = inisialisasiSemuaCanvas;
 function inisialisasiSatuCanvas(cvs) {
     let p = cvs.parentElement;
     if (!p) return;
-    let cw = p.clientWidth || p.offsetWidth;
-    let ch = p.clientHeight || p.offsetHeight;
+    // Prioritaskan ukuran aktual elemen kanvas sendiri agar rasio selalu 1:1
+    let cw = Math.round(cvs.clientWidth || p.clientWidth || p.offsetWidth);
+    let ch = Math.round(cvs.clientHeight || p.clientHeight || p.offsetHeight);
     if (cw === 0 || ch === 0) return;
 
     let dpr = window.hitungDrawDPR();
@@ -517,8 +601,10 @@ function inisialisasiSatuCanvas(cvs) {
     let needResize = (Math.abs(cvs.width - targetW) > 2 || Math.abs(cvs.height - targetH) > 2);
     if (needResize || (!cvs.getAttribute('data-loaded') && sv)) {
         let liveBackup = null;
-        if (needResize && cvs.width > 0 && cvs.height > 0 && cvs.getAttribute('data-loaded') === 'true' && !sv) {
-            liveBackup = window.buatSalinanKanvasGPU(cvs);
+        if (needResize && cvs.width > 0 && cvs.height > 0 && cvs.getAttribute('data-loaded') === 'true') {
+            if (dirtyDrawCanvases.has(cvs) || !sv) {
+                liveBackup = window.buatSalinanKanvasGPU(cvs);
+            }
         }
 
         cvs.width = targetW;
@@ -530,7 +616,12 @@ function inisialisasiSatuCanvas(cvs) {
         let ctx = window.siapkanKonteksRetina(cvs);
         ctx.clearRect(0, 0, cw, ch);
 
-        if (sv) {
+        if (liveBackup) {
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.globalAlpha = 1.0;
+            ctx.drawImage(liveBackup, 0, 0, cw, ch);
+            cvs.setAttribute('data-loaded', 'true');
+        } else if (sv) {
             let img = new Image();
             img.onload = function() {
                 let c2 = window.siapkanKonteksRetina(cvs);
@@ -540,10 +631,6 @@ function inisialisasiSatuCanvas(cvs) {
                 cvs.setAttribute('data-loaded', 'true');
             };
             img.src = sv;
-        } else if (liveBackup) {
-            ctx.globalCompositeOperation = 'source-over';
-            ctx.drawImage(liveBackup, 0, 0, cw, ch);
-            cvs.setAttribute('data-loaded', 'true');
         } else {
             cvs.setAttribute('data-loaded', 'true');
         }
@@ -561,9 +648,7 @@ window.undoDraw = function() {
     window.drawRedoStack.push({ cvs: action.cvs, snap: window.buatSalinanKanvasGPU(action.cvs) });
     let ctx = window.siapkanKonteksRetina(action.cvs);
     window.pulihkanKanvasDariGPU(ctx, action.snap);
-
-    window.simpanDataDrawingTarget(action.cvs, action.cvs.toDataURL('image/png'));
-    if (window.simpanKeDB) window.simpanKeDB();
+    window.jadwalkanSimpanDraw(action.cvs);
 };
 
 window.redoDraw = function() {
@@ -577,9 +662,7 @@ window.redoDraw = function() {
     window.drawUndoStack.push({ cvs: action.cvs, snap: window.buatSalinanKanvasGPU(action.cvs) });
     let ctx = window.siapkanKonteksRetina(action.cvs);
     window.pulihkanKanvasDariGPU(ctx, action.snap);
-
-    window.simpanDataDrawingTarget(action.cvs, action.cvs.toDataURL('image/png'));
-    if (window.simpanKeDB) window.simpanKeDB();
+    window.jadwalkanSimpanDraw(action.cvs);
 };
 
 // =========================================================================
@@ -662,11 +745,9 @@ window.toggleIfpMode = function(forceVal) {
     window.ifpMode = next;
     try { localStorage.setItem(window.DRAW_IFP_MODE_KEY, next ? '1' : '0'); } catch (e) {}
 
-    // Mode IFP dan Palm Reject iPad saling eksklusif agar tidak saling menghalangi
-    if (next) {
-        window.pencilOnly = false;
-    }
+    if (next) window.pencilOnly = false;
     window.DRAW_DPR = window.hitungDrawDPR();
+    window._zoomRectBehavior = null;
     window.sinkronStatusBodyModeDraw();
 
     if (window.isDrawingMode) {
@@ -695,6 +776,7 @@ window.toggleDrawingMode = function() {
     window.isDrawingMode = !window.isDrawingMode;
     if (window.isDrawingMode) {
         document.body.classList.add('drawing-mode-active');
+        window._zoomRectBehavior = null;
         window.sinkronStatusBodyModeDraw();
         document.querySelectorAll('.content-block, .fb-content').forEach(function(el) { el.removeAttribute('contenteditable'); });
         inisialisasiSemuaCanvas();
@@ -706,10 +788,11 @@ window.toggleDrawingMode = function() {
         window.tutupSemuaPopoverDraw();
         if (window.activeSmartShape) window.burnActiveSmartShape();
         stampLasso();
+        window.bersihkanLiveCanvas();
+        window.flushSimpanDraw(true);
         if (document.body.classList.contains('mode-edit-aktif')) {
             document.querySelectorAll('.content-block.a4-portrait-block, .fb-content').forEach(function(el) { el.setAttribute('contenteditable', 'true'); });
         }
-        if (window.simpanKeDB) window.simpanKeDB();
         let pt = document.getElementById('pen-tools');
         if (pt) pt.style.transform = 'none';
     }
@@ -852,6 +935,8 @@ window.clearSemuaCoretan = function() {
     if (confirm("Hapus semua coretan di halaman ini?")) {
         if (window.activeSmartShape) window.burnActiveSmartShape();
         stampLasso();
+        window.bersihkanLiveCanvas();
+        dirtyDrawCanvases.clear();
         document.querySelectorAll('.drawing-layer').forEach(function(cvs) {
             let dpr = parseFloat(cvs.getAttribute('data-dpr')) || window.DRAW_DPR || 2;
             let ctx = window.siapkanKonteksRetina(cvs);
@@ -867,7 +952,14 @@ window.pasangCssToolbarDrawFit = function() {
     let st = document.createElement('style');
     st.id = 'css-pen-tools-fit';
     st.textContent =
-        /* Kunci touch-action:none saat menulis dengan jari/stylus pasif (IFP atau Palm Reject OFF) */
+        /* Kanvas utama & live layer selalu menutupi 100% wadahnya tanpa margin/border agar koordinat 1:1 */
+        'canvas.drawing-layer, canvas.drawing-live-layer {' +
+            'position: absolute !important; top: 0 !important; left: 0 !important;' +
+            'width: 100% !important; height: 100% !important; margin: 0 !important; padding: 0 !important;' +
+            'border: 0 !important; box-sizing: border-box !important;' +
+        '}' +
+        'canvas.drawing-live-layer { pointer-events: none !important; }' +
+        'body.drawing-mode-active canvas.drawing-layer { cursor: crosshair !important; }' +
         'body.drawing-mode-active.ifp-mode-on .drawing-layer,' +
         'body.drawing-mode-active:not(.palm-reject-on) .drawing-layer {' +
             'touch-action: none !important; -webkit-user-select: none !important; user-select: none !important;' +
@@ -931,8 +1023,8 @@ window.pasangCssToolbarDrawFit = function() {
 window.inisialisasiToolbarDrawKompak = function() {
     window.pasangCssToolbarDrawFit();
     let penTools = document.getElementById('pen-tools');
-    if (!penTools || penTools.getAttribute('data-compact-v3') === '1') return;
-    penTools.setAttribute('data-compact-v3', '1');
+    if (!penTools || penTools.getAttribute('data-compact-v4') === '1') return;
+    penTools.setAttribute('data-compact-v4', '1');
 
     let lastLasso = window.lastLassoTool || 'lasso';
     let lassoIco = (lastLasso === 'lasso-box') ? '⬚' : '✂️';
@@ -967,7 +1059,7 @@ window.inisialisasiToolbarDrawKompak = function() {
         '</div>' +
 
         '<div class="pt-group">' +
-            '<button type="button" id="btn-ifp-mode-toggle" class="pt-btn is-ifp' + (window.ifpMode ? ' is-on' : '') + '" onclick="window.toggleIfpMode()" title="Mode Khusus IFP / Smartboard (Stylus Pasif &amp; Kalibrasi Presisi)">🖥️<span class="pt-lbl"> IFP</span></button>' +
+            '<button type="button" id="btn-ifp-mode-toggle" class="pt-btn is-ifp' + (window.ifpMode ? ' is-on' : '') + '" onclick="window.toggleIfpMode()" title="Mode Khusus IFP / Smartboard (1 Jari Tulis, 2 Jari Scroll)">🖥️<span class="pt-lbl"> IFP</span></button>' +
             '<button type="button" id="btn-palm-reject-toggle" class="pt-btn is-palm' + (window.pencilOnly && !window.ifpMode ? ' is-on' : '') + '" onclick="window.togglePalmReject(!window.pencilOnly)" title="Palm Reject (Khusus iPad Apple Pencil)">✋<span class="pt-lbl"> Palm</span></button>' +
             '<input type="checkbox" id="palm-reject" style="display:none;" ' + (window.pencilOnly && !window.ifpMode ? 'checked' : '') + '>' +
             '<button type="button" class="pt-btn is-clear" onclick="window.clearSemuaCoretan()" title="Hapus Semua Coretan">🗑️<span class="pt-lbl"> Clear</span></button>' +
@@ -1033,12 +1125,6 @@ window.inisialisasiToolbarDrawKompak = function() {
     document.body.appendChild(popLas);
 };
 
-document.addEventListener('pointerdown', function(e) {
-    if (!e.target.closest('.draw-popover-panel') && !e.target.closest('#btn-pt-color') && !e.target.closest('#btn-pt-size') && !e.target.closest('#pt-lasso-group')) {
-        window.tutupSemuaPopoverDraw();
-    }
-}, true);
-
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', window.inisialisasiToolbarDrawKompak);
 } else {
@@ -1056,7 +1142,7 @@ function resizeLaserCanvas() {
     }
 }
 window.addEventListener('resize', function() {
-    window._cachedZoomRectMode = null;
+    window._zoomRectBehavior = null;
     setTimeout(inisialisasiSemuaCanvas, 220);
     resizeLaserCanvas();
     stampLasso();
@@ -1121,17 +1207,10 @@ let twoFingerScrollPrev = null;
 
 window.batalGoresanSementaraKarenaDuaJari = function() {
     if (!isPenDown) return;
-    let baruMulai = (Date.now() - penStartTime) < 220;
     isPenDown = false;
     activePointerId = null;
     clearTimeout(window.shapeHoldTimer);
-
-    if (baruMulai && currentDrawCtx && window.drawBackupCanvas) {
-        window.pulihkanKanvasDariGPU(currentDrawCtx, window.drawBackupCanvas);
-        if (window.drawUndoStack.length > 0 && window.drawUndoStack[window.drawUndoStack.length - 1].cvs === currentDrawCtx.canvas) {
-            window.drawUndoStack.pop();
-        }
-    }
+    window.bersihkanLiveCanvas();
     currentDrawCtx = null;
 };
 
@@ -1174,11 +1253,11 @@ document.addEventListener('touchstart', function(e) {
             let startY = touch.clientY;
             clearTimeout(window.longPressDrawTimer);
             window.longPressDrawTimer = setTimeout(function() {
-                if (!isPenDown || (window.drawPoints && window.drawPoints.length < 4)) {
+                if (!isPenDown || (window.rawDrawPoints && window.rawDrawPoints.length < 4)) {
                     window.batalGoresanSementaraKarenaDuaJari();
                     window.bukaMenuKonteksDraw(startX, startY, targetCvs);
                 }
-            }, 600);
+            }, 620);
         }
         if (window.ifpMode || !window.pencilOnly) {
             e.preventDefault();
@@ -1252,9 +1331,78 @@ window.tutupMenuKonteksDraw = function() {
 };
 
 // =========================================================================
-// 4. EVENT POINTER MENGGAMBAR ZERO-LAG & MESIN SMART SHAPE VEKTOR
+// 4. EVENT POINTER LIVE-CANVAS SMOOTHING & MESIN SMART SHAPE VEKTOR
 // =========================================================================
+window.renderLiveStrokeFrame = function() {
+    liveRenderQueued = false;
+    if (!currentLiveCtx || !currentLiveCvs) return;
+
+    let dpr = parseFloat(currentLiveCvs.getAttribute('data-dpr')) || window.DRAW_DPR || 2;
+    let cssW = parseFloat(currentLiveCvs.getAttribute('data-css-w')) || (currentLiveCvs.width / dpr);
+    let cssH = parseFloat(currentLiveCvs.getAttribute('data-css-h')) || (currentLiveCvs.height / dpr);
+
+    currentLiveCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    currentLiveCtx.clearRect(0, 0, cssW, cssH);
+    currentLiveCtx.globalCompositeOperation = 'source-over';
+    currentLiveCtx.lineCap = 'round';
+    currentLiveCtx.lineJoin = 'round';
+
+    if (activeTool === 'pen' && !window.isShapeRecognized) {
+        currentLiveCtx.globalAlpha = 1.0;
+        currentLiveCtx.strokeStyle = window.penColor;
+        currentLiveCtx.lineWidth = window.penSize;
+        window.gambarKurvaHalus(currentLiveCtx, window.drawPoints);
+    } else if (activeTool === 'highlighter') {
+        currentLiveCtx.globalAlpha = 0.36;
+        currentLiveCtx.strokeStyle = window.penColor;
+        currentLiveCtx.lineWidth = window.penSize * 4;
+        window.gambarKurvaHalus(currentLiveCtx, window.drawPoints);
+        currentLiveCtx.globalAlpha = 1.0;
+    } else if (activeTool === 'line' && window.drawPoints.length >= 2) {
+        let p0 = window.drawPoints[0];
+        let p1 = window.drawPoints[window.drawPoints.length - 1];
+        currentLiveCtx.globalAlpha = 1.0;
+        currentLiveCtx.strokeStyle = window.penColor;
+        currentLiveCtx.lineWidth = window.penSize;
+        currentLiveCtx.beginPath();
+        currentLiveCtx.moveTo(p0.x, p0.y);
+        currentLiveCtx.lineTo(p1.x, p1.y);
+        currentLiveCtx.stroke();
+    } else if (activeTool === 'lasso' && lassoPath.length > 1) {
+        currentLiveCtx.globalAlpha = 1.0;
+        currentLiveCtx.strokeStyle = '#3498db';
+        currentLiveCtx.lineWidth = 1.6;
+        currentLiveCtx.setLineDash([5, 5]);
+        currentLiveCtx.beginPath();
+        currentLiveCtx.moveTo(lassoPath[0].x, lassoPath[0].y);
+        for (let i = 1; i < lassoPath.length; i++) currentLiveCtx.lineTo(lassoPath[i].x, lassoPath[i].y);
+        currentLiveCtx.stroke();
+        currentLiveCtx.setLineDash([]);
+    } else if (activeTool === 'lasso-box' && lassoPath.length >= 2) {
+        let sx = lassoPath[0].x, sy = lassoPath[0].y;
+        let ex = lassoPath[1].x, ey = lassoPath[1].y;
+        currentLiveCtx.globalAlpha = 1.0;
+        currentLiveCtx.strokeStyle = '#3498db';
+        currentLiveCtx.lineWidth = 1.6;
+        currentLiveCtx.setLineDash([5, 5]);
+        currentLiveCtx.beginPath();
+        currentLiveCtx.rect(sx, sy, ex - sx, ey - sy);
+        currentLiveCtx.stroke();
+        currentLiveCtx.setLineDash([]);
+    }
+};
+
+window.jadwalkanRenderLive = function() {
+    if (!liveRenderQueued) {
+        liveRenderQueued = true;
+        window.requestAnimationFrame(window.renderLiveStrokeFrame);
+    }
+};
+
 document.addEventListener('pointerdown', function(e) {
+    if (!e.target.closest('.draw-popover-panel') && !e.target.closest('#btn-pt-color') && !e.target.closest('#btn-pt-size') && !e.target.closest('#pt-lasso-group')) {
+        window.tutupSemuaPopoverDraw();
+    }
     if (!e.target.closest('#draw-context-menu')) {
         window.tutupMenuKonteksDraw();
     }
@@ -1292,14 +1440,12 @@ document.addEventListener('pointerdown', function(e) {
     if (e.target.closest('#pen-tools') || e.target.closest('.draw-popover-panel') || e.target.closest('#draw-context-menu') || e.target.closest('.pdf-slide-nav-bar') || e.target.closest('.draw-float-img-item')) return;
     if (e.pointerType === 'mouse' && e.button !== 0) return;
 
-    // Abaikan jari saat Palm Reject iPad aktif, atau saat sedang scroll 2 jari
     if (e.pointerType === 'touch') {
         if ((!window.ifpMode && window.pencilOnly) || window.activeTouches > 1) {
             return;
         }
     }
 
-    // Tolak pointer kedua saat sedang aktif menulis (anti-lompat di panel sentuh IR 20 titik)
     if (isPenDown && activePointerId !== null && e.pointerId !== activePointerId) {
         return;
     }
@@ -1312,13 +1458,13 @@ document.addEventListener('pointerdown', function(e) {
     if (e.target.classList.contains('drawing-layer')) {
         let c = e.target;
         inisialisasiSatuCanvas(c);
-        let pt = window.ambilKoordinatKanvas(c, e.clientX, e.clientY, e);
+        let pt = window.ambilKoordinatKanvas(c, e.clientX, e.clientY);
         let x = pt.x, y = pt.y;
 
-        if (window.activeSmartShape && window.activeSmartShape.ctx.canvas === c) {
+        if (window.activeSmartShape && window.activeSmartShape.mainCvs === c) {
             let hit = -1;
             window.activeSmartShape.vertices.forEach(function(v, idx) {
-                if (Math.hypot(x - v.x, y - v.y) < (window.ifpMode ? 24 : 18)) hit = idx;
+                if (Math.hypot(x - v.x, y - v.y) < (window.ifpMode ? 26 : 18)) hit = idx;
             });
             if (hit !== -1) {
                 window.draggingSmartVertex = hit;
@@ -1342,33 +1488,32 @@ document.addEventListener('pointerdown', function(e) {
             currentLaserStroke = { points: [{ x: e.clientX, y: e.clientY }] };
             laserStrokes.push(currentLaserStroke);
             window.mulaiLoopLaser();
-        } else {
-            currentDrawCtx = window.siapkanKonteksRetina(c);
+            return;
+        }
 
-            if (activeTool === 'lasso' || activeTool === 'lasso-box') {
-                currentDrawCtx.globalCompositeOperation = 'source-over';
-                lassoTargetCanvas = c;
-                lassoPath = [{ x: x, y: y }];
-                window.drawBackupCanvas = window.buatSalinanKanvasGPU(c);
-            } else if (activeTool === 'highlighter' || activeTool === 'line' || activeTool === 'pen' || activeTool === 'eraser') {
-                window.catatUndoGPU(c);
-                window.drawBackupCanvas = window.buatSalinanKanvasGPU(c);
-                window.drawPoints = [{ x: x, y: y }];
-                lastMidPt = { x: x, y: y };
+        currentDrawCtx = window.siapkanKonteksRetina(c);
+        let liveObj = window.siapkanLiveCanvasUntuk(c);
+        currentLiveCvs = liveObj ? liveObj.cvs : null;
+        currentLiveCtx = liveObj ? liveObj.ctx : null;
 
-                currentDrawCtx.globalCompositeOperation = (activeTool === 'eraser') ? 'destination-out' : 'source-over';
-                currentDrawCtx.globalAlpha = 1.0;
-                currentDrawCtx.strokeStyle = window.penColor;
-                currentDrawCtx.fillStyle = window.penColor;
-                currentDrawCtx.lineWidth = (activeTool === 'eraser') ? (window.penSize * 5) : window.penSize;
-
-                // Titik awal instan agar ketukan titik / koma langsung tergambar tajam
-                if (activeTool === 'pen' || activeTool === 'eraser') {
-                    currentDrawCtx.beginPath();
-                    currentDrawCtx.arc(x, y, currentDrawCtx.lineWidth / 2, 0, Math.PI * 2);
-                    currentDrawCtx.fill();
-                }
-            }
+        if (activeTool === 'lasso' || activeTool === 'lasso-box') {
+            lassoTargetCanvas = c;
+            lassoPath = [{ x: x, y: y }];
+        } else if (activeTool === 'eraser') {
+            window.catatUndoGPU(c);
+            window.drawPoints = [{ x: x, y: y }];
+            eraserLastMid = { x: x, y: y };
+            currentDrawCtx.globalCompositeOperation = 'destination-out';
+            currentDrawCtx.lineWidth = window.penSize * 5;
+            currentDrawCtx.beginPath();
+            currentDrawCtx.arc(x, y, currentDrawCtx.lineWidth / 2, 0, Math.PI * 2);
+            currentDrawCtx.fill();
+        } else if (activeTool === 'pen' || activeTool === 'highlighter' || activeTool === 'line') {
+            window.drawPoints = [{ x: x, y: y }];
+            window.rawDrawPoints = [{ x: x, y: y }];
+            smoothLastPt = { x: x, y: y };
+            holdAnchorPt = { x: x, y: y };
+            window.renderLiveStrokeFrame();
         }
     }
 });
@@ -1409,7 +1554,7 @@ window.sudutAntarTigaTitik = function(p1, p2, p3) {
 };
 
 window.recognizeShape = function() {
-    if (!isPenDown || !currentDrawCtx || window.isShapeRecognized || window.drawPoints.length < 10) return;
+    if (!isPenDown || !currentDrawCtx || !currentLiveCtx || window.isShapeRecognized || window.drawPoints.length < 6) return;
     let pts = window.drawPoints;
     let start = pts[0], end = pts[pts.length - 1];
 
@@ -1437,6 +1582,7 @@ window.recognizeShape = function() {
     let type = 'polygon';
     let vertices = simplified;
 
+    // Deteksi lingkaran/oval mulus (mencegah lingkaran berubah menjadi segi banyak kompleks)
     let isMiripLingkaran = false;
     if (isClosed && w > 18 && h > 18) {
         let cx = minX + w / 2, cy = minY + h / 2;
@@ -1448,7 +1594,7 @@ window.recognizeShape = function() {
             if (normR > maxNormR) maxNormR = normR;
         });
         let mad = sumDev / pts.length;
-        if ((simplified.length >= 6 && mad < 0.26) || (simplified.length === 5 && mad < 0.13 && maxNormR < 1.24)) {
+        if ((simplified.length >= 6 && mad < 0.28) || (simplified.length === 5 && mad < 0.14 && maxNormR < 1.25)) {
             isMiripLingkaran = true;
         }
     }
@@ -1526,21 +1672,17 @@ window.recognizeShape = function() {
         vertices: vertices,
         color: window.penColor,
         size: window.penSize,
-        ctx: currentDrawCtx
+        mainCvs: currentDrawCtx.canvas,
+        liveCvs: currentLiveCvs,
+        liveCtx: currentLiveCtx
     };
     window.isShapeRecognized = true;
     window.renderActiveSmartShape();
 };
 
-window.renderActiveSmartShape = function() {
-    let shape = window.activeSmartShape;
-    if (!shape) return;
-    let ctx = shape.ctx;
-
-    window.pulihkanKanvasDariGPU(ctx, window.drawBackupCanvas);
+window.gambarBentukSmartShape = function(ctx, shape, tampilkanTitik) {
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1.0;
-
     ctx.beginPath();
     ctx.strokeStyle = shape.color;
     ctx.lineWidth = shape.size;
@@ -1558,63 +1700,43 @@ window.renderActiveSmartShape = function() {
     }
     ctx.stroke();
 
-    ctx.fillStyle = '#3498db';
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = '#ffffff';
-    shape.vertices.forEach(function(v) {
-        ctx.beginPath();
-        ctx.arc(v.x, v.y, window.ifpMode ? 8 : 6, 0, 2 * Math.PI);
-        ctx.fill();
-        ctx.stroke();
-    });
+    if (tampilkanTitik) {
+        ctx.fillStyle = '#3498db';
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#ffffff';
+        shape.vertices.forEach(function(v) {
+            ctx.beginPath();
+            ctx.arc(v.x, v.y, window.ifpMode ? 8 : 6, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.stroke();
+        });
+    }
+};
+
+window.renderActiveSmartShape = function() {
+    let shape = window.activeSmartShape;
+    if (!shape || !shape.liveCtx || !shape.liveCvs) return;
+    let dpr = parseFloat(shape.liveCvs.getAttribute('data-dpr')) || window.DRAW_DPR || 2;
+    let cssW = parseFloat(shape.liveCvs.getAttribute('data-css-w')) || (shape.liveCvs.width / dpr);
+    let cssH = parseFloat(shape.liveCvs.getAttribute('data-css-h')) || (shape.liveCvs.height / dpr);
+
+    shape.liveCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    shape.liveCtx.clearRect(0, 0, cssW, cssH);
+    window.gambarBentukSmartShape(shape.liveCtx, shape, true);
 };
 
 window.burnActiveSmartShape = function() {
-    if (!window.activeSmartShape) return;
     let shape = window.activeSmartShape;
-    let ctx = shape.ctx;
-    window.pulihkanKanvasDariGPU(ctx, window.drawBackupCanvas);
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.globalAlpha = 1.0;
+    if (!shape || !shape.mainCvs) return;
 
-    ctx.beginPath();
-    ctx.strokeStyle = shape.color;
-    ctx.lineWidth = shape.size;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
+    window.catatUndoGPU(shape.mainCvs);
+    let mainCtx = window.siapkanKonteksRetina(shape.mainCvs);
+    window.gambarBentukSmartShape(mainCtx, shape, false);
+    window.bersihkanLiveCanvas(shape.liveCvs);
 
-    if (shape.type === 'oval' || shape.type === 'circle') {
-        let v = shape.vertices;
-        let cx = (v[3].x + v[1].x) / 2, cy = (v[0].y + v[2].y) / 2;
-        let rx = Math.max(1, Math.abs(v[1].x - v[3].x) / 2), ry = Math.max(1, Math.abs(v[2].y - v[0].y) / 2);
-        ctx.ellipse(cx, cy, rx, ry, 0, 0, 2 * Math.PI);
-    } else {
-        ctx.moveTo(shape.vertices[0].x, shape.vertices[0].y);
-        for (let i = 1; i < shape.vertices.length; i++) ctx.lineTo(shape.vertices[i].x, shape.vertices[i].y);
-    }
-    ctx.stroke();
-
-    window.simpanDataDrawingTarget(ctx.canvas, ctx.canvas.toDataURL('image/png'));
-    if (window.simpanKeDB) window.simpanKeDB();
     window.activeSmartShape = null;
     currentDrawCtx = null;
-};
-
-window.tambahSegmenPenaHalus = function(ctx, pt) {
-    let pts = window.drawPoints;
-    let prev = pts[pts.length - 1];
-    if (prev && Math.hypot(pt.x - prev.x, pt.y - prev.y) < 0.8) return false;
-
-    pts.push(pt);
-    let midX = (prev.x + pt.x) / 2;
-    let midY = (prev.y + pt.y) / 2;
-
-    ctx.beginPath();
-    ctx.moveTo(lastMidPt.x, lastMidPt.y);
-    ctx.quadraticCurveTo(prev.x, prev.y, midX, midY);
-    ctx.stroke();
-    lastMidPt = { x: midX, y: midY };
-    return true;
+    window.jadwalkanSimpanDraw(shape.mainCvs);
 };
 
 document.addEventListener('pointermove', function(e) {
@@ -1622,8 +1744,7 @@ document.addEventListener('pointermove', function(e) {
 
     if (window.draggingSmartVertex !== undefined && window.activeSmartShape) {
         if (activePointerId !== null && e.pointerId !== activePointerId) return;
-        let cvs = window.activeSmartShape.ctx.canvas;
-        let ptDrag = window.ambilKoordinatKanvas(cvs, e.clientX, e.clientY, e);
+        let ptDrag = window.ambilKoordinatKanvas(window.activeSmartShape.mainCvs, e.clientX, e.clientY);
         window.activeSmartShape.vertices[window.draggingSmartVertex] = { x: ptDrag.x, y: ptDrag.y };
 
         if (window.activeSmartShape.type === 'polygon' && window.activeSmartShape.isClosed) {
@@ -1639,94 +1760,90 @@ document.addEventListener('pointermove', function(e) {
 
     if (!isPenDown) return;
     if (activePointerId !== null && e.pointerId !== activePointerId) return;
-    if (e.pointerType === 'touch' && ((!window.ifpMode && window.pencilOnly) || window.activeTouches > 1)) {
-        return;
-    }
+    if (e.pointerType === 'touch' && ((!window.ifpMode && window.pencilOnly) || window.activeTouches > 1)) return;
 
     if (activeTool === 'laser' && currentLaserStroke) {
         laserLastActiveTime = Date.now();
         currentLaserStroke.points.push({ x: e.clientX, y: e.clientY });
-    } else if (currentDrawCtx) {
-        let cvs = currentDrawCtx.canvas;
-        let ptMove = window.ambilKoordinatKanvas(cvs, e.clientX, e.clientY, e);
-        let x = ptMove.x, y = ptMove.y;
+        return;
+    }
 
-        if (activeTool === 'lasso') {
-            lassoPath.push({ x: x, y: y });
-            window.pulihkanKanvasDariGPU(currentDrawCtx, window.drawBackupCanvas);
-            currentDrawCtx.beginPath();
-            currentDrawCtx.moveTo(lassoPath[0].x, lassoPath[0].y);
-            for (let i = 1; i < lassoPath.length; i++) currentDrawCtx.lineTo(lassoPath[i].x, lassoPath[i].y);
-            currentDrawCtx.strokeStyle = '#3498db';
-            currentDrawCtx.lineWidth = 1.6;
-            currentDrawCtx.setLineDash([5, 5]);
-            currentDrawCtx.stroke();
-            currentDrawCtx.setLineDash([]);
-        } else if (activeTool === 'lasso-box') {
-            lassoPath[1] = { x: x, y: y };
-            window.pulihkanKanvasDariGPU(currentDrawCtx, window.drawBackupCanvas);
-            currentDrawCtx.beginPath();
-            let startX = lassoPath[0].x, startY = lassoPath[0].y;
-            currentDrawCtx.rect(startX, startY, x - startX, y - startY);
-            currentDrawCtx.strokeStyle = '#3498db';
-            currentDrawCtx.lineWidth = 1.6;
-            currentDrawCtx.setLineDash([5, 5]);
-            currentDrawCtx.stroke();
-            currentDrawCtx.setLineDash([]);
-        } else if (activeTool === 'highlighter') {
-            window.drawPoints.push({ x: x, y: y });
-            window.pulihkanKanvasDariGPU(currentDrawCtx, window.drawBackupCanvas);
-            currentDrawCtx.globalCompositeOperation = 'source-over';
-            currentDrawCtx.globalAlpha = 0.36;
-            currentDrawCtx.strokeStyle = window.penColor;
-            currentDrawCtx.lineWidth = window.penSize * 4;
-            window.gambarKurvaHalus(currentDrawCtx, window.drawPoints);
-            currentDrawCtx.globalAlpha = 1.0;
-        } else if (activeTool === 'line') {
-            window.pulihkanKanvasDariGPU(currentDrawCtx, window.drawBackupCanvas);
-            currentDrawCtx.beginPath();
-            currentDrawCtx.moveTo(window.drawPoints[0].x, window.drawPoints[0].y);
-            currentDrawCtx.lineTo(x, y);
-            currentDrawCtx.strokeStyle = window.penColor;
-            currentDrawCtx.lineWidth = window.penSize;
-            currentDrawCtx.stroke();
-        } else if (activeTool === 'pen') {
-            if (!window.isShapeRecognized) {
-                currentDrawCtx.globalCompositeOperation = 'source-over';
-                currentDrawCtx.strokeStyle = window.penColor;
-                currentDrawCtx.lineWidth = window.penSize;
+    if (!currentDrawCtx) return;
+    let cvs = currentDrawCtx.canvas;
+    let ptMove = window.ambilKoordinatKanvas(cvs, e.clientX, e.clientY);
 
-                // Hanya pakai coalesced events untuk stylus aktif (Apple Pencil) jika koordinatnya tervalidasi cocok
-                let daftarEv = [e];
-                if (!window.ifpMode && e.pointerType === 'pen' && typeof e.getCoalescedEvents === 'function') {
-                    let coalesced = e.getCoalescedEvents();
-                    if (coalesced && coalesced.length > 0) {
-                        let lastC = coalesced[coalesced.length - 1];
-                        if (Math.hypot(lastC.clientX - e.clientX, lastC.clientY - e.clientY) <= 6) {
-                            daftarEv = coalesced;
-                        }
-                    }
-                }
+    if (activeTool === 'lasso') {
+        let lastL = lassoPath[lassoPath.length - 1];
+        if (!lastL || Math.hypot(ptMove.x - lastL.x, ptMove.y - lastL.y) >= 2.5) {
+            lassoPath.push({ x: ptMove.x, y: ptMove.y });
+            window.jadwalkanRenderLive();
+        }
+    } else if (activeTool === 'lasso-box') {
+        lassoPath[1] = { x: ptMove.x, y: ptMove.y };
+        window.jadwalkanRenderLive();
+    } else if (activeTool === 'line') {
+        window.drawPoints[1] = { x: ptMove.x, y: ptMove.y };
+        window.jadwalkanRenderLive();
+    } else if (activeTool === 'eraser') {
+        let prevE = window.drawPoints[window.drawPoints.length - 1];
+        if (!prevE || Math.hypot(ptMove.x - prevE.x, ptMove.y - prevE.y) < 1.2) return;
+        window.drawPoints.push({ x: ptMove.x, y: ptMove.y });
+        let midX = (prevE.x + ptMove.x) / 2;
+        let midY = (prevE.y + ptMove.y) / 2;
+        currentDrawCtx.globalCompositeOperation = 'destination-out';
+        currentDrawCtx.lineWidth = window.penSize * 5;
+        currentDrawCtx.beginPath();
+        currentDrawCtx.moveTo(eraserLastMid.x, eraserLastMid.y);
+        currentDrawCtx.quadraticCurveTo(prevE.x, prevE.y, midX, midY);
+        currentDrawCtx.stroke();
+        eraserLastMid = { x: midX, y: midY };
+    } else if (activeTool === 'pen' || activeTool === 'highlighter') {
+        if (window.isShapeRecognized) return;
 
-                let adaGerakBesar = false;
-                daftarEv.forEach(function(ev) {
-                    let ptEv = window.ambilKoordinatKanvas(cvs, ev.clientX, ev.clientY, ev);
-                    let prev = window.drawPoints[window.drawPoints.length - 1];
-                    if (!prev || Math.hypot(ptEv.x - prev.x, ptEv.y - prev.y) > (window.ifpMode ? 4 : 1.5)) {
-                        adaGerakBesar = true;
-                    }
-                    window.tambahSegmenPenaHalus(currentDrawCtx, ptEv);
-                });
-
-                if (adaGerakBesar) {
-                    clearTimeout(window.shapeHoldTimer);
-                    window.shapeHoldTimer = setTimeout(window.recognizeShape, 650);
-                }
+        // Kumpulkan sampel titik (gunakan coalesced events hanya untuk Apple Pencil aktif di luar IFP)
+        let evList = [e];
+        if (!window.ifpMode && e.pointerType === 'pen' && typeof e.getCoalescedEvents === 'function') {
+            let co = e.getCoalescedEvents();
+            if (co && co.length > 0) {
+                let lastC = co[co.length - 1];
+                if (Math.hypot(lastC.clientX - e.clientX, lastC.clientY - e.clientY) <= 5) evList = co;
             }
-        } else if (activeTool === 'eraser') {
-            currentDrawCtx.globalCompositeOperation = 'destination-out';
-            currentDrawCtx.lineWidth = window.penSize * 5;
-            window.tambahSegmenPenaHalus(currentDrawCtx, ptMove);
+        }
+
+        // Filter EMA peredam getaran agar tulisan di IFP & mouse halus tanpa patah-patah
+        let emaAlpha = window.ifpMode ? 0.52 : (e.pointerType === 'pen' ? 0.78 : 0.62);
+        let minStep = window.ifpMode ? 2.2 : 1.4;
+        let adaTitikBaru = false;
+
+        evList.forEach(function(ev) {
+            let rawPt = window.ambilKoordinatKanvas(cvs, ev.clientX, ev.clientY);
+            window.rawDrawPoints.push(rawPt);
+            if (!smoothLastPt) {
+                smoothLastPt = { x: rawPt.x, y: rawPt.y };
+            } else {
+                smoothLastPt = {
+                    x: smoothLastPt.x + emaAlpha * (rawPt.x - smoothLastPt.x),
+                    y: smoothLastPt.y + emaAlpha * (rawPt.y - smoothLastPt.y)
+                };
+            }
+            let lastAccepted = window.drawPoints[window.drawPoints.length - 1];
+            if (!lastAccepted || Math.hypot(smoothLastPt.x - lastAccepted.x, smoothLastPt.y - lastAccepted.y) >= minStep) {
+                window.drawPoints.push({ x: smoothLastPt.x, y: smoothLastPt.y });
+                adaTitikBaru = true;
+            }
+        });
+
+        if (adaTitikBaru) {
+            window.jadwalkanRenderLive();
+        }
+
+        if (activeTool === 'pen') {
+            let gerakDariAnchor = holdAnchorPt ? Math.hypot(ptMove.x - holdAnchorPt.x, ptMove.y - holdAnchorPt.y) : 999;
+            if (gerakDariAnchor > (window.ifpMode ? 7 : 3.5)) {
+                holdAnchorPt = { x: ptMove.x, y: ptMove.y };
+                clearTimeout(window.shapeHoldTimer);
+                window.shapeHoldTimer = setTimeout(window.recognizeShape, 620);
+            }
         }
     }
 });
@@ -1737,7 +1854,7 @@ function akhiriGoresanPointer(e) {
 
     if (window.draggingSmartVertex !== undefined) {
         if (window.activeSmartShape && e) {
-            try { window.activeSmartShape.ctx.canvas.releasePointerCapture(e.pointerId); } catch (err) {}
+            try { window.activeSmartShape.mainCvs.releasePointerCapture(e.pointerId); } catch (err) {}
         }
         window.draggingSmartVertex = undefined;
         activePointerId = null;
@@ -1758,9 +1875,11 @@ function akhiriGoresanPointer(e) {
     if (activeTool === 'laser' && currentLaserStroke) {
         laserLastActiveTime = Date.now();
         currentLaserStroke = null;
-    } else if ((activeTool === 'lasso' || activeTool === 'lasso-box') && currentDrawCtx && lassoPath.length > 0) {
-        window.pulihkanKanvasDariGPU(currentDrawCtx, window.drawBackupCanvas);
+        return;
+    }
 
+    if ((activeTool === 'lasso' || activeTool === 'lasso-box') && currentDrawCtx && lassoPath.length > 0) {
+        window.bersihkanLiveCanvas();
         if (activeTool === 'lasso-box' && lassoPath[1]) {
             let sx = lassoPath[0].x, sy = lassoPath[0].y;
             let ex = lassoPath[1].x, ey = lassoPath[1].y;
@@ -1768,34 +1887,60 @@ function akhiriGoresanPointer(e) {
                 { x: sx, y: sy }, { x: ex, y: sy }, { x: ex, y: ey }, { x: sx, y: ey }
             ];
         }
+        if (lassoPath.length > 2) createFloatingLasso(currentDrawCtx.canvas);
+        currentDrawCtx = null;
+        return;
+    }
 
-        if (lassoPath.length > 2) {
-            createFloatingLasso(currentDrawCtx.canvas);
+    if (activeTool === 'eraser' && currentDrawCtx) {
+        if (window.drawPoints.length > 1 && eraserLastMid) {
+            let lastPt = window.drawPoints[window.drawPoints.length - 1];
+            currentDrawCtx.beginPath();
+            currentDrawCtx.moveTo(eraserLastMid.x, eraserLastMid.y);
+            currentDrawCtx.lineTo(lastPt.x, lastPt.y);
+            currentDrawCtx.stroke();
         }
-    } else if (activeTool !== 'laser' && activeTool !== 'lasso' && activeTool !== 'lasso-box' && currentDrawCtx) {
-        if (window.isShapeRecognized && window.activeSmartShape) {
-            // Menunggu pengguna selesai mengatur titik Smart Shape
-        } else {
-            // Sambungkan ekor segmen terakhir agar tepat di titik lepas pena
-            if ((activeTool === 'pen' || activeTool === 'eraser') && window.drawPoints.length > 1 && lastMidPt) {
-                let lastPt = window.drawPoints[window.drawPoints.length - 1];
-                currentDrawCtx.beginPath();
-                currentDrawCtx.moveTo(lastMidPt.x, lastMidPt.y);
-                currentDrawCtx.lineTo(lastPt.x, lastPt.y);
-                currentDrawCtx.stroke();
-            }
+        currentDrawCtx.globalCompositeOperation = 'source-over';
+        window.jadwalkanSimpanDraw(currentDrawCtx.canvas);
+        currentDrawCtx = null;
+        return;
+    }
 
+    if ((activeTool === 'pen' || activeTool === 'highlighter' || activeTool === 'line') && currentDrawCtx) {
+        if (window.isShapeRecognized && window.activeSmartShape) {
+            // Menunggu pengguna selesai menggeser titik sudut Smart Shape
+            return;
+        }
+
+        // Sambungkan titik akhir nyata agar ujung huruf tepat di tempat pena diangkat
+        if ((activeTool === 'pen' || activeTool === 'highlighter') && window.rawDrawPoints.length > 1) {
+            let rawEnd = window.rawDrawPoints[window.rawDrawPoints.length - 1];
+            let lastSmooth = window.drawPoints[window.drawPoints.length - 1];
+            if (!lastSmooth || Math.hypot(rawEnd.x - lastSmooth.x, rawEnd.y - lastSmooth.y) > 0.5) {
+                window.drawPoints.push({ x: rawEnd.x, y: rawEnd.y });
+            }
+        }
+
+        // Render final ke live canvas lalu gabungkan 1x ke kanvas utama
+        window.renderLiveStrokeFrame();
+        let mainCvs = currentDrawCtx.canvas;
+        window.catatUndoGPU(mainCvs);
+
+        if (currentLiveCvs) {
+            let dpr = parseFloat(mainCvs.getAttribute('data-dpr')) || window.DRAW_DPR || 2;
+            currentDrawCtx.save();
+            currentDrawCtx.setTransform(1, 0, 0, 1, 0, 0);
             currentDrawCtx.globalCompositeOperation = 'source-over';
             currentDrawCtx.globalAlpha = 1.0;
-            let dataToSave = currentDrawCtx.canvas.toDataURL('image/png');
-            window.simpanDataDrawingTarget(currentDrawCtx.canvas, dataToSave);
-
-            let st = document.getElementById('save-status-bar');
-            if (st) st.innerHTML = "<span style='color:#e67e22;'>✍️ Saving Draw...</span>";
-            if (window.simpanKeDB) window.simpanKeDB();
+            currentDrawCtx.drawImage(currentLiveCvs, 0, 0, mainCvs.width, mainCvs.height);
+            currentDrawCtx.restore();
+            currentDrawCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            window.bersihkanLiveCanvas(currentLiveCvs);
         }
+
+        window.jadwalkanSimpanDraw(mainCvs);
+        currentDrawCtx = null;
     }
-    if (activeTool !== 'laser' && !window.activeSmartShape) currentDrawCtx = null;
 }
 
 document.addEventListener('pointerup', akhiriGoresanPointer);
@@ -1901,7 +2046,7 @@ function createFloatingLasso(cvs) {
             let adaDipromosikan = false;
 
             inlineImgs.forEach(function(im) {
-                let ir = im.getBoundingClientRect();
+                let ir = window.ambilVisualRectKanvas(im);
                 if (ir.width < 4 || ir.height < 4) return;
                 let pTL = window.ambilKoordinatKanvas(cvs, ir.left, ir.top);
                 let pBR = window.ambilKoordinatKanvas(cvs, ir.right, ir.bottom);
@@ -2022,6 +2167,7 @@ window.bangunElemenLassoFloat = function(targetCvs, sourceCanvas, localX, localY
 
     floatUI = document.createElement('div');
     floatUI.className = 'lasso-float';
+    floatUI.style.position = 'absolute';
     floatUI.appendChild(sourceCanvas);
 
     let resizeHandle = document.createElement('div');
@@ -2314,8 +2460,7 @@ function stampLasso() {
     floatUI = null;
     isFloating = false;
 
-    window.simpanDataDrawingTarget(lassoTargetCanvas, lassoTargetCanvas.toDataURL('image/png'));
-    if (window.simpanKeDB) window.simpanKeDB();
+    window.jadwalkanSimpanDraw(lassoTargetCanvas);
 }
 
 window.convertLassoToMath = function() {
@@ -2383,6 +2528,7 @@ window.ambilArrayFloatImgTarget = function(blockIdx, slideIdx) {
 };
 
 window.tambahkanGambarBebasKeTarget = function(dataUrl) {
+    window.flushSimpanDraw(false);
     let t = window.drawContextTarget;
     if (!t || isNaN(t.blockIdx)) t = { blockIdx: 0, slideIdx: -1, xPct: 15, yPct: 15 };
     let arr = window.ambilArrayFloatImgTarget(t.blockIdx, t.slideIdx);
@@ -2487,6 +2633,7 @@ window.mulaiResizeFloatImg = function(e, blockIdx, slideIdx, imgIdx, el) {
 };
 
 window.hapusFloatImg = function(blockIdx, slideIdx, imgIdx) {
+    window.flushSimpanDraw(false);
     let arr = window.ambilArrayFloatImgTarget(blockIdx, slideIdx);
     if (!arr) return;
     arr.splice(imgIdx, 1);
