@@ -194,10 +194,10 @@ window.bacaDataRestFirebase = async function(path, onSuccess, onError, opsiCache
     let cleanPath = String(path || "").replace(/^\/+|\/+$/g, "");
     let cacheKey = "rest_ttl_" + cleanPath;
     let forceRefresh = Boolean(opsiCache && opsiCache.forceRefresh);
-    // Default cache minimal 90 detik di RAM agar klik berulang tidak menyedot kuota Download
-    let ttlMs = (opsiCache && typeof opsiCache.ttlMs === "number" && opsiCache.ttlMs > 0) ? opsiCache.ttlMs : 90000;
+    // Default cache minimal 90 detik di RAM; jika ttlMs diset 0 (Admin), langsung ambil data terbaru
+    let ttlMs = (opsiCache && typeof opsiCache.ttlMs === "number" && opsiCache.ttlMs >= 0) ? opsiCache.ttlMs : 90000;
 
-    if (!forceRefresh) {
+    if (!forceRefresh && ttlMs > 0) {
         let ramHit = window._ramCacheDB[cleanPath];
         if (ramHit && (Date.now() - ramHit.time < ttlMs)) {
             if (onSuccess) onSuccess(ramHit.data);
@@ -1628,12 +1628,24 @@ window.simpanLeaderboardSiswaKeDB = function(usernameKey, dataObj) {
 
 window.simpanNotifikasiAdminKeDB = function() {
     if (sessionStorage.getItem("statusLogin") !== "admin") return;
-    window.mulaiOperasiTulisDB();
-    set(ref(db, basePath + '/admin_notifikasi'), window.adminNotifikasiData || []).then(function() {
-        window.selesaiOperasiTulisDB();
+    let payload = Array.isArray(window.adminNotifikasiData) ? window.adminNotifikasiData : [];
+    let notifPath = basePath + '/admin_notifikasi';
+
+    window.tulisDataRestFirebase(notifPath, payload, "PUT", function() {
+        if (typeof window.hapusCachePathDB === "function") window.hapusCachePathDB(notifPath);
         if (typeof window.showSaveToast === "function") window.showSaveToast();
-    }).catch(function() {
-        window.selesaiOperasiTulisDB();
+        if (typeof window.renderDaftarNotifAdmin === "function") window.renderDaftarNotifAdmin();
+        if (typeof window.hitungDanUpdateBadgeNotifikasi === "function") window.hitungDanUpdateBadgeNotifikasi();
+    }, function() {
+        window.mulaiOperasiTulisDB();
+        set(ref(db, notifPath), payload).then(function() {
+            window.selesaiOperasiTulisDB();
+            if (typeof window.hapusCachePathDB === "function") window.hapusCachePathDB(notifPath);
+            if (typeof window.showSaveToast === "function") window.showSaveToast();
+            if (typeof window.renderDaftarNotifAdmin === "function") window.renderDaftarNotifAdmin();
+        }).catch(function() {
+            window.selesaiOperasiTulisDB();
+        });
     });
 };
 

@@ -60,8 +60,13 @@ window.bukaTabAdmin = function(tabId, btnElement) {
         window.renderLedgerSiswa();
     } else if (tabId === 'tab-remedial-admin' && typeof window.renderRemedialTabAdmin === "function") {
         window.renderRemedialTabAdmin();
-    } else if (tabId === 'tab-notifikasi-admin' && typeof window.renderDaftarNotifAdmin === "function") {
-        window.renderDaftarNotifAdmin();
+    } else if (tabId === 'tab-notifikasi-admin') {
+        if (typeof window.renderDaftarNotifAdmin === "function") {
+            window.renderDaftarNotifAdmin();
+        }
+        if (typeof window.tarikDataRinganBerkalaRest === "function") {
+            window.tarikDataRinganBerkalaRest(null, true);
+        }
     } else if (tabId === 'tab-kelola-akun' && typeof window.renderDaftarAkunGuru === "function") {
         window.renderDaftarAkunGuru();
     } else if (tabId === 'tab-backup-arsip' && typeof window.renderTabBackupArsipAdmin === "function") {
@@ -2740,5 +2745,223 @@ window.eksekusiUnduhPreviewSpreadsheet = function(mode) {
         win.document.write(htmlDoc);
         win.document.close();
         setTimeout(function() { win.print(); }, 300);
+    }
+};
+// =========================================================================
+// 8. PEMULIH & EDITOR DAFTAR NOTIFIKASI AKTIF (TAMPIL, EDIT, & HAPUS)
+// =========================================================================
+window._editingNotifAdminIdx = -1;
+
+window.cariWadahDaftarNotifAdmin = function() {
+    let ids = ['list-notif-admin', 'daftar-notif-admin', 'admin-notif-list', 'list-notifikasi-admin', 'container-notif-admin'];
+    for (let i = 0; i < ids.length; i++) {
+        let el = document.getElementById(ids[i]);
+        if (el) return el;
+    }
+
+    let tab = document.getElementById('tab-notifikasi-admin');
+    if (!tab) return null;
+
+    // Cari panel kanan berdasarkan judul "Daftar Notifikasi Aktif"
+    let headings = tab.querySelectorAll('h3, h4, h5, div, strong');
+    for (let j = 0; j < headings.length; j++) {
+        let h = headings[j];
+        if (h.children.length === 0 && (h.textContent || '').trim().toLowerCase().indexOf('daftar notifikasi aktif') !== -1) {
+            let panel = h.closest('div[style], section, .card') || h.parentElement;
+            if (!panel) continue;
+            let wadah = panel.querySelector('#auto-list-notif-admin');
+            if (!wadah) {
+                // Jika sudah ada div kosong tepat setelah heading, gunakan div itu
+                let nextEl = h.nextElementSibling;
+                if (nextEl && nextEl.tagName === 'DIV') {
+                    nextEl.id = nextEl.id || 'auto-list-notif-admin';
+                    return nextEl;
+                }
+                wadah = document.createElement('div');
+                wadah.id = 'auto-list-notif-admin';
+                wadah.style.cssText = 'display:flex; flex-direction:column; gap:10px; margin-top:12px;';
+                panel.appendChild(wadah);
+            }
+            return wadah;
+        }
+    }
+    return null;
+};
+
+window.ambilElemenFormNotifAdmin = function() {
+    let tab = document.getElementById('tab-notifikasi-admin');
+    if (!tab) return {};
+    let selTarget = tab.querySelector('select');
+    let inpJudul = tab.querySelector('input[type="text"], input:not([type])');
+    let editor = document.getElementById('notif-admin-editor') || tab.querySelector('[contenteditable="true"]');
+    let btnTerbit = Array.from(tab.querySelectorAll('button')).find(function(b) {
+        return (b.textContent || '').toLowerCase().indexOf('terbitkan') !== -1;
+    });
+    return { tab: tab, selTarget: selTarget, inpJudul: inpJudul, editor: editor, btnTerbit: btnTerbit };
+};
+
+window.renderDaftarNotifAdmin = function() {
+    let wadah = window.cariWadahDaftarNotifAdmin();
+    if (!wadah) return;
+
+    let list = Array.isArray(window.adminNotifikasiData)
+        ? window.adminNotifikasiData
+        : (window.adminNotifikasiData ? Object.values(window.adminNotifikasiData) : []);
+
+    if (list.length === 0) {
+        wadah.innerHTML =
+            '<div style="text-align:center; padding:28px 16px; color:#64748b; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:10px;">' +
+                '<div style="font-size:28px; margin-bottom:6px;">🔔</div>' +
+                '<div style="font-weight:700; font-size:13px; color:#334155;">Belum ada notifikasi aktif.</div>' +
+                '<div style="font-size:11.5px; margin:4px 0 12px 0;">Buat pengumuman di sebelah kiri atau muat ulang dari server.</div>' +
+                '<button type="button" onclick="window.tarikDataRinganBerkalaRest(null, true)" style="background:#0b3954; color:#ffffff; border:none; padding:6px 14px; border-radius:8px; font-size:11.5px; font-weight:700; cursor:pointer;">🔄 Muat Ulang</button>' +
+            '</div>';
+        return;
+    }
+
+    let html = '';
+    list.forEach(function(item, idx) {
+        if (!item) return;
+        let judul = item.judul || item.title || '(Tanpa Judul)';
+        let isiHtml = item.isi || item.pesan || item.html || item.konten || item.content || '';
+        let target = item.target || item.kelas || item.penerima || 'Semua Kelas & Angkatan';
+        let waktu = item.waktu || item.tanggal || item.createdAt || '';
+        if (waktu && String(waktu).indexOf('T') !== -1) {
+            try {
+                let d = new Date(waktu);
+                if (!isNaN(d.getTime())) {
+                    waktu = d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                }
+            } catch (e) {}
+        }
+
+        let isEditing = (window._editingNotifAdminIdx === idx);
+        let safeJudul = String(judul).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        let safeTarget = String(target).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+        html +=
+            '<div style="background:' + (isEditing ? '#eff6ff' : '#ffffff') + '; border:' + (isEditing ? '2px solid #0284c7' : '1px solid #cbd5e1') + '; border-left:4px solid #0b3954; border-radius:10px; padding:12px 14px; margin-bottom:10px; box-shadow:0 2px 6px rgba(15,23,42,0.04);">' +
+                '<div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px; margin-bottom:6px;">' +
+                    '<div style="min-width:0; flex:1;">' +
+                        '<div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:4px;">' +
+                            '<span style="background:#e0f2fe; color:#0369a1; font-size:10.5px; font-weight:800; padding:2px 8px; border-radius:999px;">🎯 ' + safeTarget + '</span>' +
+                            (waktu ? '<span style="font-size:10.5px; color:#64748b;">🕒 ' + waktu + '</span>' : '') +
+                        '</div>' +
+                        '<div style="font-size:13.5px; font-weight:800; color:#0f172a; word-break:break-word;">' + safeJudul + '</div>' +
+                    '</div>' +
+                    '<div style="display:flex; gap:5px; flex-shrink:0;">' +
+                        '<button type="button" onclick="window.mulaiEditNotifAdmin(' + idx + ')" style="background:#fef3c7; color:#b45309; border:1px solid #fcd34d; border-radius:6px; padding:4px 9px; font-size:11px; font-weight:800; cursor:pointer;">✏️ Edit</button>' +
+                        '<button type="button" onclick="window.hapusNotifAdmin(' + idx + ')" style="background:#fee2e2; color:#dc2626; border:1px solid #fca5a5; border-radius:6px; padding:4px 9px; font-size:11px; font-weight:800; cursor:pointer;">🗑️ Hapus</button>' +
+                    '</div>' +
+                '</div>' +
+                '<div style="font-size:12.5px; color:#334155; line-height:1.5; max-height:140px; overflow-y:auto; padding-top:6px; border-top:1px dashed #e2e8f0;">' + isiHtml + '</div>' +
+            '</div>';
+    });
+
+    wadah.innerHTML = html;
+};
+
+window.mulaiEditNotifAdmin = function(idx) {
+    let list = Array.isArray(window.adminNotifikasiData) ? window.adminNotifikasiData : [];
+    let item = list[idx];
+    if (!item) return;
+
+    let form = window.ambilElemenFormNotifAdmin();
+    window._editingNotifAdminIdx = idx;
+
+    if (form.selTarget) {
+        let valTarget = item.target || item.kelas || item.penerima || 'Semua';
+        let matchOpt = Array.from(form.selTarget.options).find(function(o) {
+            return o.value === valTarget || o.text.trim() === valTarget;
+        });
+        if (matchOpt) form.selTarget.value = matchOpt.value;
+    }
+    if (form.inpJudul) {
+        form.inpJudul.value = item.judul || item.title || '';
+    }
+    if (form.editor) {
+        form.editor.innerHTML = item.isi || item.pesan || item.html || item.konten || item.content || '';
+    }
+
+    if (form.btnTerbit) {
+        form.btnTerbit.style.display = 'none';
+        let barEdit = document.getElementById('bar-aksi-edit-notif-admin');
+        if (!barEdit) {
+            barEdit = document.createElement('div');
+            barEdit.id = 'bar-aksi-edit-notif-admin';
+            barEdit.style.cssText = 'display:flex; gap:8px; margin-top:8px;';
+            barEdit.innerHTML =
+                '<button type="button" onclick="window.simpanPerubahanEditNotifAdmin()" style="flex:1; background:#0284c7; color:#ffffff; border:none; padding:11px 14px; border-radius:10px; font-weight:800; font-size:13px; cursor:pointer;">💾 Simpan Perubahan Notifikasi</button>' +
+                '<button type="button" onclick="window.batalEditNotifAdmin()" style="background:#64748b; color:#ffffff; border:none; padding:11px 16px; border-radius:10px; font-weight:800; font-size:13px; cursor:pointer;">Batal</button>';
+            form.btnTerbit.parentElement.insertBefore(barEdit, form.btnTerbit.nextSibling);
+        }
+        barEdit.style.display = 'flex';
+    }
+
+    window.renderDaftarNotifAdmin();
+    if (form.inpJudul) form.inpJudul.focus();
+};
+
+window.batalEditNotifAdmin = function() {
+    window._editingNotifAdminIdx = -1;
+    let form = window.ambilElemenFormNotifAdmin();
+    if (form.inpJudul) form.inpJudul.value = '';
+    if (form.editor) form.editor.innerHTML = '';
+    if (form.btnTerbit) form.btnTerbit.style.display = '';
+    let barEdit = document.getElementById('bar-aksi-edit-notif-admin');
+    if (barEdit) barEdit.style.display = 'none';
+    window.renderDaftarNotifAdmin();
+};
+
+window.simpanPerubahanEditNotifAdmin = function() {
+    let idx = window._editingNotifAdminIdx;
+    if (idx < 0 || !Array.isArray(window.adminNotifikasiData) || !window.adminNotifikasiData[idx]) return;
+
+    let form = window.ambilElemenFormNotifAdmin();
+    let judulBaru = form.inpJudul ? form.inpJudul.value.trim() : '';
+    let isiBaru = form.editor ? form.editor.innerHTML.trim() : '';
+    let targetBaru = form.selTarget ? form.selTarget.value : 'Semua';
+
+    if (!judulBaru) return alert('⚠️ Judul notifikasi tidak boleh kosong!');
+
+    let item = window.adminNotifikasiData[idx];
+    item.judul = judulBaru;
+    if (item.title !== undefined) item.title = judulBaru;
+    item.isi = isiBaru;
+    if (item.pesan !== undefined) item.pesan = isiBaru;
+    if (item.html !== undefined) item.html = isiBaru;
+    item.target = targetBaru;
+    if (item.kelas !== undefined) item.kelas = targetBaru;
+    item.diubah = new Date().toISOString();
+
+    if (typeof window.simpanNotifikasiAdminKeDB === 'function') {
+        window.simpanNotifikasiAdminKeDB();
+    }
+    window.batalEditNotifAdmin();
+};
+
+window.hapusNotifAdmin = function(idx) {
+    if (!Array.isArray(window.adminNotifikasiData) || !window.adminNotifikasiData[idx]) return;
+    let judul = window.adminNotifikasiData[idx].judul || window.adminNotifikasiData[idx].title || 'notifikasi ini';
+
+    let eksekusi = function() {
+        window.adminNotifikasiData.splice(idx, 1);
+        if (window._editingNotifAdminIdx === idx) {
+            window.batalEditNotifAdmin();
+        } else if (window._editingNotifAdminIdx > idx) {
+            window._editingNotifAdminIdx -= 1;
+        }
+        window.renderDaftarNotifAdmin();
+        if (typeof window.simpanNotifikasiAdminKeDB === 'function') {
+            window.simpanNotifikasiAdminKeDB();
+        }
+    };
+
+    if (typeof window.tampilkanCustomDialog === 'function') {
+        window.tampilkanCustomDialog('confirm', 'Hapus notifikasi "' + judul + '"?', null, function(isYes) {
+            if (isYes) eksekusi();
+        });
+    } else if (confirm('Hapus notifikasi "' + judul + '"?')) {
+        eksekusi();
     }
 };
